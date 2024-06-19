@@ -26,18 +26,28 @@
         public const string DeleteMovieSeries = "DELETE FROM Series WHERE Id = @Id";
 
         /// <summary>
-        /// Gets the movies watched in a given series.
-        /// </summary>
-        public const string GetWatchedMoviesBySeriesName = "SELECT * FROM Movies WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @SeriesName) AND Watched = 1";
-
-        /// <summary>
-        /// Gets the movies that are unwatched in a given series.
-        /// </summary>
-        public const string GetUnwathcedMoviesBySeriesName = "SELECT * FROM Movies WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @SeriesName) AND Watched = 0";
-
-        /// <summary>
         /// Updates the total time for a given movie series.
         /// </summary>
         public const string UpdateTotalTime = "UPDATE Series SET TotalTime = (SELECT SUM(TotalTime) FROM Movies WHERE SeriesId = @SeriesId) WHERE Id = @SeriesId";
+
+        /// <summary>
+        /// Updates the total movies for a given movie series.
+        /// </summary>
+        public const string UpdateTotalMovies = "UPDATE Series SET TotalMovies = (SELECT COUNT(*) FROM Movies WHERE SeriesId = @SeriesId) WHERE Id = @SeriesId";
+
+        /// <summary>
+        /// Updates the movie series to watched if all the movies in the series are watched.
+        /// </summary>
+        public const string UpdateWatched = "UPDATE Series SET Watched = CASE WHEN (SELECT COUNT(*) FROM Movies WHERE SeriesId = @SeriesId AND Watched = 0) = 0 THEN 1 ELSE 0 END WHERE Id = @SeriesId";
+
+        /// <summary>
+        /// Gets the total time left to watch in the movie series.
+        /// </summary>
+        public const string GetTimeLeft = "SELECT SUM(TotalTime) FROM Movies WHERE SeriesId = @SeriesId AND Watched = 0";
+
+        /// <summary>
+        /// Gets a list of all the series.
+        /// </summary>
+        public const string GetAllSeries = "SELECT * FROM Series";
     }
 }
