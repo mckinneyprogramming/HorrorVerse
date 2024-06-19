@@ -49,7 +49,7 @@ jobs:
         run: |
           .\.sonar\scanner\dotnet-sonarscanner begin /k:"mckinneyprogramming_HorrorTracker" /o:"mckinneyprogramming" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="coverage.xml"
           dotnet build --no-incremental
-          coverlet C:\Users\mckin\Documents\Visual Studio 2022\Projects\HorrorTracker\HorrorTracker.MSTests\bin\Debug\net8.0\HorrorTracker.MSTests.dll --target "dotnet" --targetargs "test --no-build" -f opencover -o "coverage.xml"
+          coverlet .\HorrorTracker.MSTests\bin\Debug\net8.0\HorrorTracker.MSTests.dll --target "dotnet" --targetargs "test --no-build" -f=opencover -o="coverage.xml"
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
       - name: Report coverage to SonarCloud
