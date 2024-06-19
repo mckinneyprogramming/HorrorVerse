@@ -1,0 +1,129 @@
+﻿using HorrorTracker.Data.Constants.Parameters;
+using HorrorTracker.Data.Constants.Queries;
+using HorrorTracker.Data.Helpers;
+using HorrorTracker.Data.PostgreHelpers.Interfaces;
+using HorrorTracker.Data.Repositories;
+using HorrorTracker.Data.Repositories.Interfaces;
+using HorrorTracker.Utilities.Logging.Interfaces;
+
+namespace HorrorTracker.Data
+{
+    /// <summary>
+    /// The <see cref="HorrorConnections"/> class.
+    /// </summary>
+    public class HorrorConnections
+    {
+        /// <summary>
+        /// The database connection.
+        /// </summary>
+        private readonly IDatabaseConnection _databaseConnection;
+
+        /// <summary>
+        /// The logger.
+        /// </summary>
+        private readonly ILoggerService _logger;
+
+        /// <summary>
+        /// The logger helper.
+        /// </summary>
+        private readonly DatabaseConnectionsHelper _databaseConnectionsHelper;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HorrorConnections"/> class.
+        /// </summary>
+        /// <param name="databaseConnection">The database connection.</param>
+        /// <param name="logger">The logger.</param>
+        public HorrorConnections(IDatabaseConnection databaseConnection, ILoggerService logger)
+        {
+            _databaseConnection = databaseConnection;
+            _logger = logger;
+            _databaseConnectionsHelper = new DatabaseConnectionsHelper(databaseConnection, logger);
+        }
+
+        /// <summary>
+        /// Makes a connection to the database.
+        /// </summary>
+        /// <returns>A connection message.</returns>
+        public string Connect()
+        {
+            try
+            {
+                _databaseConnectionsHelper.Open();
+
+                var commandText = OverallQueries.HorrorTrackerDatabaseConnection;
+                var parameters = OverallDatabaseParameters.DatabaseConnection();
+
+                var result = DatabaseCommandsHelper.ExecutesScalar(_databaseConnection, commandText, parameters);
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                {
+                    _logger.LogInformation("The connection to the server was successful and the database exists.");
+                    return "Connection successful! Database exists on the server.";
+                }
+                else
+                {
+                    _logger.LogWarning("The connection to the server was successful, but the HorrorTracker database was not found.");
+                    return "Connection is successful, but database does not exist on the server.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("The connection to the Postgre server failed.", ex);
+                return $"Connection failed: {ex.Message}";
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+        }
+
+        /// <summary>
+        /// Creates the tables for the database.
+        /// </summary>
+        /// <returns>The status.</returns>
+        public object? CreateTables()
+        {
+            object? result = null;
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var createSeriesTableCommandText = OverallQueries.CreateSeriesTable;
+
+                result = DatabaseCommandsHelper.ExecutesScalar(_databaseConnection, createSeriesTableCommandText);
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                {
+                    _logger.LogInformation("Series table was created successfully if it wasn't already.");
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Creating tables in the database failed.", ex);
+                return result;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Retrievs the overall repository.
+        /// </summary>
+        /// <returns>The overall repository.</returns>
+        public IOverallRepository RetrieveOverallRepository()
+        {
+            return new OverallRepository(_databaseConnection, _logger);
+        }
+
+        /// <summary>
+        /// Retrieves the movie series repository.
+        /// </summary>
+        /// <returns>The movie series repository.</returns>
+        public IMovieSeriesRepository RetrieveMovieSeriesRepository()
+        {
+            return new MovieSeriesRepository(_databaseConnection, _logger);
+        }
+    }
+}
