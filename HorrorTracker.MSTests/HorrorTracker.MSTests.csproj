@@ -4,7 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-
+	<CollectCoverage>true</CollectCoverage>
+	<CoverletOutputFormat>opencover</CoverletOutputFormat>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -15,10 +16,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-	<PropertyGroup>
-	    <CollectCoverage>true</CollectCoverage>
-	    <CoverletOutputFormat>opencover</CoverletOutputFormat>
-	</PropertyGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Moq" Version="4.20.70" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
