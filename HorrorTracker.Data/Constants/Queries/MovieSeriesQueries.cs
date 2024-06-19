@@ -34,5 +34,10 @@
         /// Gets the movies that are unwatched in a given series.
         /// </summary>
         public const string GetUnwathcedMoviesBySeriesName = "SELECT * FROM Movies WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @SeriesName) AND Watched = 0";
+
+        /// <summary>
+        /// Updates the total time for a given movie series.
+        /// </summary>
+        public const string UpdateTotalTime = "UPDATE Series SET TotalTime = (SELECT SUM(TotalTime) FROM Movies WHERE SeriesId = @SeriesId) WHERE Id = @SeriesId";
     }
 }
