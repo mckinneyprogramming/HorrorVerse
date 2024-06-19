@@ -1,10 +1,12 @@
 name: SonarCloud
+
 on:
   push:
     branches:
       - master
   pull_request:
     types: [opened, synchronize, reopened]
+
 jobs:
   build:
     name: Build and analyze
@@ -44,5 +46,14 @@ jobs:
         shell: powershell
         run: |
           .\.sonar\scanner\dotnet-sonarscanner begin /k:"mckinneyprogramming_HorrorTracker" /o:"mckinneyprogramming" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io"
+          dotnet build
+          dotnet test --collect:"XPlat Code Coverage"
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+      - name: Report coverage to SonarCloud
+        shell: powershell
+        run: |
+          $coverageReport = (Get-ChildItem -Recurse -Filter "coverage.opencover.xml" | Select-Object -First 1).FullName
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"mckinneyprogramming_HorrorTracker" /o:"mckinneyprogramming" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverage.opencover.reportPaths=$coverageReport
           dotnet build
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
