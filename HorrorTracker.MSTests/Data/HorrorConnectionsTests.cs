@@ -98,7 +98,7 @@ namespace HorrorTracker.MSTests.Data
             // Arrange
             var expectedReturnStatus = 1;
             _mockDatabaseConnection.Setup(db => db.Open());
-            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(expectedReturnStatus);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(expectedReturnStatus);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
 
             var horrorConnections = new HorrorConnections(_mockDatabaseConnection.Object, _mockLoggerService.Object);
@@ -109,7 +109,7 @@ namespace HorrorTracker.MSTests.Data
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
             _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _mockLoggerService.Verify(x => x.LogInformation("Series table was created successfully if it wasn't already."), Times.Once);
+            _mockLoggerService.Verify(x => x.LogInformation("All tables were built successfully if they weren't already created."), Times.Once);
             _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
         }
 
@@ -117,6 +117,7 @@ namespace HorrorTracker.MSTests.Data
         public void CreateTables__WhenExceptionOccurs_ShouldLogCorrectMessageAndReturnCorrectStatus()
         {
             // Arrange
+            var expectedResult = 0;
             var exceptionMessage = "Failed for not able to connect to the server.";
             _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(exceptionMessage));
             _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
@@ -124,10 +125,10 @@ namespace HorrorTracker.MSTests.Data
             var horrorConnections = new HorrorConnections(_mockDatabaseConnection.Object, _mockLoggerService.Object);
 
             // Act
-            var returnStatus = horrorConnections.CreateTables();
+            var actualResult = horrorConnections.CreateTables();
 
             // Assert
-            Assert.IsNull(returnStatus);
+            Assert.AreEqual(expectedResult, actualResult);
             _mockLoggerService.Verify(x => x.LogError("Creating tables in the database failed.", It.Is<Exception>(ex => ex.Message == exceptionMessage)), Times.Once);
             _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
         }

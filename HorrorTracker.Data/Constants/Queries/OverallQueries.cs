@@ -5,41 +5,101 @@
     /// </summary>
     public class OverallQueries
     {
+        private const string DecimalType = "DECIMAL(5, 2)";
+        private const string PrimaryKey = "Id SERIAL PRIMARY KEY";
+        private const string NotNull = "NOT NULL";
+        private const string IntegerType = "INTEGER";
+        private const string BooleanType = "BOOLEAN";
+        private const string TotalTime = "TotalTime";
+        private const string UnionAll = "UNION ALL";
+        private const string Title = $"Title TEXT {NotNull}";
+
         /// <summary>
         /// Selecting the database from the Postgre server.
         /// </summary>
         public const string HorrorTrackerDatabaseConnection = "SELECT 1 FROM pg_database WHERE datname = @dbname";
 
         /// <summary>
-        /// Creates the series table.
+        /// Creates the movie series table.
         /// </summary>
-        public const string CreateSeriesTable = "CREATE TABLE IF NOT EXISTS Series (" +
-                    "Id SERIAL PRIMARY KEY," +
-                    "Title TEXT," +
-                    "TotalTime INT," +
-                    "TotalMovies INT," +
-                    "Watched BOOLEAN)";
+        public const string CreateMovieSeriesTable = $@"
+            CREATE TABLE IF NOT EXISTS MovieSeries (
+                {PrimaryKey},
+                {Title},
+                {TotalTime} {DecimalType} {NotNull},
+                TotalMovies {IntegerType} {NotNull},
+                Watched {BooleanType} {NotNull})";
+
+        /// <summary>
+        /// Creates the movie table.
+        /// </summary>
+        public const string CreateMovieTable = $@"
+            CREATE TABLE IF NOT EXISTS Movie (
+                {PrimaryKey},
+                {Title},
+                {TotalTime} {DecimalType} {NotNull},
+                PartOfSeries {BooleanType} {NotNull},
+                SeriesId {IntegerType},
+                ReleaseYear {IntegerType} {NotNull},
+                Watched {BooleanType} {NotNull})";
+
+        /// <summary>
+        /// Creates the documentary table.
+        /// </summary>
+        public const string CreateDocumentaryTable = $@"
+            CREATE TABLE IF NOT EXISTS Documentary (
+                {PrimaryKey},
+                {Title},
+                {TotalTime} {DecimalType} {NotNull},
+                ReleaseYear {IntegerType} {NotNull},
+                Watched {BooleanType} {NotNull})";
+
+        /// <summary>
+        /// Creates the show table.
+        /// </summary>
+        public const string CreateShowTable = $@"
+            CREATE TABLE IF NOT EXISTS Show (
+                {PrimaryKey},
+                {Title},
+                {TotalTime} {DecimalType} {NotNull},
+                TotalEpisodes {IntegerType} {NotNull},
+                NumberOfSeasons {IntegerType} {NotNull},
+                Watched {BooleanType} {NotNull})";
+
+        /// <summary>
+        /// Creates the episode table.
+        /// </summary>
+        public const string CreateEpisodeTable = $@"
+            CREATE TABLE IF NOT EXISTS Episode (
+                {PrimaryKey},
+                {Title},
+                ShowId {IntegerType} {NotNull},
+                ReleaseDate DATE {NotNull},
+                Season {IntegerType} {NotNull},
+                EpisodeNumber {IntegerType} {NotNull},
+                Watched {BooleanType} {NotNull},
+                {TotalTime} {DecimalType} {NotNull})";
 
         /// <summary>
         /// Retrieves the overall time in the database.
         /// </summary>
-        public const string RetrieveOverallTime = "SELECT SUM(TotalTime) FROM (" +
-            "SELECT TotalTime FROM Movies\n" +
-            "UNION ALL\n" +
-            "SELECT TotalTime FROM Documentaries\n" +
-            "UNION ALL\n" +
-            "SELECT TotalTime FROM Episodes\n)" +
-            " AS OverallTime";
+        public const string RetrieveOverallTime = $@"
+            SELECT SUM({TotalTime}) FROM (
+                SELECT {TotalTime} FROM Movie
+                {UnionAll}
+                SELECT {TotalTime} FROM Documentary
+                {UnionAll}
+                SELECT {TotalTime} FROM Episode) AS OverallTime";
 
         /// <summary>
         /// Retrieves the overall time left in the database.
         /// </summary>
-        public const string RetrievesOverallTimeLeft = "SELECT SUM(TotalTime) FROM (" +
-            "SELECT TotalTime FROM Movies WHERE Watched = 0\n" +
-            "UNION ALL\n" +
-            "SELECT TotalTime FROM Documentaries WHERE Watched = 0\n" +
-            "UNION ALL\n" +
-            "SELECT TotalTime FROM Episodes WHERE Watched = 0)" +
-            " AS OverallTimeLeft";
+        public const string RetrieveOverallTimeLeft = $@"
+            SELECT SUM({TotalTime}) FROM (
+                SELECT {TotalTime} FROM Movie WHERE Watched = 0
+                {UnionAll}
+                SELECT {TotalTime} FROM Documentary WHERE Watched = 0
+                {UnionAll}
+                SELECT {TotalTime} FROM Episode WHERE Watched = 0) AS OverallTimeLeft";
     }
 }

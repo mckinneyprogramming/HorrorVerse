@@ -17,6 +17,6 @@ namespace HorrorTracker.Data.Models.Bases
         /// <summary>
         /// Gets or sets the TotalTime.
         /// </summary>
-        public double TotalTime { get; set; }
+        public decimal TotalTime { get; set; }
     }
 }

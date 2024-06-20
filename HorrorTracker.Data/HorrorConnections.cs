@@ -80,18 +80,33 @@ namespace HorrorTracker.Data
         /// Creates the tables for the database.
         /// </summary>
         /// <returns>The status.</returns>
-        public object? CreateTables()
+        public int CreateTables()
         {
-            object? result = null;
+            int result = 0;
             try
             {
                 _databaseConnectionsHelper.Open();
-                var createSeriesTableCommandText = OverallQueries.CreateSeriesTable;
 
-                result = DatabaseCommandsHelper.ExecutesScalar(_databaseConnection, createSeriesTableCommandText);
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                var createdMovieSeriesSuccessfully = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, OverallQueries.CreateMovieSeriesTable);
+                var createdMovieSuccessfully = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, OverallQueries.CreateMovieTable);
+                var createdDocumentarySuccessfully = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, OverallQueries.CreateDocumentaryTable);
+                var createdShowSuccessfully = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, OverallQueries.CreateShowTable);
+                var createdEpisodeSuccessfully = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, OverallQueries.CreateEpisodeTable);
+                var results = new[]
                 {
-                    _logger.LogInformation("Series table was created successfully if it wasn't already.");
+                    createdMovieSeriesSuccessfully,
+                    createdMovieSuccessfully,
+                    createdDocumentarySuccessfully,
+                    createdShowSuccessfully,
+                    createdEpisodeSuccessfully
+                };
+
+                var allTablesCreatedSuccessfully = results.All(res => res == 1);
+
+                if (DatabaseCommandsHelper.IsSuccessfulResult(allTablesCreatedSuccessfully))
+                {
+                    result = 1;
+                    _logger.LogInformation("All tables were built successfully if they weren't already created.");
                     return result;
                 }
             }

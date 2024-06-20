@@ -8,56 +8,56 @@
         /// <summary>
         /// Inserts a movie in the database.
         /// </summary>
-        public const string InsertMovie = "INSERT INTO Movies (Title, TotalTime, PartOfSeries, SeriesId, ReleaseYear, Watched) VALUES (@Title, @TotalTime, @PartOfSeries, @SeriesId, @ReleaseYear, @Watched)";
+        public const string InsertMovie = "INSERT INTO Movie (Title, TotalTime, PartOfSeries, SeriesId, ReleaseYear, Watched) VALUES (@Title, @TotalTime, @PartOfSeries, @SeriesId, @ReleaseYear, @Watched)";
 
         /// <summary>
         /// Retrieves the movie by name.
         /// </summary>
-        public const string GetMovieByName = "SELECT * FROM Movies WHERE Title = @Title";
+        public const string GetMovieByName = "SELECT * FROM Movie WHERE Title = @Title";
 
         /// <summary>
         /// Updates the given movie.
         /// </summary>
-        public const string UpdateMovie = "UPDATE Movies SET Title = @Title, TotalTime = @TotalTime, PartOfSeries = @PartOfSeries, SeriesId = @SeriesId, ReleaseYear = @ReleaseYear, Watched = @Watched WHERE Id = @Id";
+        public const string UpdateMovie = "UPDATE Movie SET Title = @Title, TotalTime = @TotalTime, PartOfSeries = @PartOfSeries, SeriesId = @SeriesId, ReleaseYear = @ReleaseYear, Watched = @Watched WHERE Id = @Id";
 
         /// <summary>
         /// Deletes the selected movie from the database table.
         /// </summary>
-        public const string DeleteMovie = "DELETE FROM Movies WHERE Id = @Id";
+        public const string DeleteMovie = "DELETE FROM Movie WHERE Id = @Id";
 
         /// <summary>
-        /// Retrieves all the movies from the database.
+        /// Retrieves all the Movie from the database.
         /// </summary>
-        public const string GetAllMovies = "SELECT * FROM Movies";
+        public const string GetAllMovie = "SELECT * FROM Movie";
 
         /// <summary>
-        /// Gets the movies watched in a given series.
+        /// Gets the Movie watched in a given series.
         /// </summary>
-        public const string GetWatchedMoviesBySeriesName = "SELECT * FROM Movies WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @SeriesName) AND Watched = 1";
+        public const string GetWatchedMovieBySeriesName = "SELECT * FROM Movie WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @Title) AND Watched = 1";
 
         /// <summary>
-        /// Gets the movies that are unwatched in a given series.
+        /// Gets the Movie that are unwatched in a given series.
         /// </summary>
-        public const string GetUnwathcedMoviesBySeriesName = "SELECT * FROM Movies WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @SeriesName) AND Watched = 0";
+        public const string GetUnwathcedMovieBySeriesName = "SELECT * FROM Movie WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @Title) AND Watched = 0";
 
         /// <summary>
-        /// Retrieves the watched movies from the database.
+        /// Retrieves the watched Movie from the database.
         /// </summary>
-        public const string GetWatchedMovies = "SELECT * FROM Movies WHERE Watched = 1";
+        public const string GetWatchedMovie = "SELECT * FROM Movie WHERE Watched = 1";
 
         /// <summary>
-        /// Retrieves the unwatched movies from the database.
+        /// Retrieves the unwatched Movie from the database.
         /// </summary>
-        public const string GetUnwatchedMovies = "SELECT * FROM Movies WHERE Watched = 0";
+        public const string GetUnwatchedMovie = "SELECT * FROM Movie WHERE Watched = 0";
 
         /// <summary>
-        /// Retrieves the total time of the watched movies.
+        /// Retrieves the total time of the watched Movie.
         /// </summary>
-        public const string GetTotalTimeOfWatchedMovies = "SELECT SUM(TotalTime) FROM Movies WHERE Watched = 1";
+        public const string GetTotalTimeOfWatchedMovie = "SELECT SUM(TotalTime) FROM Movie WHERE Watched = 1";
 
         /// <summary>
-        /// Retrieves the time left of unwatched movies.
+        /// Retrieves the time left of unwatched Movie.
         /// </summary>
-        public const string GetTimeLeftOfUnwatchedMovies = "SELECT SUM(TotalTime) FROM Movies WHERE Watched = 0";
+        public const string GetTimeLeftOfUnwatchedMovie = "SELECT SUM(TotalTime) FROM Movie WHERE Watched = 0";
     }
 }

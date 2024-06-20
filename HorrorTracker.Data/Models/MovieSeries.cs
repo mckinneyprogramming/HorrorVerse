@@ -17,7 +17,7 @@ namespace HorrorTracker.Data.Models
         /// <param name="totalMovies">The total movies.</param>
         /// <param name="watched">Watched.</param>
         /// <param name="id">The id.</param>
-        public MovieSeries(string title, int totalTime, int totalMovies, bool watched, int id = 0)
+        public MovieSeries(string title, decimal totalTime, int totalMovies, bool watched, int id = 0)
         {
             Id = id;
             Title = title;

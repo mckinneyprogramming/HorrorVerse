@@ -10,6 +10,20 @@ namespace HorrorTracker.Data.Models
     public class Movie : VisualBase
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="Movie"/> class.
+        /// </summary>
+        public Movie(string title, decimal totalTime, bool partOfSeries, int? seriesId, int releaseYear, bool watched, int id = 0)
+        {
+            Id = id;
+            Title = title;
+            TotalTime = totalTime;
+            PartOfSeries = partOfSeries;
+            SeriesId = seriesId;
+            ReleaseYear = releaseYear;
+            Watched = watched;
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating whether the movie is part of a series.
         /// </summary>
         public bool PartOfSeries { get; set; }

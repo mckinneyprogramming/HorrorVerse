@@ -25,6 +25,12 @@ namespace HorrorTracker.Data.PostgreHelpers.Interfaces
         IDataReader ExecuteReader();
 
         /// <summary>
+        /// Executes the non-query on the database.
+        /// </summary>
+        /// <returns>The result.</returns>
+        int ExecuteNonQuery();
+
+        /// <summary>
         /// Adds the parameter name and object to the command.
         /// </summary>
         /// <param name="parameterName">The parameter name.</param>

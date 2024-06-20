@@ -10,6 +10,21 @@ namespace HorrorTracker.Data.Models
     public class Episode : VisualBase
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="Episode"/> class.
+        /// </summary>
+        public Episode(string title, int showId, DateTime releaseDate, int season, int episodeNumber, bool watched, decimal totalTime, int id = 0)
+        {
+            Title = title;
+            ShowId = showId;
+            ReleaseDate = releaseDate;
+            Season = season;
+            EpisodeNumber = episodeNumber;
+            Watched = watched;
+            TotalTime = totalTime;
+            Id = id;
+        }
+
+        /// <summary>
         /// Gets or sets the ShowId.
         /// </summary>
         public int ShowId { get; set; }

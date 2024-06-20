@@ -44,6 +44,12 @@ namespace HorrorTracker.Data.PostgreHelpers
         }
 
         /// <inheritdoc/>
+        public int ExecuteNonQuery()
+        {
+            return _command.ExecuteNonQuery();
+        }
+
+        /// <inheritdoc/>
         public void AddParameter(string parameterName, object value)
         {
             _command.Parameters.AddWithValue(parameterName, value);

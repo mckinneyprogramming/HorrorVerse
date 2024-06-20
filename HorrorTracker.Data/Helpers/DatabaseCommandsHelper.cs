@@ -36,6 +36,19 @@ namespace HorrorTracker.Data.Helpers
         }
 
         /// <summary>
+        /// Executes the non-query command to the database.
+        /// </summary>
+        /// <param name="connection">The database connection.</param>
+        /// <param name="commandText">The command text.</param>
+        /// <param name="parameters">The parameters.</param>
+        /// <returns>The number of rows affected.</returns>
+        public static int ExecuteNonQuery(IDatabaseConnection connection, string commandText, ReadOnlyDictionary<string, object>? parameters = null)
+        {
+            var command = CreateCommand(connection, commandText, parameters);
+            return command.ExecuteNonQuery();
+        }
+
+        /// <summary>
         /// Checks if the result from the execute is successful.
         /// </summary>
         /// <param name="result">The result.</param>
