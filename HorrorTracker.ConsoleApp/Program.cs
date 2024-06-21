@@ -23,39 +23,43 @@ namespace HorrorTracker.ConsoleApp
         private static bool IsNotDone = true;
 
         /// <summary>
+        /// The logger service.
+        /// </summary>
+        private static readonly LoggerService _logger = new();
+
+        /// <summary>
         /// The main method.
         /// </summary>
         /// <param name="args">The arguments.</param>
         static void Main(string[] args)
         {
-            var logger = new LoggerService();
-            logger.LogInformation("HorrorTracker has started.");
+            _logger.LogInformation("HorrorTracker has started.");
 
             try
             {
                 Console.Title = ConsoleTitles.RetrieveTitle("Home");
 
-                TestDatabaseConnection(logger);
+                TestDatabaseConnection();
 
                 while (IsNotDone)
                 {
                     Console.Clear();
-                    DisplayMainMenu(logger);
+                    DisplayMainMenu();
                     var decision = ConsoleHelper.GetUserInput();
-                    var actualNumber = ConsoleHelper.ParseNumberDecision(logger, decision);
-                    var actions = MainMenuDecisionActions(logger);
+                    var actualNumber = ConsoleHelper.ParseNumberDecision(_logger, decision);
+                    var actions = MainMenuDecisionActions();
 
-                    ConsoleHelper.ProcessDecision(actualNumber, logger, actions);
+                    ConsoleHelper.ProcessDecision(actualNumber, _logger, actions);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError("An unexpected error occurred.", ex);
+                _logger.LogError("An unexpected error occurred.", ex);
             }
             finally
             {
-                logger.LogInformation("HorrorTracker has ended.");
-                logger.CloseAndFlush();
+                _logger.LogInformation("HorrorTracker has ended.");
+                _logger.CloseAndFlush();
                 ExitApplication();
             }
         }
@@ -63,10 +67,9 @@ namespace HorrorTracker.ConsoleApp
         /// <summary>
         /// Tests the connection to the database.
         /// </summary>
-        /// <param name="logger">The logger.</param>
-        private static void TestDatabaseConnection(LoggerService logger)
+        private static void TestDatabaseConnection()
         {
-            logger.LogInformation("Testing the Postgre database server and connection to the HorrorTracker database.");
+            _logger.LogInformation("Testing the Postgre database server and connection to the HorrorTracker database.");
             ConsoleHelper.GroupedConsole(ConsoleColor.DarkGray, "We are testing the connection to the database. Please standby.");
             ConsoleHelper.ThinkingAnimation("Testing", 10, "Testing Complete!");
             ConsoleHelper.NewLine();
@@ -74,7 +77,7 @@ namespace HorrorTracker.ConsoleApp
             try
             {
                 var databaseConnection = new DatabaseConnection(_connectionString);
-                var connections = new HorrorConnections(databaseConnection, logger);
+                var connections = new HorrorConnections(databaseConnection, _logger);
                 var connectionMessage = connections.Connect();
 
                 if (connectionMessage.Contains("successful!"))
@@ -95,7 +98,7 @@ namespace HorrorTracker.ConsoleApp
             }
             catch (Exception ex)
             {
-                logger.LogError("Failed to connect to the database.", ex);
+                _logger.LogError("Failed to connect to the database.", ex);
                 ConsoleHelper.GroupedConsole(ConsoleColor.DarkRed, "Failed to connect to the database. Exiting...");
                 IsNotDone = false;
             }
@@ -104,13 +107,14 @@ namespace HorrorTracker.ConsoleApp
         /// <summary>
         /// Displays the main menu.
         /// </summary>
-        private static void DisplayMainMenu(LoggerService logger)
+        private static void DisplayMainMenu()
         {
             ConsoleHelper.GroupedConsole(ConsoleColor.Red, "========== Horror Tracker ==========");
             Console.ForegroundColor = ConsoleColor.DarkGray;
             ConsoleHelper.TypeMessage("The Horror Tracker system uses TMDB (The Movie Database) API to quickly add items.");
             ConsoleHelper.TypeMessage("You will have the option below to add items manually or from TMDB API.");
             ConsoleHelper.NewLine();
+            OverallSystemInformation();
             Thread.Sleep(2000);
 
             Console.ResetColor();
@@ -120,21 +124,41 @@ namespace HorrorTracker.ConsoleApp
                 "3. Exit");
             Console.Write(">> ");
 
-            logger.LogInformation("Main menu displayed.");
+            _logger.LogInformation("Main menu displayed.");
+        }
+
+        /// <summary>
+        /// Displays the overall information from the database.
+        /// </summary>
+        private static void OverallSystemInformation()
+        {
+            var databaseConnection = new DatabaseConnection(_connectionString);
+            var horrorConnections = new HorrorConnections(databaseConnection, _logger);
+            var overallRepository = horrorConnections.RetrieveOverallRepository();
+            var overallTime = overallRepository.GetOverallTime();
+            var overallTimeLeft = overallRepository.GetOverallTimeLeft();
+
+            ConsoleHelper.GroupedConsole(ConsoleColor.Red, "===== Overall Information =====");
+            Console.WriteLine($"Overall Time in the Database:");
+            Console.WriteLine($"- In Hours: {overallTime}");
+            Console.WriteLine($"- In Days: {overallTime / 24}");
+            Console.WriteLine($"Overall Time left to Watch in the Database:");
+            Console.WriteLine($"- In Hours: {overallTimeLeft}");
+            Console.WriteLine($"- In Days: {overallTimeLeft / 24}");
+            ConsoleHelper.NewLine();
         }
 
         /// <summary>
         /// Retrieves the main menu decision actions.
         /// </summary>
-        /// <param name="logger">The logger.</param>
         /// <returns>The dictionary of actions.</returns>
-        private static Dictionary<int, Action> MainMenuDecisionActions(LoggerService logger)
+        private static Dictionary<int, Action> MainMenuDecisionActions()
         {
             return new Dictionary<int, Action>
             {
-                { 1, () => new MovieDatabaseApiManager(logger, _connectionString).Manage() },
-                { 2, () => new ManualManager(logger).Manage() },
-                { 3, () => { IsNotDone = false; logger.LogInformation("Selected to exit."); } }
+                { 1, () => new MovieDatabaseApiManager(_logger, _connectionString).Manage() },
+                { 2, () => new ManualManager(_logger).Manage() },
+                { 3, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
             };
         }
 

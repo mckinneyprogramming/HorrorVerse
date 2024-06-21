@@ -1,4 +1,5 @@
-﻿using HorrorTracker.Data.Helpers;
+﻿using HorrorTracker.Data.Constants.Queries;
+using HorrorTracker.Data.Helpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
@@ -38,29 +39,43 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public double GetOverallTime()
+        public decimal GetOverallTime()
         {
             try
             {
                 _databaseConnectionsHelper.Open();
-                return 0.0D;
+                var result = DatabaseCommandsHelper.ExecutesScalar(_connection, OverallQueries.RetrieveOverallTime);
+                return Convert.ToDecimal(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError("Retrieving the overall time from the database failed.", ex);
+                return 0.0M;
             }
             finally
             {
                 _databaseConnectionsHelper.Close();
             }
-
-            return 0.0D;
         }
 
         /// <inheritdoc/>
-        public double GetOverallTimeLeft()
+        public decimal GetOverallTimeLeft()
         {
-            throw new NotImplementedException();
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var result = DatabaseCommandsHelper.ExecutesScalar(_connection, OverallQueries.RetrieveOverallTimeLeft);
+                return Convert.ToDecimal(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Retrieving the overall time left from the database failed.", ex);
+                return 0.0M;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
         }
     }
 }
