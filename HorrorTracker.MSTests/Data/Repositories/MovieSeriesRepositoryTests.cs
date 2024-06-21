@@ -15,11 +15,13 @@ namespace HorrorTracker.MSTests.Data.Repositories
     [ExcludeFromCodeCoverage]
     public class MovieSeriesRepositoryTests
     {
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         private Mock<IDatabaseConnection> _mockDatabaseConnection;
         private Mock<IDatabaseCommand> _mockDatabaseCommand;
         private Mock<ILoggerService> _mockLoggerService;
         private MovieSeriesRepository _repository;
         private SharedAsserts _sharedAsserts;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         [TestInitialize]
         public void Initialize()
@@ -83,7 +85,9 @@ namespace HorrorTracker.MSTests.Data.Repositories
             var fixture = new Fixture();
             var movieSeries = fixture.Create<MovieSeries>();
             _mockDatabaseConnection.Setup(db => db.Open());
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(null);
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
             _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
             _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.InsertSeries);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
