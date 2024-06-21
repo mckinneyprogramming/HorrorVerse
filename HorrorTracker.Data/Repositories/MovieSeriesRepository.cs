@@ -86,7 +86,11 @@ namespace HorrorTracker.Data.Repositories
                 {
                     if (reader.Read())
                     {
-                        movieSeries = new MovieSeries(reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
+                        movieSeries = new MovieSeries(title: reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0))
+                        {
+                            Title = reader.GetString(1)
+                        };
+
                         _logger.LogInformation($"Movie series {seriesName} was found in the database.");
                         return movieSeries;
                     }
