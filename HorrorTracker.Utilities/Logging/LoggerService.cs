@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.Utilities.Logging.Interfaces;
 using Serilog;
 using Serilog.Core;
+using System.Configuration;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Utilities.Logging
@@ -22,7 +23,9 @@ namespace HorrorTracker.Utilities.Logging
         /// </summary>
         public LoggerService()
         {
-            _logger = new LoggerConfiguration().WriteTo.Seq("http://localhost:5341").CreateLogger();
+#pragma warning disable CS8604 // Possible null reference argument.
+            _logger = new LoggerConfiguration().WriteTo.Seq(LoggerUrl).CreateLogger();
+#pragma warning restore CS8604 // Possible null reference argument.
         }
 
         /// <inheritdoc/>
@@ -48,5 +51,10 @@ namespace HorrorTracker.Utilities.Logging
         {
             _logger.Warning(message);
         }
+
+        /// <summary>
+        /// Retrieves the logger url from the app settings.
+        /// </summary>
+        private static string? LoggerUrl => ConfigurationManager.AppSettings["LoggerUrl"];
     }
 }

@@ -10,10 +10,12 @@ namespace HorrorTracker.MSTests.Data.Helpers
     [ExcludeFromCodeCoverage]
     public class DatabaseCommandsHelperTests
     {
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         private Mock<IDatabaseConnection> _mockDatabaseConnection;
         private Mock<IDatabaseCommand> _mockDatabaseCommand;
         private Mock<IDataReader> _mockDataReader;
         private string _commandText;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         [TestInitialize]
         public void Initialize()
