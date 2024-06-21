@@ -1,6 +1,7 @@
 using HorrorTracker.Data;
 using HorrorTracker.Data.Constants.Queries;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
+using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.MSTests.Shared;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using Moq;
@@ -151,6 +152,34 @@ namespace HorrorTracker.MSTests.Data
             Assert.AreEqual(expectedResult, actualResult);
             _mockLoggerService.Verify(x => x.LogError("Creating tables in the database failed.", It.Is<Exception>(ex => ex.Message == exceptionMessage)), Times.Once);
             _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
+        public void RetrieveOverallRepository_WhenCalled_ShouldReturnOverallRepository()
+        {
+            // Arrange
+            var horrorConnections = new HorrorConnections(_mockDatabaseConnection.Object, _mockLoggerService.Object);
+
+            // Act
+            var value = horrorConnections.RetrieveOverallRepository();
+
+            // Assert
+            Assert.IsNotNull(value);
+            Assert.IsInstanceOfType(value, typeof(IOverallRepository));
+        }
+
+        [TestMethod]
+        public void RetrieveMovieSeriesRepository_WhenCalled_ShouldReturnMovieSeriesRepository()
+        {
+            // Arrange
+            var horrorConnections = new HorrorConnections(_mockDatabaseConnection.Object, _mockLoggerService.Object);
+
+            // Act
+            var value = horrorConnections.RetrieveMovieSeriesRepository();
+
+            // Assert
+            Assert.IsNotNull(value);
+            Assert.IsInstanceOfType(value, typeof(IMovieSeriesRepository));
         }
     }
 }
