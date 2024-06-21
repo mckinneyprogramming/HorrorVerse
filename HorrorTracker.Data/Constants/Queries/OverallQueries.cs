@@ -3,7 +3,7 @@
     /// <summary>
     /// The <see cref="OverallQueries"/> constants class.
     /// </summary>
-    public class OverallQueries
+    public static class OverallQueries
     {
         private const string DecimalType = "DECIMAL(5, 2)";
         private const string PrimaryKey = "Id SERIAL PRIMARY KEY";

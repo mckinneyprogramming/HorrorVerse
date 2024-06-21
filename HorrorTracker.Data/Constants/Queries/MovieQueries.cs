@@ -3,7 +3,7 @@
     /// <summary>
     /// The <see cref="MovieQueries"/> class.
     /// </summary>
-    public class MovieQueries
+    public static class MovieQueries
     {
         /// <summary>
         /// Inserts a movie in the database.

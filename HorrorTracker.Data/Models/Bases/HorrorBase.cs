@@ -16,6 +16,6 @@ namespace HorrorTracker.Data.Models.Bases
         /// <summary>
         /// Gets or sets the Title.
         /// </summary>
-        public string Title { get; set; }
+        public required string Title { get; set; }
     }
 }

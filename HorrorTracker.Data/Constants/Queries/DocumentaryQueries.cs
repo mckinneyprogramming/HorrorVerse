@@ -3,7 +3,7 @@
     /// <summary>
     /// The <see cref="DocumentaryQueries"/> class.
     /// </summary>
-    public class DocumentaryQueries
+    public static class DocumentaryQueries
     {
         /// <summary>
         /// Inserts a new documentary into the database.

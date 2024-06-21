@@ -10,6 +10,6 @@ namespace HorrorTracker.Data.TMDB
         /// <summary>
         /// The API Key to TMDB.
         /// </summary>
-        public static string ApiKey => ConfigurationManager.AppSettings["TMDBKey"];
+        public static string? ApiKey => ConfigurationManager.AppSettings["TMDBKey"];
     }
 }

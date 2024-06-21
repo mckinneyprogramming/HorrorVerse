@@ -3,7 +3,7 @@
     /// <summary>
     /// The <see cref="MovieSeriesQueries"/> constants class.
     /// </summary>
-    public class MovieSeriesQueries
+    public static class MovieSeriesQueries
     {
         /// <summary>
         /// Inserts series into the table.

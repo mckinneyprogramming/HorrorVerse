@@ -3,7 +3,7 @@
     /// <summary>
     /// The <see cref="ShowQueries"/> class.
     /// </summary>
-    public class ShowQueries
+    public static class ShowQueries
     {
         /// <summary>
         /// Inserts a new show into the database.

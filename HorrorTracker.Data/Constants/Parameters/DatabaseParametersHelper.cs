@@ -1,12 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Data.Constants.Parameters
 {
     /// <summary>
     /// The <see cref="DatabaseParametersHelper"/> class.
     /// </summary>
-    [ExcludeFromCodeCoverage]
     public static class DatabaseParametersHelper
     {
         /// <summary>

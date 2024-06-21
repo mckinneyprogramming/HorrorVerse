@@ -12,7 +12,15 @@ namespace HorrorTracker.Data.Models
         /// <summary>
         /// Initializes a new instance of the <see cref="Episode"/> class.
         /// </summary>
-        public Episode(string title, int showId, DateTime releaseDate, int season, int episodeNumber, bool watched, decimal totalTime, int id = 0)
+        public Episode(
+            string title,
+            int showId,
+            DateTime releaseDate,
+            int season,
+            int episodeNumber,
+            bool watched,
+            decimal totalTime,
+            int id = 0)
         {
             Title = title;
             ShowId = showId;

@@ -1,5 +1,5 @@
 ﻿using HorrorTracker.ConsoleApp.Managers.Interfaces;
-using HorrorTracker.Utilities.Logging.Interfaces;
+using HorrorTracker.Utilities.Logging;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
@@ -12,13 +12,13 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// The logger service.
         /// </summary>
-        private ILoggerService _logger;
+        private readonly LoggerService _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManualManager"/> class.
         /// </summary>
         /// <param name="logger">The logger.</param>
-        public ManualManager(ILoggerService logger)
+        public ManualManager(LoggerService logger)
         {
             _logger = logger;
         }

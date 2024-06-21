@@ -16,7 +16,7 @@ namespace HorrorTracker.Data.Helpers
         /// <param name="commandText">The command text.</param>
         /// <param name="parameters">The parameters.</param>
         /// <returns>The execute object.</returns>
-        public static object? ExecutesScalar(IDatabaseConnection connection, string commandText, ReadOnlyDictionary<string, object> parameters = null)
+        public static object? ExecutesScalar(IDatabaseConnection connection, string commandText, ReadOnlyDictionary<string, object>? parameters = null)
         {
             var command = CreateCommand(connection, commandText, parameters);
             return command.ExecuteScalar();

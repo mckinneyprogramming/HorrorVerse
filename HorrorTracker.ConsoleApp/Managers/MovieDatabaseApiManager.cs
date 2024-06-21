@@ -28,7 +28,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// IsNotDone indicator.
         /// </summary>
-        private static bool IsNotDone = true;
+        private bool IsNotDone = true;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MovieDatabaseApiManager"/> class.
@@ -150,22 +150,22 @@ namespace HorrorTracker.ConsoleApp.Managers
 
         private void AddMovie()
         {
-
+            // In progress.
         }
 
         private void AddDocumentary()
         {
-
+            // In progress.
         }
 
         private void AddTelevisionShow()
         {
-
+            // In progress.
         }
 
         private void AddEpisode()
         {
-
+            // In progress.
         }
 
         /// <summary>

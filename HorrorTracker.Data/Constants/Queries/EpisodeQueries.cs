@@ -3,7 +3,7 @@
     /// <summary>
     /// The <see cref="EpisodeQueries"/> class.
     /// </summary>
-    public class EpisodeQueries
+    public static class EpisodeQueries
     {
         /// <summary>
         /// Adds a new episode to the database.

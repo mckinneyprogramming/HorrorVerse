@@ -1,14 +1,12 @@
 ﻿using HorrorTracker.Data.Models;
 using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Data.Constants.Parameters
 {
     /// <summary>
     /// The <see cref="MovieSeriesDatabaseParameters"/> class.
     /// </summary>
-    [ExcludeFromCodeCoverage]
-    public class MovieSeriesDatabaseParameters
+    public static class MovieSeriesDatabaseParameters
     {
         /// <summary>
         /// Retrieves the series parameters.

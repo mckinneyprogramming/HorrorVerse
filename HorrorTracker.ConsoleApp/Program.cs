@@ -10,7 +10,7 @@ namespace HorrorTracker.ConsoleApp
     /// <summary>
     /// The <see cref="Program"/> class.
     /// </summary>
-    class Program
+    static class Program
     {
         /// <summary>
         /// The connection string.
