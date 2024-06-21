@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using TMDbLib.Client;
+﻿using TMDbLib.Client;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
@@ -10,7 +9,6 @@ namespace HorrorTracker.Data.TMDB
     /// <summary>
     /// The <see cref="MovieDatabaseService"/>
     /// </summary>
-    [ExcludeFromCodeCoverage]
     public class MovieDatabaseService
     {
         /// <summary>

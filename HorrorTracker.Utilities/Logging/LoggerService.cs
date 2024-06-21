@@ -2,7 +2,6 @@
 using Serilog;
 using Serilog.Core;
 using System.Configuration;
-using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Utilities.Logging
 {
@@ -10,7 +9,6 @@ namespace HorrorTracker.Utilities.Logging
     /// The <see cref="LoggerService"/> class.
     /// </summary>
     /// <seealso cref="ILoggerService"/>
-    [ExcludeFromCodeCoverage]
     public class LoggerService : ILoggerService
     {
         /// <summary>
