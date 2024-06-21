@@ -1,15 +1,17 @@
-﻿using System.Configuration;
+﻿using HorrorTracker.Data.TMDB.Interfaces;
+using System.Configuration;
 
 namespace HorrorTracker.Data.TMDB
 {
     /// <summary>
     /// The <see cref="MovieDatabseConfig"/> class.
     /// </summary>
-    public static class MovieDatabseConfig
+    public class MovieDatabseConfig : IMovieDatabaseConfiguration
     {
-        /// <summary>
-        /// The API Key to TMDB.
-        /// </summary>
-        public static string? ApiKey => ConfigurationManager.AppSettings["TMDBKey"];
+        /// <inheritdoc/>
+        public string? GetApiKey()
+        {
+            return ConfigurationManager.AppSettings["TMDBKey"];
+        }
     }
 }

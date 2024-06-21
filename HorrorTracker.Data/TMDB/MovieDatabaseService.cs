@@ -17,12 +17,23 @@ namespace HorrorTracker.Data.TMDB
         private readonly TMDbClient _client;
 
         /// <summary>
+        /// The movie database configuration.
+        /// </summary>
+        private readonly MovieDatabseConfig _movieDatabaseConfiguration;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="MovieDatabaseService"/> class.
         /// </summary>
         public MovieDatabaseService()
         {
-            _client = new TMDbClient(MovieDatabseConfig.ApiKey);
+            _movieDatabaseConfiguration = new MovieDatabseConfig();
+            _client = new TMDbClient(ApiKey);
         }
+
+        /// <summary>
+        /// The API Key.
+        /// </summary>
+        public string? ApiKey => _movieDatabaseConfiguration.GetApiKey();
 
         /// <summary>
         /// Retrieves a list of collections in TMDB API.
