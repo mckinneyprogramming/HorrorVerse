@@ -133,7 +133,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             mockDataReader.Setup(r => r.GetInt32(It.Is<int>(i => i == 0))).Returns(1);
             mockDataReader.Setup(r => r.GetString(It.Is<int>(i => i == 1))).Returns(seriesName);
-            mockDataReader.Setup(r => r.GetInt32(It.Is<int>(i => i == 2))).Returns(400);
+            mockDataReader.Setup(r => r.GetDecimal(It.Is<int>(i => i == 2))).Returns(400);
             mockDataReader.Setup(r => r.GetInt32(It.Is<int>(i => i == 3))).Returns(11);
             mockDataReader.Setup(r => r.GetBoolean(It.Is<int>(i => i == 4))).Returns(false);
 

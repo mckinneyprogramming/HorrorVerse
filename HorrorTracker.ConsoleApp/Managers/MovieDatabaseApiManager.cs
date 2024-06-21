@@ -139,7 +139,10 @@ namespace HorrorTracker.ConsoleApp.Managers
             }
 
             var totalTimeOfFims = Convert.ToInt32(filmsInSeries.Sum(film => film.Runtime));
-            var series = new MovieSeries(collectionInformation.Name, totalTimeOfFims, collectionInformation.Parts.Count, false);
+            var series = new MovieSeries(collectionInformation.Name, totalTimeOfFims, collectionInformation.Parts.Count, false)
+            {
+                Title = collectionInformation.Name
+            };
 
             var databaseConnection = new DatabaseConnection(_connectionString);
             var horrorConnections = new MovieSeriesRepository(databaseConnection, _logger);
