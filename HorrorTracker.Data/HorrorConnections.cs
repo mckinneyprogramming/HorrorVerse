@@ -101,8 +101,7 @@ namespace HorrorTracker.Data
                     createdEpisodeSuccessfully
                 };
 
-                var allTablesCreatedSuccessfully = results.All(res => res == 1);
-
+                var allTablesCreatedSuccessfully = AllTablesCreatedSuccessfully(results);
                 if (DatabaseCommandsHelper.IsSuccessfulResult(allTablesCreatedSuccessfully))
                 {
                     result = 1;
@@ -140,5 +139,12 @@ namespace HorrorTracker.Data
         {
             return new MovieSeriesRepository(_databaseConnection, _logger);
         }
+
+        /// <summary>
+        /// Checks that all the results for the table creations are successful.
+        /// </summary>
+        /// <param name="resultsArray">The results.</param>
+        /// <returns>True if all are successful; false otherwise.</returns>
+        private static bool AllTablesCreatedSuccessfully(int[] resultsArray) => Array.TrueForAll(resultsArray, res => res == 1);
     }
 }

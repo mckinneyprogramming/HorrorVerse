@@ -114,6 +114,26 @@ namespace HorrorTracker.MSTests.Data
         }
 
         [TestMethod]
+        public void CreateTables_WhenResultIsNull_ShouldReturnZero()
+        {
+            // Arrange
+            var expectedReturnStatus = 0;
+            _mockDatabaseConnection.Setup(db => db.Open());
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(expectedReturnStatus);
+            _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+
+            var horrorConnections = new HorrorConnections(_mockDatabaseConnection.Object, _mockLoggerService.Object);
+
+            // Act
+            var actualReturnStatus = horrorConnections.CreateTables();
+
+            // Assert
+            Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
+            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
+            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
         public void CreateTables__WhenExceptionOccurs_ShouldLogCorrectMessageAndReturnCorrectStatus()
         {
             // Arrange

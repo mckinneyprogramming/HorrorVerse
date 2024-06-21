@@ -55,6 +55,49 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
+        public void AddMovieSeries_SuccessfulConnectionAndDBNullResult_ShouldReturnNull()
+        {
+            // Arrange
+            var expectedReturnStatus = DBNull.Value;
+            var fixture = new Fixture();
+            var movieSeries = fixture.Create<MovieSeries>();
+            _mockDatabaseConnection.Setup(db => db.Open());
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(expectedReturnStatus);
+            _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
+            _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.InsertSeries);
+            _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+
+            // Act
+            var actualReturnStatus = _repository.AddMovieSeries(movieSeries);
+
+            // Assert
+            Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
+            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
+            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
+        public void AddMovieSeries_SuccessfulConnectionAndNullResult_ShouldReturnNull()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var movieSeries = fixture.Create<MovieSeries>();
+            _mockDatabaseConnection.Setup(db => db.Open());
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(null);
+            _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
+            _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.InsertSeries);
+            _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+
+            // Act
+            var actualReturnStatus = _repository.AddMovieSeries(movieSeries);
+
+            // Assert
+            Assert.IsNull(actualReturnStatus);
+            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
+            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
         public void AddMovieSeries_WhenExceptionOccurs_ShouldLogMessageAndReturnNull()
         {
             // Arrange

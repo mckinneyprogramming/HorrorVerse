@@ -11,7 +11,7 @@
         /// <param name="value">The string value.</param>
         /// <param name="integer">The integer from the parse.</param>
         /// <returns>True if the value is an integer; false otherwise.</returns>
-        public static bool IsInteger(string value, out int integer)
+        public static bool IsInteger(string? value, out int integer)
         {
             return int.TryParse(value, out integer);
         }
