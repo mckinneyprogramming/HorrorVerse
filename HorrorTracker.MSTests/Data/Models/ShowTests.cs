@@ -1,5 +1,6 @@
 ﻿using AutoFixture;
 using HorrorTracker.Data.Models;
+using HorrorTracker.MSTests.Shared;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.MSTests.Data.Models
@@ -23,12 +24,7 @@ namespace HorrorTracker.MSTests.Data.Models
 
             // Assert
             Assert.IsNotNull(newShow);
-            Assert.IsNotNull(newShow.Title);
-            Assert.IsNotNull(newShow.TotalTime);
-            Assert.IsNotNull(newShow.TotalEpisodes);
-            Assert.IsNotNull(newShow.NumberOfSeasons);
-            Assert.IsNotNull(newShow.Watched);
-            Assert.IsNotNull(newShow.Id);
+            Assert.IsTrue(PropertyCollector.RetrieveNullProperties(newShow).Count == 0);
         }
     }
 }

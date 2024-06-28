@@ -1,12 +1,14 @@
 ﻿using HorrorTracker.Data.TMDB.Interfaces;
 using System.Configuration;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Data.TMDB
 {
     /// <summary>
-    /// The <see cref="MovieDatabseConfig"/> class.
+    /// The <see cref="MovieDatabaseConfig"/> class.
     /// </summary>
-    public class MovieDatabseConfig : IMovieDatabaseConfiguration
+    [ExcludeFromCodeCoverage]
+    public class MovieDatabaseConfig : IMovieDatabaseConfiguration
     {
         /// <inheritdoc/>
         public string? GetApiKey()

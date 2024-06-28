@@ -17,7 +17,7 @@ namespace HorrorTracker.MSTests.Data
         private Mock<IDatabaseConnection> _mockDatabaseConnection;
         private Mock<IDatabaseCommand> _mockDatabaseCommand;
         private Mock<ILoggerService> _mockLoggerService;
-        private SharedAsserts _sharedAsserts;
+        private LoggerVerifier _loggerVerifier;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         [TestInitialize]
@@ -26,7 +26,7 @@ namespace HorrorTracker.MSTests.Data
             _mockDatabaseConnection = new Mock<IDatabaseConnection>();
             _mockDatabaseCommand = new Mock<IDatabaseCommand>();
             _mockLoggerService = new Mock<ILoggerService>();
-            _sharedAsserts = new SharedAsserts(_mockLoggerService);
+            _loggerVerifier = new LoggerVerifier(_mockLoggerService);
         }
 
         [TestMethod]
@@ -47,9 +47,9 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnString, actualReturnString);
-            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _mockLoggerService.Verify(x => x.LogInformation("The connection to the server was successful and the database exists."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage("The connection to the server was successful and the database exists.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -68,8 +68,8 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnString, actualReturnString);
-            _mockLoggerService.Verify(x => x.LogError("The connection to the Postgre server failed.", It.Is<Exception>(ex => ex.Message == exceptionMessage)), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyErrorMessage("The connection to the Postgre server failed.", exceptionMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -90,9 +90,9 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnString, actualReturnString);
-            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _mockLoggerService.Verify(x => x.LogWarning("The connection to the server was successful, but the HorrorTracker database was not found."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyWarningMessage("The connection to the server was successful, but the HorrorTracker database was not found.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -111,9 +111,9 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
-            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _mockLoggerService.Verify(x => x.LogInformation("All tables were built successfully if they weren't already created."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage("All tables were built successfully if they weren't already created.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -132,8 +132,8 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
-            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -152,8 +152,8 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedResult, actualResult);
-            _mockLoggerService.Verify(x => x.LogError("Creating tables in the database failed.", It.Is<Exception>(ex => ex.Message == exceptionMessage)), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyErrorMessage("Creating tables in the database failed.", exceptionMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]

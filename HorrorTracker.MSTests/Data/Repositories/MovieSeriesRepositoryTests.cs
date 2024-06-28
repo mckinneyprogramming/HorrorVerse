@@ -20,7 +20,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         private Mock<IDatabaseCommand> _mockDatabaseCommand;
         private Mock<ILoggerService> _mockLoggerService;
         private MovieSeriesRepository _repository;
-        private SharedAsserts _sharedAsserts;
+        private LoggerVerifier _loggerVerifier;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         [TestInitialize]
@@ -30,7 +30,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockDatabaseCommand = new Mock<IDatabaseCommand>();
             _mockLoggerService = new Mock<ILoggerService>();
             _repository = new MovieSeriesRepository(_mockDatabaseConnection.Object, _mockLoggerService.Object);
-            _sharedAsserts = new SharedAsserts(_mockLoggerService);
+            _loggerVerifier = new LoggerVerifier(_mockLoggerService);
         }
 
         [TestMethod]
@@ -51,9 +51,9 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
-            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _mockLoggerService.Verify(x => x.LogInformation($"Movie series {movieSeries.Title} was added successfully."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage($"Movie series {movieSeries.Title} was added successfully.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -74,8 +74,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
-            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -85,9 +85,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             var fixture = new Fixture();
             var movieSeries = fixture.Create<MovieSeries>();
             _mockDatabaseConnection.Setup(db => db.Open());
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(null);
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns((object?)null);
             _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
             _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.InsertSeries);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
@@ -97,8 +95,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.IsNull(actualReturnStatus);
-            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -116,8 +114,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.IsNull(returnStatus);
-            _mockLoggerService.Verify(x => x.LogError("Adding a movie series to the database failed.", It.Is<Exception>(ex => ex.Message == exceptionMessage)), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyErrorMessage("Adding a movie series to the database failed.", exceptionMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -151,9 +149,9 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(400, returnedMovieSeries.TotalTime);
             Assert.AreEqual(11, returnedMovieSeries.TotalMovies);
             Assert.IsFalse(returnedMovieSeries.Watched);
-            _mockLoggerService.Verify(x => x.LogInformation("HorrorTracker database is open."), Times.Once);
-            _mockLoggerService.Verify(x => x.LogInformation($"Movie series {seriesName} was found in the database."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage($"Movie series {seriesName} was found in the database.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -173,8 +171,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.IsNull(returnedMovieSeries);
-            _mockLoggerService.Verify(x => x.LogWarning($"Movie series {seriesName} was not found in the database."), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyWarningMessage($"Movie series {seriesName} was not found in the database.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -190,8 +188,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.IsNull(returnStatus);
-            _mockLoggerService.Verify(x => x.LogError("An error occurred while getting the movie series by name.", It.Is<Exception>(ex => ex.Message == exceptionMessage)), Times.Once);
-            _sharedAsserts.VerifyLoggerInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyErrorMessage("An error occurred while getting the movie series by name.", exceptionMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
     }
 }

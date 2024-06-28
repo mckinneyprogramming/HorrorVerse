@@ -42,35 +42,32 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public decimal GetOverallTime()
         {
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var result = DatabaseCommandsHelper.ExecutesScalar(_connection, OverallQueries.RetrieveOverallTime);
-                return RetrievesDecimalTimeValue(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Retrieving the overall time from the database failed.", ex);
-                return 0.0M;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
+            return RetrieveTime(OverallQueries.RetrieveOverallTime, "Retrieving the overall time from the database failed.");
         }
 
         /// <inheritdoc/>
         public decimal GetOverallTimeLeft()
         {
+            return RetrieveTime(OverallQueries.RetrieveOverallTimeLeft, "Retrieving the overall time left from the database failed.");
+        }
+
+        /// <summary>
+        /// Retrieves the time value from the database using the specified query.
+        /// </summary>
+        /// <param name="query">The query to execute.</param>
+        /// <param name="errorMessage">The error message to log in case of failure.</param>
+        /// <returns>The decimal time value.</returns>
+        private decimal RetrieveTime(string query, string errorMessage)
+        {
             try
             {
                 _databaseConnectionsHelper.Open();
-                var result = DatabaseCommandsHelper.ExecutesScalar(_connection, OverallQueries.RetrieveOverallTimeLeft);
+                var result = DatabaseCommandsHelper.ExecutesScalar(_connection, query);
                 return RetrievesDecimalTimeValue(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError("Retrieving the overall time left from the database failed.", ex);
+                _logger.LogError(errorMessage, ex);
                 return 0.0M;
             }
             finally
@@ -84,19 +81,22 @@ namespace HorrorTracker.Data.Repositories
         /// </summary>
         /// <param name="result">The result from the execute.</param>
         /// <returns>The decimal value.</returns>
-        private static decimal RetrievesDecimalTimeValue(object? result)
+        private decimal RetrievesDecimalTimeValue(object? result)
         {
             if (result == null)
             {
+                _logger.LogWarning("Time was not calculated or found in the database.");
                 return 0.0M;
             }
 
             var isDecimal = Parser.IsDecimal(result, out var decimalValue);
             if (isDecimal)
             {
+                _logger.LogInformation($"Time in the database: {decimalValue} was retrieved successfully.");
                 return decimalValue;
             }
 
+            _logger.LogWarning("Time was not a valid decimal.");
             return decimalValue;
         }
     }
