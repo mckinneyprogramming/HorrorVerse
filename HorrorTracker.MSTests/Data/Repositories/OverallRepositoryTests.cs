@@ -53,7 +53,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
         [DataTestMethod]
         [DynamicData(nameof(GetTimeFailure), DynamicDataSourceType.Method)]
-        public void GetOverallTime_WhenDatabaseCallFails_ShouldLogMessageAndReturnZero(string query, string methodName, object returnValue, string expectedLogMessage)
+        public void WhenDatabaseCallFails_ShouldLogMessageAndReturnZero(string query, string methodName, object returnValue, string expectedLogMessage)
         {
             // Arrange
             _mockDatabaseConnection.Setup(db => db.Open());
@@ -71,6 +71,23 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
+        [DataTestMethod]
+        [DynamicData(nameof(GetTimeException), DynamicDataSourceType.Method)]
+        public void WhenDatabaseCallThrowsException_ShouldLogMessageAndReturnZero(string methodName, string initialMessage, string exceptionMessage)
+        {
+            // Arrange
+            _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(exceptionMessage));
+            _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
+
+            // Act
+            var actualReturnValue = ExecuteRepositoryMethod<decimal>(methodName);
+
+            // Assert
+            Assert.AreEqual(0.0M, actualReturnValue);
+            _loggerVerifier.VerifyErrorMessage(initialMessage, exceptionMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+        }
+
         private static IEnumerable<object[]> GetTimeSuccess()
         {
             yield return new object[] { OverallQueries.RetrieveOverallTime, "GetOverallTime", 600.45M };
@@ -85,6 +102,12 @@ namespace HorrorTracker.MSTests.Data.Repositories
             yield return new object[] { OverallQueries.RetrieveOverallTime, "GetOverallTime", null, "Time was not calculated or found in the database." };
             yield return new object[] { OverallQueries.RetrieveOverallTimeLeft, "GetOverallTimeLeft", null, "Time was not calculated or found in the database." };
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+        }
+
+        private static IEnumerable<object[]> GetTimeException()
+        {
+            yield return new object[] { "GetOverallTime", "Retrieving the overall time from the database failed.", "Failed to retrieve time from movies." };
+            yield return new object[] { "GetOverallTimeLeft", "Retrieving the overall time left from the database failed.", "Failed to retrieve time from movies." };
         }
 
         private T ExecuteRepositoryMethod<T>(string methodName)
