@@ -1,4 +1,4 @@
-﻿using TMDbLib.Client;
+﻿using HorrorTracker.Data.TMDB.Interfaces;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
@@ -14,20 +14,20 @@ namespace HorrorTracker.Data.TMDB
         /// <summary>
         /// The TMDB client.
         /// </summary>
-        private readonly TMDbClient _client;
+        private readonly ITMDbClientWrapper _client;
 
         /// <summary>
         /// The movie database configuration.
         /// </summary>
-        private readonly MovieDatabaseConfig _movieDatabaseConfiguration;
+        private readonly IMovieDatabaseConfiguration _movieDatabaseConfiguration;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MovieDatabaseService"/> class.
         /// </summary>
-        public MovieDatabaseService()
+        public MovieDatabaseService(IMovieDatabaseConfiguration movieDatabaseConfiguration, ITMDbClientWrapper client)
         {
-            _movieDatabaseConfiguration = new MovieDatabaseConfig();
-            _client = new TMDbClient(ApiKey);
+            _movieDatabaseConfiguration = movieDatabaseConfiguration;
+            _client = client;
         }
 
         /// <summary>

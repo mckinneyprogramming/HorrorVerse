@@ -6,6 +6,7 @@ using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
+using System.Configuration;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
@@ -108,7 +109,9 @@ namespace HorrorTracker.ConsoleApp.Managers
                 return;
             }
 
-            var movieDatabaseService = new MovieDatabaseService();
+            var movieDatabaseConfig = new MovieDatabaseConfig();
+            var movieDatabaseClientWrapper = new TMDbClientWrapper(movieDatabaseConfig.GetApiKey());
+            var movieDatabaseService = new MovieDatabaseService(movieDatabaseConfig, movieDatabaseClientWrapper);
             var result = movieDatabaseService.SearchCollection($"{decision} Collection").Result;
 
             ConsoleHelper.NewLine();

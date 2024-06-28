@@ -1,12 +1,9 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace HorrorTracker.Data.Models.Bases
+﻿namespace HorrorTracker.Data.Models.Bases
 {
     /// <summary>
     /// The <see cref="BookBase"/> model class.
     /// </summary>
     /// <seealso cref="HorrorBase"/>
-    [ExcludeFromCodeCoverage]
     public class BookBase : HorrorBase
     {
         /// <summary>
