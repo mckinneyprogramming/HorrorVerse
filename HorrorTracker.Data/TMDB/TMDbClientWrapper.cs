@@ -1,4 +1,5 @@
 ﻿using HorrorTracker.Data.TMDB.Interfaces;
+using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Client;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
@@ -10,6 +11,7 @@ namespace HorrorTracker.Data.TMDB
     /// <summary>
     /// The <see cref="TMDbClientWrapper"/> class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class TMDbClientWrapper : ITMDbClientWrapper
     {
         /// <summary>
