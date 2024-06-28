@@ -26,7 +26,7 @@ namespace HorrorTracker.MSTests.Data.TMDB
             _mockConfig.Setup(c => c.GetApiKey()).Returns("mock_api_key");
 
             _mockClient = new Mock<ITMDbClientWrapper>();
-            _service = new MovieDatabaseService(_mockConfig.Object, _mockClient.Object);
+            _service = new MovieDatabaseService(_mockClient.Object);
         }
 
         [TestMethod]

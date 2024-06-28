@@ -111,7 +111,7 @@ namespace HorrorTracker.ConsoleApp.Managers
 
             var movieDatabaseConfig = new MovieDatabaseConfig();
             var movieDatabaseClientWrapper = new TMDbClientWrapper(movieDatabaseConfig.GetApiKey());
-            var movieDatabaseService = new MovieDatabaseService(movieDatabaseConfig, movieDatabaseClientWrapper);
+            var movieDatabaseService = new MovieDatabaseService(movieDatabaseClientWrapper);
             var result = movieDatabaseService.SearchCollection($"{decision} Collection").Result;
 
             ConsoleHelper.NewLine();
