@@ -1,4 +1,5 @@
-﻿using TMDbLib.Objects.Collections;
+﻿using System.Diagnostics.CodeAnalysis;
+using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
@@ -17,8 +18,9 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         /// <param name="page">The page.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The serach results.</returns>
+        [ExcludeFromCodeCoverage]
         Task<SearchContainer<SearchCollection>> SearchCollectionAsync(string query, int page = 0, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Retrieves the movie collection.
         /// </summary>
@@ -26,8 +28,9 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         /// <param name="methods">The colletion methods.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The movie collection.</returns>
+        [ExcludeFromCodeCoverage]
         Task<Collection> GetCollectionAsync(int collectionId, CollectionMethods methods = CollectionMethods.Images, CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Retrieves the movie.
         /// </summary>
@@ -35,6 +38,7 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         /// <param name="appendToResponse">The movie methods.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The movie.</returns>
+        [ExcludeFromCodeCoverage]
         Task<Movie> GetMovieAsync(int movieId, MovieMethods appendToResponse = MovieMethods.Undefined, CancellationToken cancellationToken = default);
     }
 }

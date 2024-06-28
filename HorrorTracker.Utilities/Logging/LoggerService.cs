@@ -1,5 +1,6 @@
 ﻿using HorrorTracker.Utilities.Logging.Interfaces;
 using Serilog;
+using Serilog.Core;
 using System.Configuration;
 using System.Diagnostics.CodeAnalysis;
 
@@ -15,7 +16,7 @@ namespace HorrorTracker.Utilities.Logging
         /// <summary>
         /// The logger.
         /// </summary>
-        private readonly ILogger _logger;
+        private readonly Logger _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LoggerService"/> class.
