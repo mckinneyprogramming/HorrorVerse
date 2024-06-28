@@ -1,5 +1,6 @@
 ﻿using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using Npgsql;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Data.PostgreHelpers
 {
@@ -7,6 +8,7 @@ namespace HorrorTracker.Data.PostgreHelpers
     /// The <see cref="DatabaseConnection"/> class.
     /// </summary>
     /// <seealso cref="IDatabaseConnection"/>
+    [ExcludeFromCodeCoverage]
     public class DatabaseConnection : IDatabaseConnection
     {
         /// <summary>
