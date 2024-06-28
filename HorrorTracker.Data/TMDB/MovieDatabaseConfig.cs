@@ -1,5 +1,4 @@
 ﻿using HorrorTracker.Data.TMDB.Interfaces;
-using System.Configuration;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Data.TMDB
@@ -13,7 +12,7 @@ namespace HorrorTracker.Data.TMDB
         /// <inheritdoc/>
         public string? GetApiKey()
         {
-            return ConfigurationManager.AppSettings["TMDBKey"];
+            return Environment.GetEnvironmentVariable("TMDBKey");
         }
     }
 }
