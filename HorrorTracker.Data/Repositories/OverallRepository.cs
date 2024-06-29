@@ -89,7 +89,8 @@ namespace HorrorTracker.Data.Repositories
                 return 0.0M;
             }
 
-            var isDecimal = Parser.IsDecimal(result, out var decimalValue);
+            var parser = new Parser();
+            var isDecimal = parser.IsDecimal(result, out var decimalValue);
             if (isDecimal)
             {
                 _logger.LogInformation($"Time in the database: {decimalValue} was retrieved successfully.");

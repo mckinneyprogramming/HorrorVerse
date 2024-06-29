@@ -127,7 +127,8 @@ namespace HorrorTracker.ConsoleApp.Managers
             PromptUser("Choose the series id above to add the series information to the database as well as its associated movies.");
             
             var collectionIdSelection = ConsoleHelper.GetUserInput();
-            var collectionIdSelectionIsInteger = Parser.IsInteger(collectionIdSelection, out var collectionId);
+            var parser = new Parser();
+            var collectionIdSelectionIsInteger = parser.IsInteger(collectionIdSelection, out var collectionId);
             if (string.IsNullOrEmpty(collectionIdSelection) || !collectionIdSelectionIsInteger)
             {
                 return;

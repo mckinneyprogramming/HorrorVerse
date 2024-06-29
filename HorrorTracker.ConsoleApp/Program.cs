@@ -4,12 +4,14 @@ using HorrorTracker.Data;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Utilities.Logging;
 using System.Configuration;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.ConsoleApp
 {
     /// <summary>
     /// The <see cref="Program"/> class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     static class Program
     {
         /// <summary>

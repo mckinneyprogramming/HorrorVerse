@@ -34,6 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\HorrorTracker.ConsoleApp\HorrorTracker.ConsoleApp.csproj" />
     <ProjectReference Include="..\HorrorTracker.Data\HorrorTracker.Data.csproj" />
     <ProjectReference Include="..\HorrorTracker.MSTests.Shared\HorrorTracker.MSTests.Shared.csproj" />
   </ItemGroup>

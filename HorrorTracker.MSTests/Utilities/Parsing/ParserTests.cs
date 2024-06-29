@@ -7,6 +7,16 @@ namespace HorrorTracker.MSTests.Utilities.Parsing
     [ExcludeFromCodeCoverage]
     public class ParserTests
     {
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        private Parser _parser;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
+        [TestInitialize]
+        public void Initialize()
+        {
+            _parser = new Parser();
+        }
+
         [TestMethod]
         public void IsInteger_WhenValueIsAnInteger_ShouldReturnTrue()
         {
@@ -15,7 +25,7 @@ namespace HorrorTracker.MSTests.Utilities.Parsing
             var expectedIntegerValue = 123;
 
             // Act
-            var boolValue = Parser.IsInteger(stringValue, out var actualIntegerValue);
+            var boolValue = _parser.IsInteger(stringValue, out var actualIntegerValue);
 
             // Assert
             Assert.IsTrue(boolValue);
@@ -31,7 +41,7 @@ namespace HorrorTracker.MSTests.Utilities.Parsing
             var expectedIntegerValue = 0;
 
             // Act
-            var boolValue = Parser.IsInteger(stringValue, out var actualIntegerValue);
+            var boolValue = _parser.IsInteger(stringValue, out var actualIntegerValue);
 
             // Assert
             Assert.IsFalse(boolValue);
@@ -46,7 +56,7 @@ namespace HorrorTracker.MSTests.Utilities.Parsing
             var expectedDecimalValue = 12.34M;
 
             // Act
-            var boolValue = Parser.IsDecimal(value, out var actualDecimalValue);
+            var boolValue = _parser.IsDecimal(value, out var actualDecimalValue);
 
             // Assert
             Assert.IsTrue(boolValue);
@@ -61,7 +71,7 @@ namespace HorrorTracker.MSTests.Utilities.Parsing
             var expectedDecimalValue = 12.34M;
 
             // Act
-            var boolValue = Parser.IsDecimal(value, out var actualDecimalValue);
+            var boolValue = _parser.IsDecimal(value, out var actualDecimalValue);
 
             // Assert
             Assert.IsTrue(boolValue);
@@ -75,7 +85,7 @@ namespace HorrorTracker.MSTests.Utilities.Parsing
             var expectedDecimalValue = 0.0M;
 
             // Act
-            var boolValue = Parser.IsDecimal(new object(), out var actualDecimalValue);
+            var boolValue = _parser.IsDecimal(new object(), out var actualDecimalValue);
 
             // Assert
             Assert.IsFalse(boolValue);

@@ -1,5 +1,6 @@
-﻿using HorrorTracker.Utilities.Logging;
+﻿using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.ConsoleApp.ConsoleHelpers
 {
@@ -19,6 +20,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// <summary>
         /// Loading animation.
         /// </summary>
+        [ExcludeFromCodeCoverage]
         public static void ThinkingAnimation(string initialText, int numberOfDots, string doneText)
         {
             Console.Write(initialText);
@@ -79,10 +81,11 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// <param name="logger">The logger.</param>
         /// <param name="decision">The decision.</param>
         /// <returns>The actual number if there is one.</returns>
-        public static int ParseNumberDecision(LoggerService logger, string? decision)
+        public static int ParseNumberDecision(ILoggerService logger, string? decision)
         {
             logger.LogInformation($"User input: {decision}");
-            _ = Parser.IsInteger(decision, out var actualNumber);
+            var parser = new Parser();
+            _ = parser.IsInteger(decision, out var actualNumber);
 
             return actualNumber;
         }
@@ -93,7 +96,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// <param name="actualNumber">The actual number.</param>
         /// <param name="logger">The logger.</param>
         /// <param name="actions">The dictionary of actions.</param>
-        public static void ProcessDecision(int actualNumber, LoggerService logger, Dictionary<int, Action> actions)
+        public static void ProcessDecision(int actualNumber, ILoggerService logger, Dictionary<int, Action> actions)
         {
             logger.LogInformation($"Processing decision: {actualNumber}");
             PerformActionsBasedOnDecision(actualNumber, logger, actions);
@@ -105,7 +108,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// <param name="actualNumber">The decision number.</param>
         /// <param name="logger">The logger.</param>
         /// <param name="actions">The dictionary of actions.</param>
-        public static void PerformActionsBasedOnDecision(int actualNumber, LoggerService logger, Dictionary<int, Action> actions)
+        public static void PerformActionsBasedOnDecision(int actualNumber, ILoggerService logger, Dictionary<int, Action> actions)
         {
             try
             {
