@@ -55,6 +55,11 @@ namespace HorrorTracker.Data.Helpers
         /// <returns>True if value is not null; false otherwise.</returns>
         public static bool IsSuccessfulResult(object? result)
         {
+            if (result is int intResult)
+            {
+                return intResult == 1;
+            }
+
             return result != null && result != DBNull.Value;
         }
 

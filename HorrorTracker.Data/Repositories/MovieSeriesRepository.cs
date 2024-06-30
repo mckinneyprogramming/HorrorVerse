@@ -41,9 +41,9 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public object? AddMovieSeries(MovieSeries series)
+        public int AddMovieSeries(MovieSeries series)
         {
-            object? result = null;
+            int result = 0;
             try
             {
                 _databaseConnectionsHelper.Open();
@@ -51,7 +51,7 @@ namespace HorrorTracker.Data.Repositories
                 var addSeriesCommandText = MovieSeriesQueries.InsertSeries;
                 var parameters = MovieSeriesDatabaseParameters.InsertMovieSeriesParameters(series);
 
-                result = DatabaseCommandsHelper.ExecutesScalar(_databaseConnection, addSeriesCommandText, parameters);
+                result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, addSeriesCommandText, parameters);
                 if (DatabaseCommandsHelper.IsSuccessfulResult(result))
                 {
                     _logger.LogInformation($"Movie series {series.Title} was added successfully.");
@@ -86,7 +86,7 @@ namespace HorrorTracker.Data.Repositories
                 {
                     if (reader.Read())
                     {
-                        movieSeries = new MovieSeries(title: reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0))
+                        movieSeries = new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0))
                         {
                             Title = reader.GetString(1)
                         };

@@ -41,7 +41,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             var movieSeries = fixture.Create<MovieSeries>();
             var expectedReturnStatus = 1;
             _mockDatabaseConnection.Setup(db => db.Open());
-            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(expectedReturnStatus);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(expectedReturnStatus);
             _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
             _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.InsertSeries);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
@@ -57,14 +57,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void AddMovieSeries_SuccessfulConnectionAndDBNullResult_ShouldReturnNull()
+        public void AddMovieSeries_SuccessfulConnectionAndDBNullResult_ShouldReturnZero()
         {
             // Arrange
-            var expectedReturnStatus = DBNull.Value;
+            var expectedReturnStatus = 0;
             var fixture = new Fixture();
             var movieSeries = fixture.Create<MovieSeries>();
             _mockDatabaseConnection.Setup(db => db.Open());
-            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(expectedReturnStatus);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(expectedReturnStatus);
             _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
             _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.InsertSeries);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
@@ -79,13 +79,13 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void AddMovieSeries_SuccessfulConnectionAndNullResult_ShouldReturnNull()
+        public void AddMovieSeries_SuccessfulConnectionAndNullResult_ShouldReturnZero()
         {
             // Arrange
             var fixture = new Fixture();
             var movieSeries = fixture.Create<MovieSeries>();
             _mockDatabaseConnection.Setup(db => db.Open());
-            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns((object?)null);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(0);
             _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
             _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.InsertSeries);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
@@ -94,13 +94,13 @@ namespace HorrorTracker.MSTests.Data.Repositories
             var actualReturnStatus = _repository.AddMovieSeries(movieSeries);
 
             // Assert
-            Assert.IsNull(actualReturnStatus);
+            Assert.IsTrue(actualReturnStatus == 0);
             _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
             _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
-        public void AddMovieSeries_WhenExceptionOccurs_ShouldLogMessageAndReturnNull()
+        public void AddMovieSeries_WhenExceptionOccurs_ShouldLogMessageAndReturnZero()
         {
             // Arrange
             var fixture = new Fixture();
@@ -113,7 +113,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             var returnStatus = _repository.AddMovieSeries(movieSeries);
 
             // Assert
-            Assert.IsNull(returnStatus);
+            Assert.IsTrue(returnStatus == 0);
             _loggerVerifier.VerifyErrorMessage("Adding a movie series to the database failed.", exceptionMessage);
             _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }

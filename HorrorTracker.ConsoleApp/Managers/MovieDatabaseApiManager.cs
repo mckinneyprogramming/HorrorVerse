@@ -6,7 +6,6 @@ using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
-using System.Configuration;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
@@ -143,14 +142,31 @@ namespace HorrorTracker.ConsoleApp.Managers
             }
 
             var totalTimeOfFims = Convert.ToInt32(filmsInSeries.Sum(film => film.Runtime));
-            var series = new MovieSeries(collectionInformation.Name, totalTimeOfFims, collectionInformation.Parts.Count, false)
+            var seriesName = collectionInformation.Name.Replace("Collection", string.Empty).Trim();
+            var series = new MovieSeries(seriesName, totalTimeOfFims, collectionInformation.Parts.Count, false)
             {
                 Title = collectionInformation.Name
             };
 
             var databaseConnection = new DatabaseConnection(_connectionString);
-            var horrorConnections = new MovieSeriesRepository(databaseConnection, _logger);
-            _ = horrorConnections.AddMovieSeries(series);
+            var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, _logger);
+
+            var movieSeriesAlreadyExists = movieSeriesRepository.GetMovieSeriesByName(series.Title);
+            if (movieSeriesAlreadyExists != null)
+            {
+                _logger.LogWarning("User tried adding a movie series that already exists in the database.");
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine("The movie series you are trying to add alreday exists in the database. Please try a different series.");
+                return;
+            }
+
+            var success = movieSeriesRepository.AddMovieSeries(series);
+            if (success == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine("The movie series was not added. An error occurred or the movie series was invalid.");
+                return;
+            }
 
             // TODO: Add individual movies.
         }

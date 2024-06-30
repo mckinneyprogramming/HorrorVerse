@@ -12,7 +12,7 @@ namespace HorrorTracker.Data.Repositories.Interfaces
         /// </summary>
         /// <param name="series">The movie series.</param>
         /// <returns>The status.</returns>
-        object? AddMovieSeries(MovieSeries series);
+        int AddMovieSeries(MovieSeries series);
 
         /// <summary>
         /// Retrieves the movie series by name.
