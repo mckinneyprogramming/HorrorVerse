@@ -20,5 +20,11 @@ namespace HorrorTracker.Data.Repositories.Interfaces
         /// <param name="seriesName">The series name.</param>
         /// <returns>The movie series.</returns>
         MovieSeries? GetMovieSeriesByName(string seriesName);
+
+        /// <summary>
+        /// Updates the movie series.
+        /// </summary>
+        /// <param name="series">The movie series.</param>
+        void UpdateSeries(MovieSeries series);
     }
 }

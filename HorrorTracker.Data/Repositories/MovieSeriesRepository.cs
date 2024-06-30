@@ -111,5 +111,31 @@ namespace HorrorTracker.Data.Repositories
                 _databaseConnectionsHelper.Close();
             }
         }
+
+        /// <inheritdoc/>
+        public void UpdateSeries(MovieSeries series)
+        {
+            try
+            {
+                _databaseConnection.Open();
+                var query = MovieSeriesQueries.UpdateMovieSeries;
+                var parameters = MovieSeriesDatabaseParameters.UpdateMovieSeriesParameters(series);
+                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
+
+                if (result == 1)
+                {
+                    _logger.LogInformation($"Series '{series.Title}' updated successfully.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error updating series '{series.Title}'.", ex);
+                throw;
+            }
+            finally
+            {
+                _databaseConnection.Close();
+            }
+        }
     }
 }

@@ -5,6 +5,7 @@ using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
+using TMDbLib.Objects.TvShows;
 
 namespace HorrorTracker.Data.TMDB
 {
@@ -35,6 +36,30 @@ namespace HorrorTracker.Data.TMDB
         }
 
         /// <inheritdoc/>
+        public async Task<SearchContainer<SearchMovie>> SearchMovieAsync(
+            string movie,
+            int page = 0,
+            bool includeAdult = false,
+            int year = 0,
+            string? region = default,
+            int primaryReleaseYear = 0,
+            CancellationToken cancellationToken = default)
+        {
+            return await _client.SearchMovieAsync(movie, page, includeAdult, year, region, primaryReleaseYear, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<SearchContainer<SearchTv>> SearchTvShowAsync(
+            string tvShowName,
+            int page = 0,
+            bool includeAdult = false,
+            int firstAirDateYear = 0,
+            CancellationToken cancellationToken = default)
+        {
+            return await _client.SearchTvShowAsync(tvShowName);
+        }
+
+        /// <inheritdoc/>
         public async Task<Collection> GetCollectionAsync(int collectionId, CollectionMethods methods = CollectionMethods.Images, CancellationToken cancellationToken = default)
         {
             return await _client.GetCollectionAsync(collectionId, methods, cancellationToken);
@@ -44,6 +69,42 @@ namespace HorrorTracker.Data.TMDB
         public async Task<Movie> GetMovieAsync(int movieId, MovieMethods appendToResponse = MovieMethods.Undefined, CancellationToken cancellationToken = default)
         {
             return await _client.GetMovieAsync(movieId, appendToResponse, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<TvShow> GetTvShowAsync(
+            int tvShowId,
+            TvShowMethods tvShowMethods = TvShowMethods.Undefined,
+            string? language = null,
+            string? includeImageLanguage = null,
+            CancellationToken cancellationToken = default)
+        {
+            return await _client.GetTvShowAsync(tvShowId, cancellationToken: cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<TvSeason> GetTvSeasonAsync(
+            int tvShowId,
+            int seasonNumber,
+            TvSeasonMethods tvSeasonMethods = TvSeasonMethods.Undefined,
+            string? language = null,
+            string? includeImageLanguage = null,
+            CancellationToken cancellationToken = default)
+        {
+            return await _client.GetTvSeasonAsync(tvShowId, seasonNumber, cancellationToken: cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<TvEpisode> GetTvEpisodeAsync(
+            int tvShowId,
+            int seasonNumber,
+            int episodeNumber,
+            TvEpisodeMethods tvEpisodeMethods = TvEpisodeMethods.Undefined,
+            string? language = null,
+            string? includeImageLanguage = null,
+            CancellationToken cancellationToken = default)
+        {
+            return await _client.GetTvEpisodeAsync(tvShowId, seasonNumber, episodeNumber);
         }
     }
 }

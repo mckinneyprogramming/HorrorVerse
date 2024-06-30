@@ -120,7 +120,8 @@ namespace HorrorTracker.ConsoleApp.Managers
             Console.ForegroundColor = ConsoleColor.Magenta;
             foreach (var collection in result.Results)
             {
-                Console.WriteLine($"- {collection.Name}; Id: {collection.Id}");
+                Console.WriteLine($"- {collection.Name}; Id: {collection.Id}\n" +
+                    $"  - {collection.Overview}");
             }
 
             PromptUser("Choose the series id above to add the series information to the database as well as its associated movies.");
