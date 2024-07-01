@@ -33,21 +33,21 @@
         /// <summary>
         /// Retrieves the watched episodes.
         /// </summary>
-        public const string GetWatchedEpisodes = "SELECT * FROM Episode WHERE Watched = 1";
+        public const string GetWatchedEpisodes = "SELECT * FROM Episode WHERE Watched = TRUE";
 
         /// <summary>
         /// Retrieves the unwatched episodes.
         /// </summary>
-        public const string GetUnwatchedEpisodes = "SELECT * FROM Episode WHERE Watched = 0";
+        public const string GetUnwatchedEpisodes = "SELECT * FROM Episode WHERE Watched = FALSE";
 
         /// <summary>
         /// Retrieves the watched episodes of the show based on the show name.
         /// </summary>
-        public const string GetWatchedEpisodesByShowName = "SELECT * FROM Episode WHERE ShowId = (SELECT Id FROM Show WHERE Title = @Title) AND Watched = 1";
+        public const string GetWatchedEpisodesByShowName = "SELECT * FROM Episode WHERE ShowId = (SELECT Id FROM Show WHERE Title = @Title) AND Watched = TRUE";
 
         /// <summary>
         /// Retrieves the unwatched episodes of a show based on the show name.
         /// </summary>
-        public const string GetUnwatchedEpisodesByShowName = "SELECT * FROM Episode WHERE ShowId = (SELECT Id FROM Show WHERE Title = @Title) AND Watched = 0";
+        public const string GetUnwatchedEpisodesByShowName = "SELECT * FROM Episode WHERE ShowId = (SELECT Id FROM Show WHERE Title = @Title) AND Watched = FALSE";
     }
 }

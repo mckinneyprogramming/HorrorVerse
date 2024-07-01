@@ -33,22 +33,22 @@
         /// <summary>
         /// Retrieves the watched Show.
         /// </summary>
-        public const string GetWatchedShow = "SELECT * FROM Show WHERE Watched = 1";
+        public const string GetWatchedShow = "SELECT * FROM Show WHERE Watched = TRUE";
 
         /// <summary>
         /// Retrieves the unwatched Show.
         /// </summary>
-        public const string GetUnwatchedShow = "SELECT * FROM Show WHERE Watched = 0";
+        public const string GetUnwatchedShow = "SELECT * FROM Show WHERE Watched = FALSE";
 
         /// <summary>
         /// Retrieves the total time watched of the watched Show.
         /// </summary>
-        public const string GetTotalTimeOfWatchedShow = "SELECT SUM(TotalTime) FROM Show WHERE Watched = 1";
+        public const string GetTotalTimeOfWatchedShow = "SELECT SUM(TotalTime) FROM Show WHERE Watched = TRUE";
 
         /// <summary>
         /// Retrieves the time left of the unwatched Show.
         /// </summary>
-        public const string GetTimeLeftOfUnwatchedShow = "SELECT SUM(TotalTime) FROM Show WHERE Watched = 0";
+        public const string GetTimeLeftOfUnwatchedShow = "SELECT SUM(TotalTime) FROM Show WHERE Watched = FALSE";
 
         /// <summary>
         /// Updates the total time of the show based episode times.
@@ -58,6 +58,6 @@
         /// <summary>
         /// Updates the show to watched if all the episodes in the show are watched.
         /// </summary>
-        public const string UpdateWatched = "UPDATE Show SET Watched = CASE WHEN (SELECT COUNT(*) FROM Episode WHERE ShowId = @ShowId AND Watched = 0) = 0 THEN 1 ELSE 0 END WHERE Id = @ShowId";
+        public const string UpdateWatched = "UPDATE Show SET Watched = CASE WHEN (SELECT COUNT(*) FROM Episode WHERE ShowId = @ShowId AND Watched = FALSE) = FALSE THEN TRUE ELSE FALSE END WHERE Id = @ShowId";
     }
 }

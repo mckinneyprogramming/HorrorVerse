@@ -33,31 +33,31 @@
         /// <summary>
         /// Gets the Movie watched in a given series.
         /// </summary>
-        public const string GetWatchedMovieBySeriesName = "SELECT * FROM Movie WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @Title) AND Watched = 1";
+        public const string GetWatchedMovieBySeriesName = "SELECT * FROM Movie WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @Title) AND Watched = TRUE";
 
         /// <summary>
         /// Gets the Movie that are unwatched in a given series.
         /// </summary>
-        public const string GetUnwathcedMovieBySeriesName = "SELECT * FROM Movie WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @Title) AND Watched = 0";
+        public const string GetUnwathcedMovieBySeriesName = "SELECT * FROM Movie WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @Title) AND Watched = FALSE";
 
         /// <summary>
         /// Retrieves the watched Movie from the database.
         /// </summary>
-        public const string GetWatchedMovie = "SELECT * FROM Movie WHERE Watched = 1";
+        public const string GetWatchedMovie = "SELECT * FROM Movie WHERE Watched = TRUE";
 
         /// <summary>
         /// Retrieves the unwatched Movie from the database.
         /// </summary>
-        public const string GetUnwatchedMovie = "SELECT * FROM Movie WHERE Watched = 0";
+        public const string GetUnwatchedMovie = "SELECT * FROM Movie WHERE Watched = FALSE";
 
         /// <summary>
         /// Retrieves the total time of the watched Movie.
         /// </summary>
-        public const string GetTotalTimeOfWatchedMovie = "SELECT SUM(TotalTime) FROM Movie WHERE Watched = 1";
+        public const string GetTotalTimeOfWatchedMovie = "SELECT SUM(TotalTime) FROM Movie WHERE Watched = TRUE";
 
         /// <summary>
         /// Retrieves the time left of unwatched Movie.
         /// </summary>
-        public const string GetTimeLeftOfUnwatchedMovie = "SELECT SUM(TotalTime) FROM Movie WHERE Watched = 0";
+        public const string GetTimeLeftOfUnwatchedMovie = "SELECT SUM(TotalTime) FROM Movie WHERE Watched = FALSE";
     }
 }

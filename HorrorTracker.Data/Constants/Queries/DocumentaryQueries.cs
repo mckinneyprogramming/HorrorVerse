@@ -33,21 +33,21 @@
         /// <summary>
         /// Retrieves the watched Documentary.
         /// </summary>
-        public const string GetWatchedDocumentary = "SELECT * FROM Documentary WHERE Watched = 1";
+        public const string GetWatchedDocumentary = "SELECT * FROM Documentary WHERE Watched = TRUE";
 
         /// <summary>
         /// Retrieves the unwatched Documentary.
         /// </summary>
-        public const string GetUnwatchedDocumentary = "SELECT * FROM Documentary WHERE Watched = 0";
+        public const string GetUnwatchedDocumentary = "SELECT * FROM Documentary WHERE Watched = FALSE";
 
         /// <summary>
         /// Retrieves the total time of the watched Documentary.
         /// </summary>
-        public const string GetTotalTimeOfWatchedDocumentary = "SELECT SUM(TotalTime) FROM Documentary WHERE Watched = 1";
+        public const string GetTotalTimeOfWatchedDocumentary = "SELECT SUM(TotalTime) FROM Documentary WHERE Watched = TRUE";
 
         /// <summary>
         /// Retrieves the time left of the unwatched Documentary.
         /// </summary>
-        public const string GetTimeLeftOfUnwatchedDocumentary = "SELECT SUM(TotalTime) FROM Documentary WHERE Watched = 0";
+        public const string GetTimeLeftOfUnwatchedDocumentary = "SELECT SUM(TotalTime) FROM Documentary WHERE Watched = FALSE";
     }
 }

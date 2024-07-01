@@ -96,10 +96,10 @@
         /// </summary>
         public const string RetrieveOverallTimeLeft = $@"
             SELECT SUM({TotalTime}) FROM (
-                SELECT {TotalTime} FROM Movie WHERE Watched = 0
+                SELECT {TotalTime} FROM Movie WHERE Watched = FALSE
                 {UnionAll}
-                SELECT {TotalTime} FROM Documentary WHERE Watched = 0
+                SELECT {TotalTime} FROM Documentary WHERE Watched = FALSE
                 {UnionAll}
-                SELECT {TotalTime} FROM Episode WHERE Watched = 0) AS OverallTimeLeft";
+                SELECT {TotalTime} FROM Episode WHERE Watched = FALSE) AS OverallTimeLeft";
     }
 }
