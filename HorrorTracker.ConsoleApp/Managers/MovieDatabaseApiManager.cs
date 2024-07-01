@@ -172,7 +172,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             var newSeries = movieSeriesRepository.GetMovieSeriesByName(seriesName);
             foreach (var film in filmsInSeries)
             {
-                var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, newSeries?.Id, film.ReleaseDate.Value.Year, false)
+                var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, newSeries?.Id, film.ReleaseDate!.Value.Year, false)
                 {
                     Title = film.Title
                 };
