@@ -56,7 +56,7 @@ namespace HorrorTracker.Data.TMDB
             int firstAirDateYear = 0,
             CancellationToken cancellationToken = default)
         {
-            return await _client.SearchTvShowAsync(tvShowName);
+            return await _client.SearchTvShowAsync(tvShowName, cancellationToken: cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -104,7 +104,7 @@ namespace HorrorTracker.Data.TMDB
             string? includeImageLanguage = null,
             CancellationToken cancellationToken = default)
         {
-            return await _client.GetTvEpisodeAsync(tvShowId, seasonNumber, episodeNumber);
+            return await _client.GetTvEpisodeAsync(tvShowId, seasonNumber, episodeNumber, cancellationToken: cancellationToken);
         }
     }
 }

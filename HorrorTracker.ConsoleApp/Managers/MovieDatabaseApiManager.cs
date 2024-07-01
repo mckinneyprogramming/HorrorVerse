@@ -146,7 +146,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             var seriesName = collectionInformation.Name.Replace("Collection", string.Empty).Trim();
             var series = new MovieSeries(seriesName, totalTimeOfFims, collectionInformation.Parts.Count, false)
             {
-                Title = collectionInformation.Name
+                Title = seriesName
             };
 
             var databaseConnection = new DatabaseConnection(_connectionString);
@@ -169,27 +169,48 @@ namespace HorrorTracker.ConsoleApp.Managers
                 return;
             }
 
-            // TODO: Add individual movies.
+            var newSeries = movieSeriesRepository.GetMovieSeriesByName(seriesName);
+            foreach (var film in filmsInSeries)
+            {
+                var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, newSeries?.Id, film.ReleaseDate.Value.Year, false)
+                {
+                    Title = film.Title
+                };
+
+                // Add movie to the database.
+            }
         }
 
+        /// <summary>
+        /// Adds a movie to the database.
+        /// </summary>
         private void AddMovie()
         {
-            // In progress.
+            Console.Clear();
         }
 
+        /// <summary>
+        /// Adds a documentary to the database.
+        /// </summary>
         private void AddDocumentary()
         {
-            // In progress.
+            Console.Clear();
         }
 
+        /// <summary>
+        /// Adds a television show to the database.
+        /// </summary>
         private void AddTelevisionShow()
         {
-            // In progress.
+            Console.Clear();
         }
 
+        /// <summary>
+        /// Adds a episode to the database.
+        /// </summary>
         private void AddEpisode()
         {
-            // In progress.
+            Console.Clear();
         }
 
         /// <summary>
