@@ -117,7 +117,7 @@ namespace HorrorTracker.Data.Repositories
         {
             try
             {
-                _databaseConnection.Open();
+                _databaseConnectionsHelper.Open();
                 var query = MovieSeriesQueries.UpdateMovieSeries;
                 var parameters = MovieSeriesDatabaseParameters.UpdateMovieSeriesParameters(series);
                 var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
@@ -130,11 +130,10 @@ namespace HorrorTracker.Data.Repositories
             catch (Exception ex)
             {
                 _logger.LogError($"Error updating series '{series.Title}'.", ex);
-                throw;
             }
             finally
             {
-                _databaseConnection.Close();
+                _databaseConnectionsHelper.Close();
             }
         }
     }

@@ -6,6 +6,7 @@ using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
+using TMDbLib.Objects.TvShows;
 
 namespace HorrorTracker.MSTests.Data.TMDB
 {
@@ -33,7 +34,7 @@ namespace HorrorTracker.MSTests.Data.TMDB
         public async Task SearchCollection_ShouldReturnSearchContainer()
         {
             // Arrange
-            string seriesTitle = "Test Series";
+            var seriesTitle = "Test Series";
             var expectedSearchResult = new SearchContainer<SearchCollection>();
 
             _mockClient.Setup(c => c.SearchCollectionAsync(seriesTitle, It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedSearchResult);
@@ -46,10 +47,43 @@ namespace HorrorTracker.MSTests.Data.TMDB
         }
 
         [TestMethod]
+        public async Task SearchMovie_ShouldReturnSerachContainer()
+        {
+            // Arrange
+            var movieTitle = "Test Movie";
+            var expectedSerachResult = new SearchContainer<SearchMovie>();
+
+            _mockClient.Setup(c => c.SearchMovieAsync(movieTitle, It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(expectedSerachResult);
+
+            // Act
+            var actualSerachResult = await _service.SearchMovie(movieTitle);
+
+            // Assert
+            Assert.AreEqual(expectedSerachResult, actualSerachResult);
+        }
+
+        [TestMethod]
+        public async Task SearchTvShow_ShouldReturnSearchContainer()
+        {
+            // Arrange
+            var tvShow = "Test TV Show";
+            var expectedSearchResult = new SearchContainer<SearchTv>();
+
+            _mockClient.Setup(c => c.SearchTvShowAsync(tvShow, It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedSearchResult);
+
+            // Act
+            var actualSearchResult = await _service.SearchTvShow(tvShow);
+
+            // Assert
+            Assert.AreEqual(expectedSearchResult, actualSearchResult);
+        }
+
+        [TestMethod]
         public async Task GetCollection_ShouldReturnCollection()
         {
             // Arrange
-            int seriesId = 123;
+            var seriesId = 123;
             var expectedCollection = new Collection();
 
             _mockClient.Setup(c => c.GetCollectionAsync(seriesId, It.IsAny<CollectionMethods>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedCollection);
@@ -65,7 +99,7 @@ namespace HorrorTracker.MSTests.Data.TMDB
         public async Task GetMovie_ShouldReturnMovie()
         {
             // Arrange
-            int movieId = 456;
+            var movieId = 456;
             var expectedMovie = new Movie();
 
             _mockClient.Setup(c => c.GetMovieAsync(movieId, It.IsAny<MovieMethods>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedMovie);
@@ -75,6 +109,58 @@ namespace HorrorTracker.MSTests.Data.TMDB
 
             // Assert
             Assert.AreEqual(expectedMovie, result);
+        }
+
+        [TestMethod]
+        public async Task GetTvShow_ShouldReturnTvShow()
+        {
+            // Arrange
+            var tvShowId = 123;
+            var expectedTvShow = new TvShow();
+
+            _mockClient.Setup(c => c.GetTvShowAsync(tvShowId, It.IsAny<TvShowMethods>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedTvShow);
+
+            // Act
+            var actualTvShow = await _service.GetTvShow(tvShowId);
+
+            // Assert
+            Assert.AreEqual(expectedTvShow, actualTvShow);
+        }
+
+        [TestMethod]
+        public async Task GetTvSeason_ShouldReturnTvSeason()
+        {
+            // Arrange
+            var tvShowId = 123;
+            var tvSeasonNumber = 1;
+            var expectedTvSeason = new TvSeason();
+
+            _mockClient.Setup(c => c.GetTvSeasonAsync(tvShowId, tvSeasonNumber, It.IsAny<TvSeasonMethods>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedTvSeason);
+
+            // Act
+            var actualTvSeason = await _service.GetTvSeason(tvShowId, tvSeasonNumber);
+
+            // Assert
+            Assert.AreEqual(expectedTvSeason, actualTvSeason);
+        }
+
+        [TestMethod]
+        public async Task GetTvEpisode_ShouldReturnTvEpisode()
+        {
+            // Arrange
+            var tvShowId = 123;
+            var tvSeasonNumber = 1;
+            var episodeNumber = 20;
+            var expectedTvEpisode = new TvEpisode();
+
+            _mockClient.Setup(c => c.GetTvEpisodeAsync(tvShowId, tvSeasonNumber, episodeNumber, It.IsAny<TvEpisodeMethods>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(expectedTvEpisode);
+
+            // Act
+            var actualTvEpisode = await _service.GetTvEpisode(tvShowId, tvSeasonNumber, episodeNumber);
+
+            // Assert
+            Assert.AreEqual(expectedTvEpisode, actualTvEpisode);
         }
     }
 }

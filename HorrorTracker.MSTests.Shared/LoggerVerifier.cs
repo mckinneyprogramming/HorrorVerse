@@ -27,15 +27,25 @@ namespace HorrorTracker.MSTests.Shared
         /// <summary>
         /// Verifies the logger information message.
         /// </summary>
+        /// <param name="message">The message.</param>
         public void VerifyInformationMessage(string message)
         {
             _mockLoggerService.Verify(x => x.LogInformation(message), Times.Once);
         }
 
         /// <summary>
-        /// Verifies the logger warning message.
+        /// Verifies the information messaage does not log.
         /// </summary>
         /// <param name="message"></param>
+        public void VerifyInformationMessageDoesNotLog(string message)
+        {
+            _mockLoggerService.Verify(x => x.LogInformation(message), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies the logger warning message.
+        /// </summary>
+        /// <param name="message">The message.</param>
         public void VerifyWarningMessage(string message)
         {
             _mockLoggerService.Verify(x => x.LogWarning(message), Times.Once);

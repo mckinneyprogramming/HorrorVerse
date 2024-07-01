@@ -123,11 +123,10 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var seriesName = "Test Series";
-            var mockCommand = new Mock<IDatabaseCommand>();
             var mockDataReader = new Mock<IDataReader>();
 
-            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(mockCommand.Object);
-            mockCommand.Setup(cmd => cmd.ExecuteReader()).Returns(mockDataReader.Object);
+            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteReader()).Returns(mockDataReader.Object);
 
             mockDataReader.SetupSequence(r => r.Read())
                 .Returns(true)
@@ -159,11 +158,10 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var seriesName = "Nonexistent Series";
-            var mockCommand = new Mock<IDatabaseCommand>();
             var mockDataReader = new Mock<IDataReader>();
 
-            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(mockCommand.Object);
-            mockCommand.Setup(cmd => cmd.ExecuteReader()).Returns(mockDataReader.Object);
+            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteReader()).Returns(mockDataReader.Object);
             mockDataReader.Setup(r => r.Read()).Returns(false);
 
             // Act
@@ -189,6 +187,64 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.IsNull(returnStatus);
             _loggerVerifier.VerifyErrorMessage("An error occurred while getting the movie series by name.", exceptionMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
+        public void UpdateMovieSeries_SuccessfulUpdate_LogsInformation()
+        {
+            // Arrange
+            var series = new MovieSeries("Test Series", 432.97M, 8, false, 1) { Title = "Test Series" };
+            _mockDatabaseConnection.Setup(db => db.Open());
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(1);
+            _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
+            _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.UpdateMovieSeries);
+            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+
+            // Act
+            _repository.UpdateSeries(series);
+
+            // Assert
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage($"Series '{series.Title}' updated successfully.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
+        public void UpdateMovieSeries_UnsuccessfulUpdate_DoesNotLogInformation()
+        {
+            // Arrange
+            var series = new MovieSeries("Test Series", 432.97M, 8, false, 1) { Title = "Test Series" };
+            _mockDatabaseConnection.Setup(db => db.Open());
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(0);
+            _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
+            _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, MovieSeriesQueries.UpdateMovieSeries);
+            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+
+            // Act
+            _repository.UpdateSeries(series);
+
+            // Assert
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessageDoesNotLog($"Series '{series.Title}' updated successfully.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
+        public void UpdateMovieSeries_WhenExceptionOccurs_ShouldLogMessage()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var movieSeries = fixture.Create<MovieSeries>();
+            var exceptionMessage = "Failed for not able to connect to the server.";
+            _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(exceptionMessage));
+            _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
+
+            // Act
+            _repository.UpdateSeries(movieSeries);
+
+            // Assert
+            _loggerVerifier.VerifyErrorMessage($"Error updating series '{movieSeries.Title}'.", exceptionMessage);
             _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
     }
