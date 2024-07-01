@@ -136,5 +136,30 @@ namespace HorrorTracker.Data.Repositories
                 _databaseConnectionsHelper.Close();
             }
         }
+
+        /// <inheritdoc/>
+        public void DeleteSeries(int id)
+        {
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieSeriesQueries.DeleteMovieSeries;
+                var parameters = MovieSeriesDatabaseParameters.DeleteMovieSeriesParameters(id);
+                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
+
+                if (result == 1)
+                {
+                    _logger.LogInformation($"Series with ID '{id}' deleted successfully.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error deleting series with ID '{id}'.", ex);
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+        }
     }
 }

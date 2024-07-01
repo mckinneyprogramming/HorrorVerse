@@ -53,5 +53,18 @@ namespace HorrorTracker.Data.Constants.Parameters
                 { "Id", series.Id }
             });
         }
+
+        /// <summary>
+        /// Retrievs the delete movie series parameters.
+        /// </summary>
+        /// <param name="seriesId">The series id.</param>
+        /// <returns>The dictionary of parameters.</returns>
+        public static ReadOnlyDictionary<string, object> DeleteMovieSeriesParameters(int seriesId)
+        {
+            return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
+            {
+                { "@Id", seriesId }
+            });
+        }
     }
 }

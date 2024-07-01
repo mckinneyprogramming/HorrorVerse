@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\HorrorTracker.Data\HorrorTracker.Data.csproj" />
     <ProjectReference Include="..\HorrorTracker.Utilities\HorrorTracker.Utilities.csproj" />
   </ItemGroup>
 

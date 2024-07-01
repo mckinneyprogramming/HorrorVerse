@@ -25,6 +25,18 @@ namespace HorrorTracker.MSTests.Shared
         }
 
         /// <summary>
+        /// Verifies that the informtation logs are present.
+        /// </summary>
+        /// <param name="messages">The messages.</param>
+        public void VerifyLoggerInformationMessages(params string[] messages)
+        {
+            foreach (var message in messages)
+            {
+                VerifyInformationMessage(message);
+            }
+        }
+
+        /// <summary>
         /// Verifies the logger information message.
         /// </summary>
         /// <param name="message">The message.</param>

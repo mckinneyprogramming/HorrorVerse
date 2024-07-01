@@ -26,5 +26,11 @@ namespace HorrorTracker.Data.Repositories.Interfaces
         /// </summary>
         /// <param name="series">The movie series.</param>
         void UpdateSeries(MovieSeries series);
+
+        /// <summary>
+        /// Deletes the movie series.
+        /// </summary>
+        /// <param name="id">The movie series id.</param>
+        void DeleteSeries(int id);
     }
 }

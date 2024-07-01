@@ -19,6 +19,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         private Mock<ILoggerService> _mockLoggerService;
         private OverallRepository _repository;
         private LoggerVerifier _loggerVerifier;
+        private MockSetupManager _mockSetupManager;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         [TestInitialize]
@@ -29,6 +30,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockLoggerService = new Mock<ILoggerService>();
             _repository = new OverallRepository(_mockDatabaseConnection.Object, _mockLoggerService.Object);
             _loggerVerifier = new LoggerVerifier(_mockLoggerService);
+            _mockSetupManager = new MockSetupManager(_mockDatabaseConnection, _mockDatabaseCommand, _mockLoggerService);
         }
 
         [DataTestMethod]
@@ -36,19 +38,17 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void WhenSuccessfulConnectionAndDatabaseCall_ShouldReturnTime(string query, string methodName, decimal expectedReturnValue)
         {
             // Arrange
-            _mockDatabaseConnection.Setup(db => db.Open());
-            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(expectedReturnValue);
-            _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, query);
-            _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockSetupManager.SetupExecuteScalarDatabaseCommand(query, expectedReturnValue);
 
             // Act
             var actualReturnValue = ExecuteRepositoryMethod<decimal>(methodName);
 
             // Assert
             Assert.AreEqual(expectedReturnValue, actualReturnValue);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
-            _loggerVerifier.VerifyInformationMessage($"Time in the database: {actualReturnValue} was retrieved successfully.");
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyLoggerInformationMessages(
+                "HorrorTracker database is open.",
+                $"Time in the database: {actualReturnValue} was retrieved successfully.",
+                "HorrorTracker database is closed.");
         }
 
         [DataTestMethod]
@@ -56,19 +56,15 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void WhenDatabaseCallFails_ShouldLogMessageAndReturnZero(string query, string methodName, object returnValue, string expectedLogMessage)
         {
             // Arrange
-            _mockDatabaseConnection.Setup(db => db.Open());
-            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(returnValue);
-            _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, query);
-            _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockSetupManager.SetupExecuteScalarDatabaseCommand(query, returnValue);
 
             // Act
             var actualReturnValue = ExecuteRepositoryMethod<decimal>(methodName);
 
             // Assert
             Assert.AreEqual(0.0M, actualReturnValue);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyLoggerInformationMessages("HorrorTracker database is open.", "HorrorTracker database is closed.");
             _loggerVerifier.VerifyWarningMessage(expectedLogMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [DataTestMethod]
@@ -76,8 +72,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void WhenDatabaseCallThrowsException_ShouldLogMessageAndReturnZero(string methodName, string initialMessage, string exceptionMessage)
         {
             // Arrange
-            _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(exceptionMessage));
-            _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
+            _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
             var actualReturnValue = ExecuteRepositoryMethod<decimal>(methodName);
