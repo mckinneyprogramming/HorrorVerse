@@ -29,7 +29,7 @@ namespace HorrorTracker.Data.Constants.Parameters
         /// </summary>
         /// <param name="seriesTitle">The series title.</param>
         /// <returns>The dictionary of parameters.</returns>
-        public static ReadOnlyDictionary<string, object> GetMovieSeriesParameters(string seriesTitle)
+        public static ReadOnlyDictionary<string, object> GetBySeriesName(string seriesTitle)
         {
             return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
             {

@@ -80,7 +80,7 @@ namespace HorrorTracker.Data.Repositories
                 _databaseConnectionsHelper.Open();
 
                 var commandText = MovieSeriesQueries.GetMovieSeriesByName;
-                var parameters = MovieSeriesDatabaseParameters.GetMovieSeriesParameters(seriesName);
+                var parameters = MovieSeriesDatabaseParameters.GetBySeriesName(seriesName);
 
                 using (var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, commandText, parameters))
                 {
@@ -155,6 +155,40 @@ namespace HorrorTracker.Data.Repositories
             catch (Exception ex)
             {
                 _logger.LogError($"Error deleting series with ID '{id}'.", ex);
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<Movie> GetWatchedMoviesBySeriesName(string seriesName)
+        {
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieQueries.GetWatchedMovieBySeriesName;
+                var parameters = MovieSeriesDatabaseParameters.GetBySeriesName(seriesName);
+                using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, query, parameters);
+                var movies = new List<Movie>();
+
+                while (reader.Read())
+                {
+                    var movie = new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0))
+                    {
+                        Title = reader.GetString(1)
+                    };
+
+                    movies.Add(movie);
+                }
+
+                return movies;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error fetching watched movies for series '{seriesName}'.", ex);
+                return [];
             }
             finally
             {

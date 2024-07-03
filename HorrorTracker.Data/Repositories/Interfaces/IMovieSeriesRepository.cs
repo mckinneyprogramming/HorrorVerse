@@ -32,5 +32,12 @@ namespace HorrorTracker.Data.Repositories.Interfaces
         /// </summary>
         /// <param name="id">The movie series id.</param>
         void DeleteSeries(int id);
+
+        /// <summary>
+        /// Gets the watched movies in a given series.
+        /// </summary>
+        /// <param name="seriesName">The series name.</param>
+        /// <returns>The list of movies.</returns>
+        IEnumerable<Movie> GetWatchedMoviesBySeriesName(string seriesName);
     }
 }
