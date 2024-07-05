@@ -36,6 +36,12 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager = new MockSetupManager(_mockDatabaseConnection, _mockDatabaseCommand, _mockLoggerService);
         }
 
+        [TestCleanup]
+        public void Cleanup()
+        {
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+        }
+
         [TestMethod]
         public void AddMovieSeries_SuccessfulConnectionAndAddition_ShouldReturnGoodStatus()
         {
@@ -51,8 +57,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                $"Movie series {movieSeries.Title} was added successfully.",
-                "HorrorTracker database is closed.");
+                $"Movie series {movieSeries.Title} was added successfully.");
         }
 
         [TestMethod]
@@ -68,7 +73,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
-            _loggerVerifier.VerifyLoggerInformationMessages("HorrorTracker database is open.", "HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
         }
 
         [TestMethod]
@@ -85,7 +90,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.IsTrue(returnStatus == 0);
             _loggerVerifier.VerifyErrorMessage("Adding a movie series to the database failed.", exceptionMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -121,8 +125,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                $"Movie series {seriesName} was found in the database.",
-                "HorrorTracker database is closed.");
+                $"Movie series {seriesName} was found in the database.");
         }
 
         [TestMethod]
@@ -142,7 +145,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.IsNull(returnedMovieSeries);
             _loggerVerifier.VerifyWarningMessage($"Movie series {seriesName} was not found in the database.");
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
@@ -158,38 +160,40 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.IsNull(returnStatus);
             _loggerVerifier.VerifyErrorMessage("An error occurred while getting the movie series by name.", exceptionMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         [TestMethod]
         public void UpdateMovieSeries_SuccessfulUpdate_LogsInformation()
         {
             // Arrange
+            var expectedMessage = "Series updated successfully.";
             var series = MovieSeries();
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateMovieSeries, 1);
 
             // Act
-            _repository.UpdateSeries(series);
+            var actualMessage = _repository.UpdateSeries(series);
 
             // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                $"Series '{series.Title}' updated successfully.",
-                "HorrorTracker database is closed.");
+                actualMessage);
         }
 
         [TestMethod]
         public void UpdateMovieSeries_UnsuccessfulUpdate_DoesNotLogInformation()
         {
             // Arrange
+            var expectedMessage = "Updating movie series was not successful.";
             var series = MovieSeries();
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateMovieSeries, 0);
 
             // Act
-            _repository.UpdateSeries(series);
+            var actualMessage = _repository.UpdateSeries(series);
 
             // Assert
-            _loggerVerifier.VerifyLoggerInformationMessages("HorrorTracker database is open.", "HorrorTracker database is closed.");
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
             _loggerVerifier.VerifyInformationMessageDoesNotLog($"Series '{series.Title}' updated successfully.");
         }
 
@@ -198,44 +202,48 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var movieSeries = MovieSeries();
+            var expectedMessage = $"Error updating series '{movieSeries.Title}'.";
             var exceptionMessage = "Failed for not able to connect to the server.";
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            _repository.UpdateSeries(movieSeries);
+            var actualMessage = _repository.UpdateSeries(movieSeries);
 
             // Assert
-            _loggerVerifier.VerifyErrorMessage($"Error updating series '{movieSeries.Title}'.", exceptionMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
         }
 
         [TestMethod]
         public void DeleteMovieSeries_SuccessfulDelete_LogsInformation()
         {
             // Arrange
+            var expectedMessage = "Series with ID '1' deleted successfully.";
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.DeleteMovieSeries, 1);
 
             // Act
-            _repository.DeleteSeries(1);
+            var actualMessage = _repository.DeleteSeries(1);
 
             // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                "Series with ID '1' deleted successfully.",
-                "HorrorTracker database is closed.");
+                actualMessage);
         }
 
         [TestMethod]
         public void DeleteMovieSeries_UnsuccessfulUpdate_DoesNotLogInformation()
         {
             // Arrange
+            var expectedMessage = "Deleting movie series was not successful.";
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.DeleteMovieSeries, 0);
 
             // Act
-            _repository.DeleteSeries(1);
+            var actualMessage = _repository.DeleteSeries(1);
 
             // Assert
-            _loggerVerifier.VerifyLoggerInformationMessages("HorrorTracker database is open.", "HorrorTracker database is closed.");
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Series with ID '1' deleted successfully.");
         }
 
@@ -244,15 +252,16 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var exceptionMessage = "Failed for not able to connect to the server.";
+            var expectedMessage = "Error deleting series with ID '1'.";
             _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(exceptionMessage));
             _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
 
             // Act
-            _repository.DeleteSeries(1);
+            var actualMessage = _repository.DeleteSeries(1);
 
             // Assert
-            _loggerVerifier.VerifyErrorMessage("Error deleting series with ID '1'.", exceptionMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
         }
 
         [DataTestMethod]
@@ -288,8 +297,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(watched, result.First().Watched);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                $"Retrieved {result.Count()} movie(s) successfully.",
-                "HorrorTracker database is closed.");
+                $"Retrieved {result.Count()} movie(s) successfully.");
         }
 
         [DataTestMethod]
@@ -309,7 +317,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.IsNotNull(result);
             Assert.AreEqual(0, result.Count());
             _loggerVerifier.VerifyErrorMessage($"Error fetching movies for series '{seriesName}'.", exceptionMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         private static MovieSeries MovieSeries()

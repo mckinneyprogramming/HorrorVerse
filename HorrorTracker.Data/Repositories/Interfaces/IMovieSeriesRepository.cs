@@ -25,20 +25,29 @@ namespace HorrorTracker.Data.Repositories.Interfaces
         /// Updates the movie series.
         /// </summary>
         /// <param name="series">The movie series.</param>
-        void UpdateSeries(MovieSeries series);
+        /// <returns>Message status.</returns>
+        string UpdateSeries(MovieSeries series);
 
         /// <summary>
         /// Deletes the movie series.
         /// </summary>
         /// <param name="id">The movie series id.</param>
-        void DeleteSeries(int id);
+        /// <returns>Message status.</returns>
+        string DeleteSeries(int id);
 
         /// <summary>
-        /// Gets the watched movies in a given series.
+        /// Gets the unwatched or watched movies in a given series.
         /// </summary>
         /// <param name="seriesName">The series name.</param>
         /// <param name="query">The query.</param>
         /// <returns>The list of movies.</returns>
         IEnumerable<Movie> GetUnwatchedOrWatchedMoviesBySeriesName(string seriesName, string query);
+
+        /// <summary>
+        /// Updates the total time for a given movie series.
+        /// </summary>
+        /// <param name="seriesId">Teh series id.</param>
+        /// <returns>Message status.</returns>
+        string UpdateTotalTime(int seriesId);
     }
 }

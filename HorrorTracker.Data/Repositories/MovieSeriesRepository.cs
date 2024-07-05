@@ -113,8 +113,9 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public void UpdateSeries(MovieSeries series)
+        public string UpdateSeries(MovieSeries series)
         {
+            var message = "Updating movie series was not successful.";
             try
             {
                 _databaseConnectionsHelper.Open();
@@ -122,44 +123,57 @@ namespace HorrorTracker.Data.Repositories
                 var parameters = MovieSeriesDatabaseParameters.UpdateMovieSeriesParameters(series);
                 var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
 
-                if (result == 1)
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
                 {
-                    _logger.LogInformation($"Series '{series.Title}' updated successfully.");
+                    message = "Series updated successfully.";
+                    _logger.LogInformation(message);
+                    return message;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error updating series '{series.Title}'.", ex);
+                message = $"Error updating series '{series.Title}'.";
+                _logger.LogError(message, ex);
+                return message;
             }
             finally
             {
                 _databaseConnectionsHelper.Close();
             }
+
+            return message;
         }
 
         /// <inheritdoc/>
-        public void DeleteSeries(int id)
+        public string DeleteSeries(int id)
         {
+            var message = "Deleting movie series was not successful.";
             try
             {
                 _databaseConnectionsHelper.Open();
                 var query = MovieSeriesQueries.DeleteMovieSeries;
-                var parameters = MovieSeriesDatabaseParameters.DeleteMovieSeriesParameters(id);
+                var parameters = SharedDatabaseParameters.IdParameters(id);
                 var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
 
-                if (result == 1)
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
                 {
-                    _logger.LogInformation($"Series with ID '{id}' deleted successfully.");
+                    message = $"Series with ID '{id}' deleted successfully.";
+                    _logger.LogInformation(message);
+                    return message;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error deleting series with ID '{id}'.", ex);
+                message = $"Error deleting series with ID '{id}'.";
+                _logger.LogError(message, ex);
+                return message;
             }
             finally
             {
                 _databaseConnectionsHelper.Close();
             }
+
+            return message;
         }
 
         /// <inheritdoc/>
@@ -194,6 +208,39 @@ namespace HorrorTracker.Data.Repositories
             {
                 _databaseConnectionsHelper.Close();
             }
+        }
+
+        /// <inheritdoc/>
+        public string UpdateTotalTime(int seriesId)
+        {
+            var message = "Updating total time for the series was not successful.";
+            try
+            {
+                _databaseConnectionsHelper.Open();
+
+                var query = MovieSeriesQueries.UpdateTotalTime;
+                var parameters = SharedDatabaseParameters.IdParameters(seriesId);
+                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
+
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                {
+                    message = $"Total time for series ID '{seriesId}' updated successfully.";
+                    _logger.LogInformation(message);
+                    return message;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = $"Error updating total time for series ID '{seriesId}'.";
+                _logger.LogError(message, ex);
+                return message;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+
+            return message;
         }
     }
 }

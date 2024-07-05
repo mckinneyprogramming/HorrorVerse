@@ -19,5 +19,18 @@ namespace HorrorTracker.Data.Constants.Parameters
                 { "@Title", title }
             });
         }
+
+        /// <summary>
+        /// Retrieves the get by id parameters.
+        /// </summary>
+        /// <param name="id">The id.</param>
+        /// <returns>The dictionary of parameters.</returns>
+        public static ReadOnlyDictionary<string, object> IdParameters(int id)
+        {
+            return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
+            {
+                { "@Id", id }
+            });
+        }
     }
 }
