@@ -255,8 +255,10 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
-        [TestMethod]
-        public void GetWatchedMoviesBySeriesName_WhenValidSeriesName_ShouldReturnsWatchedMovies()
+        [DataTestMethod]
+        [DataRow(true, MovieQueries.GetWatchedMovieBySeriesName)]
+        [DataRow(false, MovieQueries.GetUnwatchedMovieBySeriesName)]
+        public void GetUnwatchedOrWatchedMoviesBySeriesName_WhenValidSeriesName_ShouldReturnsWatchedMovies(bool watched, string query)
         {
             // Arrange
             var seriesName = "Test Series";
@@ -273,24 +275,27 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockReader.Setup(r => r.GetBoolean(3)).Returns(true);
             mockReader.Setup(r => r.GetInt32(4)).Returns(1);
             mockReader.Setup(r => r.GetInt32(5)).Returns(2022);
-            mockReader.Setup(r => r.GetBoolean(6)).Returns(true);
+            mockReader.Setup(r => r.GetBoolean(6)).Returns(watched);
             mockReader.Setup(r => r.GetInt32(0)).Returns(1);
 
             // Act
-            var result = _repository.GetWatchedMoviesBySeriesName(seriesName);
+            var result = _repository.GetUnwatchedOrWatchedMoviesBySeriesName(seriesName, query);
 
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.Count());
             Assert.AreEqual("Movie Title", result.First().Title);
+            Assert.AreEqual(watched, result.First().Watched);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                $"Retrieved {result.Count()} movies successfully.",
+                $"Retrieved {result.Count()} movie(s) successfully.",
                 "HorrorTracker database is closed.");
         }
 
-        [TestMethod]
-        public void GetWatchedMoviesBySeriesName_WhenExceptionOccurs_ShouldHandleException()
+        [DataTestMethod]
+        [DataRow(MovieQueries.GetWatchedMovieBySeriesName)]
+        [DataRow(MovieQueries.GetUnwatchedMovieBySeriesName)]
+        public void GetUnwatchedOrWatchedMoviesBySeriesName_WhenExceptionOccurs_ShouldHandleException(string query)
         {
             // Arrange
             var seriesName = "Test Series";
@@ -298,12 +303,12 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var result = _repository.GetWatchedMoviesBySeriesName(seriesName);
+            var result = _repository.GetUnwatchedOrWatchedMoviesBySeriesName(seriesName, query);
 
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(0, result.Count());
-            _loggerVerifier.VerifyErrorMessage($"Error fetching watched movies for series '{seriesName}'.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage($"Error fetching movies for series '{seriesName}'.", exceptionMessage);
             _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 

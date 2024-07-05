@@ -38,7 +38,7 @@
         /// <summary>
         /// Gets the Movie that are unwatched in a given series.
         /// </summary>
-        public const string GetUnwathcedMovieBySeriesName = "SELECT * FROM Movie WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @Title) AND Watched = FALSE";
+        public const string GetUnwatchedMovieBySeriesName = "SELECT * FROM Movie WHERE SeriesId = (SELECT Id FROM Series WHERE Title = @Title) AND Watched = FALSE";
 
         /// <summary>
         /// Retrieves the watched Movie from the database.

@@ -25,19 +25,6 @@ namespace HorrorTracker.Data.Constants.Parameters
         }
 
         /// <summary>
-        /// Retrievs the get movie series parameters.
-        /// </summary>
-        /// <param name="seriesTitle">The series title.</param>
-        /// <returns>The dictionary of parameters.</returns>
-        public static ReadOnlyDictionary<string, object> GetBySeriesName(string seriesTitle)
-        {
-            return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
-            {
-                { "@Title", seriesTitle }
-            });
-        }
-
-        /// <summary>
         /// Retrieves the update movie series parameters.
         /// </summary>
         /// <param name="series">the movie series.</param>

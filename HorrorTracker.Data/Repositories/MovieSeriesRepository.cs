@@ -80,7 +80,7 @@ namespace HorrorTracker.Data.Repositories
                 _databaseConnectionsHelper.Open();
 
                 var commandText = MovieSeriesQueries.GetMovieSeriesByName;
-                var parameters = MovieSeriesDatabaseParameters.GetBySeriesName(seriesName);
+                var parameters = SharedDatabaseParameters.GetByTitleParameters(seriesName);
 
                 using (var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, commandText, parameters))
                 {
@@ -163,13 +163,12 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Movie> GetWatchedMoviesBySeriesName(string seriesName)
+        public IEnumerable<Movie> GetUnwatchedOrWatchedMoviesBySeriesName(string seriesName, string query)
         {
             try
             {
                 _databaseConnectionsHelper.Open();
-                var query = MovieQueries.GetWatchedMovieBySeriesName;
-                var parameters = MovieSeriesDatabaseParameters.GetBySeriesName(seriesName);
+                var parameters = SharedDatabaseParameters.GetByTitleParameters(seriesName);
                 using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, query, parameters);
                 var movies = new List<Movie>();
 
@@ -183,12 +182,12 @@ namespace HorrorTracker.Data.Repositories
                     movies.Add(movie);
                 }
 
-                _logger.LogInformation($"Retrieved {movies.Count} movies successfully.");
+                _logger.LogInformation($"Retrieved {movies.Count} movie(s) successfully.");
                 return movies;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error fetching watched movies for series '{seriesName}'.", ex);
+                _logger.LogError($"Error fetching movies for series '{seriesName}'.", ex);
                 return [];
             }
             finally

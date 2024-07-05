@@ -37,7 +37,8 @@ namespace HorrorTracker.Data.Repositories.Interfaces
         /// Gets the watched movies in a given series.
         /// </summary>
         /// <param name="seriesName">The series name.</param>
+        /// <param name="query">The query.</param>
         /// <returns>The list of movies.</returns>
-        IEnumerable<Movie> GetWatchedMoviesBySeriesName(string seriesName);
+        IEnumerable<Movie> GetUnwatchedOrWatchedMoviesBySeriesName(string seriesName, string query);
     }
 }
