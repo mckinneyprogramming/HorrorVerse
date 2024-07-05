@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.MSTests.Shared;
+using TMDbLib.Objects.Movies;
 
 namespace HorrorTracker.MSTests.Data.Repositories
 {
@@ -251,6 +252,58 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             _loggerVerifier.VerifyErrorMessage("Error deleting series with ID '1'.", exceptionMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
+        public void GetWatchedMoviesBySeriesName_WhenValidSeriesName_ShouldReturnsWatchedMovies()
+        {
+            // Arrange
+            var seriesName = "Test Series";
+            var mockReader = new Mock<IDataReader>();
+            
+
+            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteReader()).Returns(mockReader.Object);
+            mockReader.SetupSequence(r => r.Read())
+                .Returns(true)
+                .Returns(false);
+            mockReader.Setup(r => r.GetString(1)).Returns("Movie Title");
+            mockReader.Setup(r => r.GetDecimal(2)).Returns(120m);
+            mockReader.Setup(r => r.GetBoolean(3)).Returns(true);
+            mockReader.Setup(r => r.GetInt32(4)).Returns(1);
+            mockReader.Setup(r => r.GetInt32(5)).Returns(2022);
+            mockReader.Setup(r => r.GetBoolean(6)).Returns(true);
+            mockReader.Setup(r => r.GetInt32(0)).Returns(1);
+
+            // Act
+            var result = _repository.GetWatchedMoviesBySeriesName(seriesName);
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(1, result.Count());
+            Assert.AreEqual("Movie Title", result.First().Title);
+            _loggerVerifier.VerifyLoggerInformationMessages(
+                "HorrorTracker database is open.",
+                $"Retrieved {result.Count()} movies successfully.",
+                "HorrorTracker database is closed.");
+        }
+
+        [TestMethod]
+        public void GetWatchedMoviesBySeriesName_WhenExceptionOccurs_ShouldHandleException()
+        {
+            // Arrange
+            var seriesName = "Test Series";
+            var exceptionMessage = "Failed for not able to connect to the server.";
+            _mockSetupManager.SetupException(exceptionMessage);
+
+            // Act
+            var result = _repository.GetWatchedMoviesBySeriesName(seriesName);
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(0, result.Count());
+            _loggerVerifier.VerifyErrorMessage($"Error fetching watched movies for series '{seriesName}'.", exceptionMessage);
             _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 

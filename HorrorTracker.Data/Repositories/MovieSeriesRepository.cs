@@ -183,6 +183,7 @@ namespace HorrorTracker.Data.Repositories
                     movies.Add(movie);
                 }
 
+                _logger.LogInformation($"Retrieved {movies.Count} movies successfully.");
                 return movies;
             }
             catch (Exception ex)
