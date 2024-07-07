@@ -312,7 +312,7 @@ namespace HorrorTracker.Data.Repositories
                 var result = DatabaseCommandsHelper.ExecutesScalar(_databaseConnection, query, parameters);
                 var parser = new Parser();
 #pragma warning disable CS8604 // Possible null reference argument.
-                var isDecimal = parser.IsDecimal(result, out var decimalValue);
+                _ = parser.IsDecimal(result, out var decimalValue);
 #pragma warning restore CS8604 // Possible null reference argument.
 
                 _logger.LogInformation("Retrieving time left for movie series was successful.");
