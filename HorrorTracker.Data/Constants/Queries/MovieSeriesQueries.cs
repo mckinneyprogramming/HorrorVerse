@@ -28,22 +28,22 @@
         /// <summary>
         /// Updates the total time for a given movie series.
         /// </summary>
-        public const string UpdateTotalTime = "UPDATE MovieSeries SET TotalTime = (SELECT SUM(TotalTime) FROM Movie WHERE SeriesId = @SeriesId) WHERE Id = @SeriesId";
+        public const string UpdateTotalTime = "UPDATE MovieSeries SET TotalTime = (SELECT SUM(TotalTime) FROM Movie WHERE SeriesId = @Id) WHERE Id = @Id";
 
         /// <summary>
         /// Updates the total movies for a given movie series.
         /// </summary>
-        public const string UpdateTotalMovies = "UPDATE MovieSeries SET TotalMovies = (SELECT COUNT(*) FROM Movie WHERE SeriesId = @SeriesId) WHERE Id = @SeriesId";
+        public const string UpdateTotalMovies = "UPDATE MovieSeries SET TotalMovies = (SELECT COUNT(*) FROM Movie WHERE SeriesId = @Id) WHERE Id = @Id";
 
         /// <summary>
         /// Updates the movie series to watched if all the movies in the series are watched.
         /// </summary>
-        public const string UpdateWatched = "UPDATE MovieSeries SET Watched = CASE WHEN (SELECT COUNT(*) FROM Movie WHERE SeriesId = @SeriesId AND Watched = FALSE) = FALSE THEN TRUE ELSE FALSE END WHERE Id = @SeriesId";
+        public const string UpdateWatched = "UPDATE MovieSeries SET Watched = CASE WHEN (SELECT COUNT(*) FROM Movie WHERE SeriesId = @Id AND Watched = FALSE) = FALSE THEN TRUE ELSE FALSE END WHERE Id = @Id";
 
         /// <summary>
         /// Gets the total time left to watch in the movie series.
         /// </summary>
-        public const string GetTimeLeft = "SELECT SUM(TotalTime) FROM Movie WHERE SeriesId = @SeriesId AND Watched = FALSE";
+        public const string GetTimeLeft = "SELECT SUM(TotalTime) FROM Movie WHERE SeriesId = @Id AND Watched = FALSE";
 
         /// <summary>
         /// Gets a list of all the series.

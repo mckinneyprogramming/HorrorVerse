@@ -5,6 +5,7 @@ using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
+using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.Data.Repositories
 {
@@ -86,10 +87,7 @@ namespace HorrorTracker.Data.Repositories
                 {
                     if (reader.Read())
                     {
-                        movieSeries = new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0))
-                        {
-                            Title = reader.GetString(1)
-                        };
+                        movieSeries = new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
 
                         _logger.LogInformation($"Movie series {seriesName} was found in the database.");
                         return movieSeries;
@@ -188,11 +186,7 @@ namespace HorrorTracker.Data.Repositories
 
                 while (reader.Read())
                 {
-                    var movie = new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0))
-                    {
-                        Title = reader.GetString(1)
-                    };
-
+                    var movie = new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0));
                     movies.Add(movie);
                 }
 
@@ -241,6 +235,126 @@ namespace HorrorTracker.Data.Repositories
             }
 
             return message;
+        }
+
+        /// <inheritdoc/>
+        public string UpdateTotalMovies(int seriesId)
+        {
+            var message = "Updating the total movies for the series was not successful.";
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieSeriesQueries.UpdateTotalMovies;
+                var parameters = SharedDatabaseParameters.IdParameters(seriesId);
+                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
+
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                {
+                    message = $"Total movies for series ID '{seriesId}' updated successfully.";
+                    _logger.LogInformation(message);
+                    return message;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = $"Error updating total movies for series ID '{seriesId}'.";
+                _logger.LogError(message, ex);
+                return message;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+
+            return message;
+        }
+
+        /// <inheritdoc/>
+        public string UpdateWatched(int seriesId)
+        {
+            var message = "Updating watched for the series was not successful.";
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieSeriesQueries.UpdateWatched;
+                var parameters = SharedDatabaseParameters.IdParameters(seriesId);
+                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
+
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                {
+                    message = $"Watched status for series ID '{seriesId}' updated successfully.";
+                    _logger.LogInformation(message);
+                    return message;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = $"Error updating watched status for series ID '{seriesId}'.";
+                _logger.LogError(message, ex);
+                return message;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+
+            return message;
+        }
+
+        /// <inheritdoc/>
+        public decimal GetTimeLeft(int seriesId)
+        {
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieSeriesQueries.GetTimeLeft;
+                var parameters = SharedDatabaseParameters.IdParameters(seriesId);
+                var result = DatabaseCommandsHelper.ExecutesScalar(_databaseConnection, query, parameters);
+                var parser = new Parser();
+#pragma warning disable CS8604 // Possible null reference argument.
+                var isDecimal = parser.IsDecimal(result, out var decimalValue);
+#pragma warning restore CS8604 // Possible null reference argument.
+
+                _logger.LogInformation("Retrieving time left for movie series was successful.");
+                return decimalValue;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error fetching time left for series ID '{seriesId}'.", ex);
+                return 0.0M;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<MovieSeries> GetAllMovieSeries()
+        {
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, MovieSeriesQueries.GetAllSeries);
+                var seriesList = new List<MovieSeries>();
+                while (reader.Read())
+                {
+                    var movieSeries = new MovieSeries(reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
+                    seriesList.Add(movieSeries);
+                }
+
+                _logger.LogInformation("Retrieving all the movie series was successful.");
+                return seriesList;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error fetching all movie series.", ex);
+                return [];
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
         }
     }
 }

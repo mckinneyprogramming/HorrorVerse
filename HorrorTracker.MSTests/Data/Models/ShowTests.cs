@@ -17,10 +17,7 @@ namespace HorrorTracker.MSTests.Data.Models
             var show = fixture.Create<Show>();
 
             // Act
-            var newShow = new Show(show.Title, show.TotalTime, show.TotalEpisodes, show.NumberOfSeasons, show.Watched, show.Id)
-            {
-                Title = show.Title
-            };
+            var newShow = new Show(show.Title, show.TotalTime, show.TotalEpisodes, show.NumberOfSeasons, show.Watched, show.Id);
 
             // Assert
             Assert.IsNotNull(newShow);

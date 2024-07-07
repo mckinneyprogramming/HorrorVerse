@@ -25,10 +25,7 @@ namespace HorrorTracker.MSTests.Data.Models
                 episode.EpisodeNumber,
                 episode.Watched,
                 episode.TotalTime,
-                episode.Id)
-            {
-                Title = episode.Title
-            };
+                episode.Id);
 
             // Assert
             Assert.IsNotNull(newEpisode);

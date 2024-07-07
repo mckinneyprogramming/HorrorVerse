@@ -144,10 +144,7 @@ namespace HorrorTracker.ConsoleApp.Managers
 
             var totalTimeOfFims = Convert.ToInt32(filmsInSeries.Sum(film => film.Runtime));
             var seriesName = collectionInformation.Name.Replace("Collection", string.Empty).Trim();
-            var series = new MovieSeries(seriesName, totalTimeOfFims, collectionInformation.Parts.Count, false)
-            {
-                Title = seriesName
-            };
+            var series = new MovieSeries(seriesName, totalTimeOfFims, collectionInformation.Parts.Count, false);
 
             var databaseConnection = new DatabaseConnection(_connectionString);
             var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, _logger);
@@ -172,10 +169,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             var newSeries = movieSeriesRepository.GetMovieSeriesByName(seriesName);
             foreach (var film in filmsInSeries)
             {
-                var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, newSeries?.Id, film.ReleaseDate!.Value.Year, false)
-                {
-                    Title = film.Title
-                };
+                var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, newSeries?.Id, film.ReleaseDate!.Value.Year, false);
 
                 // Add movie to the database.
             }

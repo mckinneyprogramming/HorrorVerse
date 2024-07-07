@@ -13,6 +13,6 @@
         /// <summary>
         /// Gets or sets the Title.
         /// </summary>
-        public required string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
     }
 }

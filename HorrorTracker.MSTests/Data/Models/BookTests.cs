@@ -17,10 +17,7 @@ namespace HorrorTracker.MSTests.Data.Models
             var book = fixture.Create<Book>();
 
             // Act
-            var newBook = new Book(book.Title, book.SeriesId, book.Pages, book.PartOfSeries, book.ReleaseYear, book.Read, book.Id)
-            {
-                Title = book.Title
-            };
+            var newBook = new Book(book.Title, book.SeriesId, book.Pages, book.PartOfSeries, book.ReleaseYear, book.Read, book.Id);
 
             // Assert
             Assert.IsNotNull(newBook);

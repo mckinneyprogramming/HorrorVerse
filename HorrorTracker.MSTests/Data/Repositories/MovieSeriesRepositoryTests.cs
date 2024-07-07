@@ -8,7 +8,6 @@ using System.Diagnostics.CodeAnalysis;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.MSTests.Shared;
-using TMDbLib.Objects.Movies;
 
 namespace HorrorTracker.MSTests.Data.Repositories
 {
@@ -272,7 +271,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Arrange
             var seriesName = "Test Series";
             var mockReader = new Mock<IDataReader>();
-            
 
             _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(_mockDatabaseCommand.Object);
             _mockDatabaseCommand.Setup(cmd => cmd.ExecuteReader()).Returns(mockReader.Object);
@@ -366,6 +364,195 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
             _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+        }
+
+        [TestMethod]
+        public void UpdateTotalMovies_WhenSuccessful_ShouldReturnAndLogAppropriateMessage()
+        {
+            // Arrange
+            var expectedMessage = "Total movies for series ID '1' updated successfully.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateTotalMovies, 1);
+
+            // Act
+            var actualMessage = _repository.UpdateTotalMovies(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyLoggerInformationMessages(
+                "HorrorTracker database is open.",
+                actualMessage);
+        }
+
+        [TestMethod]
+        public void UpdateTotalMovies_WhenUnsuccessful_ShouldReturnAndLogAppropriateMessage()
+        {
+            // Arrange
+            var expectedMessage = "Updating the total movies for the series was not successful.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateTotalTime, 0);
+
+            // Act
+            var actualMessage = _repository.UpdateTotalMovies(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessageDoesNotLog("Total movies for series ID '1' updated successfully.");
+        }
+
+        [TestMethod]
+        public void UpdateTotalMovies_WhenExceptionIsThrown_ShouldReturnAndLogExceptionMessage()
+        {
+            // Arrange
+            var expectedMessage = "Error updating total movies for series ID '1'.";
+            var exceptionMessage = "Failed for not able to connect to the server.";
+            _mockSetupManager.SetupException(exceptionMessage);
+
+            // Act
+            var actualMessage = _repository.UpdateTotalMovies(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+        }
+
+        [TestMethod]
+        public void UpdateWatched_WhenSuccessful_ShouldReturnAndLogAppropriateMessage()
+        {
+            // Arrange
+            var expectedMessage = "Watched status for series ID '1' updated successfully.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateWatched, 1);
+
+            // Act
+            var actualMessage = _repository.UpdateWatched(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyLoggerInformationMessages(
+                "HorrorTracker database is open.",
+                actualMessage);
+        }
+
+        [TestMethod]
+        public void UpdateWatched_WhenUnsuccessful_ShouldReturnAndLogAppropriateMessage()
+        {
+            // Arrange
+            var expectedMessage = "Updating watched for the series was not successful.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateTotalTime, 0);
+
+            // Act
+            var actualMessage = _repository.UpdateWatched(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessageDoesNotLog("Watched status for series ID '1' updated successfully.");
+        }
+
+        [TestMethod]
+        public void UpdateWatched_WhenExceptionIsThrown_ShouldReturnAndLogErrorMessage()
+        {
+            // Arrange
+            var expectedMessage = "Error updating watched status for series ID '1'.";
+            var exceptionMessage = "Failed for not able to connect to the server.";
+            _mockSetupManager.SetupException(exceptionMessage);
+
+            // Act
+            var actualMessage = _repository.UpdateWatched(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+        }
+
+        [TestMethod]
+        public void GetTimeLeft_WhenSuccesful_ShouldReturnValueAndLogMessage()
+        {
+            // Arrange
+            var expectedValue = 5.5M;
+            _mockSetupManager.SetupExecuteScalarDatabaseCommand(MovieSeriesQueries.GetTimeLeft, expectedValue);
+
+            // Act
+            var actualValue = _repository.GetTimeLeft(1);
+
+            // Assert
+            Assert.AreEqual(expectedValue, actualValue);
+            _loggerVerifier.VerifyInformationMessage("Retrieving time left for movie series was successful.");
+        }
+
+        [TestMethod]
+        public void GetTimeLeft_WhenExceptionIsThrown_ShouldReturnZeroAndLogMessage()
+        {
+            // Arrange
+            var expectedValue = 0.0M;
+            var exceptionMessage = "Failed for not able to connect to the server.";
+            _mockSetupManager.SetupException(exceptionMessage);
+
+            // Act
+            var actualValue = _repository.GetTimeLeft(1);
+
+            // Assert
+            Assert.AreEqual(expectedValue, actualValue);
+            _loggerVerifier.VerifyErrorMessage("Error fetching time left for series ID '1'.", exceptionMessage);
+        }
+
+        [TestMethod]
+        public void GetAllMovieSeries_WhenSuccessful_ShouldReturnAllMovieSeriesAndLogMessage()
+        {
+            // Arrange
+            var mockReader = new Mock<IDataReader>();
+            var expectedSeriesList = new List<MovieSeries>
+            {
+                new("Series1", 100, 5, true, 1),
+                new("Series2", 200, 10, false, 2)
+            };
+
+            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteReader()).Returns(mockReader.Object);
+            mockReader.SetupSequence(reader => reader.Read())
+                      .Returns(true)
+                      .Returns(true)
+                      .Returns(false);
+            mockReader.SetupSequence(reader => reader.GetInt32(0))
+                .Returns(1)
+                .Returns(2);
+            mockReader.SetupSequence(reader => reader.GetString(1))
+                .Returns("Series1")
+                .Returns("Series2");
+            mockReader.SetupSequence(reader => reader.GetInt32(2))
+                .Returns(100)
+                .Returns(200);
+            mockReader.SetupSequence(reader => reader.GetInt32(3))
+                .Returns(5)
+                .Returns(10);
+            mockReader.SetupSequence(reader => reader.GetBoolean(4))
+                .Returns(true)
+                .Returns(false);
+
+            // Act
+            var result = _repository.GetAllMovieSeries();
+
+            // Assert
+            var actualSeriesList = result.ToList();
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedSeriesList.Count, result.Count());
+            CollectionAssert.AreEqual(expectedSeriesList, actualSeriesList, new MovieSeriesComparer());
+            _loggerVerifier.VerifyInformationMessage("Retrieving all the movie series was successful.");
+        }
+
+        [TestMethod]
+        public void GetAllMovieSeries_WhenExceptionIsThrown_ShouldLogErrorMessageAndReturnEmptyList()
+        {
+            // Arrange
+            var exceptionMessage = "Failed for not able to connect to the server.";
+            _mockSetupManager.SetupException(exceptionMessage);
+
+            // Act
+            var result = _repository.GetAllMovieSeries();
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(0, result.Count());
+            _loggerVerifier.VerifyErrorMessage("Error fetching all movie series.", exceptionMessage);
         }
 
         private static MovieSeries MovieSeries()
