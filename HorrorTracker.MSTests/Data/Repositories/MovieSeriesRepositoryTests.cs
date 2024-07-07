@@ -319,6 +319,55 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _loggerVerifier.VerifyErrorMessage($"Error fetching movies for series '{seriesName}'.", exceptionMessage);
         }
 
+        [TestMethod]
+        public void UpdateTotalTime_WhenSuccessful_ShouldReturnMessageAndLogAppropriateMessage()
+        {
+            // Arrange
+            var expectedMessage = "Total time for series ID '1' updated successfully.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateTotalTime, 1);
+
+            // Act
+            var actualMessage = _repository.UpdateTotalTime(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyLoggerInformationMessages(
+                "HorrorTracker database is open.",
+                actualMessage);
+        }
+
+        [TestMethod]
+        public void UpdateTotalTime_WhenUnsuccessful_ShouldReturnAndLogAppropriateMessage()
+        {
+            // Arrange
+            var expectedMessage = "Updating total time for the series was not successful.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateTotalTime, 0);
+
+            // Act
+            var actualMessage = _repository.UpdateTotalTime(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessageDoesNotLog("Total time for series ID '1' updated successfully.");
+        }
+
+        [TestMethod]
+        public void UpdateTotalTime_WhenExceptionIsThrown_ShouldReturnAndLogExceptionMessage()
+        {
+            // Arrange
+            var expectedMessage = "Error updating total time for series ID '1'.";
+            var exceptionMessage = "Failed for not able to connect to the server.";
+            _mockSetupManager.SetupException(exceptionMessage);
+
+            // Act
+            var actualMessage = _repository.UpdateTotalTime(1);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+        }
+
         private static MovieSeries MovieSeries()
         {
             var fixture = new Fixture();
