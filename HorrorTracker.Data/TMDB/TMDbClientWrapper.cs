@@ -12,6 +12,7 @@ namespace HorrorTracker.Data.TMDB
     /// <summary>
     /// The <see cref="TMDbClientWrapper"/> class.
     /// </summary>
+    /// <seealso cref="ITMDbClientWrapper"/>
     [ExcludeFromCodeCoverage]
     public class TMDbClientWrapper : ITMDbClientWrapper
     {
