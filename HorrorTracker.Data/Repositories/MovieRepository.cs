@@ -70,5 +70,38 @@ namespace HorrorTracker.Data.Repositories
 
             return result;
         }
+
+        /// <inheritdoc/>
+        public Movie? GetMovieByName(string title)
+        {
+            Movie? movie = null;
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieQueries.GetMovieByName;
+                var parameters = SharedDatabaseParameters.GetByTitleParameters(title);
+                using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, query, parameters);
+                if (reader.Read())
+                {
+                    movie = new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0));
+                    _logger.LogInformation($"Movie '{movie.Title}' was found in the database.");
+                    return movie;
+                }
+                else
+                {
+                    _logger.LogWarning($"Movie '{title}' not found in the database.");
+                    return movie;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("An error occurred while getting the movie by name.", ex);
+                return movie;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+        }
     }
 }
