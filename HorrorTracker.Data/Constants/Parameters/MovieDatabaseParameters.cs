@@ -15,15 +15,21 @@ namespace HorrorTracker.Data.Constants.Parameters
         /// <returns>The parameters dictionary.</returns>
         public static ReadOnlyDictionary<string, object> InsertMovieParameters(Movie movie)
         {
-            return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
+            var parameters = new Dictionary<string, object>
             {
                 { "Title", movie.Title },
                 { "TotalTime", movie.TotalTime },
                 { "PartOfSeries", movie.PartOfSeries },
-                { "SeriesId", movie.SeriesId },
                 { "ReleaseYear", movie.ReleaseYear },
                 { "Watched", movie.Watched }
-            });
+            };
+
+            if (movie.SeriesId.HasValue)
+            {
+                parameters.Add("SeriesId", movie.SeriesId.Value);
+            }
+
+            return DatabaseParametersHelper.CreateReadOnlyDictionary(parameters);
         }
     }
 }
