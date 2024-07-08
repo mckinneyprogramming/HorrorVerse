@@ -139,14 +139,18 @@ namespace HorrorTracker.ConsoleApp
             var overallRepository = horrorConnections.RetrieveOverallRepository();
             var overallTime = overallRepository.GetOverallTime();
             var overallTimeLeft = overallRepository.GetOverallTimeLeft();
+            var overallTimeInHours = overallTime / 60;
+            var overallTimeInDays = overallTimeInHours / 24;
+            var overallTimeLeftInHours = overallTimeLeft / 60;
+            var overallTimeLeftInDays = overallTimeLeftInHours / 24;
 
             ConsoleHelper.GroupedConsole(ConsoleColor.Red, "===== Overall Information =====");
             Console.WriteLine($"Overall Time in the Database:");
-            Console.WriteLine($"- In Hours: {overallTime}");
-            Console.WriteLine($"- In Days: {overallTime / 24}");
+            Console.WriteLine($"- In Hours: {overallTimeInHours}");
+            Console.WriteLine($"- In Days: {overallTimeInDays}");
             Console.WriteLine($"Overall Time left to Watch in the Database:");
-            Console.WriteLine($"- In Hours: {overallTimeLeft}");
-            Console.WriteLine($"- In Days: {overallTimeLeft / 24}");
+            Console.WriteLine($"- In Hours: {overallTimeLeftInHours}");
+            Console.WriteLine($"- In Days: {overallTimeLeftInDays}");
             ConsoleHelper.NewLine();
         }
 

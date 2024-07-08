@@ -136,7 +136,7 @@ namespace HorrorTracker.ConsoleApp.Managers
 
             var collectionInformation = movieDatabaseService.GetCollection(collectionId).Result;
             var filmsInSeries = new List<TMDbLib.Objects.Movies.Movie>();
-            foreach (var parts in collectionInformation.Parts)
+            foreach (var parts in collectionInformation.Parts.Where(part => part.ReleaseDate != null))
             {
                 var film = movieDatabaseService.GetMovie(parts.Id).Result;
                 filmsInSeries.Add(film);
@@ -166,6 +166,10 @@ namespace HorrorTracker.ConsoleApp.Managers
                 return;
             }
 
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"The movie series '{series.Title}' was added successfully.");
+            Console.ResetColor();
+
             var newSeries = movieSeriesRepository.GetMovieSeriesByName(seriesName);
             foreach (var film in filmsInSeries)
             {
@@ -179,6 +183,10 @@ namespace HorrorTracker.ConsoleApp.Managers
                     Console.WriteLine("The movie was not added. An error occurred or the movie was invalid.");
                     return;
                 }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"The movie '{film.Title}' was added successfully.");
+                Console.ResetColor();
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
