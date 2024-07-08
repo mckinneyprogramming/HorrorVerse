@@ -145,7 +145,6 @@ namespace HorrorTracker.ConsoleApp.Managers
             var totalTimeOfFims = Convert.ToInt32(filmsInSeries.Sum(film => film.Runtime));
             var seriesName = collectionInformation.Name.Replace("Collection", string.Empty).Trim();
             var series = new MovieSeries(seriesName, totalTimeOfFims, collectionInformation.Parts.Count, false);
-
             var databaseConnection = new DatabaseConnection(_connectionString);
             var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, _logger);
 
@@ -168,6 +167,7 @@ namespace HorrorTracker.ConsoleApp.Managers
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"The movie series '{series.Title}' was added successfully.");
+            Thread.Sleep(2000);
             Console.ResetColor();
 
             var newSeries = movieSeriesRepository.GetMovieSeriesByName(seriesName);
@@ -186,11 +186,13 @@ namespace HorrorTracker.ConsoleApp.Managers
 
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"The movie '{film.Title}' was added successfully.");
+                Thread.Sleep(2000);
                 Console.ResetColor();
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Movie series: {series.Title} was added successfully as well as the movies in the series.");
+            Thread.Sleep(3000);
         }
 
         /// <summary>

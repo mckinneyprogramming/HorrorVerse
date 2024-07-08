@@ -5,7 +5,7 @@
     /// </summary>
     public static class OverallQueries
     {
-        private const string DecimalType = "DECIMAL(5, 2)";
+        private const string DecimalType = "DECIMAL(10, 2)";
         private const string PrimaryKey = "Id SERIAL PRIMARY KEY";
         private const string NotNull = "NOT NULL";
         private const string IntegerType = "INTEGER";
