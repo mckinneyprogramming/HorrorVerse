@@ -1,4 +1,7 @@
-﻿using HorrorTracker.Data.Helpers;
+﻿using HorrorTracker.Data.Constants.Parameters;
+using HorrorTracker.Data.Constants.Queries;
+using HorrorTracker.Data.Helpers;
+using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
@@ -36,6 +39,36 @@ namespace HorrorTracker.Data.Repositories
             _databaseConnection = databaseConnection;
             _logger = logger;
             _databaseConnectionsHelper = new DatabaseConnectionsHelper(databaseConnection, logger);
+        }
+
+        /// <inheritdoc/>
+        public int AddMovie(Movie movie)
+        {
+            var result = 0;
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieQueries.InsertMovie;
+                var parameters = MovieDatabaseParameters.InsertMovieParameters(movie);
+                result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
+
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                {
+                    _logger.LogInformation($"Movie '{movie.Title}' added successfully.");
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error adding movie '{movie.Title}'.", ex);
+                return result;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+
+            return result;
         }
     }
 }

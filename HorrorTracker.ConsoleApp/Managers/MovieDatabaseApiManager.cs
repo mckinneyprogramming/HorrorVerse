@@ -170,9 +170,19 @@ namespace HorrorTracker.ConsoleApp.Managers
             foreach (var film in filmsInSeries)
             {
                 var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, newSeries?.Id, film.ReleaseDate!.Value.Year, false);
+                var movieRepository = new MovieRepository(databaseConnection, _logger);
 
-                // Add movie to the database.
+                var addMovieResult = movieRepository.AddMovie(movie);
+                if (addMovieResult == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                    Console.WriteLine("The movie was not added. An error occurred or the movie was invalid.");
+                    return;
+                }
             }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Movie series: {series.Title} was added successfully as well as the movies in the series.");
         }
 
         /// <summary>

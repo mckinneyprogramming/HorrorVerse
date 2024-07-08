@@ -44,7 +44,7 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public int AddMovieSeries(MovieSeries series)
         {
-            int result = 0;
+            var result = 0;
             try
             {
                 _databaseConnectionsHelper.Open();
