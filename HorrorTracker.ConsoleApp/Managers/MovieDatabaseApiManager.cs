@@ -1,5 +1,4 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
-using HorrorTracker.ConsoleApp.Managers.Interfaces;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
@@ -12,14 +11,9 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// <summary>
     /// The <see cref="MovieDatabaseApiManager"/> class.
     /// </summary>
-    /// <seealso cref="IManager"/>
-    public class MovieDatabaseApiManager : IManager
+    /// <seealso cref="Manager"/>
+    public class MovieDatabaseApiManager : Manager
     {
-        /// <summary>
-        /// The logger service.
-        /// </summary>
-        private readonly LoggerService _logger;
-
         /// <summary>
         /// The connection string.
         /// </summary>
@@ -35,37 +29,17 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// </summary>
         /// <param name="logger">The logger.</param>
         public MovieDatabaseApiManager(LoggerService logger, string connectionString)
+            : base(logger)
         {
-            _logger = logger;
             _connectionString = connectionString;
         }
 
         /// <inheritdoc/>
-        public void Manage()
+        public override void Manage()
         {
             while (IsNotDone)
             {
-                Console.Title = ConsoleTitles.RetrieveTitle("Movie Database API");
-
-                Console.Clear();
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("========== The Movie Database API ==========");
-
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                ConsoleHelper.TypeMessage("Choose an option below to get started adding items to your database!");
-                Console.ResetColor();
-                ConsoleHelper.NewLine();
-
-                Console.WriteLine(
-                    "1. Add Series\n" +
-                    "2. Add Movie\n" +
-                    "3. Add Documentary\n" +
-                    "4. Add TV Show\n" +
-                    "5. Add Episode\n" +
-                    "6. Exit");
-                Console.Write(">> ");
-
-                _logger.LogInformation("TMDB API Menu displayed.");
+                DisplayManagerMenus();
 
                 var decision = ConsoleHelper.GetUserInput();
                 var actualNumber = ConsoleHelper.ParseNumberDecision(_logger, decision);
@@ -239,5 +213,17 @@ namespace HorrorTracker.ConsoleApp.Managers
             ConsoleHelper.NewLine();
             Console.Write(">> ");
         }
+
+        /// <inheritdoc/>
+        protected override string RetrieveTitle() => "The Movie Database API";
+
+        /// <inheritdoc/>
+        protected override string RetrieveMenuOptions() => 
+            "1. Add Series\n" +
+            "2. Add Movie\n" +
+            "3. Add Documentary\n" +
+            "4. Add TV Show\n" +
+            "5. Add Episode\n" +
+            "6. Exit";
     }
 }

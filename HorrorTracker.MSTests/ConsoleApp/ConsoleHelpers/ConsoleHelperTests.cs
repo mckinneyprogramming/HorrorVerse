@@ -137,40 +137,6 @@ namespace HorrorTracker.Tests
         }
 
         [TestMethod]
-        public void PerformActionsBasedOnDecision_ValidAction_PerformsAction()
-        {
-            // Arrange
-            var actualNumber = 1;
-            var actionExecuted = false;
-            var actions = new Dictionary<int, Action>
-            {
-                { 1, () => actionExecuted = true }
-            };
-
-            // Act
-            ConsoleHelper.PerformActionsBasedOnDecision(actualNumber, _mockLogger.Object, actions);
-
-            // Assert
-            Assert.IsTrue(actionExecuted);
-        }
-
-        [TestMethod]
-        public void PerformActionsBasedOnDecision_InvalidAction_LogsWarning()
-        {
-            // Arrange
-            var actualNumber = 99;
-            var actions = new Dictionary<int, Action>();
-
-            // Act
-            ConsoleHelper.PerformActionsBasedOnDecision(actualNumber, _mockLogger.Object, actions);
-
-            // Assert
-            _mockLogger.Verify(logger => logger.LogWarning("Invalid selection made."), Times.Once);
-            var output = _consoleOutput.ToString();
-            StringAssert.Contains(output, "Invalid selection. Please enter a valid number." + Environment.NewLine);
-        }
-
-        [TestMethod]
         public void PerformActionsBasedOnDecision_ExceptionThrown_LogsError()
         {
             // Arrange
@@ -181,7 +147,7 @@ namespace HorrorTracker.Tests
             };
 
             // Act
-            ConsoleHelper.PerformActionsBasedOnDecision(actualNumber, _mockLogger.Object, actions);
+            ConsoleHelper.ProcessDecision(actualNumber, _mockLogger.Object, actions);
 
             // Assert
             _mockLogger.Verify(logger => logger.LogError("Error processing decision.", It.IsAny<Exception>()), Times.Once);

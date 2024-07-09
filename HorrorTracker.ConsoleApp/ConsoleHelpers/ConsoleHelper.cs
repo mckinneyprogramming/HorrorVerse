@@ -103,12 +103,22 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         }
 
         /// <summary>
+        /// Displays the console menu.
+        /// </summary>
+        /// <param name="menu">The menu.</param>
+        public static void DisplayMenu(string menu)
+        {
+            Console.WriteLine(menu);
+            Console.Write(">> ");
+        }
+
+        /// <summary>
         /// Performs the actions based on the user selection.
         /// </summary>
         /// <param name="actualNumber">The decision number.</param>
         /// <param name="logger">The logger.</param>
         /// <param name="actions">The dictionary of actions.</param>
-        public static void PerformActionsBasedOnDecision(int actualNumber, ILoggerService logger, Dictionary<int, Action> actions)
+        private static void PerformActionsBasedOnDecision(int actualNumber, ILoggerService logger, Dictionary<int, Action> actions)
         {
             try
             {

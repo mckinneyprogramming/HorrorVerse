@@ -120,11 +120,10 @@ namespace HorrorTracker.ConsoleApp
             Thread.Sleep(2000);
 
             Console.ResetColor();
-            Console.WriteLine(
+            ConsoleHelper.DisplayMenu(
                 "1. Use TMDB API\n" +
                 "2. Manually Add\n" +
                 "3. Exit");
-            Console.Write(">> ");
 
             _logger.LogInformation("Main menu displayed.");
         }
@@ -163,7 +162,7 @@ namespace HorrorTracker.ConsoleApp
             return new Dictionary<int, Action>
             {
                 { 1, () => new MovieDatabaseApiManager(_logger, _connectionString).Manage() },
-                { 2, () => new ManualManager(_logger).Manage() },
+                { 2, () => new ManualManager(_connectionString, _logger).Manage() },
                 { 3, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
             };
         }
