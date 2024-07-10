@@ -6,12 +6,14 @@ using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
+using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.DataHelpers
 {
+    [ExcludeFromCodeCoverage]
     public static class SeriesHelper
     {
         /// <summary>

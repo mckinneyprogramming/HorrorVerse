@@ -1,10 +1,12 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using Moq;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Tests
 {
     [TestClass]
+    [ExcludeFromCodeCoverage]
     public class ConsoleHelperTests
     {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.

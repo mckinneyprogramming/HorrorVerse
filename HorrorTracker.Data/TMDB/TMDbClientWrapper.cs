@@ -132,12 +132,9 @@ namespace HorrorTracker.Data.TMDB
                 }
 
                 var fetchedMovies = await Task.WhenAll(fetchTasks);
-                foreach (var detailedMovie in fetchedMovies)
+                foreach (var detailedMovie in fetchedMovies.Where(m => m.BelongsToCollection != null))
                 {
-                    if (detailedMovie.BelongsToCollection != null)
-                    {
-                        uniqueCollections.Add(detailedMovie.BelongsToCollection);
-                    }
+                    uniqueCollections.Add(detailedMovie.BelongsToCollection);
                 }
                 
                 page++;
