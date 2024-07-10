@@ -20,5 +20,12 @@
         /// <param name="result">The decimal value.</param>
         /// <returns>True if the object is a decimal; false otherwise.</returns>
         bool IsDecimal(object input, out decimal result);
+
+        /// <summary>
+        /// Checks if the string is not null, empty, or whitespace.
+        /// </summary>
+        /// <param name="value">Teh string value.</param>
+        /// <returns>True if the value is valid; false otherwise.</returns>
+        bool StringIsNull(string value);
     }
 }

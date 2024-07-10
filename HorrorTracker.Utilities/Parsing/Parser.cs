@@ -29,5 +29,11 @@ namespace HorrorTracker.Utilities.Parsing
             result = 0.0M;
             return false;
         }
+
+        /// <inheritdoc/>
+        public bool StringIsNull(string value)
+        {
+            return string.IsNullOrWhiteSpace(value);
+        }
     }
 }

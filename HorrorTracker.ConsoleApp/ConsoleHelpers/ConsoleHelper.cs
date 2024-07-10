@@ -113,6 +113,42 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         }
 
         /// <summary>
+        /// Prompts the next decision from the user.
+        /// </summary>
+        /// <param name="typeString">The type string message.</param>
+        public static void TypeStringPromptUser(string typeString)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            TypeMessage(typeString);
+            Console.ResetColor();
+            NewLine();
+            Console.Write(">> ");
+        }
+
+        /// <summary>
+        /// The user input is valid.
+        /// </summary>
+        /// <param name="decision">The string value.</param>
+        /// <returns>True if the decision is valid; false otherwise.</returns>
+        public static bool UserInputIsValid(string decision)
+        {
+            var parser = new Parser();
+            return !parser.StringIsNull(decision);
+        }
+
+        /// <summary>
+        /// Prints the successful message for database operations.
+        /// </summary>
+        /// <param name="message">The message.</param>
+        public static void DatabaseSuccessfulMessage(string message)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(message);
+            Thread.Sleep(2000);
+            Console.ResetColor();
+        }
+
+        /// <summary>
         /// Performs the actions based on the user selection.
         /// </summary>
         /// <param name="actualNumber">The decision number.</param>

@@ -1,10 +1,10 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
-using HorrorTracker.Data.Models;
+using HorrorTracker.ConsoleApp.DataHelpers;
+using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
-using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
@@ -71,102 +71,45 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// </summary>
         private void AddSeries()
         {
-            Console.Clear();
-            ConsoleHelper.GroupedConsole(ConsoleColor.Red, "----- Add Series to Datebase -----");
-
-            PromptUser("Search for a series below to add to the database.");
-            var decision = ConsoleHelper.GetUserInput();
-
-            if (string.IsNullOrEmpty(decision))
+            var decision = InitialUserDecision("----- Add Series to Datebase -----", "Search for a series below to add to the database.");
+            if (!ConsoleHelper.UserInputIsValid(decision))
             {
                 return;
             }
 
-            var movieDatabaseConfig = new MovieDatabaseConfig();
-            var movieDatabaseClientWrapper = new TMDbClientWrapper(movieDatabaseConfig.GetApiKey());
-            var movieDatabaseService = new MovieDatabaseService(movieDatabaseClientWrapper);
+            var movieDatabaseService = CreateMovieDatabaseService();
             var result = movieDatabaseService.SearchCollection($"{decision} Collection").Result;
 
-            ConsoleHelper.NewLine();
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("The following series were found based on your input:");
+            SeriesHelper.DisplaySearchResults(result);
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            foreach (var collection in result.Results)
-            {
-                Console.WriteLine($"- {collection.Name}; Id: {collection.Id}\n" +
-                    $"  - {collection.Overview}");
-            }
-
-            PromptUser("Choose the series id above to add the series information to the database as well as its associated movies.");
-            
-            var collectionIdSelection = ConsoleHelper.GetUserInput();
-            var parser = new Parser();
-            var collectionIdSelectionIsInteger = parser.IsInteger(collectionIdSelection, out var collectionId);
-            if (string.IsNullOrEmpty(collectionIdSelection) || !collectionIdSelectionIsInteger)
+            var collectionId = SeriesHelper.PromptForSeriesId();
+            if (collectionId == 0)
             {
                 return;
             }
 
             var collectionInformation = movieDatabaseService.GetCollection(collectionId).Result;
-            var filmsInSeries = new List<TMDbLib.Objects.Movies.Movie>();
-            foreach (var parts in collectionInformation.Parts.Where(part => part.ReleaseDate != null))
-            {
-                var film = movieDatabaseService.GetMovie(parts.Id).Result;
-                filmsInSeries.Add(film);
-            }
+            var filmsInSeries = SeriesHelper.FetchFilmsInSeries(movieDatabaseService, collectionInformation.Parts);
+            var series = SeriesHelper.CreateMovieSeries(collectionInformation, filmsInSeries);
 
-            var totalTimeOfFims = Convert.ToInt32(filmsInSeries.Sum(film => film.Runtime));
-            var seriesName = collectionInformation.Name.Replace("Collection", string.Empty).Trim();
-            var series = new MovieSeries(seriesName, totalTimeOfFims, collectionInformation.Parts.Count, false);
             var databaseConnection = new DatabaseConnection(_connectionString);
             var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, _logger);
 
-            var movieSeriesAlreadyExists = movieSeriesRepository.GetMovieSeriesByName(series.Title);
-            if (movieSeriesAlreadyExists != null)
+            if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, series))
             {
-                _logger.LogWarning("User tried adding a movie series that already exists in the database.");
                 Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("The movie series you are trying to add alreday exists in the database. Please try a different series.");
+                Console.WriteLine("The movie series you are trying to add alreday exists in the database or an error occurred. Please try a different series.");
                 return;
             }
 
-            var success = movieSeriesRepository.AddMovieSeries(series);
-            if (success == 0)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("The movie series was not added. An error occurred or the movie series was invalid.");
-                return;
-            }
+            ConsoleHelper.DatabaseSuccessfulMessage($"The movie series '{series.Title}' was added successfully.");
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"The movie series '{series.Title}' was added successfully.");
-            Thread.Sleep(2000);
-            Console.ResetColor();
+            var newSeries = movieSeriesRepository.GetMovieSeriesByName(series.Title);
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            SeriesHelper.AddFilmsInSeriesToDatabase(filmsInSeries, databaseConnection, newSeries.Id, _logger);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
-            var newSeries = movieSeriesRepository.GetMovieSeriesByName(seriesName);
-            foreach (var film in filmsInSeries)
-            {
-                var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, newSeries?.Id, film.ReleaseDate!.Value.Year, false);
-                var movieRepository = new MovieRepository(databaseConnection, _logger);
-
-                var addMovieResult = movieRepository.AddMovie(movie);
-                if (addMovieResult == 0)
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                    Console.WriteLine("The movie was not added. An error occurred or the movie was invalid.");
-                    return;
-                }
-
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"The movie '{film.Title}' was added successfully.");
-                Thread.Sleep(2000);
-                Console.ResetColor();
-            }
-
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Movie series: {series.Title} was added successfully as well as the movies in the series.");
-            Thread.Sleep(3000);
+            ConsoleHelper.DatabaseSuccessfulMessage($"Movie series: {series.Title} was added successfully as well as the movies in the series.");
         }
 
         /// <summary>
@@ -174,7 +117,13 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// </summary>
         private void AddMovie()
         {
-            Console.Clear();
+            var decision = InitialUserDecision("----- Add Movie to Datebase -----", "Search for a movie below to add to the database.");
+            if (!ConsoleHelper.UserInputIsValid(decision))
+            {
+                return;
+            }
+
+            var movieDatabaseService = CreateMovieDatabaseService();
         }
 
         /// <summary>
@@ -202,16 +151,30 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Prompts the next decision from the user.
+        /// Retrieves the initial user decision to search the database.
         /// </summary>
-        /// <param name="typeString">The type string message.</param>
-        private static void PromptUser(string typeString)
+        /// <param name="title">The console title.</param>
+        /// <param name="prompt">The console prompt.</param>
+        private static string InitialUserDecision(string title, string prompt)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage(typeString);
-            Console.ResetColor();
-            ConsoleHelper.NewLine();
-            Console.Write(">> ");
+            Console.Clear();
+            ConsoleHelper.GroupedConsole(ConsoleColor.Red, title);
+
+            ConsoleHelper.TypeStringPromptUser(prompt);
+#pragma warning disable CS8603 // Possible null reference return.
+            return ConsoleHelper.GetUserInput();
+#pragma warning restore CS8603 // Possible null reference return.
+        }
+
+        /// <summary>
+        /// Creates TMDB API service.
+        /// </summary>
+        /// <returns>The movie database service.</returns>
+        private static MovieDatabaseService CreateMovieDatabaseService()
+        {
+            var movieDatabaseConfig = new MovieDatabaseConfig();
+            var movieDatabaseClientWrapper = new TMDbClientWrapper(movieDatabaseConfig.GetApiKey());
+            return new MovieDatabaseService(movieDatabaseClientWrapper);
         }
 
         /// <inheritdoc/>
