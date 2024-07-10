@@ -136,5 +136,14 @@ namespace HorrorTracker.Data.TMDB.Interfaces
             string? language = null,
             string? includeImageLanguage = null,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Retrieves the list of horror collections.
+        /// </summary>
+        /// <param name="startPage">The start page.</param>
+        /// <param name="endPage">The end page.</param>
+        /// <returns>The hash set of collections.</returns>
+        [ExcludeFromCodeCoverage]
+        Task<HashSet<SearchCollection>> HorrorCollections(int startPage, int endPage);
     }
 }

@@ -107,5 +107,14 @@ namespace HorrorTracker.Data.TMDB
         {
             return await _client.GetTvEpisodeAsync(tvShowId, seasonNumber, episodeNumber);
         }
+
+        /// <summary>
+        /// Retrieves the list of horror collections.
+        /// </summary>
+        /// <returns>The list of horror collections.</returns>
+        public async Task<HashSet<SearchCollection>> HorrorCollections(int startPage, int endPage)
+        {
+            return await _client.HorrorCollections(startPage, endPage);
+        }
     }
 }

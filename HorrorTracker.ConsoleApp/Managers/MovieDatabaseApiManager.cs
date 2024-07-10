@@ -5,6 +5,7 @@ using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
+using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {

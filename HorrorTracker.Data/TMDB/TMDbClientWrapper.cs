@@ -107,5 +107,65 @@ namespace HorrorTracker.Data.TMDB
         {
             return await _client.GetTvEpisodeAsync(tvShowId, seasonNumber, episodeNumber, cancellationToken: cancellationToken);
         }
+
+        /// <inheritdoc/>
+        public async Task<HashSet<SearchCollection>> HorrorCollections(int startPage, int endPage)
+        {
+            var genreIds = new[] { 27 };
+            var page = startPage;
+            SearchContainer<SearchMovie> movies;
+            var uniqueCollections = new HashSet<SearchCollection>(new CollectionComparer());
+            var batchSize = 50;
+            var delayBetweenRequestsMs = 200;
+            var pagesProcessed = 0;
+
+            do
+            {
+                movies = await _client.DiscoverMoviesAsync()
+                                     .IncludeWithAllOfGenre(genreIds)
+                                     .Query(page);
+
+                List<Task<Movie>> fetchTasks = [];
+
+                foreach (var movie in movies.Results.Take(batchSize))
+                {
+                    fetchTasks.Add(FetchMovieDetailsAsync(movie.Id));
+                }
+
+                var fetchedMovies = await Task.WhenAll(fetchTasks);
+                foreach (var detailedMovie in fetchedMovies)
+                {
+                    if (detailedMovie.BelongsToCollection != null)
+                    {
+                        uniqueCollections.Add(detailedMovie.BelongsToCollection);
+                    }
+                }
+
+                pagesProcessed++;
+                if (pagesProcessed % 10 == 0)
+                {
+                    Console.WriteLine($"Processed {pagesProcessed} pages.");
+                }
+
+                page++;
+                await Task.Delay(delayBetweenRequestsMs);
+
+            } while (movies.Page < endPage && page <= movies.TotalPages);
+
+            return uniqueCollections;
+        }
+
+        private async Task<Movie> FetchMovieDetailsAsync(int movieId)
+        {
+            try
+            {
+                return await _client.GetMovieAsync(movieId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching movie details for ID {movieId}: {ex.Message}");
+                throw;
+            }
+        }
     }
 }
