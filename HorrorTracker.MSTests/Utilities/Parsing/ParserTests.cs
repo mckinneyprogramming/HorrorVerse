@@ -91,5 +91,21 @@ namespace HorrorTracker.MSTests.Utilities.Parsing
             Assert.IsFalse(boolValue);
             Assert.AreEqual(expectedDecimalValue, actualDecimalValue);
         }
+
+        [DataTestMethod]
+        [DataRow("string", false)]
+        [DataRow("   ", true)]
+        [DataRow("", true)]
+        [DataRow(null, true)]
+        public void StringIsNull_WhenDifferentValuesArePassedIntoMethod_ShouldReturnAppropriateBoolean(string value, bool expectedReturnValue)
+        {
+            // Arrange
+
+            // Act
+            var actualReturnValue = _parser.StringIsNull(value);
+
+            // Assert
+            Assert.AreEqual(expectedReturnValue, actualReturnValue);
+        }
     }
 }
