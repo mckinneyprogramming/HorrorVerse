@@ -1,5 +1,5 @@
 ﻿using HorrorTracker.Data.Models;
-using HorrorTracker.Data.Repositories;
+using HorrorTracker.Data.Repositories.Interfaces;
 
 namespace HorrorTracker.Data.Performers
 {
@@ -14,7 +14,7 @@ namespace HorrorTracker.Data.Performers
         /// <param name="repository">The movie series repository.</param>
         /// <param name="series">The movie series.</param>
         /// <returns>True if adding was successful; false otherwise.</returns>
-        public static bool MovieSeriesAddedSuccessfully(MovieSeriesRepository repository, MovieSeries series)
+        public static bool MovieSeriesAddedSuccessfully(IMovieSeriesRepository repository, MovieSeries series)
         {
             var movieSeriesAlreadyExists = repository.GetMovieSeriesByName(series.Title);
             if (movieSeriesAlreadyExists != null)
@@ -32,7 +32,7 @@ namespace HorrorTracker.Data.Performers
         /// <param name="repository">The movie repository.</param>
         /// <param name="movie">The movie.</param>
         /// <returns>True if the movie is added successfully; false otherwise.</returns>
-        public static bool MovieAddedSuccessfully(MovieRepository repository, Movie movie)
+        public static bool MovieAddedSuccessfully(IMovieRepository repository, Movie movie)
         {
             var addMovieResult = repository.AddMovie(movie);
             return addMovieResult != 0;

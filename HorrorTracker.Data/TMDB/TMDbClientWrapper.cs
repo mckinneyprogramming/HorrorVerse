@@ -109,7 +109,7 @@ namespace HorrorTracker.Data.TMDB
         }
 
         /// <inheritdoc/>
-        public async Task<HashSet<SearchCollection>> HorrorCollections(int startPage, int endPage)
+        public async Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage)
         {
             var genreIds = new[] { 27 };
             var page = startPage;
@@ -117,7 +117,6 @@ namespace HorrorTracker.Data.TMDB
             var uniqueCollections = new HashSet<SearchCollection>(new CollectionComparer());
             var batchSize = 50;
             var delayBetweenRequestsMs = 200;
-            var pagesProcessed = 0;
 
             do
             {
@@ -140,13 +139,7 @@ namespace HorrorTracker.Data.TMDB
                         uniqueCollections.Add(detailedMovie.BelongsToCollection);
                     }
                 }
-
-                pagesProcessed++;
-                if (pagesProcessed % 10 == 0)
-                {
-                    Console.WriteLine($"Processed {pagesProcessed} pages.");
-                }
-
+                
                 page++;
                 await Task.Delay(delayBetweenRequestsMs);
 

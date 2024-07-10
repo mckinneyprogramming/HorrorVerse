@@ -162,5 +162,19 @@ namespace HorrorTracker.MSTests.Data.TMDB
             // Assert
             Assert.AreEqual(expectedTvEpisode, actualTvEpisode);
         }
+
+        [TestMethod]
+        public async Task HorrorCollections_WhenValidPageNumbersAreProvided_ShouldReturnListOfCollections()
+        {
+            // Arrange
+            var expectedCollection = new HashSet<SearchCollection>();
+            _mockClient.Setup(c => c.GetHorrorCollections(It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync(expectedCollection);
+
+            // Act
+            var actualCollection = await _service.GetHorrorCollections(1, 5);
+
+            // Assert
+            Assert.AreEqual(expectedCollection, actualCollection);
+        }
     }
 }

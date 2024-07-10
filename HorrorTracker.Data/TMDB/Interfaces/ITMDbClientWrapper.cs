@@ -144,6 +144,6 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         /// <param name="endPage">The end page.</param>
         /// <returns>The hash set of collections.</returns>
         [ExcludeFromCodeCoverage]
-        Task<HashSet<SearchCollection>> HorrorCollections(int startPage, int endPage);
+        Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage);
     }
 }

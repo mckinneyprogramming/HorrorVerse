@@ -154,5 +154,65 @@ namespace HorrorTracker.Tests
             var output = _consoleOutput.ToString();
             StringAssert.Contains(output, "An error occurred while processing your selection. Please try again." + Environment.NewLine);
         }
+
+        [TestMethod]
+        public void DisplayMenu_WhenStringIsPassedIn_ShouldDisplayMenu()
+        {
+            // Arrange
+            var menu = "1. Series\n" +
+                "2. Movie\n" +
+                "3. Exit";
+
+            // Act
+            ConsoleHelper.DisplayMenu(menu);
+
+            // Assert
+            var output = _consoleOutput.ToString();
+            StringAssert.Contains(output, menu);
+        }
+
+        [TestMethod]
+        public void TypeStringPromptUser_WhenStringIsPassedIn_ShouldBeInTheOutput()
+        {
+            // Arrange
+            var typeString = "Select an option below.";
+
+            // Act
+            ConsoleHelper.TypeStringPromptUser(typeString);
+
+            // Assert
+            var output = _consoleOutput.ToString();
+            StringAssert.Contains(output, typeString);
+        }
+
+        [DataTestMethod]
+        [DataRow("string", true)]
+        [DataRow("", false)]
+        [DataRow(null, false)]
+        [DataRow("   ", false)]
+        public void UserInputIsValid_WhenStringIsPassedIn_ShouldReturnCorrectBoolean(string value, bool expectedReturn)
+        {
+            // Arrange
+
+            // Act
+            var actualReturn = ConsoleHelper.UserInputIsValid(value);
+
+            // Assert
+            Assert.AreEqual(expectedReturn, actualReturn);
+        }
+
+        [TestMethod]
+        public void DatabaseSuccessfulMessage_WhenStringIsPassedIn_ShouldBeInTheOutput()
+        {
+            // Arrange
+            var value = "Movie was added successfully.";
+
+            // Act
+            ConsoleHelper.DatabaseSuccessfulMessage(value);
+
+            // Assert
+            var output = _consoleOutput.ToString();
+            StringAssert.Contains(output, value);
+        }
     }
 }
