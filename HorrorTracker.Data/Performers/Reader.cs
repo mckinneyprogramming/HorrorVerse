@@ -5,6 +5,6 @@
     /// </summary>
     public static class Reader
     {
-        
+        // Coming soon.
     }
 }

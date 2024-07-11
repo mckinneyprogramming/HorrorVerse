@@ -2,5 +2,6 @@
 {
     public class Updater
     {
+        // Coming soon.
     }
 }

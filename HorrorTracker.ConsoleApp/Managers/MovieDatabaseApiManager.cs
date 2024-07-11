@@ -29,7 +29,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// The parser.
         /// </summary>
-        private Parser _parser;
+        private readonly Parser _parser;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MovieDatabaseApiManager"/> class.
@@ -65,7 +65,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             return new Dictionary<int, Action>()
             {
                 { 1, SearchSeriesToAdd },
-                { 2, AddMovie },
+                { 2, SearchMovieToAdd },
                 { 3, AddDocumentary },
                 { 4, AddTelevisionShow },
                 { 5, AddEpisode },
@@ -159,7 +159,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// Adds a movie to the database.
         /// </summary>
-        private void AddMovie()
+        private void SearchMovieToAdd()
         {
             var decision = InitialUserDecision("----- Add Movie to Datebase -----", "Search for a movie below to add to the database.");
             if (!_parser.StringIsNull(decision))
