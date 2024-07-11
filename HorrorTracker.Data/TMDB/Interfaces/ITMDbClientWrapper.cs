@@ -145,5 +145,12 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         /// <returns>The hash set of collections.</returns>
         [ExcludeFromCodeCoverage]
         Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage);
+
+        /// <summary>
+        /// Retrieves the number of pages of horror films.
+        /// </summary>
+        /// <returns>The total number of pages.</returns>
+        [ExcludeFromCodeCoverage]
+        Task<int> GetNumberOfPages();
     }
 }

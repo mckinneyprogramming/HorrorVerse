@@ -116,5 +116,14 @@ namespace HorrorTracker.Data.TMDB
         {
             return await _client.GetHorrorCollections(startPage, endPage);
         }
+
+        /// <summary>
+        /// Retrieves the number of pages in the horror genre of movies.
+        /// </summary>
+        /// <returns>The number of pages.</returns>
+        public async Task<int> GetNumberOfPages()
+        {
+            return await _client.GetNumberOfPages();
+        }
     }
 }

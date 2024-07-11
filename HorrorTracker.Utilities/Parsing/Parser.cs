@@ -31,7 +31,7 @@ namespace HorrorTracker.Utilities.Parsing
         }
 
         /// <inheritdoc/>
-        public bool StringIsNull(string value)
+        public bool StringIsNull(string? value)
         {
             return string.IsNullOrWhiteSpace(value);
         }

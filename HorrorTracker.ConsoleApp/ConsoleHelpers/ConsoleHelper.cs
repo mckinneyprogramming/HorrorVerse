@@ -10,14 +10,6 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
     public static class ConsoleHelper
     {
         /// <summary>
-        /// Writes a new line to the console.
-        /// </summary>
-        public static void NewLine()
-        {
-            Console.WriteLine();
-        }
-
-        /// <summary>
         /// Loading animation.
         /// </summary>
         [ExcludeFromCodeCoverage]
@@ -39,19 +31,6 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         }
 
         /// <summary>
-        /// Group of console functions to reduce number of calls.
-        /// </summary>
-        /// <param name="consoleColor">The console color.</param>
-        /// <param name="writeLine">The <see cref="Console.WriteLine()"/> message.</param>
-        public static void GroupedConsole(ConsoleColor consoleColor, string writeLine)
-        {
-            Console.ForegroundColor = consoleColor;
-            Console.WriteLine(writeLine);
-            NewLine();
-            Console.ResetColor();
-        }
-
-        /// <summary>
         /// Types the message out.
         /// </summary>
         /// <param name="message">The message.</param>
@@ -63,89 +42,23 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
                 Thread.Sleep(25);
             }
 
-            NewLine();
-        }
-
-        /// <summary>
-        /// Gets user input from the console.
-        /// </summary>
-        /// <returns>User input.</returns>
-        public static string? GetUserInput()
-        {
-            return Console.ReadLine();
-        }
-
-        /// <summary>
-        /// Parses the number decision.
-        /// </summary>
-        /// <param name="logger">The logger.</param>
-        /// <param name="decision">The decision.</param>
-        /// <returns>The actual number if there is one.</returns>
-        public static int ParseNumberDecision(ILoggerService logger, string? decision)
-        {
-            logger.LogInformation($"User input: {decision}");
-            var parser = new Parser();
-            _ = parser.IsInteger(decision, out var actualNumber);
-
-            return actualNumber;
+            Console.WriteLine();
         }
 
         /// <summary>
         /// Processes the main decision based on user input.
         /// </summary>
-        /// <param name="actualNumber">The actual number.</param>
+        /// <param name="decision">The decision.</param>
         /// <param name="logger">The logger.</param>
         /// <param name="actions">The dictionary of actions.</param>
-        public static void ProcessDecision(int actualNumber, ILoggerService logger, Dictionary<int, Action> actions)
+        public static void ProcessDecision(string? decision, ILoggerService logger, Dictionary<int, Action> actions)
         {
+            logger.LogInformation($"User input: {decision}");
+            var parser = new Parser();
+            _ = parser.IsInteger(decision, out var actualNumber);
+
             logger.LogInformation($"Processing decision: {actualNumber}");
             PerformActionsBasedOnDecision(actualNumber, logger, actions);
-        }
-
-        /// <summary>
-        /// Displays the console menu.
-        /// </summary>
-        /// <param name="menu">The menu.</param>
-        public static void DisplayMenu(string menu)
-        {
-            Console.WriteLine(menu);
-            Console.Write(">> ");
-        }
-
-        /// <summary>
-        /// Prompts the next decision from the user.
-        /// </summary>
-        /// <param name="typeString">The type string message.</param>
-        public static void TypeStringPromptUser(string typeString)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            TypeMessage(typeString);
-            Console.ResetColor();
-            NewLine();
-            Console.Write(">> ");
-        }
-
-        /// <summary>
-        /// The user input is valid.
-        /// </summary>
-        /// <param name="decision">The string value.</param>
-        /// <returns>True if the decision is valid; false otherwise.</returns>
-        public static bool UserInputIsValid(string decision)
-        {
-            var parser = new Parser();
-            return !parser.StringIsNull(decision);
-        }
-
-        /// <summary>
-        /// Prints the successful message for database operations.
-        /// </summary>
-        /// <param name="message">The message.</param>
-        public static void DatabaseSuccessfulMessage(string message)
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine(message);
-            Thread.Sleep(2000);
-            Console.ResetColor();
         }
 
         /// <summary>
@@ -165,14 +78,20 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
                 else
                 {
                     logger.LogWarning("Invalid selection made.");
-                    GroupedConsole(ConsoleColor.DarkRed, "Invalid selection. Please enter a valid number.");
+                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                    Console.WriteLine("Invalid selection. Please enter a valid number.");
+                    Console.WriteLine();
+                    Console.ResetColor();
                     Thread.Sleep(3000);
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError("Error processing decision.", ex);
-                GroupedConsole(ConsoleColor.DarkRed, "An error occurred while processing your selection. Please try again.");
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine("An error occurred while processing your selection. Please try again.");
+                Console.WriteLine();
+                Console.ResetColor();
                 Thread.Sleep(3000);
             }
         }

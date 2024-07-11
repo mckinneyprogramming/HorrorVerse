@@ -18,7 +18,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// </summary>
         /// <param name="subtitle">The subtitle.</param>
         /// <returns>The title.</returns>
-        public static string RetrieveTitle(string subtitle)
+        public static string Title(string subtitle)
         {
             return $"{BaseTitle} {subtitle}";
         }

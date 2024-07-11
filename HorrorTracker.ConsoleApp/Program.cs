@@ -39,7 +39,7 @@ namespace HorrorTracker.ConsoleApp
 
             try
             {
-                Console.Title = ConsoleTitles.RetrieveTitle("Home");
+                Console.Title = ConsoleTitles.Title("Home");
 
                 TestDatabaseConnection();
 
@@ -47,11 +47,10 @@ namespace HorrorTracker.ConsoleApp
                 {
                     Console.Clear();
                     DisplayMainMenu();
-                    var decision = ConsoleHelper.GetUserInput();
-                    var actualNumber = ConsoleHelper.ParseNumberDecision(_logger, decision);
+                    var decision = Console.ReadLine();
                     var actions = MainMenuDecisionActions();
 
-                    ConsoleHelper.ProcessDecision(actualNumber, _logger, actions);
+                    ConsoleHelper.ProcessDecision(decision, _logger, actions);
                 }
             }
             catch (Exception ex)
@@ -72,9 +71,12 @@ namespace HorrorTracker.ConsoleApp
         private static void TestDatabaseConnection()
         {
             _logger.LogInformation("Testing the Postgre database server and connection to the HorrorTracker database.");
-            ConsoleHelper.GroupedConsole(ConsoleColor.DarkGray, "We are testing the connection to the database. Please standby.");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("We are testing the connection to the database. Please standby.");
+            Console.WriteLine();
+            Console.ResetColor();
             ConsoleHelper.ThinkingAnimation("Testing", 10, "Testing Complete!");
-            ConsoleHelper.NewLine();
+            Console.WriteLine();
 
             try
             {
@@ -85,13 +87,19 @@ namespace HorrorTracker.ConsoleApp
                 if (connectionMessage.Contains("successful!"))
                 {
                     _ = connections.CreateTables();
-                    ConsoleHelper.GroupedConsole(ConsoleColor.Green, connectionMessage);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine(connectionMessage);
+                    Console.WriteLine();
+                    Console.ResetColor();
                     ConsoleHelper.ThinkingAnimation("Directing to Main Menu", 10, "Have Fun!");
                     Thread.Sleep(3000);
                 }
                 else
                 {
-                    ConsoleHelper.GroupedConsole(ConsoleColor.DarkRed, connectionMessage);
+                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                    Console.WriteLine(connectionMessage);
+                    Console.WriteLine();
+                    Console.ResetColor();
                     ConsoleHelper.ThinkingAnimation("Exiting Horror Tracker", 10, "Goodbye!");
                     Thread.Sleep(3000);
 
@@ -101,7 +109,10 @@ namespace HorrorTracker.ConsoleApp
             catch (Exception ex)
             {
                 _logger.LogError("Failed to connect to the database.", ex);
-                ConsoleHelper.GroupedConsole(ConsoleColor.DarkRed, "Failed to connect to the database. Exiting...");
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine("Failed to connect to the database. Exiting...");
+                Console.WriteLine();
+                Console.ResetColor();
                 IsNotDone = false;
             }
         }
@@ -111,19 +122,22 @@ namespace HorrorTracker.ConsoleApp
         /// </summary>
         private static void DisplayMainMenu()
         {
-            ConsoleHelper.GroupedConsole(ConsoleColor.Red, "========== Horror Tracker ==========");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("========== Horror Tracker ==========");
+            Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.DarkGray;
             ConsoleHelper.TypeMessage("The Horror Tracker system uses TMDB (The Movie Database) API to quickly add items.");
             ConsoleHelper.TypeMessage("You will have the option below to add items manually or from TMDB API.");
-            ConsoleHelper.NewLine();
+            Console.WriteLine();
             OverallSystemInformation();
-            Thread.Sleep(2000);
+            Thread.Sleep(1000);
 
             Console.ResetColor();
-            ConsoleHelper.DisplayMenu(
+            Console.WriteLine(
                 "1. Use TMDB API\n" +
                 "2. Manually Add\n" +
                 "3. Exit");
+            Console.Write(">> ");
 
             _logger.LogInformation("Main menu displayed.");
         }
@@ -143,14 +157,16 @@ namespace HorrorTracker.ConsoleApp
             var overallTimeLeftInHours = overallTimeLeft / 60;
             var overallTimeLeftInDays = overallTimeLeftInHours / 24;
 
-            ConsoleHelper.GroupedConsole(ConsoleColor.Red, "===== Overall Information =====");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("===== Overall Information =====");
+            Console.ResetColor();
             Console.WriteLine($"Overall Time in the Database:");
             Console.WriteLine($"- In Hours: {overallTimeInHours}");
             Console.WriteLine($"- In Days: {overallTimeInDays}");
             Console.WriteLine($"Overall Time left to Watch in the Database:");
             Console.WriteLine($"- In Hours: {overallTimeLeftInHours}");
             Console.WriteLine($"- In Days: {overallTimeLeftInDays}");
-            ConsoleHelper.NewLine();
+            Console.WriteLine();
         }
 
         /// <summary>

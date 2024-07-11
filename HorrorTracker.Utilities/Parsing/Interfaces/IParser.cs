@@ -26,6 +26,6 @@
         /// </summary>
         /// <param name="value">Teh string value.</param>
         /// <returns>True if the value is valid; false otherwise.</returns>
-        bool StringIsNull(string value);
+        bool StringIsNull(string? value);
     }
 }

@@ -22,6 +22,11 @@ namespace HorrorTracker.Data.TMDB
         private readonly TMDbClient _client;
 
         /// <summary>
+        /// The horror genre id.
+        /// </summary>
+        private readonly List<int> _genreIds = [27];
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="TMDbClientWrapper"/> class.
         /// </summary>
         /// <param name="apiKey">The API key.</param>
@@ -111,7 +116,6 @@ namespace HorrorTracker.Data.TMDB
         /// <inheritdoc/>
         public async Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage)
         {
-            var genreIds = new[] { 27 };
             var page = startPage;
             SearchContainer<SearchMovie> movies;
             var uniqueCollections = new HashSet<SearchCollection>(new CollectionComparer());
@@ -121,28 +125,39 @@ namespace HorrorTracker.Data.TMDB
             do
             {
                 movies = await _client.DiscoverMoviesAsync()
-                                     .IncludeWithAllOfGenre(genreIds)
+                                     .IncludeWithAllOfGenre(_genreIds)
                                      .Query(page);
+                var fetchTasks = RetrieveTasks(movies, batchSize);
+                await AddCollectionsToList(uniqueCollections, fetchTasks);
 
-                List<Task<Movie>> fetchTasks = [];
-
-                foreach (var movie in movies.Results.Take(batchSize))
-                {
-                    fetchTasks.Add(FetchMovieDetailsAsync(movie.Id));
-                }
-
-                var fetchedMovies = await Task.WhenAll(fetchTasks);
-                foreach (var detailedMovie in fetchedMovies.Where(m => m.BelongsToCollection != null))
-                {
-                    uniqueCollections.Add(detailedMovie.BelongsToCollection);
-                }
-                
                 page++;
                 await Task.Delay(delayBetweenRequestsMs);
 
             } while (movies.Page < endPage && page <= movies.TotalPages);
 
             return uniqueCollections;
+        }
+
+        /// <inheritdoc>
+        public async Task<int> GetNumberOfPages()
+        {
+            var movies = await _client.DiscoverMoviesAsync()
+                                     .IncludeWithAllOfGenre(_genreIds)
+                                     .Query();
+            return movies.TotalPages;
+        }
+
+        private List<Task<Movie>> RetrieveTasks(SearchContainer<SearchMovie> movies, int batchSize)
+        {
+            List<Task<Movie>> fetchTasks = [];
+
+            foreach (var movie in movies.Results.Take(batchSize))
+            {
+                var movieTask = FetchMovieDetailsAsync(movie.Id);
+                fetchTasks.Add(movieTask);
+            }
+
+            return fetchTasks;
         }
 
         private async Task<Movie> FetchMovieDetailsAsync(int movieId)
@@ -155,6 +170,15 @@ namespace HorrorTracker.Data.TMDB
             {
                 Console.WriteLine($"Error fetching movie details for ID {movieId}: {ex.Message}");
                 throw;
+            }
+        }
+
+        private static async Task AddCollectionsToList(HashSet<SearchCollection> uniqueCollections, List<Task<Movie>> fetchTasks)
+        {
+            var fetchedMovies = await Task.WhenAll(fetchTasks);
+            foreach (var detailedMovie in fetchedMovies.Where(m => m.BelongsToCollection != null))
+            {
+                uniqueCollections.Add(detailedMovie.BelongsToCollection);
             }
         }
     }

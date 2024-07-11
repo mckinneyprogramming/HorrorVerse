@@ -32,7 +32,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// </summary>
         protected void DisplayManagerMenus()
         {
-            Console.Title = RetrieveTitle();
+            Console.Title = ConsoleTitles.Title(RetrieveTitle());
 
             Console.Clear();
             Console.ForegroundColor = ConsoleColor.Red;
@@ -41,8 +41,9 @@ namespace HorrorTracker.ConsoleApp.Managers
             Console.ForegroundColor = ConsoleColor.DarkGray;
             ConsoleHelper.TypeMessage("Choose an option below to get started adding items to your database!");
             Console.ResetColor();
-            ConsoleHelper.NewLine();
-            ConsoleHelper.DisplayMenu(RetrieveMenuOptions());
+            Console.WriteLine();
+            Console.WriteLine(RetrieveMenuOptions());
+            Console.Write(">> ");
 
             _logger.LogInformation($"{RetrieveTitle()} Menu displayed.");
         }
