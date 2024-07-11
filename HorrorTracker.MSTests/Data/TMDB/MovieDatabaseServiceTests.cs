@@ -164,7 +164,7 @@ namespace HorrorTracker.MSTests.Data.TMDB
         }
 
         [TestMethod]
-        public async Task HorrorCollections_WhenValidPageNumbersAreProvided_ShouldReturnListOfCollections()
+        public async Task GetHorrorCollections_WhenValidPageNumbersAreProvided_ShouldReturnListOfCollections()
         {
             // Arrange
             var expectedCollection = new HashSet<SearchCollection>();
@@ -175,6 +175,20 @@ namespace HorrorTracker.MSTests.Data.TMDB
 
             // Assert
             Assert.AreEqual(expectedCollection, actualCollection);
+        }
+
+        [TestMethod]
+        public async Task GetNumberOfPages_WhenCalledToWrapper_ShouldReturnNunmberOfPagesOfHorrorMovies()
+        {
+            // Arrange
+            var expectedNumberOfPages = 2642;
+            _mockClient.Setup(c => c.GetNumberOfPages()).ReturnsAsync(expectedNumberOfPages);
+
+            // Act
+            var actualNumberOfPages = await _service.GetNumberOfPages();
+
+            // Assert
+            Assert.AreEqual(expectedNumberOfPages, actualNumberOfPages);
         }
     }
 }
