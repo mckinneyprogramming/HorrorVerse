@@ -22,11 +22,6 @@ namespace HorrorTracker.Data.TMDB
         private readonly TMDbClient _client;
 
         /// <summary>
-        /// The horror genre id.
-        /// </summary>
-        private readonly List<int> _genreIds = [27];
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="TMDbClientWrapper"/> class.
         /// </summary>
         /// <param name="apiKey">The API key.</param>
@@ -114,52 +109,68 @@ namespace HorrorTracker.Data.TMDB
         }
 
         /// <inheritdoc/>
-        public async Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage)
+        public async Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage, int genreId)
         {
             var page = startPage;
-            SearchContainer<SearchMovie> movies;
             var uniqueCollections = new HashSet<SearchCollection>(new CollectionComparer());
-            var batchSize = 50;
             var delayBetweenRequestsMs = 200;
 
-            do
+            while (page <= endPage)
             {
-                movies = await _client.DiscoverMoviesAsync()
-                                     .IncludeWithAllOfGenre(_genreIds)
-                                     .Query(page);
-                var fetchTasks = RetrieveTasks(movies, batchSize);
+                var movies = await QueryMoviesAsync(page, genreId);
+                var fetchTasks = RetrieveTasks(movies, 50);
                 await AddCollectionsToList(uniqueCollections, fetchTasks);
 
                 page++;
                 await Task.Delay(delayBetweenRequestsMs);
 
-            } while (movies.Page < endPage && page <= movies.TotalPages);
+                if (page > movies.TotalPages) break;
+            }
 
             return uniqueCollections;
         }
 
         /// <inheritdoc>
-        public async Task<int> GetNumberOfPages()
+        public async Task<int> GetNumberOfPages(int genreId)
         {
+            var genreIds = new[] { genreId };
             var movies = await _client.DiscoverMoviesAsync()
-                                     .IncludeWithAllOfGenre(_genreIds)
+                                     .IncludeWithAllOfGenre(genreIds)
                                      .Query();
             return movies.TotalPages;
         }
 
-        private List<Task<Movie>> RetrieveTasks(SearchContainer<SearchMovie> movies, int batchSize)
+        /// <summary>
+        /// Queries through the discover movies and returns the container of movies.
+        /// </summary>
+        /// <param name="page">The page number.</param>
+        /// <returns>The search container.</returns>
+        private async Task<SearchContainer<SearchMovie>> QueryMoviesAsync(int page, int genreId)
         {
-            List<Task<Movie>> fetchTasks = [];
-
-            foreach (var movie in movies.Results.Take(batchSize))
-            {
-                var movieTask = FetchMovieDetailsAsync(movie.Id);
-                fetchTasks.Add(movieTask);
-            }
-
-            return fetchTasks;
+            var genreIds = new[] { genreId };
+            return await _client.DiscoverMoviesAsync()
+                                .IncludeWithAllOfGenre(genreIds)
+                                .Query(page);
         }
 
+        /// <summary>
+        /// Retrieves the tasks to fetching the movie details.
+        /// </summary>
+        /// <param name="movies">The search container of movies.</param>
+        /// <param name="batchSize">The batch size.</param>
+        /// <returns>The list of movie tasks.</returns>
+        private List<Task<Movie>> RetrieveTasks(SearchContainer<SearchMovie> movies, int batchSize)
+        {
+            return movies.Results.Take(batchSize)
+                          .Select(movie => FetchMovieDetailsAsync(movie.Id))
+                          .ToList();
+        }
+
+        /// <summary>
+        /// Retrieves the movie details.
+        /// </summary>
+        /// <param name="movieId">The movie id.</param>
+        /// <returns>The movie.</returns>
         private async Task<Movie> FetchMovieDetailsAsync(int movieId)
         {
             try
@@ -173,6 +184,12 @@ namespace HorrorTracker.Data.TMDB
             }
         }
 
+        /// <summary>
+        /// Adds the movie series to a list.
+        /// </summary>
+        /// <param name="uniqueCollections">The set of series.</param>
+        /// <param name="fetchTasks">The list of movie tasks.</param>
+        /// <returns>The task.</returns>
         private static async Task AddCollectionsToList(HashSet<SearchCollection> uniqueCollections, List<Task<Movie>> fetchTasks)
         {
             var fetchedMovies = await Task.WhenAll(fetchTasks);

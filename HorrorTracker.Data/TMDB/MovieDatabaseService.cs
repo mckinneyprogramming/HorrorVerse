@@ -111,19 +111,23 @@ namespace HorrorTracker.Data.TMDB
         /// <summary>
         /// Retrieves the list of horror collections.
         /// </summary>
+        /// <param name="startPage">The start page.</param>
+        /// <param name="endPage">The end page.</param>
+        /// <param name="genreId">The genre id.</param>
         /// <returns>The list of horror collections.</returns>
-        public async Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage)
+        public async Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage, int genreId)
         {
-            return await _client.GetHorrorCollections(startPage, endPage);
+            return await _client.GetHorrorCollections(startPage, endPage, genreId);
         }
 
         /// <summary>
         /// Retrieves the number of pages in the horror genre of movies.
         /// </summary>
+        /// <param name="genreId">The genre id.</param>
         /// <returns>The number of pages.</returns>
-        public async Task<int> GetNumberOfPages()
+        public async Task<int> GetNumberOfPages(int genreId)
         {
-            return await _client.GetNumberOfPages();
+            return await _client.GetNumberOfPages(genreId);
         }
     }
 }

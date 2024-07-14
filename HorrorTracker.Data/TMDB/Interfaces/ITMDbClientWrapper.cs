@@ -142,15 +142,17 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         /// </summary>
         /// <param name="startPage">The start page.</param>
         /// <param name="endPage">The end page.</param>
+        /// <param name="genreId">The genre id.</param>
         /// <returns>The hash set of collections.</returns>
         [ExcludeFromCodeCoverage]
-        Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage);
+        Task<HashSet<SearchCollection>> GetHorrorCollections(int startPage, int endPage, int genreId);
 
         /// <summary>
         /// Retrieves the number of pages of horror films.
         /// </summary>
+        /// <param name="genreId">The genre id.</param>
         /// <returns>The total number of pages.</returns>
         [ExcludeFromCodeCoverage]
-        Task<int> GetNumberOfPages();
+        Task<int> GetNumberOfPages(int genreId);
     }
 }

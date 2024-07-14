@@ -168,10 +168,10 @@ namespace HorrorTracker.MSTests.Data.TMDB
         {
             // Arrange
             var expectedCollection = new HashSet<SearchCollection>();
-            _mockClient.Setup(c => c.GetHorrorCollections(It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync(expectedCollection);
+            _mockClient.Setup(c => c.GetHorrorCollections(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync(expectedCollection);
 
             // Act
-            var actualCollection = await _service.GetHorrorCollections(1, 5);
+            var actualCollection = await _service.GetHorrorCollections(1, 5, 27);
 
             // Assert
             Assert.AreEqual(expectedCollection, actualCollection);
@@ -182,10 +182,10 @@ namespace HorrorTracker.MSTests.Data.TMDB
         {
             // Arrange
             var expectedNumberOfPages = 2642;
-            _mockClient.Setup(c => c.GetNumberOfPages()).ReturnsAsync(expectedNumberOfPages);
+            _mockClient.Setup(c => c.GetNumberOfPages(It.IsAny<int>())).ReturnsAsync(expectedNumberOfPages);
 
             // Act
-            var actualNumberOfPages = await _service.GetNumberOfPages();
+            var actualNumberOfPages = await _service.GetNumberOfPages(It.IsAny<int>());
 
             // Assert
             Assert.AreEqual(expectedNumberOfPages, actualNumberOfPages);
