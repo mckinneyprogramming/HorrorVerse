@@ -74,7 +74,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override MovieSeries? GetByTitle(string seriesName)
+        public override MovieSeries? GetByTitle(string title)
         {
             MovieSeries? movieSeries = null;
             try
@@ -82,7 +82,7 @@ namespace HorrorTracker.Data.Repositories
                 _databaseConnectionsHelper.Open();
 
                 var commandText = MovieSeriesQueries.GetMovieSeriesByName;
-                var parameters = SharedDatabaseParameters.GetByTitleParameters(seriesName);
+                var parameters = SharedDatabaseParameters.GetByTitleParameters(title);
 
                 using (var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, commandText, parameters))
                 {
@@ -90,12 +90,12 @@ namespace HorrorTracker.Data.Repositories
                     {
                         movieSeries = new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
 
-                        _logger.LogInformation($"Movie series {seriesName} was found in the database.");
+                        _logger.LogInformation($"Movie series {title} was found in the database.");
                         return movieSeries;
                     }
                     else
                     {
-                        _logger.LogWarning($"Movie series {seriesName} was not found in the database.");
+                        _logger.LogWarning($"Movie series {title} was not found in the database.");
                         return movieSeries;
                     }
                 }
@@ -176,12 +176,12 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override IEnumerable<MovieSeries> GetUnwatchedOrWatchedByName(string seriesName, string query)
+        public override IEnumerable<MovieSeries> GetUnwatchedOrWatchedByTitle(string title, string query)
         {
             try
             {
                 _databaseConnectionsHelper.Open();
-                var parameters = SharedDatabaseParameters.GetByTitleParameters(seriesName);
+                var parameters = SharedDatabaseParameters.GetByTitleParameters(title);
                 using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, query, parameters);
                 var moviesSeries = new List<MovieSeries>();
 
@@ -196,7 +196,7 @@ namespace HorrorTracker.Data.Repositories
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error fetching series's '{seriesName}'.", ex);
+                _logger.LogError($"Error fetching series's '{title}'.", ex);
                 return [];
             }
             finally

@@ -284,7 +284,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockReader.Setup(r => r.GetInt32(0)).Returns(1);
 
             // Act
-            var result = _repository.GetUnwatchedOrWatchedByName(seriesName, query);
+            var result = _repository.GetUnwatchedOrWatchedByTitle(seriesName, query);
 
             // Assert
             Assert.IsNotNull(result);
@@ -307,7 +307,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var result = _repository.GetUnwatchedOrWatchedByName(seriesName, query);
+            var result = _repository.GetUnwatchedOrWatchedByTitle(seriesName, query);
 
             // Assert
             Assert.IsNotNull(result);
