@@ -3,6 +3,7 @@ using HorrorTracker.Data.Constants.Queries;
 using HorrorTracker.Data.Helpers;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
+using HorrorTracker.Data.Repositories.Abstractions;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
@@ -12,7 +13,7 @@ namespace HorrorTracker.Data.Repositories
     /// <summary>
     /// The <see cref="MovieSeriesRepository"/> class.
     /// </summary>
-    public class MovieSeriesRepository : IMovieSeriesRepository
+    public class MovieSeriesRepository : RepositoryBase<MovieSeries>, IMovieSeriesRepository
     {
         /// <summary>
         /// The database connection.
@@ -42,7 +43,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public int AddMovieSeries(MovieSeries series)
+        public override int Add(MovieSeries series)
         {
             var result = 0;
             try
@@ -73,7 +74,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public MovieSeries? GetMovieSeriesByName(string seriesName)
+        public override MovieSeries? GetByName(string seriesName)
         {
             MovieSeries? movieSeries = null;
             try
@@ -111,7 +112,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public string UpdateSeries(MovieSeries series)
+        public override string Update(MovieSeries series)
         {
             var message = "Updating movie series was not successful.";
             try
@@ -143,7 +144,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public string DeleteSeries(int id)
+        public override string Delete(int id)
         {
             var message = "Deleting movie series was not successful.";
             try
@@ -175,27 +176,27 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Movie> GetUnwatchedOrWatchedMoviesBySeriesName(string seriesName, string query)
+        public override IEnumerable<MovieSeries> GetUnwatchedOrWatchedByName(string seriesName, string query)
         {
             try
             {
                 _databaseConnectionsHelper.Open();
                 var parameters = SharedDatabaseParameters.GetByTitleParameters(seriesName);
                 using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, query, parameters);
-                var movies = new List<Movie>();
+                var moviesSeries = new List<MovieSeries>();
 
                 while (reader.Read())
                 {
-                    var movie = new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0));
-                    movies.Add(movie);
+                    var newSeries = new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
+                    moviesSeries.Add(newSeries);
                 }
 
-                _logger.LogInformation($"Retrieved {movies.Count} movie(s) successfully.");
-                return movies;
+                _logger.LogInformation($"Retrieved {moviesSeries.Count} movie series(s) successfully.");
+                return moviesSeries;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error fetching movies for series '{seriesName}'.", ex);
+                _logger.LogError($"Error fetching series's '{seriesName}'.", ex);
                 return [];
             }
             finally
@@ -330,7 +331,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public IEnumerable<MovieSeries> GetAllMovieSeries()
+        public override IEnumerable<MovieSeries> GetAll()
         {
             try
             {

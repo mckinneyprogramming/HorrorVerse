@@ -3,6 +3,7 @@ using HorrorTracker.Data.Constants.Queries;
 using HorrorTracker.Data.Helpers;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
+using HorrorTracker.Data.Repositories.Abstractions;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
@@ -12,7 +13,7 @@ namespace HorrorTracker.Data.Repositories
     /// The <see cref="MovieRepository"/> class.
     /// </summary>
     /// <seealso cref="IMovieRepository"/>
-    public class MovieRepository : IMovieRepository
+    public class MovieRepository : RepositoryBase<Movie>, IMovieRepository
     {
         /// <summary>
         /// The database connection.
@@ -42,7 +43,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public int AddMovie(Movie movie)
+        public override int Add(Movie movie)
         {
             var result = 0;
             try
@@ -72,7 +73,19 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public Movie? GetMovieByName(string title)
+        public override string Delete(int id)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public override IEnumerable<Movie> GetAll()
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public override Movie? GetByName(string title)
         {
             Movie? movie = null;
             try
@@ -102,6 +115,18 @@ namespace HorrorTracker.Data.Repositories
             {
                 _databaseConnectionsHelper.Close();
             }
+        }
+
+        /// <inheritdoc/>
+        public override IEnumerable<Movie> GetUnwatchedOrWatchedByName(string name, string query)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public override string Update(Movie entity)
+        {
+            throw new NotImplementedException();
         }
     }
 }

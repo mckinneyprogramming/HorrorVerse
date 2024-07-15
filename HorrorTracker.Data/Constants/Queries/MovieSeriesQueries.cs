@@ -49,5 +49,15 @@
         /// Gets a list of all the series.
         /// </summary>
         public const string GetAllSeries = "SELECT * FROM MovieSeries";
+
+        /// <summary>
+        /// Gets the list of unwatched movie series.
+        /// </summary>
+        public const string GetUnwatchedMovieSeries = "SELECT * FROM MoviesSeries WHERE Watched = FALSE";
+
+        /// <summary>
+        /// Gets the list of watched movie series.
+        /// </summary>
+        public const string GetWatchedMovieSeries = "SELECT * FROM MoviesSeries WHERE Watched = TRUE";
     }
 }

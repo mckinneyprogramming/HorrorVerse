@@ -50,7 +50,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.InsertSeries, expectedReturnStatus);
 
             // Act
-            var actualReturnStatus = _repository.AddMovieSeries(movieSeries);
+            var actualReturnStatus = _repository.Add(movieSeries);
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
@@ -68,7 +68,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.InsertSeries, expectedReturnStatus);
 
             // Act
-            var actualReturnStatus = _repository.AddMovieSeries(movieSeries);
+            var actualReturnStatus = _repository.Add(movieSeries);
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
@@ -84,7 +84,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var returnStatus = _repository.AddMovieSeries(movieSeries);
+            var returnStatus = _repository.Add(movieSeries);
 
             // Assert
             Assert.IsTrue(returnStatus == 0);
@@ -112,7 +112,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockDataReader.Setup(r => r.GetBoolean(It.Is<int>(i => i == 4))).Returns(false);
 
             // Act
-            var returnedMovieSeries = _repository.GetMovieSeriesByName(seriesName);
+            var returnedMovieSeries = _repository.GetByName(seriesName);
 
             // Assert
             Assert.IsNotNull(returnedMovieSeries);
@@ -139,7 +139,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockDataReader.Setup(r => r.Read()).Returns(false);
 
             // Act
-            var returnedMovieSeries = _repository.GetMovieSeriesByName(seriesName);
+            var returnedMovieSeries = _repository.GetByName(seriesName);
 
             // Assert
             Assert.IsNull(returnedMovieSeries);
@@ -154,7 +154,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var returnStatus = _repository.GetMovieSeriesByName("movieSeries");
+            var returnStatus = _repository.GetByName("movieSeries");
 
             // Assert
             Assert.IsNull(returnStatus);
@@ -170,7 +170,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateMovieSeries, 1);
 
             // Act
-            var actualMessage = _repository.UpdateSeries(series);
+            var actualMessage = _repository.Update(series);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
@@ -188,7 +188,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateMovieSeries, 0);
 
             // Act
-            var actualMessage = _repository.UpdateSeries(series);
+            var actualMessage = _repository.Update(series);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
@@ -206,7 +206,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var actualMessage = _repository.UpdateSeries(movieSeries);
+            var actualMessage = _repository.Update(movieSeries);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
@@ -221,7 +221,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.DeleteMovieSeries, 1);
 
             // Act
-            var actualMessage = _repository.DeleteSeries(1);
+            var actualMessage = _repository.Delete(1);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
@@ -238,7 +238,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.DeleteMovieSeries, 0);
 
             // Act
-            var actualMessage = _repository.DeleteSeries(1);
+            var actualMessage = _repository.Delete(1);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
@@ -256,7 +256,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
 
             // Act
-            var actualMessage = _repository.DeleteSeries(1);
+            var actualMessage = _repository.Delete(1);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
@@ -264,8 +264,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [DataTestMethod]
-        [DataRow(true, MovieQueries.GetWatchedMovieBySeriesName)]
-        [DataRow(false, MovieQueries.GetUnwatchedMovieBySeriesName)]
+        [DataRow(true, MovieSeriesQueries.GetWatchedMovieSeries)]
+        [DataRow(false, MovieSeriesQueries.GetUnwatchedMovieSeries)]
         public void GetUnwatchedOrWatchedMoviesBySeriesName_WhenValidSeriesName_ShouldReturnsWatchedMovies(bool watched, string query)
         {
             // Arrange
@@ -277,30 +277,28 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockReader.SetupSequence(r => r.Read())
                 .Returns(true)
                 .Returns(false);
-            mockReader.Setup(r => r.GetString(1)).Returns("Movie Title");
+            mockReader.Setup(r => r.GetString(1)).Returns(seriesName);
             mockReader.Setup(r => r.GetDecimal(2)).Returns(120m);
-            mockReader.Setup(r => r.GetBoolean(3)).Returns(true);
-            mockReader.Setup(r => r.GetInt32(4)).Returns(1);
-            mockReader.Setup(r => r.GetInt32(5)).Returns(2022);
-            mockReader.Setup(r => r.GetBoolean(6)).Returns(watched);
+            mockReader.Setup(r => r.GetInt32(3)).Returns(4);
+            mockReader.Setup(r => r.GetBoolean(4)).Returns(watched);
             mockReader.Setup(r => r.GetInt32(0)).Returns(1);
 
             // Act
-            var result = _repository.GetUnwatchedOrWatchedMoviesBySeriesName(seriesName, query);
+            var result = _repository.GetUnwatchedOrWatchedByName(seriesName, query);
 
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.Count());
-            Assert.AreEqual("Movie Title", result.First().Title);
+            Assert.AreEqual(seriesName, result.First().Title);
             Assert.AreEqual(watched, result.First().Watched);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                $"Retrieved {result.Count()} movie(s) successfully.");
+                $"Retrieved {result.Count()} movie series(s) successfully.");
         }
 
         [DataTestMethod]
-        [DataRow(MovieQueries.GetWatchedMovieBySeriesName)]
-        [DataRow(MovieQueries.GetUnwatchedMovieBySeriesName)]
+        [DataRow(MovieSeriesQueries.GetWatchedMovieSeries)]
+        [DataRow(MovieSeriesQueries.GetUnwatchedMovieSeries)]
         public void GetUnwatchedOrWatchedMoviesBySeriesName_WhenExceptionOccurs_ShouldHandleException(string query)
         {
             // Arrange
@@ -309,12 +307,12 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var result = _repository.GetUnwatchedOrWatchedMoviesBySeriesName(seriesName, query);
+            var result = _repository.GetUnwatchedOrWatchedByName(seriesName, query);
 
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(0, result.Count());
-            _loggerVerifier.VerifyErrorMessage($"Error fetching movies for series '{seriesName}'.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage($"Error fetching series's '{seriesName}'.", exceptionMessage);
         }
 
         [TestMethod]
@@ -529,7 +527,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
                 .Returns(false);
 
             // Act
-            var result = _repository.GetAllMovieSeries();
+            var result = _repository.GetAll();
 
             // Assert
             var actualSeriesList = result.ToList();
@@ -547,7 +545,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var result = _repository.GetAllMovieSeries();
+            var result = _repository.GetAll();
 
             // Assert
             Assert.IsNotNull(result);
