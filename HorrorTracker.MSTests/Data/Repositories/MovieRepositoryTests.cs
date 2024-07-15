@@ -113,7 +113,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockDataReader.Setup(r => r.GetBoolean(It.Is<int>(i => i == 6))).Returns(true);
 
             // Act
-            var returnedMovie = _repository.GetByName(movieName);
+            var returnedMovie = _repository.GetByTitle(movieName);
 
             // Assert
             Assert.IsNotNull(returnedMovie);
@@ -142,7 +142,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockDataReader.Setup(r => r.Read()).Returns(false);
 
             // Act
-            var returnedMovie = _repository.GetByName(movieName);
+            var returnedMovie = _repository.GetByTitle(movieName);
 
             // Assert
             Assert.IsNull(returnedMovie);
@@ -157,7 +157,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var returnedMovie = _repository.GetByName("movie");
+            var returnedMovie = _repository.GetByTitle("movie");
 
             // Assert
             Assert.IsNull(returnedMovie);

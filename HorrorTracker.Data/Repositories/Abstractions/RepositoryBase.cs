@@ -38,7 +38,7 @@ namespace HorrorTracker.Data.Repositories.Abstractions
         /// </summary>
         /// <param name="name">The title of the object.</param>
         /// <returns>The item.</returns>
-        public abstract T? GetByName(string name);
+        public abstract T? GetByTitle(string title);
 
         /// <summary>
         /// Retrieves all the items that are unwatched or watched.

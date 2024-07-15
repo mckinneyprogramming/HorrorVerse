@@ -24,7 +24,7 @@ namespace HorrorTracker.MSTests.Data.Performers
             var fixture = new Fixture();
             var series = fixture.Create<MovieSeries>();
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
-            _mockMovieSeriesRepository.Setup(repo => repo.GetByName(series.Title)).Returns((MovieSeries)null);
+            _mockMovieSeriesRepository.Setup(repo => repo.GetByTitle(series.Title)).Returns((MovieSeries)null);
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             _mockMovieSeriesRepository.Setup(repo => repo.Add(series)).Returns(1);
 
@@ -42,7 +42,7 @@ namespace HorrorTracker.MSTests.Data.Performers
             _mockMovieSeriesRepository = new Mock<RepositoryBase<MovieSeries>>();
             var fixture = new Fixture();
             var series = fixture.Create<MovieSeries>();
-            _mockMovieSeriesRepository.Setup(repo => repo.GetByName(series.Title)).Returns(series);
+            _mockMovieSeriesRepository.Setup(repo => repo.GetByTitle(series.Title)).Returns(series);
 
             // Act
             var result = Inserter.MovieSeriesAddedSuccessfully(_mockMovieSeriesRepository.Object, series);

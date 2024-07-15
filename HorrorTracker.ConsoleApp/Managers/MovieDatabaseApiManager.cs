@@ -126,7 +126,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             Thread.Sleep(1000);
             Console.ResetColor();
 
-            var newSeries = movieSeriesRepository.GetByName(series.Title);
+            var newSeries = movieSeriesRepository.GetByTitle(series.Title);
             if (newSeries == null)
             {
                 return;
@@ -274,7 +274,7 @@ namespace HorrorTracker.ConsoleApp.Managers
                 var collectionName = collectionInformation.Name.Replace("Collection", "").Trim();
                 var databaseConnection = new DatabaseConnection(_connectionString);
                 var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, _logger);
-                var seriesExists = movieSeriesRepository.GetByName(collectionName);
+                var seriesExists = movieSeriesRepository.GetByTitle(collectionName);
                 if (seriesExists != null)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkRed;
@@ -317,7 +317,7 @@ namespace HorrorTracker.ConsoleApp.Managers
                 Thread.Sleep(1000);
                 Console.ResetColor();
 
-                var addedSeries = movieSeriesRepository.GetByName(newSeries.Title);
+                var addedSeries = movieSeriesRepository.GetByTitle(newSeries.Title);
                 if (addedSeries == null)
                 {
                     continue;

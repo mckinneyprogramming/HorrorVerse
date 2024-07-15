@@ -85,7 +85,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override Movie? GetByName(string title)
+        public override Movie? GetByTitle(string title)
         {
             Movie? movie = null;
             try

@@ -16,7 +16,7 @@ namespace HorrorTracker.Data.Performers
         /// <returns>True if adding was successful; false otherwise.</returns>
         public static bool MovieSeriesAddedSuccessfully(RepositoryBase<MovieSeries> repository, MovieSeries series)
         {
-            var movieSeriesAlreadyExists = repository.GetByName(series.Title);
+            var movieSeriesAlreadyExists = repository.GetByTitle(series.Title);
             if (movieSeriesAlreadyExists != null)
             {
                 return false;
