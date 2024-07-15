@@ -252,31 +252,24 @@ namespace HorrorTracker.ConsoleApp.Managers
             var collectionsFromCall = movieDatabaseService.GetHorrorCollections(startInt, endInt, genreInt).Result;
             Console.WriteLine("The following film series were found:");
 
-            var notDoneAddingSeries = true;
-            while (notDoneAddingSeries)
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            foreach (var series in collectionsFromCall)
             {
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                foreach (var series in collectionsFromCall)
-                {
-                    Console.WriteLine($"- {series.Name}; Id: {series.Id}");
-                }
+                Console.WriteLine($"- {series.Name}; Id: {series.Id}");
+            }
 
-                var collectionId = PromptForSeriesId();
-                if (collectionId == 999999999)
-                {
-                    notDoneAddingSeries = false;
-                    break;
-                }
+            var collectionIds = PromptForSeriesIds();
+            if (collectionIds.Count == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine("You did not provide a valid integer. Please try again.");
+                Thread.Sleep(1000);
+                Console.Clear();
+                return;
+            }
 
-                if (collectionId == 0)
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                    Console.WriteLine("You did not provide a valid integer. Please try again.");
-                    Thread.Sleep(1000);
-                    Console.Clear();
-                    continue;
-                }
-
+            foreach (var collectionId in collectionIds)
+            {
                 var collectionInformation = movieDatabaseService.GetCollection(collectionId).Result;
                 var collectionName = collectionInformation.Name.Replace("Collection", "").Trim();
                 var databaseConnection = new DatabaseConnection(_connectionString);
@@ -288,7 +281,7 @@ namespace HorrorTracker.ConsoleApp.Managers
                     Console.WriteLine("The series you selected already exists in the database. Please try again.");
                     Thread.Sleep(1000);
                     Console.Clear();
-                    continue;
+                    return;
                 }
 
                 var filmsInSeries = FetchFilmsInSeries(movieDatabaseService, collectionInformation.Parts);
@@ -308,12 +301,52 @@ namespace HorrorTracker.ConsoleApp.Managers
                 var addToDatabase = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    notDoneAddingSeries = false;
-                    break;
+                    return;
                 }
 
                 var newSeries = new MovieSeries(collectionName, Convert.ToDecimal(filmsInSeries.Sum(s => s.Runtime)), filmsInSeries.Count, false);
                 var addSeries = movieSeriesRepository.AddMovieSeries(newSeries);
+
+                if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, newSeries))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                    Console.WriteLine("The movie series you are trying to add alreday exists in the database or an error occurred. Please try a different series.");
+                    return;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"The movie series '{newSeries.Title}' was added successfully.");
+                Thread.Sleep(1000);
+                Console.ResetColor();
+
+                var addedSeries = movieSeriesRepository.GetMovieSeriesByName(newSeries.Title);
+                if (addedSeries == null)
+                {
+                    return;
+                }
+
+                foreach (var film in filmsInSeries)
+                {
+                    var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, addedSeries.Id, film.ReleaseDate!.Value.Year, false);
+                    var movieRepository = new MovieRepository(databaseConnection, _logger);
+
+                    if (!Inserter.MovieAddedSuccessfully(movieRepository, movie))
+                    {
+                        Console.ForegroundColor = ConsoleColor.DarkRed;
+                        Console.WriteLine("The movie was not added. An error occurred or the movie was invalid.");
+                        return;
+                    }
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"The movie '{film.Title}' was added successfully.");
+                    Thread.Sleep(1000);
+                    Console.ResetColor();
+                }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"Movie series: {addedSeries.Title} was added successfully as well as the movies in the series.");
+                Thread.Sleep(2000);
+                Console.ResetColor();
             }
         }
 
@@ -374,23 +407,52 @@ namespace HorrorTracker.ConsoleApp.Managers
         private int PromptForSeriesId()
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("Choose the series id above to add the series information to the database as well as its associated movies. Press enter to exit.");
+            ConsoleHelper.TypeMessage("Choose the series id above to add the series information to the database as well as its associated movies.");
             Console.ResetColor();
             Console.WriteLine();
             Console.Write(">> ");
 
             var collectionIdSelection = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(collectionIdSelection))
-            {
-                return 999999999;
-            }
-
             if (_parser.IsInteger(collectionIdSelection, out var collectionId))
             {
                 return collectionId;
             }
 
             return 0;
+        }
+
+        /// <summary>
+        /// Retrieves the users list of series ids.
+        /// </summary>
+        /// <returns>List of integer series ids.</returns>
+        private List<int> PromptForSeriesIds()
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            ConsoleHelper.TypeMessage("Choose as many series ids above to add the series information to the database as well as its associated movies.");
+            ConsoleHelper.TypeMessage("Separate the Ids by commas.");
+            Console.ResetColor();
+            Console.WriteLine();
+            Console.Write(">> ");
+
+            var idsSelection = Console.ReadLine();
+            if (_parser.StringIsNull(idsSelection))
+            {
+                return [];
+            }
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            var ids = idsSelection.Split(",");
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            var listOfIds = new List<int>();
+            foreach (var id in ids)
+            {
+                if (_parser.IsInteger(id, out var integerId))
+                {
+                    listOfIds.Add(integerId);
+                }
+            }
+
+            return listOfIds;
         }
 
         /// <inheritdoc/>
