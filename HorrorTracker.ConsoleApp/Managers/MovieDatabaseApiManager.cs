@@ -264,6 +264,7 @@ namespace HorrorTracker.ConsoleApp.Managers
                 var collectionId = PromptForSeriesId();
                 if (collectionId == 999999999)
                 {
+                    notDoneAddingSeries = false;
                     break;
                 }
 
@@ -307,6 +308,7 @@ namespace HorrorTracker.ConsoleApp.Managers
                 var addToDatabase = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.CurrentCultureIgnoreCase))
                 {
+                    notDoneAddingSeries = false;
                     break;
                 }
 
