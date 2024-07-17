@@ -1,16 +1,19 @@
 ﻿using NAudio.Wave;
+using System.Configuration;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Data.Audio
 {
     /// <summary>
     /// The <see cref="MusicPlayer"/> class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class MusicPlayer
     {
         /// <summary>
         /// The folder containing the songs.
         /// </summary>
-        private readonly string themeSongsFolder = Path.GetFullPath(@"C:\Users\mckin\Documents\Visual Studio 2022\Projects\HorrorTracker\HorrorTracker.Data\Audio\Songs\");
+        private readonly string themeSongsFolder = Path.GetFullPath(ConfigurationManager.AppSettings["HorrorThemeSongs"]);
 
         /// <summary>
         /// The Random object.

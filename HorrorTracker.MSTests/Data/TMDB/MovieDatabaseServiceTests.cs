@@ -1,4 +1,5 @@
-﻿using HorrorTracker.Data.TMDB;
+﻿using AutoFixture;
+using HorrorTracker.Data.TMDB;
 using HorrorTracker.Data.TMDB.Interfaces;
 using Moq;
 using System.Diagnostics.CodeAnalysis;
@@ -189,6 +190,21 @@ namespace HorrorTracker.MSTests.Data.TMDB
 
             // Assert
             Assert.AreEqual(expectedNumberOfPages, actualNumberOfPages);
+        }
+
+        [TestMethod]
+        public async Task GetUpcomingHorrorMovies_WhenCalledToWrapper_ShouldReturnListOfMovies()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var expectedListOfSearchMovies = fixture.CreateMany<SearchMovie>().ToList();
+            _mockClient.Setup(c => c.GetUpcomingHorrorMoviesAsync()).ReturnsAsync(expectedListOfSearchMovies);
+
+            // Act
+            var actualListOfSearchMovies = await _service.GetUpcomingHorrorMovies();
+
+            // Assert
+            Assert.AreEqual(expectedListOfSearchMovies, actualListOfSearchMovies);
         }
     }
 }
