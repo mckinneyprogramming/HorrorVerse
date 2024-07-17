@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Npgsql" Version="8.0.3" />
     <PackageReference Include="TMDbLib" Version="2.2.0" />
   </ItemGroup>
@@ -19,6 +20,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HorrorTracker.Utilities\HorrorTracker.Utilities.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Audio\Songs\" />
   </ItemGroup>
 
 </Project>

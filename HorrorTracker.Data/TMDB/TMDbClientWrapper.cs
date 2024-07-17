@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Client;
 using TMDbLib.Objects.Collections;
+using TMDbLib.Objects.Discover;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
@@ -138,6 +139,36 @@ namespace HorrorTracker.Data.TMDB
                                      .IncludeWithAllOfGenre(genreIds)
                                      .Query();
             return movies.TotalPages;
+        }
+
+        /// <inheritdoc>
+        public async Task<List<SearchMovie>> GetUpcomingHorrorMoviesAsync()
+        {
+            var genreIds = new[] { 27 };
+            var currentDate = DateTime.Now;
+            var allMovies = new List<SearchMovie>();
+            int pageNumber = 1;
+            int totalPages;
+
+            do
+            {
+                var searchContainer = await _client.DiscoverMoviesAsync()
+                                                   .WherePrimaryReleaseDateIsAfter(currentDate)
+                                                   .IncludeWithAllOfGenre(genreIds)
+                                                   .OrderBy(DiscoverMovieSortBy.PrimaryReleaseDate)
+                                                   .Query(pageNumber);
+
+                if (searchContainer.Results != null)
+                {
+                    allMovies.AddRange(searchContainer.Results);
+                }
+
+                totalPages = searchContainer.TotalPages;
+                pageNumber++;
+
+            } while (pageNumber <= totalPages);
+
+            return allMovies;
         }
 
         /// <summary>

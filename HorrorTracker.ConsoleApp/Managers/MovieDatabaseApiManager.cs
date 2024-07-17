@@ -57,6 +57,39 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
+        /// Displays the upcoming movies.
+        /// </summary>
+        public void DisplayUpcomingHorrorFilms()
+        {
+            Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("========== Display Upcoming Movies ==========");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            ConsoleHelper.TypeMessage("Below will dispaly the next two years of upcoming horror films.");
+            var movieDatabaseService = CreateMovieDatabaseService();
+            var upcomingMovies = movieDatabaseService.GetUpcomingHorrorMovies().Result;
+
+            DateTime currentDate = DateTime.Now;
+            DateTime twoYearsFromNow = currentDate.AddYears(2);
+
+            var filteredMovies = upcomingMovies
+                .Where(movie => movie.ReleaseDate.HasValue && movie.ReleaseDate.Value <= twoYearsFromNow)
+                .OrderBy(movie => movie.ReleaseDate);
+
+            Console.ResetColor();
+            Console.WriteLine("Upcoming Horror Movies (Next 2 Years):");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            foreach (var movie in filteredMovies)
+            {
+                Console.WriteLine($"- {movie.Title} (Release Date: {movie.ReleaseDate?.ToString("yyyy-MM-dd")})");
+            }
+
+            Console.ResetColor();
+            Console.Write("Press any key to return to the main menu...");
+            Console.ReadKey();
+        }
+
+        /// <summary>
         /// Retrieves the dictionary of actions.
         /// </summary>
         /// <returns>The dictionary of actions.</returns>

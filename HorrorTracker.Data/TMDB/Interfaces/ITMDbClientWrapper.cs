@@ -154,5 +154,12 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         /// <returns>The total number of pages.</returns>
         [ExcludeFromCodeCoverage]
         Task<int> GetNumberOfPages(int genreId);
+
+        /// <summary>
+        /// Retrieves the movies that are not released yet.
+        /// </summary>
+        /// <returns>The list of movies.</returns>
+        [ExcludeFromCodeCoverage]
+        Task<List<SearchMovie>> GetUpcomingHorrorMoviesAsync();
     }
 }

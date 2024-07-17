@@ -129,5 +129,14 @@ namespace HorrorTracker.Data.TMDB
         {
             return await _client.GetNumberOfPages(genreId);
         }
+
+        /// <summary>
+        /// Retrieves the list of upcoming horror movies.
+        /// </summary>
+        /// <returns>The list of movies.</returns>
+        public async Task<List<SearchMovie>> GetUpcomingHorrorMovies()
+        {
+            return await _client.GetUpcomingHorrorMoviesAsync();
+        }
     }
 }

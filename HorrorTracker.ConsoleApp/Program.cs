@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
 using HorrorTracker.ConsoleApp.Managers;
 using HorrorTracker.Data;
+using HorrorTracker.Data.Audio;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Utilities.Logging;
 using System.Configuration;
@@ -42,6 +43,10 @@ namespace HorrorTracker.ConsoleApp
                 Console.Title = ConsoleTitles.Title("Home");
 
                 TestDatabaseConnection();
+
+                var musicPlayer = new MusicPlayer();
+                musicPlayer.LoadAndShuffleSongs();
+                musicPlayer.StartPlaying();
 
                 while (IsNotDone)
                 {
@@ -136,7 +141,8 @@ namespace HorrorTracker.ConsoleApp
             Console.WriteLine(
                 "1. Use TMDB API\n" +
                 "2. Manually Add\n" +
-                "3. Exit");
+                "3. Display Upcoming Movies\n" +
+                "4. Exit");
             Console.Write(">> ");
 
             _logger.LogInformation("Main menu displayed.");
@@ -179,7 +185,8 @@ namespace HorrorTracker.ConsoleApp
             {
                 { 1, () => new MovieDatabaseApiManager(_logger, _connectionString).Manage() },
                 { 2, () => new ManualManager(_connectionString, _logger).Manage() },
-                { 3, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
+                { 3, () => new MovieDatabaseApiManager(_logger, _connectionString).DisplayUpcomingHorrorFilms() },
+                { 4, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
             };
         }
 
