@@ -66,14 +66,6 @@ namespace HorrorTracker.Data.Repositories.Abstractions
         public abstract T? GetByTitle(string title);
 
         /// <summary>
-        /// Retrieves all the items that are unwatched or watched.
-        /// </summary>
-        /// <param name="title">The title of the object.</param>
-        /// <param name="query">The query.</param>
-        /// <returns>The list/array of items.</returns>
-        public abstract IEnumerable<T> GetUnwatchedOrWatchedByTitle(string title, string query);
-
-        /// <summary>
         /// Updates an item in the database.
         /// </summary>
         /// <param name="entity">The horror object.</param>

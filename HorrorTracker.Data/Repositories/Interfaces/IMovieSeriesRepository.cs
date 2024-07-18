@@ -1,10 +1,20 @@
-﻿namespace HorrorTracker.Data.Repositories.Interfaces
+﻿using HorrorTracker.Data.Models;
+
+namespace HorrorTracker.Data.Repositories.Interfaces
 {
     /// <summary>
     /// The <see cref="IMovieSeriesRepository"/> interface.
     /// </summary>
     public interface IMovieSeriesRepository
     {
+        /// <summary>
+        /// Retrieves all the items that are unwatched or watched.
+        /// </summary>
+        /// <param name="title">The title of the object.</param>
+        /// <param name="query">The query.</param>
+        /// <returns>The list/array of items.</returns>
+        IEnumerable<MovieSeries> GetUnwatchedOrWatchedByTitle(string title, string query);
+
         /// <summary>
         /// Updates the total time for a given movie series.
         /// </summary>

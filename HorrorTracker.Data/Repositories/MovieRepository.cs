@@ -83,12 +83,6 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override IEnumerable<Movie> GetUnwatchedOrWatchedByTitle(string title, string query)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
         public override string Update(Movie entity)
         {
             return ExecuteNonQuery(
