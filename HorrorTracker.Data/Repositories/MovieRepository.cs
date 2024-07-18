@@ -46,63 +46,22 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public override int Add(Movie movie)
         {
-            var result = 0;
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var query = MovieQueries.InsertMovie;
-                var parameters = MovieDatabaseParameters.InsertMovieParameters(movie);
-                result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
-
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    _logger.LogInformation($"Movie '{movie.Title}' added successfully.");
-                    return result;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error adding movie '{movie.Title}'.", ex);
-                return result;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return result;
+            return ExecuteNonQuery(
+                MovieQueries.InsertMovie,
+                MovieDatabaseParameters.InsertMovieParameters(movie),
+                $"Movie '{movie.Title}' added successfully.",
+                $"Error adding movie '{movie.Title}'.");
         }
 
         /// <inheritdoc/>
         public override string Delete(int id)
         {
-            var message = "Deleting movie was not successful.";
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var query = MovieQueries.DeleteMovie;
-                var parameters = SharedDatabaseParameters.IdParameters(id);
-                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
-
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    message = $"Movie with ID '{id}' deleted successfully.";
-                    _logger.LogInformation(message);
-                    return message;
-                }
-            }
-            catch (Exception ex)
-            {
-                message = $"Error deleting movie with ID '{id}'.";
-                _logger.LogError(message, ex);
-                return message;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return message;
+            return ExecuteNonQuery(
+                MovieQueries.DeleteMovie,
+                SharedDatabaseParameters.IdParameters(id),
+                "Deleting movie was not successful.",
+                $"Movie with ID '{id}' deleted successfully.",
+                $"Error deleting movie with ID '{id}'.");
         }
 
         /// <inheritdoc/>
@@ -114,34 +73,13 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public override Movie? GetByTitle(string title)
         {
-            Movie? movie = null;
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var query = MovieQueries.GetMovieByName;
-                var parameters = SharedDatabaseParameters.GetByTitleParameters(title);
-                using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, query, parameters);
-                if (reader.Read())
-                {
-                    movie = new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0));
-                    _logger.LogInformation($"Movie '{movie.Title}' was found in the database.");
-                    return movie;
-                }
-                else
-                {
-                    _logger.LogWarning($"Movie '{title}' not found in the database.");
-                    return movie;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("An error occurred while getting the movie by name.", ex);
-                return movie;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
+            return ExecuteReader(
+                MovieQueries.GetMovieByName,
+                SharedDatabaseParameters.GetByTitleParameters(title),
+                reader => new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0)),
+                $"Movie '{title}' was found in the database.",
+                $"Movie '{title}' not found in the database.",
+                "An error occurred while getting the movie by name.");
         }
 
         /// <inheritdoc/>
@@ -153,33 +91,12 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public override string Update(Movie entity)
         {
-            var message = "Updating movie was not successful.";
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var query = MovieQueries.UpdateMovie;
-                var parameters = MovieDatabaseParameters.UpdateMovieParameters(entity);
-                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
-
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    message = $"Movie '{entity.Title}' updated successfully.";
-                    _logger.LogInformation(message);
-                    return message;
-                }
-            }
-            catch (Exception ex)
-            {
-                message = $"Error updating movie '{entity.Title}'.";
-                _logger.LogError(message, ex);
-                return message;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return message;
+            return ExecuteNonQuery(
+                MovieQueries.UpdateMovie,
+                MovieDatabaseParameters.UpdateMovieParameters(entity),
+                "Updating movie was not successful.",
+                $"Movie '{entity.Title}' updated successfully.",
+                $"Error updating movie '{entity.Title}'.");
         }
     }
 }
