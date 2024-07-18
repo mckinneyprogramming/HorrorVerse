@@ -1,9 +1,12 @@
 ﻿using HorrorTracker.Data.TMDB.Interfaces;
 using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Client;
+using TMDbLib.Objects.Account;
+using TMDbLib.Objects.Authentication;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.Discover;
 using TMDbLib.Objects.General;
+using TMDbLib.Objects.Lists;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
 using TMDbLib.Objects.TvShows;
@@ -29,6 +32,14 @@ namespace HorrorTracker.Data.TMDB
         public TMDbClientWrapper(string? apiKey)
         {
             _client = new TMDbClient(apiKey);
+        }
+
+        public async Task<SearchContainer<AccountList>> GetLists()
+        {
+            var sessionId = Environment.GetEnvironmentVariable("TMDbAccountSessionId");
+            await _client.SetSessionInformationAsync(sessionId, SessionType.UserSession);
+            var lists = _client.AccountGetListsAsync().Result;
+            return lists;
         }
 
         /// <inheritdoc/>

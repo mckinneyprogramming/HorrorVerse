@@ -1,7 +1,6 @@
 ﻿using HorrorTracker.Utilities.Logging.Interfaces;
 using Serilog;
 using Serilog.Core;
-using System.Configuration;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Utilities.Logging
@@ -55,6 +54,6 @@ namespace HorrorTracker.Utilities.Logging
         /// <summary>
         /// Retrieves the logger url from the app settings.
         /// </summary>
-        private static string? LoggerUrl => ConfigurationManager.AppSettings["LoggerUrl"];
+        private static string? LoggerUrl => Environment.GetEnvironmentVariable("LoggerUrl");
     }
 }

@@ -293,7 +293,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(watched, result.First().Watched);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                $"Retrieved {result.Count()} movie series(s) successfully.");
+                "Retrieved movie series(s) successfully.");
         }
 
         [DataTestMethod]

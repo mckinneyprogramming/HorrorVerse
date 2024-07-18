@@ -4,7 +4,6 @@ using HorrorTracker.Data;
 using HorrorTracker.Data.Audio;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Utilities.Logging;
-using System.Configuration;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.ConsoleApp
@@ -18,7 +17,7 @@ namespace HorrorTracker.ConsoleApp
         /// <summary>
         /// The connection string.
         /// </summary>
-        private static readonly string _connectionString = ConfigurationManager.ConnectionStrings["HorrorTracker"].ConnectionString;
+        private static readonly string? _connectionString = Environment.GetEnvironmentVariable("HorrorTrackerDb");
 
         /// <summary>
         /// IsNotDone indicator.
@@ -142,7 +141,8 @@ namespace HorrorTracker.ConsoleApp
                 "1. Use TMDB API\n" +
                 "2. Manually Add\n" +
                 "3. Display Upcoming Movies\n" +
-                "4. Exit");
+                "4. TMDB Account Details\n" +
+                "5. Exit");
             Console.Write(">> ");
 
             _logger.LogInformation("Main menu displayed.");
@@ -186,7 +186,8 @@ namespace HorrorTracker.ConsoleApp
                 { 1, () => new MovieDatabaseApiManager(_logger, _connectionString).Manage() },
                 { 2, () => new ManualManager(_connectionString, _logger).Manage() },
                 { 3, () => new MovieDatabaseApiManager(_logger, _connectionString).DisplayUpcomingHorrorFilms() },
-                { 4, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
+                { 4, () => new AccountManager(_logger).Manage() },
+                { 5, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
             };
         }
 

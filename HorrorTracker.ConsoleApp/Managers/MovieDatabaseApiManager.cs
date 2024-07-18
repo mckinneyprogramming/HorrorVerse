@@ -19,12 +19,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// The connection string.
         /// </summary>
-        private readonly string _connectionString;
-
-        /// <summary>
-        /// IsNotDone indicator.
-        /// </summary>
-        private bool IsNotDone = true;
+        private readonly string? _connectionString;
 
         /// <summary>
         /// The parser.
@@ -35,7 +30,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// Initializes a new instance of the <see cref="MovieDatabaseApiManager"/> class.
         /// </summary>
         /// <param name="logger">The logger.</param>
-        public MovieDatabaseApiManager(LoggerService logger, string connectionString)
+        public MovieDatabaseApiManager(LoggerService logger, string? connectionString)
             : base(logger)
         {
             _connectionString = connectionString;

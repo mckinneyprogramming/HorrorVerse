@@ -36,6 +36,7 @@ namespace HorrorTracker.Data.Repositories
         /// <param name="databaseConnection">The database connection.</param>
         /// <param name="logger">The logger.</param>
         public MovieSeriesRepository(IDatabaseConnection databaseConnection, ILoggerService logger)
+            : base(databaseConnection, logger)
         {
             _databaseConnection = databaseConnection;
             _logger = logger;
@@ -45,261 +46,89 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public override int Add(MovieSeries series)
         {
-            var result = 0;
-            try
-            {
-                _databaseConnectionsHelper.Open();
-
-                var addSeriesCommandText = MovieSeriesQueries.InsertSeries;
-                var parameters = MovieSeriesDatabaseParameters.InsertMovieSeriesParameters(series);
-
-                result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, addSeriesCommandText, parameters);
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    _logger.LogInformation($"Movie series {series.Title} was added successfully.");
-                    return result;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Adding a movie series to the database failed.", ex);
-                return result;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return result;
+            return ExecuteNonQuery(
+                MovieSeriesQueries.InsertSeries,
+                MovieSeriesDatabaseParameters.InsertMovieSeriesParameters(series),
+                $"Movie series {series.Title} was added successfully.",
+                "Adding a movie series to the database failed.");
         }
 
         /// <inheritdoc/>
         public override MovieSeries? GetByTitle(string title)
         {
-            MovieSeries? movieSeries = null;
-            try
-            {
-                _databaseConnectionsHelper.Open();
-
-                var commandText = MovieSeriesQueries.GetMovieSeriesByName;
-                var parameters = SharedDatabaseParameters.GetByTitleParameters(title);
-
-                using (var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, commandText, parameters))
-                {
-                    if (reader.Read())
-                    {
-                        movieSeries = new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
-
-                        _logger.LogInformation($"Movie series {title} was found in the database.");
-                        return movieSeries;
-                    }
-                    else
-                    {
-                        _logger.LogWarning($"Movie series {title} was not found in the database.");
-                        return movieSeries;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("An error occurred while getting the movie series by name.", ex);
-                return movieSeries;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
+            return ExecuteReader(
+                MovieSeriesQueries.GetMovieSeriesByName,
+                SharedDatabaseParameters.GetByTitleParameters(title),
+                reader => new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0)),
+                $"Movie series {title} was found in the database.",
+                $"Movie series {title} was not found in the database.",
+                "An error occurred while getting the movie series by name.");
         }
 
         /// <inheritdoc/>
         public override string Update(MovieSeries series)
         {
-            var message = "Updating movie series was not successful.";
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var query = MovieSeriesQueries.UpdateMovieSeries;
-                var parameters = MovieSeriesDatabaseParameters.UpdateMovieSeriesParameters(series);
-                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
-
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    message = "Series updated successfully.";
-                    _logger.LogInformation(message);
-                    return message;
-                }
-            }
-            catch (Exception ex)
-            {
-                message = $"Error updating series '{series.Title}'.";
-                _logger.LogError(message, ex);
-                return message;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return message;
+            return ExecuteNonQuery(
+                MovieSeriesQueries.UpdateMovieSeries,
+                MovieSeriesDatabaseParameters.UpdateMovieSeriesParameters(series),
+                "Updating movie series was not successful.",
+                "Series updated successfully.",
+                $"Error updating series '{series.Title}'.");
         }
 
         /// <inheritdoc/>
         public override string Delete(int id)
         {
-            var message = "Deleting movie series was not successful.";
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var query = MovieSeriesQueries.DeleteMovieSeries;
-                var parameters = SharedDatabaseParameters.IdParameters(id);
-                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
-
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    message = $"Series with ID '{id}' deleted successfully.";
-                    _logger.LogInformation(message);
-                    return message;
-                }
-            }
-            catch (Exception ex)
-            {
-                message = $"Error deleting series with ID '{id}'.";
-                _logger.LogError(message, ex);
-                return message;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return message;
+            return ExecuteNonQuery(
+                MovieSeriesQueries.DeleteMovieSeries,
+                SharedDatabaseParameters.IdParameters(id),
+                "Deleting movie series was not successful.",
+                $"Series with ID '{id}' deleted successfully.",
+                $"Error deleting series with ID '{id}'.");
         }
 
         /// <inheritdoc/>
         public override IEnumerable<MovieSeries> GetUnwatchedOrWatchedByTitle(string title, string query)
         {
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var parameters = SharedDatabaseParameters.GetByTitleParameters(title);
-                using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, query, parameters);
-                var moviesSeries = new List<MovieSeries>();
-
-                while (reader.Read())
-                {
-                    var newSeries = new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
-                    moviesSeries.Add(newSeries);
-                }
-
-                _logger.LogInformation($"Retrieved {moviesSeries.Count} movie series(s) successfully.");
-                return moviesSeries;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error fetching series's '{title}'.", ex);
-                return [];
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
+            return ExecuteReaderList(
+                query,
+                SharedDatabaseParameters.GetByTitleParameters(title),
+                reader => new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0)),
+                "Retrieved movie series(s) successfully.",
+                $"Error fetching series's '{title}'.");
         }
 
         /// <inheritdoc/>
         public string UpdateTotalTime(int seriesId)
         {
-            var message = "Updating total time for the series was not successful.";
-            try
-            {
-                _databaseConnectionsHelper.Open();
-
-                var query = MovieSeriesQueries.UpdateTotalTime;
-                var parameters = SharedDatabaseParameters.IdParameters(seriesId);
-                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
-
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    message = $"Total time for series ID '{seriesId}' updated successfully.";
-                    _logger.LogInformation(message);
-                    return message;
-                }
-            }
-            catch (Exception ex)
-            {
-                message = $"Error updating total time for series ID '{seriesId}'.";
-                _logger.LogError(message, ex);
-                return message;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return message;
+            return UpdateSeries(
+                seriesId,
+                MovieSeriesQueries.UpdateTotalTime,
+                "Updating total time for the series was not successful.",
+                "Total time for series ID '{0}' updated successfully.",
+                "Error updating total time for series ID '{0}'.");
         }
 
         /// <inheritdoc/>
         public string UpdateTotalMovies(int seriesId)
         {
-            var message = "Updating the total movies for the series was not successful.";
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var query = MovieSeriesQueries.UpdateTotalMovies;
-                var parameters = SharedDatabaseParameters.IdParameters(seriesId);
-                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
-
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    message = $"Total movies for series ID '{seriesId}' updated successfully.";
-                    _logger.LogInformation(message);
-                    return message;
-                }
-            }
-            catch (Exception ex)
-            {
-                message = $"Error updating total movies for series ID '{seriesId}'.";
-                _logger.LogError(message, ex);
-                return message;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return message;
+            return UpdateSeries(
+                seriesId,
+                MovieSeriesQueries.UpdateTotalMovies,
+                "Updating the total movies for the series was not successful.",
+                "Total movies for series ID '{0}' updated successfully.",
+                "Error updating total movies for series ID '{0}'.");
         }
 
         /// <inheritdoc/>
         public string UpdateWatched(int seriesId)
         {
-            var message = "Updating watched for the series was not successful.";
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                var query = MovieSeriesQueries.UpdateWatched;
-                var parameters = SharedDatabaseParameters.IdParameters(seriesId);
-                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
-
-                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
-                {
-                    message = $"Watched status for series ID '{seriesId}' updated successfully.";
-                    _logger.LogInformation(message);
-                    return message;
-                }
-            }
-            catch (Exception ex)
-            {
-                message = $"Error updating watched status for series ID '{seriesId}'.";
-                _logger.LogError(message, ex);
-                return message;
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
-
-            return message;
+            return UpdateSeries(
+                seriesId,
+                MovieSeriesQueries.UpdateWatched,
+                "Updating watched for the series was not successful.",
+                "Watched status for series ID '{0}' updated successfully.",
+                "Error updating watched status for series ID '{0}'.");
         }
 
         /// <inheritdoc/>
@@ -333,29 +162,31 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public override IEnumerable<MovieSeries> GetAll()
         {
-            try
-            {
-                _databaseConnectionsHelper.Open();
-                using var reader = DatabaseCommandsHelper.ExecutesReader(_databaseConnection, MovieSeriesQueries.GetAllSeries);
-                var seriesList = new List<MovieSeries>();
-                while (reader.Read())
-                {
-                    var movieSeries = new MovieSeries(reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
-                    seriesList.Add(movieSeries);
-                }
+            return ExecuteReaderList(
+                MovieSeriesQueries.GetAllSeries,
+                null,
+                reader => new MovieSeries(reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0)),
+                "Retrieving all the movie series was successful.",
+                "Error fetching all movie series.");
+        }
 
-                _logger.LogInformation("Retrieving all the movie series was successful.");
-                return seriesList;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Error fetching all movie series.", ex);
-                return [];
-            }
-            finally
-            {
-                _databaseConnectionsHelper.Close();
-            }
+        /// <summary>
+        /// Updates the particular parameter.
+        /// </summary>
+        /// <param name="seriesId">The series id.</param>
+        /// <param name="query">The query.</param>
+        /// <param name="failedMessage">The failed message.</param>
+        /// <param name="successMessage">The success message.</param>
+        /// <param name="errorMessage">The error message.</param>
+        /// <returns>The message.</returns>
+        private string UpdateSeries(int seriesId, string query, string failedMessage, string successMessage, string errorMessage)
+        {
+            return ExecuteNonQuery(
+                query,
+                SharedDatabaseParameters.IdParameters(seriesId),
+                failedMessage,
+                string.Format(successMessage, seriesId),
+                string.Format(errorMessage, seriesId));
         }
     }
 }

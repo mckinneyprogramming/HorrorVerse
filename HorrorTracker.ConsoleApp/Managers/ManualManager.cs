@@ -11,7 +11,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// The connection string.
         /// </summary>
-        private readonly string _connectionString;
+        private readonly string? _connectionString;
 
         /// <summary>
         /// IsNotDone indicator.
@@ -22,7 +22,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// Initializes a new instance of the <see cref="ManualManager"/> class.
         /// </summary>
         /// <param name="logger">The logger.</param>
-        public ManualManager(string connectionString, LoggerService logger)
+        public ManualManager(string? connectionString, LoggerService logger)
             : base(logger)
         {
             _connectionString = connectionString;

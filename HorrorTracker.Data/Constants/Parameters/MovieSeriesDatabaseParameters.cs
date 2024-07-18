@@ -15,13 +15,7 @@ namespace HorrorTracker.Data.Constants.Parameters
         /// <returns>The dictionary of parameters.</returns>
         public static ReadOnlyDictionary<string, object> InsertMovieSeriesParameters(MovieSeries series)
         {
-            return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
-            {
-                { "Title", series.Title },
-                { "TotalTime", series.TotalTime },
-                { "TotalMovies", series.TotalMovies },
-                { "Watched", series.Watched }
-            });
+            return DatabaseParametersHelper.CreateReadOnlyDictionary(MovieSeriesParameters(series));
         }
 
         /// <summary>
@@ -31,14 +25,26 @@ namespace HorrorTracker.Data.Constants.Parameters
         /// <returns>The dictionary of parameters.</returns>
         public static ReadOnlyDictionary<string, object> UpdateMovieSeriesParameters(MovieSeries series)
         {
-            return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
+            var parameters = MovieSeriesParameters(series);
+            parameters.Add("Id", series.Id);
+
+            return DatabaseParametersHelper.CreateReadOnlyDictionary(parameters);
+        }
+
+        /// <summary>
+        /// Creates the dictionary for the movie series parameters.
+        /// </summary>
+        /// <param name="series">The movie series.</param>
+        /// <returns>The dictionary.</returns>
+        private static Dictionary<string, object> MovieSeriesParameters(MovieSeries series)
+        {
+            return new Dictionary<string, object>
             {
                 { "Title", series.Title },
                 { "TotalTime", series.TotalTime },
                 { "TotalMovies", series.TotalMovies },
-                { "Watched", series.Watched },
-                { "Id", series.Id }
-            });
+                { "Watched", series.Watched }
+            };
         }
     }
 }

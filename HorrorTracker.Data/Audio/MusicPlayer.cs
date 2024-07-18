@@ -1,5 +1,4 @@
 ﻿using NAudio.Wave;
-using System.Configuration;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Data.Audio
@@ -13,7 +12,9 @@ namespace HorrorTracker.Data.Audio
         /// <summary>
         /// The folder containing the songs.
         /// </summary>
-        private readonly string themeSongsFolder = Path.GetFullPath(ConfigurationManager.AppSettings["HorrorThemeSongs"]);
+#pragma warning disable CS8604 // Possible null reference argument.
+        private readonly string themeSongsFolder = Path.GetFullPath(Environment.GetEnvironmentVariable("HorrorThemeSongs"));
+#pragma warning restore CS8604 // Possible null reference argument.
 
         /// <summary>
         /// The Random object.

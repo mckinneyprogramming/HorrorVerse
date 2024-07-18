@@ -16,7 +16,7 @@ namespace HorrorTracker.Data.Constants.Parameters
         {
             return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
             {
-                { "@Title", title }
+                { "Title", title }
             });
         }
 
@@ -29,7 +29,7 @@ namespace HorrorTracker.Data.Constants.Parameters
         {
             return DatabaseParametersHelper.CreateReadOnlyDictionary(new Dictionary<string, object>
             {
-                { "@Id", id }
+                { "Id", id }
             });
         }
     }

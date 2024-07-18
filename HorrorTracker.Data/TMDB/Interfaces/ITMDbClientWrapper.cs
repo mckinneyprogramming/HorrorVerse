@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
+using TMDbLib.Objects.Lists;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
 using TMDbLib.Objects.TvShows;
@@ -161,5 +162,7 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         /// <returns>The list of movies.</returns>
         [ExcludeFromCodeCoverage]
         Task<List<SearchMovie>> GetUpcomingHorrorMoviesAsync();
+
+        Task<SearchContainer<AccountList>> GetLists();
     }
 }

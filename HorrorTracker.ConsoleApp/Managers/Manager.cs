@@ -14,6 +14,11 @@ namespace HorrorTracker.ConsoleApp.Managers
         protected readonly LoggerService _logger;
 
         /// <summary>
+        /// IsNotDone indicator.
+        /// </summary>
+        protected bool IsNotDone = true;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Manager"/> class.
         /// </summary>
         /// <param name="logger">The logger.</param>

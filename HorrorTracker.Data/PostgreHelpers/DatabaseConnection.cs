@@ -20,7 +20,7 @@ namespace HorrorTracker.Data.PostgreHelpers
         /// Initializes a new instance of the <see cref="DatabaseConnection"/> class.
         /// </summary>
         /// <param name="connectionString">The connection string.</param>
-        public DatabaseConnection(string connectionString)
+        public DatabaseConnection(string? connectionString)
         {
             _connection = new NpgsqlConnection(connectionString);
         }

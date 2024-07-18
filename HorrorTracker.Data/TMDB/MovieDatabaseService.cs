@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.Data.TMDB.Interfaces;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
+using TMDbLib.Objects.Lists;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
 using TMDbLib.Objects.TvShows;
@@ -137,6 +138,11 @@ namespace HorrorTracker.Data.TMDB
         public async Task<List<SearchMovie>> GetUpcomingHorrorMovies()
         {
             return await _client.GetUpcomingHorrorMoviesAsync();
+        }
+
+        public async Task<SearchContainer<AccountList>> GetLists()
+        {
+            return await _client.GetLists();
         }
     }
 }

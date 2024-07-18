@@ -36,6 +36,7 @@ namespace HorrorTracker.Data.Repositories
         /// <param name="databaseConnection">The database connection.</param>
         /// <param name="logger">The logger.</param>
         public MovieRepository(IDatabaseConnection databaseConnection, ILoggerService logger)
+            : base(databaseConnection, logger)
         {
             _databaseConnection = databaseConnection;
             _logger = logger;
@@ -75,7 +76,33 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public override string Delete(int id)
         {
-            throw new NotImplementedException();
+            var message = "Deleting movie was not successful.";
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieQueries.DeleteMovie;
+                var parameters = SharedDatabaseParameters.IdParameters(id);
+                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
+
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                {
+                    message = $"Movie with ID '{id}' deleted successfully.";
+                    _logger.LogInformation(message);
+                    return message;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = $"Error deleting movie with ID '{id}'.";
+                _logger.LogError(message, ex);
+                return message;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+
+            return message;
         }
 
         /// <inheritdoc/>
@@ -126,7 +153,33 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public override string Update(Movie entity)
         {
-            throw new NotImplementedException();
+            var message = "Updating movie was not successful.";
+            try
+            {
+                _databaseConnectionsHelper.Open();
+                var query = MovieQueries.UpdateMovie;
+                var parameters = MovieDatabaseParameters.UpdateMovieParameters(entity);
+                var result = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, query, parameters);
+
+                if (DatabaseCommandsHelper.IsSuccessfulResult(result))
+                {
+                    message = $"Movie '{entity.Title}' updated successfully.";
+                    _logger.LogInformation(message);
+                    return message;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = $"Error updating movie '{entity.Title}'.";
+                _logger.LogError(message, ex);
+                return message;
+            }
+            finally
+            {
+                _databaseConnectionsHelper.Close();
+            }
+
+            return message;
         }
     }
 }
