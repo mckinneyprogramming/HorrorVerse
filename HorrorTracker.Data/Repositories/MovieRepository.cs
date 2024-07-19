@@ -67,7 +67,12 @@ namespace HorrorTracker.Data.Repositories
         /// <inheritdoc/>
         public override IEnumerable<Movie> GetAll()
         {
-            throw new NotImplementedException();
+            return ExecuteReaderList(
+                MovieQueries.GetAllMovie,
+                null,
+                reader => new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0)),
+                "Successfully retrieved all of the movies.",
+                "Error fetching all of the movies.");
         }
 
         /// <inheritdoc/>
