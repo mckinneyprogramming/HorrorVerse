@@ -47,9 +47,9 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnString, actualReturnString);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessage("The connection to the server was successful and the database exists.");
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
         [TestMethod]
@@ -69,7 +69,7 @@ namespace HorrorTracker.MSTests.Data
             // Assert
             Assert.AreEqual(expectedReturnString, actualReturnString);
             _loggerVerifier.VerifyErrorMessage("The connection to the Postgre server failed.", exceptionMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
         [TestMethod]
@@ -90,9 +90,9 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnString, actualReturnString);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyWarningMessage("The connection to the server was successful, but the HorrorTracker database was not found.");
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
         [TestMethod]
@@ -111,9 +111,9 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessage("All tables were built successfully if they weren't already created.");
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
         [TestMethod]
@@ -132,8 +132,8 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
         [TestMethod]
@@ -153,7 +153,7 @@ namespace HorrorTracker.MSTests.Data
             // Assert
             Assert.AreEqual(expectedResult, actualResult);
             _loggerVerifier.VerifyErrorMessage("Creating tables in the database failed.", exceptionMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
         [TestMethod]

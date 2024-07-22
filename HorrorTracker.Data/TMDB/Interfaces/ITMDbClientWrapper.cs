@@ -163,6 +163,11 @@ namespace HorrorTracker.Data.TMDB.Interfaces
         [ExcludeFromCodeCoverage]
         Task<List<SearchMovie>> GetUpcomingHorrorMoviesAsync();
 
+        /// <summary>
+        /// Retrieves the account lists.
+        /// </summary>
+        /// <returns>The account lists.</returns>
+        [ExcludeFromCodeCoverage]
         Task<SearchContainer<AccountList>> GetLists();
     }
 }

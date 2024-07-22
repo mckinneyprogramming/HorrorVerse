@@ -6,6 +6,7 @@ using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
+using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.Managers
@@ -54,6 +55,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// Displays the upcoming movies.
         /// </summary>
+        [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Left non-static by design.")]
         public void DisplayUpcomingHorrorFilms()
         {
             Console.Clear();

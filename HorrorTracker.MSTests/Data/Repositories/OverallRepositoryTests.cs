@@ -33,6 +33,12 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager = new MockSetupManager(_mockDatabaseConnection, _mockDatabaseCommand, _mockLoggerService);
         }
 
+        [TestCleanup]
+        public void Cleanup()
+        {
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
+        }
+
         [DataTestMethod]
         [DynamicData(nameof(GetTimeSuccess), DynamicDataSourceType.Method)]
         public void WhenSuccessfulConnectionAndDatabaseCall_ShouldReturnTime(string query, string methodName, decimal expectedReturnValue)
@@ -46,9 +52,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedReturnValue, actualReturnValue);
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
-                $"Time in the database: {actualReturnValue} was retrieved successfully.",
-                "HorrorTracker database is closed.");
+                Messages.DatabaseOpened,
+                $"Time in the database: {actualReturnValue} was retrieved successfully.");
         }
 
         [DataTestMethod]
@@ -63,7 +68,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(0.0M, actualReturnValue);
-            _loggerVerifier.VerifyLoggerInformationMessages("HorrorTracker database is open.", "HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyWarningMessage(expectedLogMessage);
         }
 
@@ -80,7 +85,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(0.0M, actualReturnValue);
             _loggerVerifier.VerifyErrorMessage(initialMessage, exceptionMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
         }
 
         private static IEnumerable<object[]> GetTimeSuccess()

@@ -140,6 +140,10 @@ namespace HorrorTracker.Data.TMDB
             return await _client.GetUpcomingHorrorMoviesAsync();
         }
 
+        /// <summary>
+        /// Get lists from TMDB account.
+        /// </summary>
+        /// <returns>The lists from the TMBD account.</returns>
         public async Task<SearchContainer<AccountList>> GetLists()
         {
             return await _client.GetLists();

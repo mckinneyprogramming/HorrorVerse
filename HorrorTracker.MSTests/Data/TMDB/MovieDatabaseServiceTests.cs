@@ -5,6 +5,7 @@ using Moq;
 using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.General;
+using TMDbLib.Objects.Lists;
 using TMDbLib.Objects.Movies;
 using TMDbLib.Objects.Search;
 using TMDbLib.Objects.TvShows;
@@ -205,6 +206,21 @@ namespace HorrorTracker.MSTests.Data.TMDB
 
             // Assert
             Assert.AreEqual(expectedListOfSearchMovies, actualListOfSearchMovies);
+        }
+
+        [TestMethod]
+        public async Task GetLists_WhenCalledToWrapper_ShouldReturnListsFromTheAccount()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            var expectedListsFromAccount = fixture.Create<SearchContainer<AccountList>>();
+            _mockClient.Setup(c => c.GetLists()).ReturnsAsync(expectedListsFromAccount);
+
+            // Act
+            var actualListsFromAccount = await _service.GetLists();
+
+            // Assert
+            Assert.AreEqual(expectedListsFromAccount, actualListsFromAccount);
         }
     }
 }

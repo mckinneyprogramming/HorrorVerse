@@ -139,7 +139,7 @@ namespace HorrorTracker.ConsoleApp
             Console.ResetColor();
             Console.WriteLine(
                 "1. Use TMDB API\n" +
-                "2. Manually Add\n" +
+                "2. CRUD Database\n" +
                 "3. Display Upcoming Movies\n" +
                 "4. TMDB Account Details\n" +
                 "5. Exit");

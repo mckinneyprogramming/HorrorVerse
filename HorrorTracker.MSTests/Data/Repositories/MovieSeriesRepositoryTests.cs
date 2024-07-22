@@ -38,7 +38,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         [TestCleanup]
         public void Cleanup()
         {
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
         [TestMethod]
@@ -55,7 +55,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 $"Movie series {movieSeries.Title} was added successfully.");
         }
 
@@ -72,7 +72,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedReturnStatus, actualReturnStatus);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
         [TestMethod]
@@ -123,7 +123,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.IsFalse(returnedMovieSeries.Watched);
 
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 $"Movie series {seriesName} was found in the database.");
         }
 
@@ -175,7 +175,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 actualMessage);
         }
 
@@ -192,7 +192,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog($"Series '{series.Title}' updated successfully.");
         }
 
@@ -226,7 +226,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 actualMessage);
         }
 
@@ -242,7 +242,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Series with ID '1' deleted successfully.");
         }
 
@@ -292,7 +292,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(seriesName, result.First().Title);
             Assert.AreEqual(watched, result.First().Watched);
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 loggerInformationMessage);
         }
 
@@ -327,7 +327,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 actualMessage);
         }
 
@@ -343,7 +343,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Total time for series ID '1' updated successfully.");
         }
 
@@ -376,7 +376,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 actualMessage);
         }
 
@@ -392,7 +392,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Total movies for series ID '1' updated successfully.");
         }
 
@@ -425,7 +425,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 actualMessage);
         }
 
@@ -441,7 +441,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Watched status for series ID '1' updated successfully.");
         }
 

@@ -1,4 +1,5 @@
-﻿using HorrorTracker.Data.Helpers;
+﻿using HorrorTracker.Data.Constants.Queries;
+using HorrorTracker.Data.Helpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using Moq;
 using System.Data;
@@ -24,7 +25,7 @@ namespace HorrorTracker.MSTests.Data.Helpers
             _mockDatabaseCommand = new Mock<IDatabaseCommand>();
             _mockDataReader = new Mock<IDataReader>();
 
-            _commandText = "SELECT * FROM Series";
+            _commandText = MovieSeriesQueries.GetAllSeries;
 
             _mockDatabaseConnection.Setup(db => db.Open());
             _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(1);

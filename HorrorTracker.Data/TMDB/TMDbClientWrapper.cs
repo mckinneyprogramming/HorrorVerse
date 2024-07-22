@@ -1,7 +1,6 @@
 ﻿using HorrorTracker.Data.TMDB.Interfaces;
 using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Client;
-using TMDbLib.Objects.Account;
 using TMDbLib.Objects.Authentication;
 using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.Discover;
@@ -34,6 +33,7 @@ namespace HorrorTracker.Data.TMDB
             _client = new TMDbClient(apiKey);
         }
 
+        /// <inheritdoc/>
         public async Task<SearchContainer<AccountList>> GetLists()
         {
             var sessionId = Environment.GetEnvironmentVariable("TMDbAccountSessionId");

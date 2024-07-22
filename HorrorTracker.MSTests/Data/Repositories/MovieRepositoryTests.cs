@@ -38,7 +38,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         [TestCleanup]
         public void Cleanup()
         {
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is closed.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
         [TestMethod]
@@ -54,7 +54,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedResult, actualResult);
-            _loggerVerifier.VerifyLoggerInformationMessages("HorrorTracker database is open.", $"Movie '{movie.Title}' added successfully.");
+            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, $"Movie '{movie.Title}' added successfully.");
         }
 
         [TestMethod]
@@ -70,7 +70,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedResult, actualResult);
-            _loggerVerifier.VerifyInformationMessage("HorrorTracker database is open.");
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
         [TestMethod]
@@ -126,7 +126,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.IsTrue(returnedMovie.Watched);
 
             _loggerVerifier.VerifyLoggerInformationMessages(
-                "HorrorTracker database is open.",
+                Messages.DatabaseOpened,
                 $"Movie '{returnedMovie.Title}' was found in the database.");
         }
 
@@ -162,6 +162,56 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.IsNull(returnedMovie);
             _loggerVerifier.VerifyErrorMessage("An error occurred while getting the movie by name.", exceptionMessage);
+
+        }
+
+        [TestMethod]
+        public void Delete_WhenMovieExistsInTheDatabase_ShouldReturnCorrectMessage()
+        {
+            // Arrange
+            var id = Movie().Id;
+            var expectedMessage = $"Movie with ID '{id}' deleted successfully.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.DeleteMovie, 1);
+
+            // Act
+            var actualMessage = _repository.Delete(id);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, actualMessage);
+        }
+
+        [TestMethod]
+        public void Delete_WhenMovieDoesNotExistInTheDatabase_ShouldReturnCorrectMessage()
+        {
+            // Arrange
+            var id = Movie().Id;
+            var expectedMessage = "Deleting movie was not successful.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.DeleteMovie, 0);
+
+            // Act
+            var actualMessage = _repository.Delete(id);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
+        }
+
+        [TestMethod]
+        public void Delete_WhenErrorOccurs_ShouldReturnCorrectMessage()
+        {
+            // Arrange
+            var id = Movie().Id;
+            var exceptionMessage = "Failed for not able to connect to the server.";
+            var expectedMessage = $"Error deleting movie with ID '{id}'.";
+            _mockSetupManager.SetupException(exceptionMessage);
+
+            // Act
+            var actualMessage = _repository.Delete(id);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyErrorMessage(expectedMessage, exceptionMessage);
         }
 
         private static Movie Movie()
