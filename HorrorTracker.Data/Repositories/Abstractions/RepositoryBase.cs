@@ -11,7 +11,7 @@ namespace HorrorTracker.Data.Repositories.Abstractions
     /// The <see cref="RepositoryBase{T}"/> class.
     /// </summary>
     /// <typeparam name="T">The horror object.</typeparam>
-    public abstract class RepositoryBase<T> where T : HorrorBase
+    public abstract class RepositoryBase<T> : ExecutorBase where T : HorrorBase
     {
         /// <summary>
         /// The database connection.
@@ -32,6 +32,7 @@ namespace HorrorTracker.Data.Repositories.Abstractions
         /// Initializes a new instance of the <see cref="RepositoryBase{T}"/> class.
         /// </summary>
         protected RepositoryBase(IDatabaseConnection databaseConnection, ILoggerService logger)
+            : base(databaseConnection, logger)
         {
             _databaseConnection = databaseConnection;
             _logger = logger;

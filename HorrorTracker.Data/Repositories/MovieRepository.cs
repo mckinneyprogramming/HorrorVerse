@@ -1,11 +1,11 @@
 ﻿using HorrorTracker.Data.Constants.Parameters;
 using HorrorTracker.Data.Constants.Queries;
-using HorrorTracker.Data.Helpers;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
+using System.Data;
 
 namespace HorrorTracker.Data.Repositories
 {
@@ -16,21 +16,6 @@ namespace HorrorTracker.Data.Repositories
     public class MovieRepository : RepositoryBase<Movie>, IMovieRepository
     {
         /// <summary>
-        /// The database connection.
-        /// </summary>
-        private readonly IDatabaseConnection _databaseConnection;
-
-        /// <summary>
-        /// The logger.
-        /// </summary>
-        private readonly ILoggerService _logger;
-
-        /// <summary>
-        /// The logger helper.
-        /// </summary>
-        private readonly DatabaseConnectionsHelper _databaseConnectionsHelper;
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="MovieSeriesRepository"/> class.
         /// </summary>
         /// <param name="databaseConnection">The database connection.</param>
@@ -38,9 +23,6 @@ namespace HorrorTracker.Data.Repositories
         public MovieRepository(IDatabaseConnection databaseConnection, ILoggerService logger)
             : base(databaseConnection, logger)
         {
-            _databaseConnection = databaseConnection;
-            _logger = logger;
-            _databaseConnectionsHelper = new DatabaseConnectionsHelper(databaseConnection, logger);
         }
 
         /// <inheritdoc/>
@@ -70,7 +52,7 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteReaderList(
                 MovieQueries.GetAllMovie,
                 null,
-                reader => new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0)),
+                MovieFunction(),
                 "Successfully retrieved all of the movies.",
                 "Error fetching all of the movies.");
         }
@@ -81,7 +63,7 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteReader(
                 MovieQueries.GetMovieByName,
                 SharedDatabaseParameters.GetByTitleParameters(title),
-                reader => new Movie(reader.GetString(1), reader.GetDecimal(2), reader.GetBoolean(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetBoolean(6), reader.GetInt32(0)),
+                MovieFunction(),
                 $"Movie '{title}' was found in the database.",
                 $"Movie '{title}' not found in the database.",
                 "An error occurred while getting the movie by name.");
@@ -96,6 +78,53 @@ namespace HorrorTracker.Data.Repositories
                 "Updating movie was not successful.",
                 $"Movie '{entity.Title}' updated successfully.",
                 $"Error updating movie '{entity.Title}'.");
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<Movie> GetUnwatchedOrWatchedMovies(string query)
+        {
+            if (query.Contains("Watched = TRUE"))
+            {
+                return ExecuteReaderList(
+                    MovieQueries.GetWatchedMovie,
+                    null,
+                    MovieFunction(),
+                    "Successfully retrieved list of watched movies.",
+                    "Error fetching watched movies.");
+            }
+
+            return ExecuteReaderList(
+                MovieQueries.GetWatchedMovie,
+                null,
+                MovieFunction(),
+                "Successfully retrieved list of unwatched movies.",
+                "Error fetching unwatched movies.");
+        }
+
+        public decimal GetTime(string query)
+        {
+            if (QueryContainsWatched(query))
+            {
+                return ExecuteScalar(query, null, "Error fetching total time of watched movies.");
+            }
+
+            return ExecuteScalar(query, null, "Error fetching time left of unwatched movies.");
+        }
+
+        /// <summary>
+        /// Retrieves the movie function for the execute reader.
+        /// </summary>
+        /// <returns>The function.</returns>
+        private static Func<IDataReader, Movie> MovieFunction()
+        {
+            return reader => new Movie(
+                            reader.GetString(1),
+                            reader.GetDecimal(2),
+                            reader.GetBoolean(3),
+                            reader.GetInt32(4),
+                            reader.GetInt32(5),
+                            reader.GetBoolean(6),
+                            reader.GetInt32(0));
         }
     }
 }

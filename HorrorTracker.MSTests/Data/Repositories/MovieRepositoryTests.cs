@@ -42,7 +42,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void AddMovie_WhenSuccessful_ShouldReturnOneAndLogMessage()
+        public void Add_WhenSuccessful_ShouldReturnOneAndLogMessage()
         {
             // Arrange
             var movie = Movie();
@@ -58,7 +58,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void AddMovie_WhenNotSuccessful_ShouldReturnZeroAndLogMessage()
+        public void Add_WhenNotSuccessful_ShouldReturnZeroAndLogMessage()
         {
             // Arrange
             var movie = Movie();
@@ -74,7 +74,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void AddMovie_WhenExceptionIsThrown_ShouldReturnZeroAndLogError()
+        public void Add_WhenExceptionIsThrown_ShouldReturnZeroAndLogError()
         {
             // Arrange
             var movie = Movie();
@@ -91,7 +91,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void GetMovieByName_WhenSuccessful_ShouldReturnMovieAndLogMessage()
+        public void GetByTitle_WhenSuccessful_ShouldReturnMovieAndLogMessage()
         {
             // Arrange
             var movieName = "Test Movie";
@@ -131,7 +131,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void GetMovieByName_WhenMovieDoesNotExistInTheDatabase_ShouldReturnNullAndLogWarning()
+        public void GetByTitle_WhenMovieDoesNotExistInTheDatabase_ShouldReturnNullAndLogWarning()
         {
             // Arrange
             var movieName = "Nonexistent Movie";
@@ -150,7 +150,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void GetMovieByName_WhenExceptionIsCaught_ShouldLogError()
+        public void GetByTitle_WhenExceptionIsCaught_ShouldLogError()
         {
             // Arrange
             var exceptionMessage = "Failed for not able to connect to the server.";

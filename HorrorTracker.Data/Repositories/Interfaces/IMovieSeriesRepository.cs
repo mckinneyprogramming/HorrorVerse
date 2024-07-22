@@ -10,10 +10,9 @@ namespace HorrorTracker.Data.Repositories.Interfaces
         /// <summary>
         /// Retrieves all the items that are unwatched or watched.
         /// </summary>
-        /// <param name="title">The title of the object.</param>
         /// <param name="query">The query.</param>
         /// <returns>The list/array of items.</returns>
-        IEnumerable<MovieSeries> GetUnwatchedOrWatchedByTitle(string title, string query);
+        IEnumerable<MovieSeries> GetUnwatchedOrWatchedMovieSeries(string query);
 
         /// <summary>
         /// Updates the total time for a given movie series.

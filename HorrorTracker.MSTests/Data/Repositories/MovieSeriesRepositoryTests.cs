@@ -42,7 +42,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void AddMovieSeries_SuccessfulConnectionAndAddition_ShouldReturnGoodStatus()
+        public void Add_SuccessfulConnectionAndAddition_ShouldReturnGoodStatus()
         {
             // Arrange
             var movieSeries = MovieSeries();
@@ -60,7 +60,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void AddMovieSeries_SuccessfulConnectionAndDBNullResult_ShouldReturnZero()
+        public void Add_SuccessfulConnectionAndDBNullResult_ShouldReturnZero()
         {
             // Arrange
             var expectedReturnStatus = 0;
@@ -76,7 +76,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void AddMovieSeries_WhenExceptionOccurs_ShouldLogMessageAndReturnZero()
+        public void Add_WhenExceptionOccurs_ShouldLogMessageAndReturnZero()
         {
             // Arrange
             var movieSeries = MovieSeries();
@@ -92,7 +92,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void GetMovieSeriesByName_ReturnsMovieSeries_WhenSeriesExists()
+        public void GetByTitle_ReturnsMovieSeries_WhenSeriesExists()
         {
             // Arrange
             var seriesName = "Test Series";
@@ -128,7 +128,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void GetMovieSeriesByName_ReturnsNull_WhenSeriesDoesNotExist()
+        public void GetByTitle_ReturnsNull_WhenSeriesDoesNotExist()
         {
             // Arrange
             var seriesName = "Nonexistent Series";
@@ -147,7 +147,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void GetMovieSeriesByName_WhenExceptionOccurs_ShouldLogMessageAndReturnNull()
+        public void GetByTitle_WhenExceptionOccurs_ShouldLogMessageAndReturnNull()
         {
             // Arrange
             var exceptionMessage = "Failed for not able to connect to the server.";
@@ -162,7 +162,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void UpdateMovieSeries_SuccessfulUpdate_LogsInformation()
+        public void Update_SuccessfulUpdate_LogsInformation()
         {
             // Arrange
             var expectedMessage = "Series updated successfully.";
@@ -180,7 +180,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void UpdateMovieSeries_UnsuccessfulUpdate_DoesNotLogInformation()
+        public void Update_UnsuccessfulUpdate_DoesNotLogInformation()
         {
             // Arrange
             var expectedMessage = "Updating movie series was not successful.";
@@ -197,7 +197,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void UpdateMovieSeries_WhenExceptionOccurs_ShouldLogMessage()
+        public void Update_WhenExceptionOccurs_ShouldLogMessage()
         {
             // Arrange
             var movieSeries = MovieSeries();
@@ -214,7 +214,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void DeleteMovieSeries_SuccessfulDelete_LogsInformation()
+        public void Delete_SuccessfulDelete_LogsInformation()
         {
             // Arrange
             var expectedMessage = "Series with ID '1' deleted successfully.";
@@ -231,7 +231,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void DeleteMovieSeries_UnsuccessfulUpdate_DoesNotLogInformation()
+        public void Delete_UnsuccessfulUpdate_DoesNotLogInformation()
         {
             // Arrange
             var expectedMessage = "Deleting movie series was not successful.";
@@ -247,7 +247,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void DeleteMovieSeries_WhenExceptionOccurs_ShouldLogMessage()
+        public void Delete_WhenExceptionOccurs_ShouldLogMessage()
         {
             // Arrange
             var exceptionMessage = "Failed for not able to connect to the server.";
@@ -264,9 +264,9 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [DataTestMethod]
-        [DataRow(true, MovieSeriesQueries.GetWatchedMovieSeries)]
-        [DataRow(false, MovieSeriesQueries.GetUnwatchedMovieSeries)]
-        public void GetUnwatchedOrWatchedMoviesBySeriesName_WhenValidSeriesName_ShouldReturnsWatchedMovies(bool watched, string query)
+        [DataRow(true, MovieSeriesQueries.GetWatchedMovieSeries, "Retrieved watched movie series(s) successfully.")]
+        [DataRow(false, MovieSeriesQueries.GetUnwatchedMovieSeries, "Retrieved unwatched movie series(s) successfully.")]
+        public void GetUnwatchedOrWatchedMovieSeries_WhenValidSeriesName_ShouldReturnsWatchedMovies(bool watched, string query, string loggerInformationMessage)
         {
             // Arrange
             var seriesName = "Test Series";
@@ -284,7 +284,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockReader.Setup(r => r.GetInt32(0)).Returns(1);
 
             // Act
-            var result = _repository.GetUnwatchedOrWatchedByTitle(seriesName, query);
+            var result = _repository.GetUnwatchedOrWatchedMovieSeries(query);
 
             // Assert
             Assert.IsNotNull(result);
@@ -293,26 +293,25 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(watched, result.First().Watched);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 "HorrorTracker database is open.",
-                "Retrieved movie series(s) successfully.");
+                loggerInformationMessage);
         }
 
         [DataTestMethod]
-        [DataRow(MovieSeriesQueries.GetWatchedMovieSeries)]
-        [DataRow(MovieSeriesQueries.GetUnwatchedMovieSeries)]
-        public void GetUnwatchedOrWatchedMoviesBySeriesName_WhenExceptionOccurs_ShouldHandleException(string query)
+        [DataRow(MovieSeriesQueries.GetWatchedMovieSeries, "Error fetching watched movie series's.")]
+        [DataRow(MovieSeriesQueries.GetUnwatchedMovieSeries, "Error fetching unwatched movie series's.")]
+        public void GetUnwatchedOrWatchedMovieSeries_WhenExceptionOccurs_ShouldHandleException(string query, string errorMessage)
         {
             // Arrange
-            var seriesName = "Test Series";
             var exceptionMessage = "Failed for not able to connect to the server.";
             _mockSetupManager.SetupException(exceptionMessage);
 
             // Act
-            var result = _repository.GetUnwatchedOrWatchedByTitle(seriesName, query);
+            var result = _repository.GetUnwatchedOrWatchedMovieSeries(query);
 
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(0, result.Count());
-            _loggerVerifier.VerifyErrorMessage($"Error fetching series's '{seriesName}'.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage(errorMessage, exceptionMessage);
         }
 
         [TestMethod]
@@ -474,7 +473,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedValue, actualValue);
-            _loggerVerifier.VerifyInformationMessage("Retrieving time left for movie series was successful.");
+            _loggerVerifier.VerifyInformationMessage($"Time in the database: {actualValue} was retrieved successfully.");
         }
 
         [TestMethod]
@@ -494,7 +493,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void GetAllMovieSeries_WhenSuccessful_ShouldReturnAllMovieSeriesAndLogMessage()
+        public void GetAll_WhenSuccessful_ShouldReturnAllMovieSeriesAndLogMessage()
         {
             // Arrange
             var mockReader = new Mock<IDataReader>();
@@ -538,7 +537,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [TestMethod]
-        public void GetAllMovieSeries_WhenExceptionIsThrown_ShouldLogErrorMessageAndReturnEmptyList()
+        public void GetAll_WhenExceptionIsThrown_ShouldLogErrorMessageAndReturnEmptyList()
         {
             // Arrange
             var exceptionMessage = "Failed for not able to connect to the server.";
