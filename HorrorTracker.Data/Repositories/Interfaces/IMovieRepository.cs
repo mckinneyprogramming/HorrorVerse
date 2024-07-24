@@ -13,5 +13,12 @@ namespace HorrorTracker.Data.Repositories.Interfaces
         /// <param name="query">The query.</param>
         /// <returns>The list of movies.</returns>
         IEnumerable<Movie> GetUnwatchedOrWatchedMovies(string query);
+
+        /// <summary>
+        /// Retrieves the time of the specified query.
+        /// </summary>
+        /// <param name="query">The query.</param>
+        /// <returns>The time.</returns>
+        decimal GetTime(string query);
     }
 }

@@ -101,6 +101,7 @@ namespace HorrorTracker.Data.Repositories
                 "Error fetching unwatched movies.");
         }
 
+        /// <inheritdoc/>
         public decimal GetTime(string query)
         {
             if (QueryContainsWatched(query))
