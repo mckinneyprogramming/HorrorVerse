@@ -23,21 +23,11 @@ namespace HorrorTracker.Data.Constants.Parameters
 
             if (item is MovieSeries series)
             {
-                parameters.Add("TotalTime", series.TotalTime);
-                parameters.Add("TotalMovies", series.TotalMovies);
-                parameters.Add("Watched", series.Watched);
+                MovieSeriesParameters(parameters, series);
             }
             else if (item is Movie movie)
             {
-                parameters.Add("TotalTime", movie.TotalTime);
-                parameters.Add("PartOfSeries", movie.PartOfSeries);
-                parameters.Add("ReleaseYear", movie.ReleaseYear);
-                parameters.Add("Watched", movie.Watched);
-
-                if (movie.SeriesId.HasValue)
-                {
-                    parameters.Add("SeriesId", movie.SeriesId.Value);
-                }
+                MovieParameters(parameters, movie);
             }
 
             return parameters;
@@ -51,6 +41,45 @@ namespace HorrorTracker.Data.Constants.Parameters
         public static ReadOnlyDictionary<string, object> CreateReadOnlyDictionary(Dictionary<string, object> dictionary)
         {
             return new ReadOnlyDictionary<string, object>(dictionary);
+        }
+
+        /// <summary>
+        /// Adds the remainder of the movie series parameters.
+        /// </summary>
+        /// <param name="parameters">The parameters.</param>
+        /// <param name="series">The movie series.</param>
+        private static void MovieSeriesParameters(Dictionary<string, object> parameters, MovieSeries series)
+        {
+            VisualBaseObjectParameters(parameters, series);
+            parameters.Add("TotalMovies", series.TotalMovies);
+        }
+
+        /// <summary>
+        /// Adds the remainder of the movie parameters.
+        /// </summary>
+        /// <param name="parameters">The parameters.</param>
+        /// <param name="movie">The movie.</param>
+        private static void MovieParameters(Dictionary<string, object> parameters, Movie movie)
+        {
+            VisualBaseObjectParameters(parameters, movie);
+            parameters.Add("PartOfSeries", movie.PartOfSeries);
+            parameters.Add("ReleaseYear", movie.ReleaseYear);
+
+            if (movie.SeriesId.HasValue)
+            {
+                parameters.Add("SeriesId", movie.SeriesId.Value);
+            }
+        }
+
+        /// <summary>
+        /// The total time and watched parameters.
+        /// </summary>
+        /// <param name="parameters">The parameters.</param>
+        /// <param name="item">The object.</param>
+        private static void VisualBaseObjectParameters(Dictionary<string, object> parameters, VisualBase item)
+        {
+            parameters.Add("TotalTime", item.TotalTime);
+            parameters.Add("Watched", item.Watched);
         }
     }
 }

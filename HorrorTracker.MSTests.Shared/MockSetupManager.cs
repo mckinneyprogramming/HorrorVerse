@@ -5,6 +5,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.MSTests.Shared
 {
+    /// <summary>
+    /// The <see cref="MockSetupManager"/> class.
+    /// </summary>
     [ExcludeFromCodeCoverage]
     public class MockSetupManager
     {

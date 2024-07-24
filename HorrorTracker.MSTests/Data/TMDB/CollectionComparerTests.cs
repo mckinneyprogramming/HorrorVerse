@@ -1,5 +1,5 @@
-﻿using AutoFixture;
-using HorrorTracker.Data.TMDB;
+﻿using HorrorTracker.Data.TMDB;
+using HorrorTracker.MSTests.Shared;
 using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Objects.Search;
 
@@ -13,9 +13,8 @@ namespace HorrorTracker.MSTests.Data.TMDB
         public void Equals_WhenBothSearchCollectionsAreEqual_ShouldReturnTrue()
         {
             // Arrange
-            var fixture = new Fixture();
-            var searchCollectionOne = fixture.Create<SearchCollection>();
-            var searchCollectionTwo = fixture.Create<SearchCollection>();
+            var searchCollectionOne = Fixtures.SearchCollection();
+            var searchCollectionTwo = Fixtures.SearchCollection();
             searchCollectionTwo.Id = searchCollectionOne.Id;
             var comparer = new CollectionComparer();
 
@@ -30,9 +29,8 @@ namespace HorrorTracker.MSTests.Data.TMDB
         public void Equals_WhenSearchCollectionsAreNotEqual_ShouldReturnFalse()
         {
             // Arrange
-            var fixture = new Fixture();
-            var searchCollectionOne = fixture.Create<SearchCollection>();
-            var searchCollectionTwo = fixture.Create<SearchCollection>();
+            var searchCollectionOne = Fixtures.SearchCollection();
+            var searchCollectionTwo = Fixtures.SearchCollection();
             var comparer = new CollectionComparer();
 
             // Act
@@ -46,8 +44,7 @@ namespace HorrorTracker.MSTests.Data.TMDB
         public void GetHashCode_WhenSearchCollectionIsPassedIn_ShouldReturnHashCode()
         {
             // Arrange
-            var fixture = new Fixture();
-            var searchCollection = fixture.Create<SearchCollection>();
+            var searchCollection = Fixtures.SearchCollection();
             var comparer = new CollectionComparer();
 
             // Act

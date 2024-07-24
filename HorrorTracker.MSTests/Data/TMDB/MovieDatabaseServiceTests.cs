@@ -1,6 +1,6 @@
-﻿using AutoFixture;
-using HorrorTracker.Data.TMDB;
+﻿using HorrorTracker.Data.TMDB;
 using HorrorTracker.Data.TMDB.Interfaces;
+using HorrorTracker.MSTests.Shared;
 using Moq;
 using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Objects.Collections;
@@ -197,8 +197,7 @@ namespace HorrorTracker.MSTests.Data.TMDB
         public async Task GetUpcomingHorrorMovies_WhenCalledToWrapper_ShouldReturnListOfMovies()
         {
             // Arrange
-            var fixture = new Fixture();
-            var expectedListOfSearchMovies = fixture.CreateMany<SearchMovie>().ToList();
+            var expectedListOfSearchMovies = Fixtures.ManySearchMovie().ToList();
             _mockClient.Setup(c => c.GetUpcomingHorrorMoviesAsync()).ReturnsAsync(expectedListOfSearchMovies);
 
             // Act
@@ -212,8 +211,7 @@ namespace HorrorTracker.MSTests.Data.TMDB
         public async Task GetLists_WhenCalledToWrapper_ShouldReturnListsFromTheAccount()
         {
             // Arrange
-            var fixture = new Fixture();
-            var expectedListsFromAccount = fixture.Create<SearchContainer<AccountList>>();
+            var expectedListsFromAccount = Fixtures.AccountListSearchContainer();
             _mockClient.Setup(c => c.GetLists()).ReturnsAsync(expectedListsFromAccount);
 
             // Act

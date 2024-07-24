@@ -1,4 +1,5 @@
-﻿using TMDbLib.Client;
+﻿using System.Diagnostics.CodeAnalysis;
+using TMDbLib.Client;
 using TMDbLib.Objects.Discover;
 using TMDbLib.Objects.General;
 using TMDbLib.Objects.Movies;
@@ -9,6 +10,7 @@ namespace HorrorTracker.Data.TMDB
     /// <summary>
     /// The <see cref="TMDbClientWrapperHelper"/> class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class TMDbClientWrapperHelper
     {
         /// <summary>
@@ -75,6 +77,7 @@ namespace HorrorTracker.Data.TMDB
         /// <param name="uniqueCollections">The set of series.</param>
         /// <param name="fetchTasks">The list of movie tasks.</param>
         /// <returns>The task.</returns>
+        [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Non-static by design.")]
         public async Task AddCollectionsToList(HashSet<SearchCollection> uniqueCollections, List<Task<Movie>> fetchTasks)
         {
             var fetchedMovies = await Task.WhenAll(fetchTasks);

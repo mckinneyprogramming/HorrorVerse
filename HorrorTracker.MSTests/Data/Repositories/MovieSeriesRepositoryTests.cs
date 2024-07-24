@@ -1,5 +1,4 @@
-﻿using AutoFixture;
-using HorrorTracker.Data.Constants.Queries;
+﻿using HorrorTracker.Data.Constants.Queries;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using Moq;
@@ -45,7 +44,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void Add_SuccessfulConnectionAndAddition_ShouldReturnGoodStatus()
         {
             // Arrange
-            var movieSeries = MovieSeries();
+            var movieSeries = Fixtures.MovieSeries();
             var expectedReturnStatus = 1;
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.InsertSeries, expectedReturnStatus);
 
@@ -64,7 +63,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var expectedReturnStatus = 0;
-            var movieSeries = MovieSeries();
+            var movieSeries = Fixtures.MovieSeries();
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.InsertSeries, expectedReturnStatus);
 
             // Act
@@ -79,7 +78,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void Add_WhenExceptionOccurs_ShouldLogMessageAndReturnZero()
         {
             // Arrange
-            var movieSeries = MovieSeries();
+            var movieSeries = Fixtures.MovieSeries();
             var exceptionMessage = "Failed for not able to connect to the server.";
             _mockSetupManager.SetupException(exceptionMessage);
 
@@ -166,7 +165,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var expectedMessage = "Series updated successfully.";
-            var series = MovieSeries();
+            var series = Fixtures.MovieSeries();
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateMovieSeries, 1);
 
             // Act
@@ -184,7 +183,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var expectedMessage = "Updating movie series was not successful.";
-            var series = MovieSeries();
+            var series = Fixtures.MovieSeries();
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateMovieSeries, 0);
 
             // Act
@@ -200,7 +199,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void Update_WhenExceptionOccurs_ShouldLogMessage()
         {
             // Arrange
-            var movieSeries = MovieSeries();
+            var movieSeries = Fixtures.MovieSeries();
             var expectedMessage = $"Error updating series '{movieSeries.Title}'.";
             var exceptionMessage = "Failed for not able to connect to the server.";
             _mockSetupManager.SetupException(exceptionMessage);
@@ -550,12 +549,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.IsNotNull(result);
             Assert.AreEqual(0, result.Count());
             _loggerVerifier.VerifyErrorMessage("Error fetching all movie series.", exceptionMessage);
-        }
-
-        private static MovieSeries MovieSeries()
-        {
-            var fixture = new Fixture();
-            return fixture.Create<MovieSeries>();
         }
     }
 }

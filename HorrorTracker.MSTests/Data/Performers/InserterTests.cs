@@ -1,8 +1,8 @@
-﻿using AutoFixture;
-using HorrorTracker.Data.Models;
+﻿using HorrorTracker.Data.Models;
 using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
+using HorrorTracker.MSTests.Shared;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using Moq;
 using System.Diagnostics.CodeAnalysis;
@@ -29,8 +29,7 @@ namespace HorrorTracker.MSTests.Data.Performers
         {
             // Arrange
             _mockMovieSeriesRepository = new Mock<RepositoryBase<MovieSeries>>(It.IsAny<IDatabaseConnection>(), It.IsAny<ILoggerService>());
-            var fixture = new Fixture();
-            var series = fixture.Create<MovieSeries>();
+            var series = Fixtures.MovieSeries();
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
             _mockMovieSeriesRepository.Setup(repo => repo.GetByTitle(series.Title)).Returns((MovieSeries)null);
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
@@ -48,8 +47,7 @@ namespace HorrorTracker.MSTests.Data.Performers
         {
             // Arrange
             _mockMovieSeriesRepository = new Mock<RepositoryBase<MovieSeries>>(It.IsAny<IDatabaseConnection>(), It.IsAny<ILoggerService>());
-            var fixture = new Fixture();
-            var series = fixture.Create<MovieSeries>();
+            var series = Fixtures.MovieSeries();
             _mockMovieSeriesRepository.Setup(repo => repo.GetByTitle(series.Title)).Returns(series);
 
             // Act
@@ -64,8 +62,7 @@ namespace HorrorTracker.MSTests.Data.Performers
         {
             // Arrange
             _mockMovieRepository = new Mock<RepositoryBase<Movie>>(It.IsAny<IDatabaseConnection>(), It.IsAny<ILoggerService>());
-            var fixture = new Fixture();
-            var movie = fixture.Create<Movie>();
+            var movie = Fixtures.Movie();
             _mockMovieRepository.Setup(repo => repo.Add(movie)).Returns(1);
 
             // Act
@@ -80,8 +77,7 @@ namespace HorrorTracker.MSTests.Data.Performers
         {
             // Arrange
             _mockMovieRepository = new Mock<RepositoryBase<Movie>>(It.IsAny<IDatabaseConnection>(), It.IsAny<ILoggerService>());
-            var fixture = new Fixture();
-            var movie = fixture.Create<Movie>();
+            var movie = Fixtures.Movie();
             _mockMovieRepository.Setup(repo => repo.Add(movie)).Returns(0);
 
             // Act

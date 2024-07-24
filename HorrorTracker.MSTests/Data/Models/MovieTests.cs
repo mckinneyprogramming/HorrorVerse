@@ -1,5 +1,4 @@
-﻿using AutoFixture;
-using HorrorTracker.Data.Models;
+﻿using HorrorTracker.Data.Models;
 using HorrorTracker.MSTests.Shared;
 using System.Diagnostics.CodeAnalysis;
 
@@ -13,8 +12,7 @@ namespace HorrorTracker.MSTests.Data.Models
         public void Constructor_WhenCalled_ShouldSetPropertyValues()
         {
             // Arrange
-            var fixture = new Fixture();
-            var movie = fixture.Create<Movie>();
+            var movie = Fixtures.Movie();
 
             // Act
             var newMovie = new Movie(movie.Title, movie.TotalTime, movie.PartOfSeries, movie.SeriesId, movie.ReleaseYear, movie.Watched, movie.Id);
