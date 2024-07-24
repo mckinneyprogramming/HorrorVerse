@@ -1,11 +1,11 @@
 ﻿using HorrorTracker.Data.Constants.Parameters;
 using HorrorTracker.Data.Constants.Queries;
 using HorrorTracker.Data.Models;
+using HorrorTracker.Data.Models.Helpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
-using System.Data;
 
 namespace HorrorTracker.Data.Repositories
 {
@@ -30,8 +30,8 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteNonQuery(
                 MovieQueries.InsertMovie,
-                MovieDatabaseParameters.InsertMovieParameters(movie),
-                $"Movie '{movie.Title}' added successfully.",
+                HorrorObjectsParameters.InsertParameters(movie),
+                $"Movie '{movie.Title}' was added successfully.",
                 $"Error adding movie '{movie.Title}'.");
         }
 
@@ -40,7 +40,7 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteNonQuery(
                 MovieQueries.DeleteMovie,
-                SharedDatabaseParameters.IdParameters(id),
+                HorrorObjectsParameters.IdParameters(id),
                 "Deleting movie was not successful.",
                 $"Movie with ID '{id}' deleted successfully.",
                 $"Error deleting movie with ID '{id}'.");
@@ -52,7 +52,7 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteReaderList(
                 MovieQueries.GetAllMovie,
                 null,
-                MovieFunction(),
+                ModelDataReader.MovieFunction(),
                 "Successfully retrieved all of the movies.",
                 "Error fetching all of the movies.");
         }
@@ -62,8 +62,8 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteReader(
                 MovieQueries.GetMovieByName,
-                SharedDatabaseParameters.GetByTitleParameters(title),
-                MovieFunction(),
+                HorrorObjectsParameters.GetByTitleParameters(title),
+                ModelDataReader.MovieFunction(),
                 $"Movie '{title}' was found in the database.",
                 $"Movie '{title}' not found in the database.",
                 "An error occurred while getting the movie by name.");
@@ -74,7 +74,7 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteNonQuery(
                 MovieQueries.UpdateMovie,
-                MovieDatabaseParameters.UpdateMovieParameters(entity),
+                HorrorObjectsParameters.UpdateParameters(entity),
                 "Updating movie was not successful.",
                 $"Movie '{entity.Title}' updated successfully.",
                 $"Error updating movie '{entity.Title}'.");
@@ -88,7 +88,7 @@ namespace HorrorTracker.Data.Repositories
                 return ExecuteReaderList(
                     MovieQueries.GetWatchedMovie,
                     null,
-                    MovieFunction(),
+                    ModelDataReader.MovieFunction(),
                     "Successfully retrieved list of watched movies.",
                     "Error fetching watched movies.");
             }
@@ -96,7 +96,7 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteReaderList(
                 MovieQueries.GetWatchedMovie,
                 null,
-                MovieFunction(),
+                ModelDataReader.MovieFunction(),
                 "Successfully retrieved list of unwatched movies.",
                 "Error fetching unwatched movies.");
         }
@@ -110,22 +110,6 @@ namespace HorrorTracker.Data.Repositories
             }
 
             return ExecuteScalar(query, null, "Error fetching time left of unwatched movies.");
-        }
-
-        /// <summary>
-        /// Retrieves the movie function for the execute reader.
-        /// </summary>
-        /// <returns>The function.</returns>
-        private static Func<IDataReader, Movie> MovieFunction()
-        {
-            return reader => new Movie(
-                            reader.GetString(1),
-                            reader.GetDecimal(2),
-                            reader.GetBoolean(3),
-                            reader.GetInt32(4),
-                            reader.GetInt32(5),
-                            reader.GetBoolean(6),
-                            reader.GetInt32(0));
         }
     }
 }

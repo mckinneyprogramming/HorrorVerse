@@ -515,7 +515,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             mockReader.SetupSequence(reader => reader.GetString(1))
                 .Returns("Series1")
                 .Returns("Series2");
-            mockReader.SetupSequence(reader => reader.GetInt32(2))
+            mockReader.SetupSequence(reader => reader.GetDecimal(2))
                 .Returns(100)
                 .Returns(200);
             mockReader.SetupSequence(reader => reader.GetInt32(3))

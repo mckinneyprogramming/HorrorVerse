@@ -126,7 +126,7 @@ namespace HorrorTracker.Data
         /// Retrievs the overall repository.
         /// </summary>
         /// <returns>The overall repository.</returns>
-        public IOverallRepository RetrieveOverallRepository()
+        public OverallRepository RetrieveOverallRepository()
         {
             return new OverallRepository(_databaseConnection, _logger);
         }
@@ -135,9 +135,18 @@ namespace HorrorTracker.Data
         /// Retrieves the movie series repository.
         /// </summary>
         /// <returns>The movie series repository.</returns>
-        public IMovieSeriesRepository RetrieveMovieSeriesRepository()
+        public MovieSeriesRepository RetrieveMovieSeriesRepository()
         {
             return new MovieSeriesRepository(_databaseConnection, _logger);
+        }
+
+        /// <summary>
+        /// Retrieves the movie repository.
+        /// </summary>
+        /// <returns>The movie repository.</returns>
+        public MovieRepository RetrieveMovieRepository()
+        {
+            return new MovieRepository(_databaseConnection, _logger);
         }
 
         /// <summary>

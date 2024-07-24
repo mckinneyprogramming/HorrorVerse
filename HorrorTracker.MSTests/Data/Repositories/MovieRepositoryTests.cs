@@ -54,7 +54,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedResult, actualResult);
-            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, $"Movie '{movie.Title}' added successfully.");
+            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, $"Movie '{movie.Title}' was added successfully.");
         }
 
         [TestMethod]

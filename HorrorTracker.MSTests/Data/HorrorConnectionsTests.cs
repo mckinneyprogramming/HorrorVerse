@@ -1,7 +1,7 @@
 using HorrorTracker.Data;
 using HorrorTracker.Data.Constants.Queries;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
-using HorrorTracker.Data.Repositories.Interfaces;
+using HorrorTracker.Data.Repositories;
 using HorrorTracker.MSTests.Shared;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using Moq;
@@ -167,7 +167,7 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.IsNotNull(value);
-            Assert.IsInstanceOfType(value, typeof(IOverallRepository));
+            Assert.IsInstanceOfType(value, typeof(OverallRepository));
         }
 
         [TestMethod]
@@ -181,7 +181,21 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.IsNotNull(value);
-            Assert.IsInstanceOfType(value, typeof(IMovieSeriesRepository));
+            Assert.IsInstanceOfType(value, typeof(MovieSeriesRepository));
+        }
+
+        [TestMethod]
+        public void RetrieveMovieRepository_WhenCalled_ShouldReturnMovieRepository()
+        {
+            // Arrange
+            var horrorConnections = new HorrorConnections(_mockDatabaseConnection.Object, _mockLoggerService.Object);
+
+            // Act
+            var value = horrorConnections.RetrieveMovieRepository();
+
+            // Assert
+            Assert.IsNotNull(value);
+            Assert.IsInstanceOfType(value, typeof(MovieRepository));
         }
     }
 }

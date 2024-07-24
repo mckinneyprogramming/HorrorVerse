@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.Data.Constants.Parameters;
 using HorrorTracker.Data.Constants.Queries;
 using HorrorTracker.Data.Models;
+using HorrorTracker.Data.Models.Helpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
 using HorrorTracker.Data.Repositories.Interfaces;
@@ -28,7 +29,7 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteNonQuery(
                 MovieSeriesQueries.InsertSeries,
-                MovieSeriesDatabaseParameters.InsertMovieSeriesParameters(series),
+                HorrorObjectsParameters.InsertParameters(series),
                 $"Movie series {series.Title} was added successfully.",
                 "Adding a movie series to the database failed.");
         }
@@ -38,8 +39,8 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteReader(
                 MovieSeriesQueries.GetMovieSeriesByName,
-                SharedDatabaseParameters.GetByTitleParameters(title),
-                reader => new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0)),
+                HorrorObjectsParameters.GetByTitleParameters(title),
+                ModelDataReader.MovieSeriesFunction(),
                 $"Movie series {title} was found in the database.",
                 $"Movie series {title} was not found in the database.",
                 "An error occurred while getting the movie series by name.");
@@ -50,7 +51,7 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteNonQuery(
                 MovieSeriesQueries.UpdateMovieSeries,
-                MovieSeriesDatabaseParameters.UpdateMovieSeriesParameters(series),
+                HorrorObjectsParameters.UpdateParameters(series),
                 "Updating movie series was not successful.",
                 "Series updated successfully.",
                 $"Error updating series '{series.Title}'.");
@@ -61,7 +62,7 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteNonQuery(
                 MovieSeriesQueries.DeleteMovieSeries,
-                SharedDatabaseParameters.IdParameters(id),
+                HorrorObjectsParameters.IdParameters(id),
                 "Deleting movie series was not successful.",
                 $"Series with ID '{id}' deleted successfully.",
                 $"Error deleting series with ID '{id}'.");
@@ -75,7 +76,7 @@ namespace HorrorTracker.Data.Repositories
                 return ExecuteReaderList(
                     query,
                     null,
-                    reader => new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0)),
+                    ModelDataReader.MovieSeriesFunction(),
                     "Retrieved watched movie series(s) successfully.",
                     $"Error fetching watched movie series's.");
             }
@@ -83,7 +84,7 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteReaderList(
                 query,
                 null,
-                reader => new MovieSeries(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0)),
+                ModelDataReader.MovieSeriesFunction(),
                 "Retrieved unwatched movie series(s) successfully.",
                 $"Error fetching unwatched movie series's.");
         }
@@ -126,7 +127,7 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteScalar(
                 MovieSeriesQueries.GetTimeLeft,
-                SharedDatabaseParameters.IdParameters(seriesId),
+                HorrorObjectsParameters.IdParameters(seriesId),
                 $"Error fetching time left for series ID '{seriesId}'.");
         }
 
@@ -136,7 +137,7 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteReaderList(
                 MovieSeriesQueries.GetAllSeries,
                 null,
-                reader => new MovieSeries(reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0)),
+                ModelDataReader.MovieSeriesFunction(),
                 "Retrieving all the movie series was successful.",
                 "Error fetching all movie series.");
         }
@@ -154,7 +155,7 @@ namespace HorrorTracker.Data.Repositories
         {
             return ExecuteNonQuery(
                 query,
-                SharedDatabaseParameters.IdParameters(seriesId),
+                HorrorObjectsParameters.IdParameters(seriesId),
                 failedMessage,
                 string.Format(successMessage, seriesId),
                 string.Format(errorMessage, seriesId));
