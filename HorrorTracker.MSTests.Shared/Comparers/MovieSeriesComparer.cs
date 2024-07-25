@@ -1,7 +1,7 @@
 ﻿using HorrorTracker.Data.Models;
 using System.Collections;
 
-namespace HorrorTracker.MSTests
+namespace HorrorTracker.MSTests.Shared.Comparers
 {
     public class MovieSeriesComparer : IComparer
     {

@@ -81,9 +81,9 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Movie> GetUnwatchedOrWatchedMovies(string query)
+        public IEnumerable<Movie> GetUnwatchedOrWatchedMovies(bool watchedMovies)
         {
-            if (query.Contains("Watched = TRUE"))
+            if (watchedMovies)
             {
                 return ExecuteReaderList(
                     MovieQueries.GetWatchedMovie,
@@ -94,7 +94,7 @@ namespace HorrorTracker.Data.Repositories
             }
 
             return ExecuteReaderList(
-                MovieQueries.GetWatchedMovie,
+                MovieQueries.GetUnwatchedMovie,
                 null,
                 ModelDataReader.MovieFunction(),
                 "Successfully retrieved list of unwatched movies.",
@@ -110,6 +110,27 @@ namespace HorrorTracker.Data.Repositories
             }
 
             return ExecuteScalar(query, null, "Error fetching time left of unwatched movies.");
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<Movie> GetUnwatchedOrWatchedMoviesInSeries(bool watchedMovies, string seriesTitle)
+        {
+            if (watchedMovies)
+            {
+                return ExecuteReaderList(
+                    MovieQueries.GetWatchedMovieBySeriesName,
+                    HorrorObjectsParameters.GetByTitleParameters(seriesTitle),
+                    ModelDataReader.MovieFunction(),
+                    "Successfully retrieved list of watched movies in the series.",
+                    "Error fetching watched movies in a series.");
+            }
+
+            return ExecuteReaderList(
+                    MovieQueries.GetUnwatchedMovieBySeriesName,
+                    HorrorObjectsParameters.GetByTitleParameters(seriesTitle),
+                    ModelDataReader.MovieFunction(),
+                    "Successfully retrieved list of unwatched movies in the series.",
+                    "Error fetching unwatched movies in a series.");
         }
     }
 }

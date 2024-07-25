@@ -141,8 +141,7 @@ namespace HorrorTracker.MSTests.Data
         {
             // Arrange
             var expectedResult = 0;
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(exceptionMessage));
+            _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(Messages.ExceptionMessage));
             _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
 
             var horrorConnections = new HorrorConnections(_mockDatabaseConnection.Object, _mockLoggerService.Object);
@@ -152,7 +151,7 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.AreEqual(expectedResult, actualResult);
-            _loggerVerifier.VerifyErrorMessage("Creating tables in the database failed.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("Creating tables in the database failed.", Messages.ExceptionMessage);
             _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 

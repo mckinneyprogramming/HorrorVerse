@@ -1,7 +1,9 @@
 ﻿using HorrorTracker.Data.Constants.Queries;
+using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.MSTests.Shared;
+using HorrorTracker.MSTests.Shared.Comparers;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using Moq;
 using System.Data;
@@ -77,15 +79,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Arrange
             var movie = Fixtures.Movie();
             var expectedResult = 0;
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var actualResult = _repository.Add(movie);
 
             // Assert
             Assert.AreEqual(expectedResult, actualResult);
-            _loggerVerifier.VerifyErrorMessage($"Error adding movie '{movie.Title}'.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage($"Error adding movie '{movie.Title}'.", Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -125,16 +126,54 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var id = Fixtures.Movie().Id;
-            var exceptionMessage = "Failed for not able to connect to the server.";
             var expectedMessage = $"Error deleting movie with ID '{id}'.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var actualMessage = _repository.Delete(id);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyErrorMessage(expectedMessage, exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage(expectedMessage, Messages.ExceptionMessage);
+        }
+
+        [TestMethod]
+        public void GetAll_WhenSuccessful_ShouldReturnCorrectListOfMoviesAndLogMessages()
+        {
+            // Arrange
+            var movieOne = Fixtures.Movie();
+            var movieTwo = Fixtures.Movie();
+            var expectedListOfMovies = new List<Movie>
+            {
+                movieOne,
+                movieTwo
+            };
+
+            SetupMockReaderForMovies(movieOne, movieTwo);
+
+            // Act
+            var actualResult = _repository.GetAll().ToList();
+
+            // Assert
+            Assert.IsNotNull(actualResult);
+            Assert.AreEqual(expectedListOfMovies.Count, actualResult.Count());
+            CollectionAssert.AreEqual(expectedListOfMovies, actualResult, new MovieComparer());
+            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, "Successfully retrieved all of the movies.");
+        }
+
+        [TestMethod]
+        public void GetAll_WhenExceptionIsThrown_ShouldLogErrorMessageAndReturnEmptyList()
+        {
+            // Arrange
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
+
+            // Act
+            var result = _repository.GetAll();
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(0, result.Count());
+            _loggerVerifier.VerifyErrorMessage("Error fetching all of the movies.", Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -200,16 +239,212 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void GetByTitle_WhenExceptionIsCaught_ShouldLogError()
         {
             // Arrange
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var returnedMovie = _repository.GetByTitle("movie");
 
             // Assert
             Assert.IsNull(returnedMovie);
-            _loggerVerifier.VerifyErrorMessage("An error occurred while getting the movie by name.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("An error occurred while getting the movie by name.", Messages.ExceptionMessage);
+        }
 
+        [TestMethod]
+        public void Update_WhenProvidedWithMovieAndSuccessful_ShouldReturnAndLogMessage()
+        {
+            // Arrange
+            var movie = Fixtures.Movie();
+            var expectedMessage = $"Movie '{movie.Title}' updated successfully.";
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.UpdateMovie, 1);
+
+            // Act
+            var actualMessage = _repository.Update(movie);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyLoggerInformationMessages(
+                Messages.DatabaseOpened,
+                actualMessage);
+        }
+
+        [TestMethod]
+        public void Update_WhenUnsuccessful_ShouldReturnAndLogMessage()
+        {
+            // Arrange
+            var expectedMessage = "Updating movie was not successful.";
+            var movie = Fixtures.Movie();
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.UpdateMovie, 0);
+
+            // Act
+            var actualMessage = _repository.Update(movie);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
+            _loggerVerifier.VerifyInformationMessageDoesNotLog($"Movie '{movie.Title}' updated successfully.");
+        }
+
+        [TestMethod]
+        public void Update_WhenExceptionOccurs_ShouldReturnAndLogErrorMessage()
+        {
+            // Arrange
+            var movie = Fixtures.Movie();
+            var expectedMessage = $"Error updating movie '{movie.Title}'.";
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
+
+            // Act
+            var actualMessage = _repository.Update(movie);
+
+            // Assert
+            Assert.AreEqual(expectedMessage, actualMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, Messages.ExceptionMessage);
+        }
+
+        [DataTestMethod]
+        [DataRow(true, "Successfully retrieved list of watched movies.")]
+        [DataRow(false, "Successfully retrieved list of unwatched movies.")]
+        public void GetUnwatchedOrWatchedMovies_WhenSuccessful_ShouldReturnListOfMovies(bool watched, string message)
+        {
+            // Arrange
+            var movieOne = Fixtures.Movie();
+            var movieTwo = Fixtures.Movie();
+            movieOne.Watched = watched;
+            movieTwo.Watched = watched;
+
+            var expectedListOfMovies = new List<Movie>
+            {
+                movieOne,
+                movieTwo
+            };
+
+            SetupMockReaderForMovies(movieOne, movieTwo);
+
+            // Act
+            var actualListOfMovies = _repository.GetUnwatchedOrWatchedMovies(watched);
+
+            // Assert
+            Assert.IsNotNull(actualListOfMovies);
+            Assert.AreEqual(expectedListOfMovies.Count, actualListOfMovies.Count());
+            CollectionAssert.AreEqual(expectedListOfMovies, actualListOfMovies.ToList(), new MovieComparer());
+            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, message);
+        }
+
+        [DataTestMethod]
+        [DataRow(true, "Error fetching watched movies.")]
+        [DataRow(false, "Error fetching unwatched movies.")]
+        public void GetUnwatchedOrWatchedMovies_WhenNotSuccessful_ShouldReturnEmptyListAndLogError(bool watched, string errorMessage)
+        {
+            // Arrange
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
+
+            // Act
+            var result = _repository.GetUnwatchedOrWatchedMovies(watched);
+
+            // Assert
+            Assert.IsTrue(!result.Any());
+            _loggerVerifier.VerifyErrorMessage(errorMessage, Messages.ExceptionMessage);
+        }
+
+        [DataTestMethod]
+        [DataRow(MovieQueries.GetTotalTimeOfWatchedMovie, 400)]
+        [DataRow(MovieQueries.GetTimeLeftOfUnwatchedMovie, 500)]
+        public void GetTime_WhenSuccessful_ShouldReturnCorrectDecimalAndLogMessage(string query, int time)
+        {
+            // Arrange
+            var expectedReturnValue = Convert.ToDecimal(time);
+            _mockSetupManager.SetupExecuteScalarDatabaseCommand(query, expectedReturnValue);
+
+            // Act
+            var actualReturnValue = _repository.GetTime(query);
+
+            // Assert
+            Assert.AreEqual(expectedReturnValue, actualReturnValue);
+            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
+        }
+
+        [DataTestMethod]
+        [DataRow(MovieQueries.GetTotalTimeOfWatchedMovie, "Error fetching total time of watched movies.")]
+        [DataRow(MovieQueries.GetTimeLeftOfUnwatchedMovie, "Error fetching time left of unwatched movies.")]
+        public void GetTime_WhenExceptionOccurs_ShouldReturnZeroAndLogError(string query, string errorMessage)
+        {
+            // Arrange
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
+
+            // Act
+            var result = _repository.GetTime(query);
+
+            // Assert
+            Assert.IsTrue(result == 0.0M);
+            _loggerVerifier.VerifyErrorMessage(errorMessage, Messages.ExceptionMessage);
+        }
+
+        [DataTestMethod]
+        [DataRow(true, "Successfully retrieved list of watched movies in the series.")]
+        [DataRow(false, "Successfully retrieved list of unwatched movies in the series.")]
+        public void GetUnwatchedOrWatchedMoviesInSeries_WhenSuccessful_ShouldReturnListOfMovies(bool watched, string message)
+        {
+            // Arrange
+            var movieSeries = Fixtures.MovieSeries();
+            var movieOne = Fixtures.Movie();
+            var movieTwo = Fixtures.Movie();
+            var expectedListOfMovies = new List<Movie> { movieOne, movieTwo };
+            AssignMoviesToSeries(watched, movieSeries.Id, movieOne, movieTwo);
+            SetupMockReaderForMovies(movieOne, movieTwo);
+
+            // Act
+            var actualListOfMovies = _repository.GetUnwatchedOrWatchedMoviesInSeries(watched, movieSeries.Title);
+
+            // Assert
+            Assert.IsNotNull(actualListOfMovies);
+            Assert.AreEqual(expectedListOfMovies.Count, actualListOfMovies.Count());
+            CollectionAssert.AreEqual(expectedListOfMovies, actualListOfMovies.ToList(), new MovieComparer());
+            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, message);
+        }
+
+        [DataTestMethod]
+        [DataRow(true, "Error fetching watched movies in a series.")]
+        [DataRow(false, "Error fetching unwatched movies in a series.")]
+        public void GetUnwatchedOrWatchedMoviesInSeries_WhenNotSuccessful_ShouldReturnEmptyListOfMoviesAndLogErrorMessage(bool watched, string message)
+        {
+            // Arrange
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
+
+            // Act
+            var result = _repository.GetUnwatchedOrWatchedMoviesInSeries(watched, "Test Series");
+
+            // Assert
+            Assert.IsTrue(!result.Any());
+            _loggerVerifier.VerifyErrorMessage(message, Messages.ExceptionMessage);
+        }
+
+        private void SetupMockReaderForMovies(Movie movieOne, Movie movieTwo)
+        {
+            var mockReader = new Mock<IDataReader>();
+            _mockDatabaseConnection.Setup(c => c.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteReader()).Returns(mockReader.Object);
+            mockReader.SetupSequence(reader => reader.Read())
+                      .Returns(true)
+                      .Returns(true)
+                      .Returns(false);
+            mockReader.SetupSequence(reader => reader.GetInt32(0)).Returns(movieOne.Id).Returns(movieTwo.Id);
+            mockReader.SetupSequence(reader => reader.GetString(1)).Returns(movieOne.Title).Returns(movieTwo.Title);
+            mockReader.SetupSequence(reader => reader.GetDecimal(2)).Returns(movieOne.TotalTime).Returns(movieTwo.TotalTime);
+            mockReader.SetupSequence(reader => reader.GetBoolean(3)).Returns(movieOne.PartOfSeries).Returns(movieTwo.PartOfSeries);
+#pragma warning disable CS8629 // Nullable value type may be null.
+            _ = mockReader.SetupSequence(reader => reader.GetInt32(4)).Returns((int)movieOne.SeriesId).Returns((int)movieTwo.SeriesId);
+#pragma warning restore CS8629 // Nullable value type may be null.
+            mockReader.SetupSequence(reader => reader.GetInt32(5)).Returns(movieOne.ReleaseYear).Returns(movieTwo.ReleaseYear);
+            mockReader.SetupSequence(reader => reader.GetBoolean(6)).Returns(movieOne.Watched).Returns(movieTwo.Watched);
+        }
+
+        private static void AssignMoviesToSeries(bool watched, int seriesId, Movie movieOne, Movie movieTwo)
+        {
+            movieOne.PartOfSeries = true;
+            movieOne.SeriesId = seriesId;
+            movieOne.Watched = watched;
+            movieTwo.PartOfSeries = true;
+            movieTwo.SeriesId = seriesId;
+            movieTwo.Watched = watched;
         }
     }
 }

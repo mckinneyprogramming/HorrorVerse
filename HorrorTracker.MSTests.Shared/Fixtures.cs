@@ -11,16 +11,20 @@ namespace HorrorTracker.MSTests.Shared
     /// The <see cref="Fixtures"/> class.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    public class Fixtures
+    public static class Fixtures
     {
+        /// <summary>
+        /// The fixture.
+        /// </summary>
+        private static readonly Fixture? _fixture = new();
+
         /// <summary>
         /// Movie series created from the fixture.
         /// </summary>
         /// <returns>The movie series.</returns>
         public static MovieSeries MovieSeries()
         {
-            var fixture = new Fixture();
-            return fixture.Create<MovieSeries>();
+            return _fixture.Create<MovieSeries>();
         }
 
         /// <summary>
@@ -29,8 +33,7 @@ namespace HorrorTracker.MSTests.Shared
         /// <returns>The movie.</returns>
         public static Movie Movie()
         {
-            var fixture = new Fixture();
-            return fixture.Create<Movie>();
+            return _fixture.Create<Movie>();
         }
 
         /// <summary>
@@ -39,8 +42,7 @@ namespace HorrorTracker.MSTests.Shared
         /// <returns>The search collection.</returns>
         public static SearchCollection SearchCollection()
         {
-            var fixture = new Fixture();
-            return fixture.Create<SearchCollection>();
+            return _fixture.Create<SearchCollection>();
         }
 
         /// <summary>
@@ -49,8 +51,7 @@ namespace HorrorTracker.MSTests.Shared
         /// <returns>The list of search movie.</returns>
         public static IEnumerable<SearchMovie> ManySearchMovie()
         {
-            var fixture = new Fixture();
-            return fixture.CreateMany<SearchMovie>();
+            return _fixture.CreateMany<SearchMovie>();
         }
 
         /// <summary>
@@ -59,8 +60,7 @@ namespace HorrorTracker.MSTests.Shared
         /// <returns>The account list search container.</returns>
         public static SearchContainer<AccountList> AccountListSearchContainer()
         {
-            var fixture = new Fixture();
-            return fixture.Create<SearchContainer<AccountList>>();
+            return _fixture.Create<SearchContainer<AccountList>>();
         }
     }
 }

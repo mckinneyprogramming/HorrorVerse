@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.MSTests.Shared;
+using HorrorTracker.MSTests.Shared.Comparers;
 
 namespace HorrorTracker.MSTests.Data.Repositories
 {
@@ -79,15 +80,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var movieSeries = Fixtures.MovieSeries();
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var returnStatus = _repository.Add(movieSeries);
 
             // Assert
             Assert.IsTrue(returnStatus == 0);
-            _loggerVerifier.VerifyErrorMessage("Adding a movie series to the database failed.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("Adding a movie series to the database failed.", Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -149,15 +149,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void GetByTitle_WhenExceptionOccurs_ShouldLogMessageAndReturnNull()
         {
             // Arrange
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var returnStatus = _repository.GetByTitle("movieSeries");
 
             // Assert
             Assert.IsNull(returnStatus);
-            _loggerVerifier.VerifyErrorMessage("An error occurred while getting the movie series by name.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("An error occurred while getting the movie series by name.", Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -201,15 +200,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Arrange
             var movieSeries = Fixtures.MovieSeries();
             var expectedMessage = $"Error updating series '{movieSeries.Title}'.";
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var actualMessage = _repository.Update(movieSeries);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -249,9 +247,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void Delete_WhenExceptionOccurs_ShouldLogMessage()
         {
             // Arrange
-            var exceptionMessage = "Failed for not able to connect to the server.";
             var expectedMessage = "Error deleting series with ID '1'.";
-            _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(exceptionMessage));
+            _mockDatabaseConnection.Setup(db => db.Open()).Throws(new Exception(Messages.ExceptionMessage));
             _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
 
             // Act
@@ -259,7 +256,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, Messages.ExceptionMessage);
         }
 
         [DataTestMethod]
@@ -301,8 +298,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void GetUnwatchedOrWatchedMovieSeries_WhenExceptionOccurs_ShouldHandleException(string query, string errorMessage)
         {
             // Arrange
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var result = _repository.GetUnwatchedOrWatchedMovieSeries(query);
@@ -310,7 +306,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(0, result.Count());
-            _loggerVerifier.VerifyErrorMessage(errorMessage, exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage(errorMessage, Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -351,15 +347,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var expectedMessage = "Error updating total time for series ID '1'.";
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var actualMessage = _repository.UpdateTotalTime(1);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -400,15 +395,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var expectedMessage = "Error updating total movies for series ID '1'.";
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var actualMessage = _repository.UpdateTotalMovies(1);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -449,15 +443,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var expectedMessage = "Error updating watched status for series ID '1'.";
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var actualMessage = _repository.UpdateWatched(1);
 
             // Assert
             Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyErrorMessage(actualMessage, exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage(actualMessage, Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -480,15 +473,14 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var expectedValue = 0.0M;
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var actualValue = _repository.GetTimeLeft(1);
 
             // Assert
             Assert.AreEqual(expectedValue, actualValue);
-            _loggerVerifier.VerifyErrorMessage("Error fetching time left for series ID '1'.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("Error fetching time left for series ID '1'.", Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -539,8 +531,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void GetAll_WhenExceptionIsThrown_ShouldLogErrorMessageAndReturnEmptyList()
         {
             // Arrange
-            var exceptionMessage = "Failed for not able to connect to the server.";
-            _mockSetupManager.SetupException(exceptionMessage);
+            _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
             var result = _repository.GetAll();
@@ -548,7 +539,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(0, result.Count());
-            _loggerVerifier.VerifyErrorMessage("Error fetching all movie series.", exceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("Error fetching all movie series.", Messages.ExceptionMessage);
         }
     }
 }
