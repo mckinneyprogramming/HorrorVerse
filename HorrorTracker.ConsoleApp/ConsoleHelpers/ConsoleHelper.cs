@@ -7,12 +7,12 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
     /// <summary>
     /// The <see cref="ConsoleHelper"/> class.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public static class ConsoleHelper
     {
         /// <summary>
         /// Loading animation.
         /// </summary>
-        [ExcludeFromCodeCoverage]
         public static void ThinkingAnimation(string initialText, int numberOfDots, string doneText)
         {
             Console.Write(initialText);

@@ -156,7 +156,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.IsNotNull(actualResult);
-            Assert.AreEqual(expectedListOfMovies.Count, actualResult.Count());
+            Assert.AreEqual(expectedListOfMovies.Count, actualResult.Count);
             CollectionAssert.AreEqual(expectedListOfMovies, actualResult, new MovieComparer());
             _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, "Successfully retrieved all of the movies.");
         }

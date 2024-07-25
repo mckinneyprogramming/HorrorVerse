@@ -26,7 +26,9 @@ namespace HorrorTracker.MSTests.Shared.Comparers
             result = movieOne.PartOfSeries.CompareTo(movieTwo.PartOfSeries);
             if (result != 0) return result;
 
+#pragma warning disable CS8629 // Nullable value type may be null.
             result = movieOne.SeriesId.Value.CompareTo(movieTwo.SeriesId.Value);
+#pragma warning restore CS8629 // Nullable value type may be null.
             if (result != 0) return result;
 
             result = movieOne.ReleaseYear.CompareTo(movieTwo.ReleaseYear);
