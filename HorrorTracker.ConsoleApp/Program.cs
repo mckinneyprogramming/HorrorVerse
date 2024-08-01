@@ -65,7 +65,10 @@ namespace HorrorTracker.ConsoleApp
             {
                 _logger.LogInformation("HorrorTracker has ended.");
                 _logger.CloseAndFlush();
-                ExitApplication();
+
+                Console.ResetColor();
+                Console.Write("Press any key to exit...");
+                _ = Console.ReadKey();
             }
         }
 
@@ -189,16 +192,6 @@ namespace HorrorTracker.ConsoleApp
                 { 4, () => new AccountManager(_logger).Manage() },
                 { 5, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
             };
-        }
-
-        /// <summary>
-        /// Exits the application.
-        /// </summary>
-        private static void ExitApplication()
-        {
-            Console.ResetColor();
-            Console.Write("Press any key to exit...");
-            _ = Console.ReadKey();
         }
     }
 }
