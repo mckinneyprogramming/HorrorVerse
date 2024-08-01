@@ -31,5 +31,14 @@ namespace HorrorTracker.Data.Models.Helpers
                             reader.GetBoolean(6),
                             reader.GetInt32(0));
         }
+
+        /// <summary>
+        /// Retrieves the documentary function for the execute reader.
+        /// </summary>
+        /// <returns>The function.</returns>
+        public static Func<IDataReader, Documentary> DocumentaryFunction()
+        {
+            return reader => new Documentary(reader.GetString(1), reader.GetDecimal(2), reader.GetInt32(3), reader.GetBoolean(4), reader.GetInt32(0));
+        }
     }
 }

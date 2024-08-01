@@ -12,6 +12,7 @@ namespace HorrorTracker.Data.Repositories
     /// <summary>
     /// The <see cref="MovieRepository"/> class.
     /// </summary>
+    /// <seealso cref="RepositoryBase{T}"/>
     /// <seealso cref="IMovieRepository"/>
     public class MovieRepository : RepositoryBase<Movie>, IMovieRepository
     {
@@ -81,7 +82,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Movie> GetUnwatchedOrWatchedMovies(bool watchedMovies)
+        public IEnumerable<Movie> GetUnwatchedOrWatched(bool watchedMovies)
         {
             if (watchedMovies)
             {

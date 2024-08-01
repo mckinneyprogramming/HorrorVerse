@@ -303,7 +303,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         [DataTestMethod]
         [DataRow(true, "Successfully retrieved list of watched movies.")]
         [DataRow(false, "Successfully retrieved list of unwatched movies.")]
-        public void GetUnwatchedOrWatchedMovies_WhenSuccessful_ShouldReturnListOfMovies(bool watched, string message)
+        public void GetUnwatchedOrWatched_WhenSuccessful_ShouldReturnListOfMovies(bool watched, string message)
         {
             // Arrange
             var movieOne = Fixtures.Movie();
@@ -320,7 +320,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             SetupMockReaderForMovies(movieOne, movieTwo);
 
             // Act
-            var actualListOfMovies = _repository.GetUnwatchedOrWatchedMovies(watched);
+            var actualListOfMovies = _repository.GetUnwatchedOrWatched(watched);
 
             // Assert
             Assert.IsNotNull(actualListOfMovies);
@@ -332,13 +332,13 @@ namespace HorrorTracker.MSTests.Data.Repositories
         [DataTestMethod]
         [DataRow(true, "Error fetching watched movies.")]
         [DataRow(false, "Error fetching unwatched movies.")]
-        public void GetUnwatchedOrWatchedMovies_WhenNotSuccessful_ShouldReturnEmptyListAndLogError(bool watched, string errorMessage)
+        public void GetUnwatchedOrWatched_WhenNotSuccessful_ShouldReturnEmptyListAndLogError(bool watched, string errorMessage)
         {
             // Arrange
             _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
-            var result = _repository.GetUnwatchedOrWatchedMovies(watched);
+            var result = _repository.GetUnwatchedOrWatched(watched);
 
             // Assert
             Assert.IsTrue(!result.Any());
