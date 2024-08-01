@@ -39,7 +39,7 @@ namespace HorrorTracker.MSTests.Data.Models.Helpers
             Assert.AreEqual("Series Title", result.Title);
             Assert.AreEqual(120.5m, result.TotalTime);
             Assert.AreEqual(5, result.TotalMovies);
-            Assert.AreEqual(true, result.Watched);
+            Assert.IsTrue(result.Watched);
         }
 
         [TestMethod]
@@ -63,10 +63,10 @@ namespace HorrorTracker.MSTests.Data.Models.Helpers
             Assert.AreEqual(2, result.Id);
             Assert.AreEqual("Movie Title", result.Title);
             Assert.AreEqual(95.3m, result.TotalTime);
-            Assert.AreEqual(true, result.PartOfSeries);
+            Assert.IsTrue(result.PartOfSeries);
             Assert.AreEqual(2001, result.SeriesId);
             Assert.AreEqual(3, result.ReleaseYear);
-            Assert.AreEqual(false, result.Watched);
+            Assert.IsFalse(result.Watched);
         }
 
         [TestMethod]
@@ -89,7 +89,7 @@ namespace HorrorTracker.MSTests.Data.Models.Helpers
             Assert.AreEqual("Documentary Title", result.Title);
             Assert.AreEqual(80.5m, result.TotalTime);
             Assert.AreEqual(2019, result.ReleaseYear);
-            Assert.AreEqual(true, result.Watched);
+            Assert.IsTrue(result.Watched);
         }
     }
 }
