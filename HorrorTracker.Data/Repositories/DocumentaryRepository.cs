@@ -82,9 +82,9 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Documentary> GetUnwatchedOrWatched(bool watchedDocumentaries)
+        public IEnumerable<Documentary> GetUnwatchedOrWatched(bool watched)
         {
-            if (watchedDocumentaries)
+            if (watched)
             {
                 return ExecuteReaderList(
                     DocumentaryQueries.GetWatchedDocumentary,

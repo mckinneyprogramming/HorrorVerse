@@ -37,6 +37,15 @@ namespace HorrorTracker.MSTests.Shared
         }
 
         /// <summary>
+        /// Documentary created from the fixture.
+        /// </summary>
+        /// <returns>The documentary.</returns>
+        public static Documentary Documentary()
+        {
+            return _fixture.Create<Documentary>();
+        }
+
+        /// <summary>
         /// Search collection created from the fixture.
         /// </summary>
         /// <returns>The search collection.</returns>

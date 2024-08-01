@@ -6,7 +6,7 @@ namespace HorrorTracker.Data.Repositories.Interfaces
     /// The <see cref="IVisualBaseRepository{T}"/> interface.
     /// </summary>
     /// <typeparam name="T">The visual base object.</typeparam>
-    public interface IVisualBaseRepository<T> where T : VisualBase
+    public interface IVisualBaseRepository<out T> where T : VisualBase
     {
         /// <summary>
         /// Retrieves a list of unwatched or watched items.
