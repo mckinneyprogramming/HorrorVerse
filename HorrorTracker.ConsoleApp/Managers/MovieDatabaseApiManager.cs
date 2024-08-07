@@ -25,7 +25,10 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// </summary>
         private readonly Parser _parser;
 
-        private MovieDatabaseApiManagerHelper _helper;
+        /// <summary>
+        /// The movie database API manager helper.
+        /// </summary>
+        private readonly MovieDatabaseApiManagerHelper _helper;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MovieDatabaseApiManager"/> class.
