@@ -4,6 +4,7 @@ using HorrorTracker.Data.Models;
 using HorrorTracker.Data.Models.Helpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
+using HorrorTracker.Data.Repositories.Constants;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
@@ -30,10 +31,10 @@ namespace HorrorTracker.Data.Repositories
         public override int Add(Documentary entity)
         {
             return ExecuteNonQuery(
-            DocumentaryQueries.InsertDocumentary,
-            HorrorObjectsParameters.InsertParameters(entity),
-                $"Documentary '{entity.Title}' was added successfully.",
-                $"Error adding documentary '{entity.Title}'.");
+                DocumentaryQueries.InsertDocumentary,
+                HorrorObjectsParameters.InsertParameters(entity),
+                RepositoryMessages.AddSuccess($"Documentary '{entity.Title}'"),
+                RepositoryMessages.AddError($"documentary '{entity.Title}'"));
         }
 
         /// <inheritdoc/>
@@ -42,9 +43,9 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 DocumentaryQueries.DeleteDocumentary,
                 HorrorObjectsParameters.IdParameters(id),
-                "Deleting documentary was not successful.",
-                $"Documentary with ID '{id}' deleted successfully.",
-                $"Error deleting documentary with ID '{id}'.");
+                RepositoryMessages.DeleteNotSuccess("documentary"),
+                RepositoryMessages.DeleteSuccess("Documentary", id),
+                RepositoryMessages.DeleteError("documentary", id));
         }
 
         /// <inheritdoc/>
@@ -54,8 +55,8 @@ namespace HorrorTracker.Data.Repositories
                 DocumentaryQueries.GetAllDocumentary,
                 null,
                 ModelDataReader.DocumentaryFunction(),
-                "Successfully retrieved all of the documentaries.",
-                "Error fetching all of the documentaries.");
+                RepositoryMessages.GetAllSuccess("documentaries"),
+                RepositoryMessages.GetAllError("documentaries"));
         }
 
         /// <inheritdoc/>
@@ -65,9 +66,9 @@ namespace HorrorTracker.Data.Repositories
                 DocumentaryQueries.GetDocumentaryByName,
                 HorrorObjectsParameters.GetByTitleParameters(title),
                 ModelDataReader.DocumentaryFunction(),
-                $"Documentary '{title}' was found in the database.",
-                $"Documentary '{title}' not found in the database.",
-                "An error occurred while getting the documentary by name.");
+                RepositoryMessages.GetByTitleSuccess($"Documentary '{title}'"),
+                RepositoryMessages.GetByTitleNotFound($"Documentary '{title}'"),
+                RepositoryMessages.GetByTitleError("documentary"));
         }
 
         /// <inheritdoc/>
@@ -76,9 +77,9 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 DocumentaryQueries.UpdateDocumentary,
                 HorrorObjectsParameters.UpdateParameters(entity),
-                "Updating documentary was not successful.",
-                $"Documentary '{entity.Title}' updated successfully.",
-                $"Error updating documentary '{entity.Title}'.");
+                RepositoryMessages.UpdateNotSuccess("documentary"),
+                RepositoryMessages.UpdateSuccess($"Documentary '{entity.Title}'"),
+                RepositoryMessages.UpdateError($"documentary '{entity.Title}'"));
         }
 
         /// <inheritdoc/>
@@ -90,16 +91,16 @@ namespace HorrorTracker.Data.Repositories
                     DocumentaryQueries.GetWatchedDocumentary,
                     null,
                     ModelDataReader.DocumentaryFunction(),
-                    "Successfully retrieved list of watched documentaries.",
-                    "Error fetching watched documentaries.");
+                    RepositoryMessages.GetUnwatchedOrWatchedSuccess("watched documentaries"),
+                    RepositoryMessages.GetUnwatchedOrWatchedError("watched documentaries"));
             }
 
             return ExecuteReaderList(
                 DocumentaryQueries.GetUnwatchedDocumentary,
                 null,
                 ModelDataReader.DocumentaryFunction(),
-                "Successfully retrieved list of unwatched documentaries.",
-                "Error fetching unwatched documentaries.");
+                RepositoryMessages.GetUnwatchedOrWatchedSuccess("unwatched documentaries"),
+                RepositoryMessages.GetUnwatchedOrWatchedError("unwatched documentaries"));
         }
 
         /// <inheritdoc/>
@@ -107,10 +108,10 @@ namespace HorrorTracker.Data.Repositories
         {
             if (QueryContainsWatched(query))
             {
-                return ExecuteScalar(query, null, "Error fetching total time of watched documentaries.");
+                return ExecuteScalar(query, null, RepositoryMessages.FetchingTotalTimeError("watched documentaries"));
             }
 
-            return ExecuteScalar(query, null, "Error fetching time left of unwatched documentaries.");
+            return ExecuteScalar(query, null, RepositoryMessages.FetchingTimeLeftError("unwatched documentaries"));
         }
     }
 }

@@ -3,7 +3,6 @@ using HorrorTracker.Data.Constants.Queries;
 using HorrorTracker.Data.Helpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories;
-using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.Data
@@ -147,6 +146,15 @@ namespace HorrorTracker.Data
         public MovieRepository RetrieveMovieRepository()
         {
             return new MovieRepository(_databaseConnection, _logger);
+        }
+
+        /// <summary>
+        /// Retrieves the documentary repository.
+        /// </summary>
+        /// <returns>The documentary repository.</returns>
+        public DocumentaryRepository RetrieveDocumentaryRepository()
+        {
+            return new DocumentaryRepository(_databaseConnection, _logger);
         }
 
         /// <summary>
