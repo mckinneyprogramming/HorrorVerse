@@ -18,6 +18,16 @@ namespace HorrorTracker.Data.Repositories
     public class DocumentaryRepository : RepositoryBase<Documentary>, IDocumentaryRepository
     {
         /// <summary>
+        /// Documentary string.
+        /// </summary>
+        private const string Documentary = "Documentary";
+
+        /// <summary>
+        /// Documentaries string.
+        /// </summary>
+        private const string Documentaries = "Documentaries";
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="DocumentaryRepository"/> class.
         /// </summary>
         /// <param name="databaseConnection">The database connection.</param>
@@ -33,8 +43,8 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 DocumentaryQueries.InsertDocumentary,
                 HorrorObjectsParameters.InsertParameters(entity),
-                RepositoryMessages.AddSuccess($"Documentary '{entity.Title}'"),
-                RepositoryMessages.AddError($"documentary '{entity.Title}'"));
+                RepositoryMessages.AddSuccess($"{Documentary} '{entity.Title}'"),
+                RepositoryMessages.AddError($"{Documentary.ToLower()} '{entity.Title}'"));
         }
 
         /// <inheritdoc/>
@@ -43,9 +53,9 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 DocumentaryQueries.DeleteDocumentary,
                 HorrorObjectsParameters.IdParameters(id),
-                RepositoryMessages.DeleteNotSuccess("documentary"),
-                RepositoryMessages.DeleteSuccess("Documentary", id),
-                RepositoryMessages.DeleteError("documentary", id));
+                RepositoryMessages.DeleteNotSuccess($"{Documentary.ToLower()}"),
+                RepositoryMessages.DeleteSuccess($"{Documentary}", id),
+                RepositoryMessages.DeleteError($"{Documentary.ToLower()}", id));
         }
 
         /// <inheritdoc/>
@@ -55,8 +65,8 @@ namespace HorrorTracker.Data.Repositories
                 DocumentaryQueries.GetAllDocumentary,
                 null,
                 ModelDataReader.DocumentaryFunction(),
-                RepositoryMessages.GetAllSuccess("documentaries"),
-                RepositoryMessages.GetAllError("documentaries"));
+                RepositoryMessages.GetAllSuccess($"{Documentaries.ToLower()}"),
+                RepositoryMessages.GetAllError($"{Documentaries.ToLower()}"));
         }
 
         /// <inheritdoc/>
@@ -66,9 +76,9 @@ namespace HorrorTracker.Data.Repositories
                 DocumentaryQueries.GetDocumentaryByName,
                 HorrorObjectsParameters.GetByTitleParameters(title),
                 ModelDataReader.DocumentaryFunction(),
-                RepositoryMessages.GetByTitleSuccess($"Documentary '{title}'"),
-                RepositoryMessages.GetByTitleNotFound($"Documentary '{title}'"),
-                RepositoryMessages.GetByTitleError("documentary"));
+                RepositoryMessages.GetByTitleSuccess($"{Documentary} '{title}'"),
+                RepositoryMessages.GetByTitleNotFound($"{Documentary} '{title}'"),
+                RepositoryMessages.GetByTitleError($"{Documentary.ToLower()}"));
         }
 
         /// <inheritdoc/>
@@ -77,41 +87,33 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 DocumentaryQueries.UpdateDocumentary,
                 HorrorObjectsParameters.UpdateParameters(entity),
-                RepositoryMessages.UpdateNotSuccess("documentary"),
-                RepositoryMessages.UpdateSuccess($"Documentary '{entity.Title}'"),
-                RepositoryMessages.UpdateError($"documentary '{entity.Title}'"));
+                RepositoryMessages.UpdateNotSuccess($"{Documentary.ToLower()}"),
+                RepositoryMessages.UpdateSuccess($"{Documentary} '{entity.Title}'"),
+                RepositoryMessages.UpdateError($"{Documentary.ToLower()} '{entity.Title}'"));
         }
 
         /// <inheritdoc/>
         public IEnumerable<Documentary> GetUnwatchedOrWatched(bool watched)
         {
-            if (watched)
-            {
-                return ExecuteReaderList(
-                    DocumentaryQueries.GetWatchedDocumentary,
-                    null,
-                    ModelDataReader.DocumentaryFunction(),
-                    RepositoryMessages.GetUnwatchedOrWatchedSuccess("watched documentaries"),
-                    RepositoryMessages.GetUnwatchedOrWatchedError("watched documentaries"));
-            }
+            var query = watched ? DocumentaryQueries.GetWatchedDocumentary : DocumentaryQueries.GetUnwatchedDocumentary;
+            var type = watched ? "watched" : "unwatched";
 
             return ExecuteReaderList(
-                DocumentaryQueries.GetUnwatchedDocumentary,
+                query,
                 null,
                 ModelDataReader.DocumentaryFunction(),
-                RepositoryMessages.GetUnwatchedOrWatchedSuccess("unwatched documentaries"),
-                RepositoryMessages.GetUnwatchedOrWatchedError("unwatched documentaries"));
+                RepositoryMessages.GetUnwatchedOrWatchedSuccess($"{type} {Documentaries.ToLower()}"),
+                RepositoryMessages.GetUnwatchedOrWatchedError($"{type} {Documentaries.ToLower()}"));
         }
 
         /// <inheritdoc/>
         public decimal GetTime(string query)
         {
-            if (QueryContainsWatched(query))
-            {
-                return ExecuteScalar(query, null, RepositoryMessages.FetchingTotalTimeError("watched documentaries"));
-            }
+            var message = QueryContainsWatched(query) ?
+                RepositoryMessages.FetchingTotalTimeError($"watched {Documentaries.ToLower()}") :
+                RepositoryMessages.FetchingTimeLeftError($"unwatched {Documentaries.ToLower()}");
 
-            return ExecuteScalar(query, null, RepositoryMessages.FetchingTimeLeftError("unwatched documentaries"));
+            return ExecuteScalar(query, null, message);
         }
     }
 }

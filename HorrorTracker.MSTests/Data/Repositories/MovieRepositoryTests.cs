@@ -402,8 +402,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [DataTestMethod]
-        [DataRow(true, "Error fetching watched movies in a series.")]
-        [DataRow(false, "Error fetching unwatched movies in a series.")]
+        [DataRow(true, "Error fetching watched movies in the series.")]
+        [DataRow(false, "Error fetching unwatched movies in the series.")]
         public void GetUnwatchedOrWatchedMoviesInSeries_WhenNotSuccessful_ShouldReturnEmptyListOfMoviesAndLogErrorMessage(bool watched, string message)
         {
             // Arrange

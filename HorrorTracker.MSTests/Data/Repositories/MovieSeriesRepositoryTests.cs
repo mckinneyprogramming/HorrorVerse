@@ -87,7 +87,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.IsTrue(returnStatus == 0);
-            _loggerVerifier.VerifyErrorMessage("Adding a movie series to the database failed.", Messages.ExceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("Error adding movie series.", Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -142,7 +142,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.IsNull(returnedMovieSeries);
-            _loggerVerifier.VerifyWarningMessage($"Movie series {seriesName} was not found in the database.");
+            _loggerVerifier.VerifyWarningMessage($"Movie series {seriesName} not found in the database.");
         }
 
         [TestMethod]
@@ -260,8 +260,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
         }
 
         [DataTestMethod]
-        [DataRow(true, MovieSeriesQueries.GetWatchedMovieSeries, "Retrieved watched movie series(s) successfully.")]
-        [DataRow(false, MovieSeriesQueries.GetUnwatchedMovieSeries, "Retrieved unwatched movie series(s) successfully.")]
+        [DataRow(true, MovieSeriesQueries.GetWatchedMovieSeries, "Successfully retrieved list of watched movie series(s).")]
+        [DataRow(false, MovieSeriesQueries.GetUnwatchedMovieSeries, "Successfully retrieved list of unwatched movie series(s).")]
         public void GetUnwatchedOrWatchedMovieSeries_WhenValidSeriesName_ShouldReturnsWatchedMovies(bool watched, string query, string loggerInformationMessage)
         {
             // Arrange
@@ -378,7 +378,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void UpdateTotalMovies_WhenUnsuccessful_ShouldReturnAndLogAppropriateMessage()
         {
             // Arrange
-            var expectedMessage = "Updating the total movies for the series was not successful.";
+            var expectedMessage = "Updating total movies for the series was not successful.";
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateTotalTime, 0);
 
             // Act
@@ -409,7 +409,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void UpdateWatched_WhenSuccessful_ShouldReturnAndLogAppropriateMessage()
         {
             // Arrange
-            var expectedMessage = "Watched status for series ID '1' updated successfully.";
+            var expectedMessage = "Watched for series ID '1' updated successfully.";
             _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieSeriesQueries.UpdateWatched, 1);
 
             // Act
@@ -442,7 +442,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
         public void UpdateWatched_WhenExceptionIsThrown_ShouldReturnAndLogErrorMessage()
         {
             // Arrange
-            var expectedMessage = "Error updating watched status for series ID '1'.";
+            var expectedMessage = "Error updating watched for series ID '1'.";
             _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
@@ -480,7 +480,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedValue, actualValue);
-            _loggerVerifier.VerifyErrorMessage("Error fetching time left for series ID '1'.", Messages.ExceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("Error fetching time left of series with ID '1'.", Messages.ExceptionMessage);
         }
 
         [TestMethod]
@@ -524,7 +524,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.IsNotNull(result);
             Assert.AreEqual(expectedSeriesList.Count, result.Count());
             CollectionAssert.AreEqual(expectedSeriesList, actualSeriesList, new MovieSeriesComparer());
-            _loggerVerifier.VerifyInformationMessage("Retrieving all the movie series was successful.");
+            _loggerVerifier.VerifyInformationMessage("Successfully retrieved all of the movie series.");
         }
 
         [TestMethod]
@@ -539,7 +539,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(0, result.Count());
-            _loggerVerifier.VerifyErrorMessage("Error fetching all movie series.", Messages.ExceptionMessage);
+            _loggerVerifier.VerifyErrorMessage("Error fetching all of the movie series.", Messages.ExceptionMessage);
         }
     }
 }

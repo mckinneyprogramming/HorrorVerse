@@ -5,6 +5,7 @@ namespace HorrorTracker.Data.Repositories.Interfaces
     /// <summary>
     /// The <see cref="IMovieRepository"/> interface.
     /// </summary>
+    /// <see cref="IVisualBaseRepository{T}"/>
     public interface IMovieRepository : IVisualBaseRepository<Movie>
     {
         /// <summary>

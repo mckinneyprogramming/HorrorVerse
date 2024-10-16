@@ -69,6 +69,10 @@ namespace HorrorTracker.Data.Constants.Parameters
             {
                 parameters.Add("SeriesId", movie.SeriesId.Value);
             }
+            else
+            {
+                parameters.Add("SeriesId", DBNull.Value);
+            }
         }
 
         /// <summary>

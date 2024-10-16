@@ -43,7 +43,7 @@ namespace HorrorTracker.ConsoleApp
 
                 TestDatabaseConnection();
 
-                var musicPlayer = new MusicPlayer();
+                var musicPlayer = new MusicPlayer(_logger);
                 musicPlayer.LoadAndShuffleSongs();
                 musicPlayer.StartPlaying();
 

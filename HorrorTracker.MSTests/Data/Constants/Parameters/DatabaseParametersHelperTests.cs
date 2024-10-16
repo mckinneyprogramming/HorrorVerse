@@ -39,7 +39,7 @@ namespace HorrorTracker.MSTests.Data.Constants.Parameters
 
             // Assert
             Assert.IsNotNull(actualParameters);
-            Assert.IsTrue(!actualParameters.ContainsKey("SeriesId"));
+            Assert.AreEqual(actualParameters.Values.Last(), DBNull.Value);
             CollectionAssert.AreEqual(expectedParameters, new ReadOnlyDictionary<string, object>(actualParameters));
         }
 
@@ -105,6 +105,10 @@ namespace HorrorTracker.MSTests.Data.Constants.Parameters
             if (seriesId.HasValue)
             {
                 parameters.Add("SeriesId", seriesId);
+            }
+            else
+            {
+                parameters.Add("SeriesId", DBNull.Value);
             }
 
             return new Dictionary<string, object>(parameters);

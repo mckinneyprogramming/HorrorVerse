@@ -1,4 +1,5 @@
-﻿using NAudio.Wave;
+﻿using HorrorTracker.Utilities.Logging;
+using NAudio.Wave;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Data.Audio
@@ -27,6 +28,11 @@ namespace HorrorTracker.Data.Audio
         private readonly Queue<string> songQueue;
 
         /// <summary>
+        /// The logger service.
+        /// </summary>
+        private LoggerService _logger;
+
+        /// <summary>
         /// The lock object.
         /// </summary>
         private readonly object lockObject = new();
@@ -34,10 +40,11 @@ namespace HorrorTracker.Data.Audio
         /// <summary>
         /// Initializes a new instance of the <see cref="MusicPlayer"/> class.
         /// </summary>
-        public MusicPlayer()
+        public MusicPlayer(LoggerService logger)
         {
             random = new Random();
             songQueue = new Queue<string>();
+            _logger = logger;
         }
         
         /// <summary>
@@ -45,6 +52,7 @@ namespace HorrorTracker.Data.Audio
         /// </summary>
         public void LoadAndShuffleSongs()
         {
+            _logger.LogInformation("Shuffling the music.");
             var themeSongs = Directory.GetFiles(themeSongsFolder, "*.mp3").ToList();
             Shuffle(themeSongs);
             foreach (var song in themeSongs)
@@ -72,9 +80,7 @@ namespace HorrorTracker.Data.Audio
             {
                 n--;
                 var k = random.Next(n + 1);
-                var value = list[k];
-                list[k] = list[n];
-                list[n] = value;
+                (list[n], list[k]) = (list[k], list[n]);
             }
         }
 
@@ -99,8 +105,9 @@ namespace HorrorTracker.Data.Audio
         /// Plays the individual song.
         /// </summary>
         /// <param name="filePath">The file path to the song.</param>
-        private static void PlaySong(string filePath)
+        private void PlaySong(string filePath)
         {
+            _logger.LogInformation($"Play song {Path.GetFileNameWithoutExtension(filePath)}");
             using var audioFile = new AudioFileReader(filePath);
             using var outputDevice = new WaveOutEvent();
             outputDevice.Init(audioFile);

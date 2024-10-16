@@ -4,6 +4,7 @@ using HorrorTracker.Data.Models;
 using HorrorTracker.Data.Models.Helpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
+using HorrorTracker.Data.Repositories.Constants;
 using HorrorTracker.Data.Repositories.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
@@ -14,8 +15,19 @@ namespace HorrorTracker.Data.Repositories
     /// </summary>
     /// <seealso cref="RepositoryBase{T}"/>
     /// <seealso cref="IMovieRepository"/>
+    /// <seealso cref="IVisualBaseRepository{T}"/>
     public class MovieRepository : RepositoryBase<Movie>, IMovieRepository
     {
+        /// <summary>
+        /// The Movie string.
+        /// </summary>
+        private const string Movie = "Movie";
+
+        /// <summary>
+        /// The movies string.
+        /// </summary>
+        private const string Movies = "movies";
+
         /// <summary>
         /// Initializes a new instance of the <see cref="MovieSeriesRepository"/> class.
         /// </summary>
@@ -32,8 +44,8 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 MovieQueries.InsertMovie,
                 HorrorObjectsParameters.InsertParameters(movie),
-                $"Movie '{movie.Title}' was added successfully.",
-                $"Error adding movie '{movie.Title}'.");
+                RepositoryMessages.AddSuccess($"{Movie} '{movie.Title}'"),
+                RepositoryMessages.AddError($"{Movie.ToLower()} '{movie.Title}'"));
         }
 
         /// <inheritdoc/>
@@ -42,9 +54,9 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 MovieQueries.DeleteMovie,
                 HorrorObjectsParameters.IdParameters(id),
-                "Deleting movie was not successful.",
-                $"Movie with ID '{id}' deleted successfully.",
-                $"Error deleting movie with ID '{id}'.");
+                RepositoryMessages.DeleteNotSuccess(Movie.ToLower()),
+                RepositoryMessages.DeleteSuccess(Movie, id),
+                RepositoryMessages.DeleteError(Movie.ToLower(), id));
         }
 
         /// <inheritdoc/>
@@ -54,8 +66,8 @@ namespace HorrorTracker.Data.Repositories
                 MovieQueries.GetAllMovie,
                 null,
                 ModelDataReader.MovieFunction(),
-                "Successfully retrieved all of the movies.",
-                "Error fetching all of the movies.");
+                RepositoryMessages.GetAllSuccess(Movies),
+                RepositoryMessages.GetAllError(Movies));
         }
 
         /// <inheritdoc/>
@@ -65,9 +77,9 @@ namespace HorrorTracker.Data.Repositories
                 MovieQueries.GetMovieByName,
                 HorrorObjectsParameters.GetByTitleParameters(title),
                 ModelDataReader.MovieFunction(),
-                $"Movie '{title}' was found in the database.",
-                $"Movie '{title}' not found in the database.",
-                "An error occurred while getting the movie by name.");
+                RepositoryMessages.GetByTitleSuccess($"{Movie} '{title}'"),
+                RepositoryMessages.GetByTitleNotFound($"{Movie} '{title}'"),
+                RepositoryMessages.GetByTitleError(Movie.ToLower()));
         }
 
         /// <inheritdoc/>
@@ -76,62 +88,60 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 MovieQueries.UpdateMovie,
                 HorrorObjectsParameters.UpdateParameters(entity),
-                "Updating movie was not successful.",
-                $"Movie '{entity.Title}' updated successfully.",
-                $"Error updating movie '{entity.Title}'.");
+                RepositoryMessages.UpdateNotSuccess(Movie.ToLower()),
+                RepositoryMessages.UpdateSuccess($"{Movie} '{entity.Title}'"),
+                RepositoryMessages.UpdateError($"{Movie.ToLower()} '{entity.Title}'"));
         }
 
         /// <inheritdoc/>
         public IEnumerable<Movie> GetUnwatchedOrWatched(bool watched)
         {
-            if (watched)
-            {
-                return ExecuteReaderList(
-                    MovieQueries.GetWatchedMovie,
-                    null,
-                    ModelDataReader.MovieFunction(),
-                    "Successfully retrieved list of watched movies.",
-                    "Error fetching watched movies.");
-            }
+            var query = watched ? MovieQueries.GetWatchedMovie : MovieQueries.GetUnwatchedMovie;
+            var type = watched ? $"watched {Movies.ToLower()}" : $"unwatched {Movies.ToLower()}";
 
             return ExecuteReaderList(
-                MovieQueries.GetUnwatchedMovie,
+                query,
                 null,
                 ModelDataReader.MovieFunction(),
-                "Successfully retrieved list of unwatched movies.",
-                "Error fetching unwatched movies.");
+                RepositoryMessages.GetUnwatchedOrWatchedSuccess(type),
+                RepositoryMessages.GetUnwatchedOrWatchedError(type));
         }
 
         /// <inheritdoc/>
         public decimal GetTime(string query)
         {
-            if (QueryContainsWatched(query))
-            {
-                return ExecuteScalar(query, null, "Error fetching total time of watched movies.");
-            }
+            var message = QueryContainsWatched(query) ?
+                RepositoryMessages.FetchingTotalTimeError($"watched {Movies.ToLower()}") :
+                RepositoryMessages.FetchingTimeLeftError($"unwatched {Movies.ToLower()}");
 
-            return ExecuteScalar(query, null, "Error fetching time left of unwatched movies.");
+            return ExecuteScalar(query, null, message);
         }
 
         /// <inheritdoc/>
         public IEnumerable<Movie> GetUnwatchedOrWatchedMoviesInSeries(bool watchedMovies, string seriesTitle)
         {
-            if (watchedMovies)
-            {
-                return ExecuteReaderList(
-                    MovieQueries.GetWatchedMovieBySeriesName,
-                    HorrorObjectsParameters.GetByTitleParameters(seriesTitle),
-                    ModelDataReader.MovieFunction(),
-                    "Successfully retrieved list of watched movies in the series.",
-                    "Error fetching watched movies in a series.");
-            }
+            var query = watchedMovies ? MovieQueries.GetWatchedMovieBySeriesName : MovieQueries.GetUnwatchedMovieBySeriesName;
 
             return ExecuteReaderList(
-                    MovieQueries.GetUnwatchedMovieBySeriesName,
-                    HorrorObjectsParameters.GetByTitleParameters(seriesTitle),
-                    ModelDataReader.MovieFunction(),
-                    "Successfully retrieved list of unwatched movies in the series.",
-                    "Error fetching unwatched movies in a series.");
+                query,
+                HorrorObjectsParameters.GetByTitleParameters(seriesTitle),
+                ModelDataReader.MovieFunction(),
+                MoviesInSeriesMessage(watchedMovies, true),
+                MoviesInSeriesMessage(watchedMovies, false));
+        }
+
+        /// <summary>
+        /// Retrieves the message for the unwatched or watched movies in a series.
+        /// </summary>
+        /// <param name="watched">Watched or unwatched series.</param>
+        /// <param name="success">Success or error.</param>
+        /// <returns>The message.</returns>
+        private static string MoviesInSeriesMessage(bool watched, bool success)
+        {
+            var status = success ? "Successfully retrieved list of" : "Error fetching";
+            var watchStatus = watched ? "watched" : "unwatched";
+
+            return $"{status} {watchStatus} {Movies.ToLower()} in the series.";
         }
     }
 }

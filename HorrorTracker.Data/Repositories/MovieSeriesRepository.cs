@@ -4,7 +4,9 @@ using HorrorTracker.Data.Models;
 using HorrorTracker.Data.Models.Helpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
+using HorrorTracker.Data.Repositories.Constants;
 using HorrorTracker.Data.Repositories.Interfaces;
+using HorrorTracker.Utilities;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.Data.Repositories
@@ -14,6 +16,11 @@ namespace HorrorTracker.Data.Repositories
     /// </summary>
     public class MovieSeriesRepository : RepositoryBase<MovieSeries>, IMovieSeriesRepository
     {
+        /// <summary>
+        /// The constant movie series string.
+        /// </summary>
+        private const string MovieSeries = "Movie series";
+
         /// <summary>
         /// Initializes a new instance of the <see cref="MovieSeriesRepository"/> class.
         /// </summary>
@@ -30,8 +37,8 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 MovieSeriesQueries.InsertSeries,
                 HorrorObjectsParameters.InsertParameters(series),
-                $"Movie series {series.Title} was added successfully.",
-                "Adding a movie series to the database failed.");
+                RepositoryMessages.AddSuccess($"{MovieSeries} {series.Title}"),
+                RepositoryMessages.AddError(MovieSeries.ToLower()));
         }
 
         /// <inheritdoc/>
@@ -41,9 +48,9 @@ namespace HorrorTracker.Data.Repositories
                 MovieSeriesQueries.GetMovieSeriesByName,
                 HorrorObjectsParameters.GetByTitleParameters(title),
                 ModelDataReader.MovieSeriesFunction(),
-                $"Movie series {title} was found in the database.",
-                $"Movie series {title} was not found in the database.",
-                "An error occurred while getting the movie series by name.");
+                GetByTitleSuccessAndErrorMessage(title),
+                RepositoryMessages.GetByTitleNotFound($"{MovieSeries} {title}"),
+                GetByTitleSuccessAndErrorMessage(title, false));
         }
 
         /// <inheritdoc/>
@@ -52,9 +59,9 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 MovieSeriesQueries.UpdateMovieSeries,
                 HorrorObjectsParameters.UpdateParameters(series),
-                "Updating movie series was not successful.",
-                "Series updated successfully.",
-                $"Error updating series '{series.Title}'.");
+                RepositoryMessages.UpdateNotSuccess(MovieSeries.ToLower()),
+                RepositoryMessages.UpdateSuccess("Series"),
+                RepositoryMessages.UpdateError($"series '{series.Title}'"));
         }
 
         /// <inheritdoc/>
@@ -63,64 +70,32 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 MovieSeriesQueries.DeleteMovieSeries,
                 HorrorObjectsParameters.IdParameters(id),
-                "Deleting movie series was not successful.",
-                $"Series with ID '{id}' deleted successfully.",
-                $"Error deleting series with ID '{id}'.");
+                RepositoryMessages.DeleteNotSuccess(MovieSeries.ToLower()),
+                RepositoryMessages.DeleteSuccess("Series", id),
+                RepositoryMessages.DeleteError("series", id));
         }
 
         /// <inheritdoc/>
         public IEnumerable<MovieSeries> GetUnwatchedOrWatchedMovieSeries(string query)
         {
-            if (QueryContainsWatched(query))
-            {
-                return ExecuteReaderList(
-                    query,
-                    null,
-                    ModelDataReader.MovieSeriesFunction(),
-                    "Retrieved watched movie series(s) successfully.",
-                    $"Error fetching watched movie series's.");
-            }
+            var type = QueryContainsWatched(query) ? "watched" : "unwatched";
 
             return ExecuteReaderList(
                 query,
                 null,
                 ModelDataReader.MovieSeriesFunction(),
-                "Retrieved unwatched movie series(s) successfully.",
-                $"Error fetching unwatched movie series's.");
+                RepositoryMessages.GetUnwatchedOrWatchedSuccess($"{type} movie series(s)"),
+                RepositoryMessages.GetUnwatchedOrWatchedError($"{type} movie series's"));
         }
 
         /// <inheritdoc/>
-        public string UpdateTotalTime(int seriesId)
-        {
-            return UpdateSeries(
-                seriesId,
-                MovieSeriesQueries.UpdateTotalTime,
-                "Updating total time for the series was not successful.",
-                "Total time for series ID '{0}' updated successfully.",
-                "Error updating total time for series ID '{0}'.");
-        }
+        public string UpdateTotalTime(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateTotalTime, "total time");
 
         /// <inheritdoc/>
-        public string UpdateTotalMovies(int seriesId)
-        {
-            return UpdateSeries(
-                seriesId,
-                MovieSeriesQueries.UpdateTotalMovies,
-                "Updating the total movies for the series was not successful.",
-                "Total movies for series ID '{0}' updated successfully.",
-                "Error updating total movies for series ID '{0}'.");
-        }
+        public string UpdateTotalMovies(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateTotalMovies, "total movies");
 
         /// <inheritdoc/>
-        public string UpdateWatched(int seriesId)
-        {
-            return UpdateSeries(
-                seriesId,
-                MovieSeriesQueries.UpdateWatched,
-                "Updating watched for the series was not successful.",
-                "Watched status for series ID '{0}' updated successfully.",
-                "Error updating watched status for series ID '{0}'.");
-        }
+        public string UpdateWatched(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateWatched, "watched");
 
         /// <inheritdoc/>
         public decimal GetTimeLeft(int seriesId)
@@ -128,7 +103,7 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteScalar(
                 MovieSeriesQueries.GetTimeLeft,
                 HorrorObjectsParameters.IdParameters(seriesId),
-                $"Error fetching time left for series ID '{seriesId}'.");
+                RepositoryMessages.FetchingTimeLeftError($"series with ID '{seriesId}'"));
         }
 
         /// <inheritdoc/>
@@ -138,8 +113,38 @@ namespace HorrorTracker.Data.Repositories
                 MovieSeriesQueries.GetAllSeries,
                 null,
                 ModelDataReader.MovieSeriesFunction(),
-                "Retrieving all the movie series was successful.",
-                "Error fetching all movie series.");
+                RepositoryMessages.GetAllSuccess(MovieSeries.ToLower()),
+                RepositoryMessages.GetAllError(MovieSeries.ToLower()));
+        }
+
+        /// <summary>
+        /// Retrieves the success or error message for getting a movie series by title.
+        /// </summary>
+        /// <param name="title">The title of the movie series.</param>
+        /// <param name="success">If the execute is successful or not.</param>
+        /// <returns>The message.</returns>
+        private static string GetByTitleSuccessAndErrorMessage(string title, bool success = true)
+        {
+            return success
+                ? RepositoryMessages.GetByTitleSuccess($"{MovieSeries} {title}")
+                : RepositoryMessages.GetByTitleError(MovieSeries.ToLower());
+        }
+
+        /// <summary>
+        /// Updates the properties for the movie series.
+        /// </summary>
+        /// <param name="seriesId">The series id.</param>
+        /// <param name="query">The query.</param>
+        /// <param name="type">The substring value.</param>
+        /// <returns>The message.</returns>
+        private string UpdateMovieSeriesProperty(int seriesId, string query, string type)
+        {
+            return UpdateSeries(
+                seriesId,
+                query,
+                RepositoryMessages.UpdateNotSuccess($"{type} for the series"),
+                RepositoryMessages.UpdateSuccess($"{StringUtility.CapitalizeFirstLetter(type)} for series ID '{{0}}'"),
+                RepositoryMessages.UpdateError($"{type} for series ID '{{0}}'"));
         }
 
         /// <summary>

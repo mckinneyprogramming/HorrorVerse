@@ -5,51 +5,35 @@ using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
-using System.Diagnostics.CodeAnalysis;
 using TMDbLib.Objects.Search;
 
-namespace HorrorTracker.ConsoleApp.Managers.Helperrs
+namespace HorrorTracker.ConsoleApp.Providers.Abstractions
 {
     /// <summary>
-    /// The <see cref="MovieDatabaseApiManagerHelper"/> class.
+    /// The <see cref="FullLengthProvider"/> abstract class.
     /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Non-static by design.")]
-    public class MovieDatabaseApiManagerHelper
+    /// <see cref="ProviderBase"/>
+    public abstract class FullLengthProvider : ProviderBase
     {
-        /// <summary>
-        /// The connection string.
-        /// </summary>
-        private readonly string? _connectionString;
-
-        /// <summary>
-        /// The logger.
-        /// </summary>
-        private readonly LoggerService _logger;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MovieDatabaseApiManagerHelper"/> class.
-        /// </summary>
-        /// <param name="logger">The logger service.</param>
-        /// <param name="connectionString">The connection string.</param>
-        public MovieDatabaseApiManagerHelper(LoggerService logger, string? connectionString)
-        {
-            _logger = logger;
-            _connectionString = connectionString;
-        }
-
         /// <summary>
         /// Adds the collections and the movies from TMBD to the database.
         /// </summary>
         /// <param name="movieDatabaseService">The movie database service.</param>
         /// <param name="collectionIds">The list of collection ids.</param>
-        public void AddCollectionsAndMoviesToDatabase(MovieDatabaseService movieDatabaseService, List<int> collectionIds)
+        /// <param name="connectionString">The connection string.</param>
+        /// <param name="logger">The logger service.</param>
+        protected static void AddCollectionsAndMoviesToDatabase(
+            MovieDatabaseService movieDatabaseService,
+            List<int> collectionIds,
+            string connectionString,
+            LoggerService logger)
         {
             foreach (var collectionId in collectionIds)
             {
                 var collectionInformation = movieDatabaseService.GetCollection(collectionId).Result;
                 var collectionName = collectionInformation.Name.Replace("Collection", "").Trim();
-                var databaseConnection = new DatabaseConnection(_connectionString);
-                var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, _logger);
+                var databaseConnection = new DatabaseConnection(connectionString);
+                var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, logger);
                 var seriesExists = movieSeriesRepository.GetByTitle(collectionName);
                 if (seriesExists != null)
                 {
@@ -99,16 +83,57 @@ namespace HorrorTracker.ConsoleApp.Managers.Helperrs
                     continue;
                 }
 
-                AddFilmsToDatabase(databaseConnection, filmsInSeries, addedSeries.Id);
+                AddFilmsToDatabase(databaseConnection, filmsInSeries, addedSeries.Id, logger);
                 SeriesAddedToDatabaseMessages(addedSeries.Title);
             }
+        }
+
+        /// <summary>
+        /// Collects the series and movie information and adds them to the database.
+        /// </summary>
+        /// <param name="movieDatabaseService">Movie database service.</param>
+        /// <param name="collectionId">The collection id.</param>
+        /// <param name="connectionString">The connection string.</param>
+        /// <param name="logger">The logger.</param>
+        protected static void AddSeriesAndMoviesToDatabase(MovieDatabaseService movieDatabaseService, int collectionId, string connectionString, LoggerService logger)
+        {
+            var collectionInformation = movieDatabaseService.GetCollection(collectionId).Result;
+            var filmsInSeries = FetchFilmsInSeries(movieDatabaseService, collectionInformation.Parts);
+            var totalTimeOfFims = Convert.ToDecimal(filmsInSeries.Sum(film => film.Runtime));
+            var seriesName = collectionInformation.Name.Replace("Collection", string.Empty).Trim();
+            var numberOfFilms = collectionInformation.Parts.Count(part => part.ReleaseDate != null);
+            var series = new MovieSeries(seriesName, totalTimeOfFims, numberOfFilms, false);
+
+            var databaseConnection = new DatabaseConnection(connectionString);
+            var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, logger);
+
+            if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, series))
+            {
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
+                return;
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"The movie series '{series.Title}' was added successfully.");
+            Thread.Sleep(1000);
+            Console.ResetColor();
+
+            var newSeries = movieSeriesRepository.GetByTitle(series.Title);
+            if (newSeries == null)
+            {
+                return;
+            }
+
+            AddFilmsToDatabase(databaseConnection, filmsInSeries, newSeries.Id, logger);
+            SeriesAddedToDatabaseMessages(newSeries.Title);
         }
 
         /// <summary>
         /// Displays the message for the series being added to the database.
         /// </summary>
         /// <param name="title">The series title.</param>
-        public void SeriesAddedToDatabaseMessages(string title)
+        private static void SeriesAddedToDatabaseMessages(string title)
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Movie series: {title} was added successfully as well as the movies in the series.");
@@ -122,12 +147,17 @@ namespace HorrorTracker.ConsoleApp.Managers.Helperrs
         /// <param name="databaseConnection">The database connection.</param>
         /// <param name="filmsInSeries">The films to add to the database.</param>
         /// <param name="addedSeriesId">The movie series id.</param>
-        public void AddFilmsToDatabase(DatabaseConnection databaseConnection, List<TMDbLib.Objects.Movies.Movie> filmsInSeries, int addedSeriesId)
+        /// <param name="logger">The logger service.</param>
+        private static void AddFilmsToDatabase(
+            DatabaseConnection databaseConnection,
+            List<TMDbLib.Objects.Movies.Movie> filmsInSeries,
+            int addedSeriesId,
+            LoggerService logger)
         {
             foreach (var film in filmsInSeries)
             {
                 var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, addedSeriesId, film.ReleaseDate!.Value.Year, false);
-                var movieRepository = new MovieRepository(databaseConnection, _logger);
+                var movieRepository = new MovieRepository(databaseConnection, logger);
 
                 if (!Inserter.MovieAddedSuccessfully(movieRepository, movie))
                 {
@@ -149,7 +179,7 @@ namespace HorrorTracker.ConsoleApp.Managers.Helperrs
         /// <param name="movieDatabaseService">TMDB API service.</param>
         /// <param name="parts">The movies in the series.</param>
         /// <returns>The list of films.</returns>
-        public List<TMDbLib.Objects.Movies.Movie> FetchFilmsInSeries(MovieDatabaseService movieDatabaseService, List<SearchMovie> parts)
+        protected static List<TMDbLib.Objects.Movies.Movie> FetchFilmsInSeries(MovieDatabaseService movieDatabaseService, List<SearchMovie> parts)
         {
             var filmsInSeries = new List<TMDbLib.Objects.Movies.Movie>();
             foreach (var part in parts.Where(part => part.ReleaseDate != null))
@@ -159,17 +189,6 @@ namespace HorrorTracker.ConsoleApp.Managers.Helperrs
             }
 
             return filmsInSeries;
-        }
-
-        /// <summary>
-        /// Creates TMDB API service.
-        /// </summary>
-        /// <returns>The movie database service.</returns>
-        public MovieDatabaseService CreateMovieDatabaseService()
-        {
-            var movieDatabaseConfig = new MovieDatabaseConfig();
-            var movieDatabaseClientWrapper = new TMDbClientWrapper(movieDatabaseConfig.GetApiKey());
-            return new MovieDatabaseService(movieDatabaseClientWrapper);
         }
     }
 }
