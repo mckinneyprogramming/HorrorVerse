@@ -15,6 +15,9 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// </summary>
     /// <seealso cref="FullLengthProvider"/>
     /// <seealso cref="ProviderBase"/>
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+    #pragma warning disable CS8604 // Possible null reference argument.
+#pragma warning disable CS8629 // Nullable value type may be null.
     public class MovieProvider : FullLengthProvider
     {
         /// <summary>
@@ -150,6 +153,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             Movie? existingMovie)
         {
             Console.WriteLine("Our records show that your selected movie is already in your database. We will go one step further to see if it belongs to a series.");
+
             if (!string.IsNullOrWhiteSpace(collection.Name) && existingMovie.PartOfSeries)
             {
                 Console.WriteLine("Our records indicate that your movie is part of a series and you have that in your database. Please search for a different movie.");
@@ -205,6 +209,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 if (series != null)
                 {
                     Console.WriteLine("We found the series in your database. We will add the movie to the database and associate it with the series.");
+
                     var newMovie = new Movie(movieInformation.Title, Convert.ToDecimal(movieInformation.Runtime), true, series.Id, movieInformation.ReleaseDate.Value.Year, false);
                     AddMovieToDatabase(movieInformation, movieRepository, newMovie);
 
@@ -226,4 +231,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             }
         }
     }
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8604 // Possible null reference argument.
+#pragma warning restore CS8629 // Nullable value type may be null.
 }

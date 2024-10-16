@@ -14,11 +14,6 @@ namespace HorrorTracker.ConsoleApp.Managers
         private readonly string? _connectionString;
 
         /// <summary>
-        /// IsNotDone indicator.
-        /// </summary>
-        private bool IsNotDone = true;
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="ManualManager"/> class.
         /// </summary>
         /// <param name="logger">The logger.</param>

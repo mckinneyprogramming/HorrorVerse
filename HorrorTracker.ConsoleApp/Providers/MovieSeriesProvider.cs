@@ -10,6 +10,8 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// </summary>
     /// <see cref="FullLengthProvider"/>
     /// <seealso cref="ProviderBase"/>
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8604 // Possible null reference argument.
     public class MovieSeriesProvider : FullLengthProvider
     {
         /// <summary>
@@ -172,9 +174,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 return [];
             }
 
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var ids = idsSelection.Split(",");
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
             var listOfIds = new List<int>();
             foreach (var id in ids)
             {
@@ -187,4 +187,6 @@ namespace HorrorTracker.ConsoleApp.Providers
             return listOfIds;
         }
     }
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8604 // Possible null reference argument.
 }

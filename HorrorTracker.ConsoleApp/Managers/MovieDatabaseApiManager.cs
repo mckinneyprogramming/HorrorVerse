@@ -9,6 +9,7 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// The <see cref="MovieDatabaseApiManager"/> class.
     /// </summary>
     /// <seealso cref="Manager"/>
+#pragma warning disable CS8604 // Possible null reference argument.
     public class MovieDatabaseApiManager : Manager
     {
         /// <summary>
@@ -49,9 +50,8 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// Displays the upcoming movies.
         /// </summary>
-        public void DisplayUpcomingHorrorFilms()
+        public static void DisplayUpcomingHorrorFilms()
         {
-            var movieProvider = new MovieProvider(_connectionString, _parser, _logger);
             MovieProvider.UpcomingHorroFilms();
         }
 
@@ -79,6 +79,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         private void SearchSeriesToAdd()
         {
             var decision = InitialUserDecision("----- Add Series to Datebase -----", "Search for a series below to add to the database.");
+
             var movieSeriesProvider = new MovieSeriesProvider(_connectionString, _parser, _logger);
             movieSeriesProvider.SearchForMovieSeries(decision);
         }
@@ -185,4 +186,5 @@ namespace HorrorTracker.ConsoleApp.Managers
             "6. Find Series to Add\n" +
             "7. Exit";
     }
+#pragma warning restore CS8604 // Possible null reference argument.
 }

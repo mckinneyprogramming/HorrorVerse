@@ -188,7 +188,7 @@ namespace HorrorTracker.ConsoleApp
             {
                 { 1, () => new MovieDatabaseApiManager(_logger, _connectionString).Manage() },
                 { 2, () => new ManualManager(_connectionString, _logger).Manage() },
-                { 3, () => new MovieDatabaseApiManager(_logger, _connectionString).DisplayUpcomingHorrorFilms() },
+                { 3, () => MovieDatabaseApiManager.DisplayUpcomingHorrorFilms() },
                 { 4, () => new AccountManager(_logger).Manage() },
                 { 5, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
             };
