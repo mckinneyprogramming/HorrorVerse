@@ -103,7 +103,6 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
             var seriesName = collectionInformation.Name.Replace("Collection", string.Empty).Trim();
             var numberOfFilms = collectionInformation.Parts.Count(part => part.ReleaseDate != null);
             var series = new MovieSeries(seriesName, totalTimeOfFims, numberOfFilms, false);
-
             var databaseConnection = new DatabaseConnection(connectionString);
             var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, logger);
 

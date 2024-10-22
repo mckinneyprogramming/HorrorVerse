@@ -61,8 +61,8 @@ namespace HorrorTracker.ConsoleApp.Providers
             var movieDatabaseService = CreateMovieDatabaseService();
             var upcomingMovies = movieDatabaseService.GetUpcomingHorrorMovies().Result;
 
-            DateTime currentDate = DateTime.Now;
-            DateTime twoYearsFromNow = currentDate.AddYears(2);
+            var currentDate = DateTime.Now;
+            var twoYearsFromNow = currentDate.AddYears(2);
 
             var filteredMovies = upcomingMovies
                 .Where(movie => movie.ReleaseDate.HasValue && movie.ReleaseDate.Value <= twoYearsFromNow)
