@@ -28,12 +28,14 @@ namespace HorrorTracker.ConsoleApp.Managers
             }
         }
 
+        /// <inheritdoc/>
         protected override string RetrieveMenuOptions() => 
             "1. View Lists\n" +
             "2. Add Movies to List\n" +
             "3. Delete Movies from List\n" +
             "4. Exit";
 
+        /// <inheritdoc/>
         protected override string RetrieveTitle() => "Account Lists";
     }
 }
