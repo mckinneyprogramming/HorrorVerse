@@ -154,14 +154,14 @@ namespace HorrorTracker.ConsoleApp.Providers
         {
             Console.WriteLine("Our records show that your selected movie is already in your database. We will go one step further to see if it belongs to a series.");
 
-            if (!string.IsNullOrWhiteSpace(collection.Name) && existingMovie.PartOfSeries)
+            if (!_parser.StringIsNull(collection.Name) && existingMovie.PartOfSeries)
             {
                 Console.WriteLine("Our records indicate that your movie is part of a series and you have that in your database. Please search for a different movie.");
                 Thread.Sleep(2000);
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(collection.Name) && !existingMovie.PartOfSeries)
+            if (!_parser.StringIsNull(collection.Name) && !existingMovie.PartOfSeries)
             {
                 Console.WriteLine("TMDB indicates that this movie is part of a series, but you do not have that in your database.");
                 Console.WriteLine("We will check if the series is already in your database.");
@@ -202,7 +202,7 @@ namespace HorrorTracker.ConsoleApp.Providers
         {
             Console.WriteLine("Another movie to add to your database! We are now going to check if it is part of a series.");
             Thread.Sleep(2000);
-            if (!string.IsNullOrWhiteSpace(collection.Name))
+            if (!_parser.StringIsNull(collection.Name))
             {
                 Console.WriteLine("Looks like the movie is part of a series. We will see if that series already exists in your database.");
                 var series = movieSeriesRepository.GetByTitle(collection.Name.Replace("Collection", string.Empty).Trim());

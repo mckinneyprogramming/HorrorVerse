@@ -84,8 +84,8 @@ namespace HorrorTracker.Data.Repositories
                 query,
                 null,
                 ModelDataReader.MovieSeriesFunction(),
-                RepositoryMessages.GetUnwatchedOrWatchedSuccess($"{type} movie series(s)"),
-                RepositoryMessages.GetUnwatchedOrWatchedError($"{type} movie series's"));
+                RepositoryMessages.GetUnwatchedOrWatchedSuccess($"{type} {MovieSeries.ToLower()}(s)"),
+                RepositoryMessages.GetUnwatchedOrWatchedError($"{type} {MovieSeries.ToLower()}'s"));
         }
 
         /// <inheritdoc/>

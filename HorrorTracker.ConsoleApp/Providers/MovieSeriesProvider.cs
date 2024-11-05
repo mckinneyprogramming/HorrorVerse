@@ -93,9 +93,8 @@ namespace HorrorTracker.ConsoleApp.Providers
             Console.Write("End: ");
             var endPage = Console.ReadLine();
 
-            var parser = new Parser();
-            var startPageNotValid = !parser.IsInteger(startPage, out var startInt);
-            var endPageNotValid = !parser.IsInteger(endPage, out var endInt);
+            var startPageNotValid = !_parser.IsInteger(startPage, out var startInt);
+            var endPageNotValid = !_parser.IsInteger(endPage, out var endInt);
             if (startPageNotValid || endPageNotValid)
             {
                 Console.ForegroundColor = ConsoleColor.DarkRed;
@@ -131,7 +130,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 return;
             }
 
-            AddCollectionsAndMoviesToDatabase(movieDatabaseService, collectionIds, _connectionString, _logger);
+            AddCollectionsAndMoviesToDatabase(movieDatabaseService, collectionIds, _connectionString, _logger, _parser);
         }
 
         /// <summary>

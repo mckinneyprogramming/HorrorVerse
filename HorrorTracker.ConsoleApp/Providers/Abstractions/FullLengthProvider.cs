@@ -5,6 +5,7 @@ using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Parsing;
 using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.Providers.Abstractions
@@ -22,11 +23,13 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
         /// <param name="collectionIds">The list of collection ids.</param>
         /// <param name="connectionString">The connection string.</param>
         /// <param name="logger">The logger service.</param>
+        /// <param name="parser">The parser.</param>
         protected static void AddCollectionsAndMoviesToDatabase(
             MovieDatabaseService movieDatabaseService,
             List<int> collectionIds,
             string connectionString,
-            LoggerService logger)
+            LoggerService logger,
+            Parser parser)
         {
             foreach (var collectionId in collectionIds)
             {
@@ -59,10 +62,12 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
                 Console.WriteLine();
                 Console.Write(">> ");
                 var addToDatabase = Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.CurrentCultureIgnoreCase))
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                if (parser.StringIsNull(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
                 var newSeries = new MovieSeries(collectionName, Convert.ToDecimal(filmsInSeries.Sum(s => s.Runtime)), filmsInSeries.Count, false);
                 if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, newSeries))

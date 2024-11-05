@@ -79,7 +79,6 @@ namespace HorrorTracker.ConsoleApp.Managers
         private void SearchSeriesToAdd()
         {
             var decision = InitialUserDecision("----- Add Series to Datebase -----", "Search for a series below to add to the database.");
-
             var movieSeriesProvider = new MovieSeriesProvider(_connectionString, _parser, _logger);
             movieSeriesProvider.SearchForMovieSeries(decision);
         }
