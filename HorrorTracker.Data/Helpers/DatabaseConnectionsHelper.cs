@@ -7,28 +7,22 @@ namespace HorrorTracker.Data.Helpers
     /// <summary>
     /// The <see cref="DatabaseConnectionsHelper"/> class.
     /// </summary>
-    public class DatabaseConnectionsHelper
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="DatabaseConnectionsHelper"/> class.
+    /// </remarks>
+    /// <param name="connection">The database connection.</param>
+    /// <param name="loggerService">The logger service.</param>
+    public class DatabaseConnectionsHelper(IDatabaseConnection connection, ILoggerService loggerService)
     {
         /// <summary>
         /// The database connection.
         /// </summary>
-        private readonly IDatabaseConnection _connection;
+        private readonly IDatabaseConnection _connection = connection;
 
         /// <summary>
         /// The logger helper.
         /// </summary>
-        private readonly LoggerHelper _loggerHelper;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DatabaseConnectionsHelper"/> class.
-        /// </summary>
-        /// <param name="connection">The database connection.</param>
-        /// <param name="loggerService">The logger service.</param>
-        public DatabaseConnectionsHelper(IDatabaseConnection connection, ILoggerService loggerService)
-        {
-            _connection = connection;
-            _loggerHelper = new LoggerHelper(loggerService);
-        }
+        private readonly ILoggerService _loggerService = loggerService;
 
         /// <summary>
         /// Opens the connection to the database.
@@ -36,7 +30,7 @@ namespace HorrorTracker.Data.Helpers
         public void Open()
         {
             _connection.Open();
-            _loggerHelper.DatabaseOpened();
+            _loggerService.LogInformation("HorrorTracker database is open.");
         }
 
         /// <summary>
@@ -45,7 +39,7 @@ namespace HorrorTracker.Data.Helpers
         public void Close()
         {
             _connection.Close();
-            _loggerHelper.DatabaseClosed();
+            _loggerService.LogInformation("HorrorTracker database is closed.");
         }
     }
 }

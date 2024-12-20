@@ -10,34 +10,16 @@ namespace HorrorTracker.Data
     /// <summary>
     /// The <see cref="HorrorConnections"/> class.
     /// </summary>
-    public class HorrorConnections
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="HorrorConnections"/> class.
+    /// </remarks>
+    /// <param name="databaseConnection">The database connection.</param>
+    /// <param name="logger">The logger.</param>
+    public class HorrorConnections(IDatabaseConnection databaseConnection, ILoggerService logger)
     {
-        /// <summary>
-        /// The database connection.
-        /// </summary>
-        private readonly IDatabaseConnection _databaseConnection;
-
-        /// <summary>
-        /// The logger.
-        /// </summary>
-        private readonly ILoggerService _logger;
-
-        /// <summary>
-        /// The logger helper.
-        /// </summary>
-        private readonly DatabaseConnectionsHelper _databaseConnectionsHelper;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="HorrorConnections"/> class.
-        /// </summary>
-        /// <param name="databaseConnection">The database connection.</param>
-        /// <param name="logger">The logger.</param>
-        public HorrorConnections(IDatabaseConnection databaseConnection, ILoggerService logger)
-        {
-            _databaseConnection = databaseConnection;
-            _logger = logger;
-            _databaseConnectionsHelper = new DatabaseConnectionsHelper(databaseConnection, logger);
-        }
+        private readonly IDatabaseConnection _databaseConnection = databaseConnection;
+        private readonly ILoggerService _logger = logger;
+        private readonly DatabaseConnectionsHelper _databaseConnectionsHelper = new(databaseConnection, logger);
 
         /// <summary>
         /// Makes a connection to the database.

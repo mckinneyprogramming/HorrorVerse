@@ -166,7 +166,7 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.IsNotNull(value);
-            Assert.IsInstanceOfType(value, typeof(OverallRepository));
+            Assert.IsInstanceOfType<OverallRepository>(value);
         }
 
         [TestMethod]
@@ -180,7 +180,7 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.IsNotNull(value);
-            Assert.IsInstanceOfType(value, typeof(MovieSeriesRepository));
+            Assert.IsInstanceOfType<MovieSeriesRepository>(value);
         }
 
         [TestMethod]
@@ -194,7 +194,21 @@ namespace HorrorTracker.MSTests.Data
 
             // Assert
             Assert.IsNotNull(value);
-            Assert.IsInstanceOfType(value, typeof(MovieRepository));
+            Assert.IsInstanceOfType<MovieRepository>(value);
+        }
+
+        [TestMethod]
+        public void RetrieveDocumentaryRepository_WhenCalled_ShouldReturnDocumentaryRepository()
+        {
+            // Arrange
+            var horrorConnections = new HorrorConnections(_mockDatabaseConnection.Object, _mockLoggerService.Object);
+
+            // Act
+            var value = horrorConnections.RetrieveDocumentaryRepository();
+
+            // Assert
+            Assert.IsNotNull(value);
+            Assert.IsInstanceOfType<DocumentaryRepository>(value);
         }
     }
 }
