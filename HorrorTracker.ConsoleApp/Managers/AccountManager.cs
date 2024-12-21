@@ -6,17 +6,12 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// The <see cref="AccountManager"/> class.
     /// </summary>
     /// <seealso cref="Manager"/>
-    public class AccountManager : Manager
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="AccountManager"/> class.
+    /// </remarks>
+    /// <param name="logger">The logger service.</param>
+    public class AccountManager(LoggerService logger) : Manager(logger)
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AccountManager"/> class.
-        /// </summary>
-        /// <param name="logger">The logger service.</param>
-        public AccountManager(LoggerService logger)
-            : base(logger)
-        {
-        }
-
         /// <inheritdoc/>
         public override void Manage()
         {

@@ -6,7 +6,7 @@ using HorrorTracker.Utilities.MathFunctions;
 namespace HorrorTracker.ConsoleApp.Core
 {
     /// <summary>
-    /// The <see cref="CoreMenuSetup"/> class.
+    /// Handles the setup and display of the main menu for the Horror Tracker application.
     /// </summary>
     /// <remarks>
     /// Initializes a new instance of the <see cref="CoreMenuSetup"/> class.
@@ -23,14 +23,12 @@ namespace HorrorTracker.ConsoleApp.Core
         /// </summary>
         public void DisplayMainMenu()
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("========== Horror Tracker ==========");
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.DarkGray;
+            ConsoleHelper.PrintHeaderTitle("========== Horror Tracker ==========", ConsoleColor.Red);
             ConsoleHelper.TypeMessage("The Horror Tracker system uses TMDB (The Movie Database) API to quickly add items.");
             ConsoleHelper.TypeMessage("You will have the option below to add items manually or from TMDB API.");
             Console.WriteLine();
-            OverallSystemInformation();
+
+            DisplayOverallSystemInformation();
             Thread.Sleep(1000);
 
             Console.ResetColor();
@@ -46,32 +44,24 @@ namespace HorrorTracker.ConsoleApp.Core
         }
 
         /// <summary>
-        /// Displays the overall information from the database.
+        /// Displays overall information from the database.
         /// </summary>
-        private void OverallSystemInformation()
+        private void DisplayOverallSystemInformation()
         {
             var overallRepository = _horrorConnections.RetrieveOverallRepository();
             var (overallHours, overallDays) = ConvertTime(overallRepository.GetOverallTime());
             var (leftHours, leftDays) = ConvertTime(overallRepository.GetOverallTimeLeft());
 
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("===== Overall Information =====");
-            Console.ResetColor();
-            Console.WriteLine(
-                $"Overall Time in the Database:\n" +
-                $"- In Hours: {overallHours}\n" +
-                $"- In Days: {overallDays}");
-            Console.WriteLine(
-                $"Overall Time left to Watch in the Database:\n" +
-                $"- In Hours: {leftHours}\n" +
-                $"- In Days: {leftDays}\n");
+            ConsoleHelper.PrintHeaderTitle("===== Overall Information =====", ConsoleColor.Red);
+            Console.WriteLine($"Overall Time in the Database:\n- In Hours: {overallHours}\n- In Days: {overallDays}");
+            Console.WriteLine($"Time Left to Watch:\n- In Hours: {leftHours}\n- In Days: {leftDays}\n");
         }
 
         /// <summary>
-        /// Retrieves the hours and days calulations for the overall times.
+        /// Converts time from minutes to hours and days.
         /// </summary>
         /// <param name="timeInMinutes">The time in minutes.</param>
-        /// <returns>The hours and days calculations.</returns>
+        /// <returns>Tuple containing hours and days.</returns>
         private static (decimal hours, decimal days) ConvertTime(decimal timeInMinutes)
         {
             var hours = SimpleMathFunctions.Divide(timeInMinutes, 60);

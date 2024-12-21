@@ -6,22 +6,14 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// The <see cref="ManualManager"/> class.
     /// </summary>
     /// <seealso cref="Manager"/>
-    public class ManualManager : Manager
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="ManualManager"/> class.
+    /// </remarks>
+    /// <param name="connectionString">The connection string.</param>
+    /// <param name="logger">The logger.</param>
+    public class ManualManager(string? connectionString, LoggerService logger) : Manager(logger)
     {
-        /// <summary>
-        /// The connection string.
-        /// </summary>
-        private readonly string? _connectionString;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ManualManager"/> class.
-        /// </summary>
-        /// <param name="logger">The logger.</param>
-        public ManualManager(string? connectionString, LoggerService logger)
-            : base(logger)
-        {
-            _connectionString = connectionString;
-        }
+        private readonly string? _connectionString = connectionString;
 
         /// <inheritdoc/>
         public override void Manage()

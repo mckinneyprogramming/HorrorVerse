@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.ConsoleApp.Managers;
+using HorrorTracker.Data.PostgreHelpers;
 
 namespace HorrorTracker.ConsoleApp.Core
 {
@@ -23,7 +24,8 @@ namespace HorrorTracker.ConsoleApp.Core
         /// </summary>
         public void Run()
         {
-            var coreSetup = new CoreSetup(_connectionString, _logger);
+            var databaseConnection = new DatabaseConnection(_connectionString);
+            var coreSetup = new CoreSetup(databaseConnection, _logger);
             _isRunning = coreSetup.TestDatabase();
 
             Console.Write("Would you like to listen to horror music (Y/N): ");

@@ -51,11 +51,10 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <summary>
         /// Displays the upcoming horror films.
         /// </summary>
-        public static void UpcomingHorroFilms()
+        public static void UpcomingHorrorFilms()
         {
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("========== Display Upcoming Movies ==========");
+            ConsoleHelper.PrintHeaderTitle("========== Display Upcoming Movies ==========", ConsoleColor.Red);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             ConsoleHelper.TypeMessage("Below will dispaly the next two years of upcoming horror films.");
             var movieDatabaseService = CreateMovieDatabaseService();

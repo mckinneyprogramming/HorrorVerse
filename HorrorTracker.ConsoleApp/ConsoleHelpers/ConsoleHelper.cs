@@ -62,6 +62,18 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         }
 
         /// <summary>
+        /// Prints a title with a specified color.
+        /// </summary>
+        /// <param name="title">The title text.</param>
+        /// <param name="color">The console color.</param>
+        public static void PrintHeaderTitle(string title, ConsoleColor color)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(title);
+            Console.ResetColor();
+        }
+
+        /// <summary>
         /// Performs the actions based on the user selection.
         /// </summary>
         /// <param name="actualNumber">The decision number.</param>

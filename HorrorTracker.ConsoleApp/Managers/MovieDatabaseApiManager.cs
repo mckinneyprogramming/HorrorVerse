@@ -9,29 +9,15 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// The <see cref="MovieDatabaseApiManager"/> class.
     /// </summary>
     /// <seealso cref="Manager"/>
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="MovieDatabaseApiManager"/> class.
+    /// </remarks>
+    /// <param name="logger">The logger.</param>
 #pragma warning disable CS8604 // Possible null reference argument.
-    public class MovieDatabaseApiManager : Manager
+    public class MovieDatabaseApiManager(LoggerService logger, string? connectionString) : Manager(logger)
     {
-        /// <summary>
-        /// The connection string.
-        /// </summary>
-        private readonly string? _connectionString;
-
-        /// <summary>
-        /// The parser.
-        /// </summary>
-        private readonly Parser _parser;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MovieDatabaseApiManager"/> class.
-        /// </summary>
-        /// <param name="logger">The logger.</param>
-        public MovieDatabaseApiManager(LoggerService logger, string? connectionString)
-            : base(logger)
-        {
-            _connectionString = connectionString;
-            _parser = new Parser();
-        }
+        private readonly string? _connectionString = connectionString;
+        private readonly Parser _parser = new();
 
         /// <inheritdoc/>
         public override void Manage()
@@ -52,7 +38,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// </summary>
         public static void DisplayUpcomingHorrorFilms()
         {
-            MovieProvider.UpcomingHorroFilms();
+            MovieProvider.UpcomingHorrorFilms();
         }
 
         /// <summary>
@@ -129,10 +115,8 @@ namespace HorrorTracker.ConsoleApp.Managers
         private void FindSeriesToAdd()
         {
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("----- Find Collections to Add -----");
+            ConsoleHelper.PrintHeaderTitle("----- Find Collections to Add -----", ConsoleColor.Red);
             Console.WriteLine();
-            Console.ResetColor();
             Console.WriteLine("Select a Genre Id:");
             Console.WriteLine(
                 "Horror - 27\n" +
@@ -159,10 +143,8 @@ namespace HorrorTracker.ConsoleApp.Managers
         private static string? InitialUserDecision(string title, string prompt)
         {
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(title);
+            ConsoleHelper.PrintHeaderTitle(title, ConsoleColor.Red);
             Console.WriteLine();
-            Console.ResetColor();
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
             ConsoleHelper.TypeMessage(prompt);

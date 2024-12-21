@@ -40,8 +40,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             Console.Title = ConsoleTitles.Title(RetrieveTitle());
 
             Console.Clear();
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"========== {RetrieveTitle()} ==========");
+            ConsoleHelper.PrintHeaderTitle($"========== {RetrieveTitle()} ==========", ConsoleColor.Red);
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
             ConsoleHelper.TypeMessage("Choose an option below to get started adding items to your database!");

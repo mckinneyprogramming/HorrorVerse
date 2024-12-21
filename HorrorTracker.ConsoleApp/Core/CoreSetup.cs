@@ -12,11 +12,11 @@ namespace HorrorTracker.ConsoleApp.Core
     /// <remarks>
     /// Initializes a new instance of the <see cref="CoreSetup"/> class.
     /// </remarks>
-    /// <param name="connectionString">The connection string.</param>
+    /// <param name="databaseConnection">The database connection.</param>
     /// <param name="logger">The logger service.</param>
-    public class CoreSetup(string? connectionString, LoggerService logger)
+    public class CoreSetup(DatabaseConnection databaseConnection, LoggerService logger)
     {
-        private readonly string? _connectionString = connectionString;
+        private readonly DatabaseConnection _databaseConnection = databaseConnection;
         private readonly LoggerService _logger = logger;
 
         /// <summary>
@@ -25,14 +25,13 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <returns>The horror connections.</returns>
         public HorrorConnections SetupHorrorConnections()
         {
-            var databaseConnection = new DatabaseConnection(_connectionString);
-            return new HorrorConnections(databaseConnection, _logger);
+            return new HorrorConnections(_databaseConnection, _logger);
         }
 
         /// <summary>
         /// Tests that the database is connected and running.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>True or false.</returns>
         public bool TestDatabase()
         {
             return TestDatabaseConnection(SetupHorrorConnections());
@@ -44,20 +43,18 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <param name="listenToMusic">The users decision.</param>
         public void SetupMusic(string? listenToMusic)
         {
-            if (string.IsNullOrWhiteSpace(listenToMusic) ||
-                !listenToMusic.Equals("y", StringComparison.CurrentCultureIgnoreCase) ||
-                !listenToMusic.Equals("yes", StringComparison.CurrentCultureIgnoreCase))
-            {
-                _logger.LogInformation("User has opted out of music.");
-
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine("You have opted out of music.");
-            }
-            else
+            if (string.Equals(listenToMusic, "y", StringComparison.CurrentCultureIgnoreCase) ||
+                string.Equals(listenToMusic, "yes", StringComparison.CurrentCultureIgnoreCase))
             {
                 var musicPlayer = new MusicPlayer(_logger);
                 musicPlayer.LoadAndShuffleSongs();
                 musicPlayer.StartPlaying();
+            }
+            else
+            {
+                _logger.LogInformation("User has opted out of music.");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine("You have opted out of music.");
             }
         }
 
@@ -65,6 +62,7 @@ namespace HorrorTracker.ConsoleApp.Core
         /// Tests the connection to the database.
         /// </summary>
         /// <param name="connections">The horror connections.</param>
+        /// <returns>True or false.</returns>
         private bool TestDatabaseConnection(HorrorConnections connections)
         {
             _logger.LogInformation("Testing the Postgre database server and connection to the HorrorTracker database.");
@@ -90,9 +88,9 @@ namespace HorrorTracker.ConsoleApp.Core
             }
             catch (Exception ex)
             {
-                _logger.LogError("Failed to connect to the database.", ex);
+                _logger.LogError($"Connection failed: {ex.Message}", ex);
                 Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("Failed to connect to the database. Exiting...");
+                Console.WriteLine("An error occurred while connecting to the database. Please check the logs for details. Returning to main menu...");
                 Console.WriteLine();
                 Console.ResetColor();
                 return false;

@@ -10,37 +10,19 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// </summary>
     /// <see cref="FullLengthProvider"/>
     /// <seealso cref="ProviderBase"/>
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="MovieSeriesProvider"/> class.
+    /// </remarks>
+    /// <param name="connectionString">The connection string.</param>
+    /// <param name="parser">The parser.</param>
+    /// <param name="logger">The logger service.</param>
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 #pragma warning disable CS8604 // Possible null reference argument.
-    public class MovieSeriesProvider : FullLengthProvider
+    public class MovieSeriesProvider(string connectionString, Parser parser, LoggerService logger) : FullLengthProvider
     {
-        /// <summary>
-        /// The connection string.
-        /// </summary>
-        private readonly string? _connectionString;
-
-        /// <summary>
-        /// The parser.
-        /// </summary>
-        private readonly Parser _parser;
-
-        /// <summary>
-        /// The logger service.
-        /// </summary>
-        private readonly LoggerService _logger;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MovieSeriesProvider"/> class.
-        /// </summary>
-        /// <param name="connectionString">The connection string.</param>
-        /// <param name="parser">The parser.</param>
-        /// <param name="logger">The logger service.</param>
-        public MovieSeriesProvider(string connectionString, Parser parser, LoggerService logger)
-        {
-            _connectionString = connectionString;
-            _parser = parser;
-            _logger = logger;
-        }
+        private readonly string? _connectionString = connectionString;
+        private readonly Parser _parser = parser;
+        private readonly LoggerService _logger = logger;
 
         /// <summary>
         /// Searches for a movie series to add to the database.
