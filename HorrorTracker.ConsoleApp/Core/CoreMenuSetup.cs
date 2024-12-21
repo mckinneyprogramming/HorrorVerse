@@ -23,15 +23,17 @@ namespace HorrorTracker.ConsoleApp.Core
         /// </summary>
         public void DisplayMainMenu()
         {
-            ConsoleHelper.PrintHeaderTitle("========== Horror Tracker ==========", ConsoleColor.Red);
-            ConsoleHelper.TypeMessage("The Horror Tracker system uses TMDB (The Movie Database) API to quickly add items.");
-            ConsoleHelper.TypeMessage("You will have the option below to add items manually or from TMDB API.");
+            ConsoleHelper.ColorWriteLineWithReset("========== Horror Tracker ==========", ConsoleColor.Red);
+            ConsoleHelper.TypeMessage(
+                ConsoleColor.DarkGray,
+                "The Horror Tracker system uses TMDB (The Movie Database) API to quickly add items.",
+                "You will have the option below to add items manually or from TMDB API.");
+
             Console.WriteLine();
 
             DisplayOverallSystemInformation();
             Thread.Sleep(1000);
 
-            Console.ResetColor();
             Console.WriteLine(
                 "1. Use TMDB API\n" +
                 "2. CRUD Database\n" +
@@ -52,7 +54,7 @@ namespace HorrorTracker.ConsoleApp.Core
             var (overallHours, overallDays) = ConvertTime(overallRepository.GetOverallTime());
             var (leftHours, leftDays) = ConvertTime(overallRepository.GetOverallTimeLeft());
 
-            ConsoleHelper.PrintHeaderTitle("===== Overall Information =====", ConsoleColor.Red);
+            ConsoleHelper.ColorWriteLineWithReset("===== Overall Information =====", ConsoleColor.Red);
             Console.WriteLine($"Overall Time in the Database:\n- In Hours: {overallHours}\n- In Days: {overallDays}");
             Console.WriteLine($"Time Left to Watch:\n- In Hours: {leftHours}\n- In Days: {leftDays}\n");
         }

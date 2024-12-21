@@ -26,7 +26,7 @@ namespace HorrorTracker.ConsoleApp.Core
         {
             var databaseConnection = new DatabaseConnection(_connectionString);
             var coreSetup = new CoreSetup(databaseConnection, _logger);
-            _isRunning = coreSetup.TestDatabase();
+            _isRunning = coreSetup.TestDatabaseConnection();
 
             Console.Write("Would you like to listen to horror music (Y/N): ");
             var listenToMusic = Console.ReadLine();

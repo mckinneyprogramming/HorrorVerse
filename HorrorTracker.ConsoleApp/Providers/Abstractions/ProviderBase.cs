@@ -8,8 +8,15 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
     /// <summary>
     /// The <see cref="ProviderBase"/> class.
     /// </summary>
-    public abstract class ProviderBase
+    /// <remarks>Initializes a new instance of the <see cref="ProviderBase"/> class.</remarks>
+    /// <param name="connectionString">The connection string.</param>
+    public abstract class ProviderBase(string? connectionString)
     {
+        /// <summary>
+        /// The connection string.
+        /// </summary>
+        protected readonly string? ConnectionString = connectionString;
+
         /// <summary>
         /// Creates TMDB API service.
         /// </summary>

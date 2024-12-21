@@ -33,16 +33,21 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// <summary>
         /// Types the message out.
         /// </summary>
-        /// <param name="message">The message.</param>
-        public static void TypeMessage(string message)
+        /// <param name="messages">The message.</param>
+        /// <param name="foregroundColor">The foreground color.</param>
+        public static void TypeMessage(ConsoleColor foregroundColor, params string[] messages)
         {
-            foreach (var character in message)
+            foreach (var message in messages)
             {
-                Console.Write(character);
-                Thread.Sleep(25);
-            }
+                Console.ForegroundColor = foregroundColor;
+                foreach (var character in message)
+                {
+                    Console.Write(character);
+                    Thread.Sleep(25);
+                }
 
-            Console.WriteLine();
+                Console.WriteLine();
+            }
         }
 
         /// <summary>
@@ -66,7 +71,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// </summary>
         /// <param name="title">The title text.</param>
         /// <param name="color">The console color.</param>
-        public static void PrintHeaderTitle(string title, ConsoleColor color)
+        public static void ColorWriteLineWithReset(string title, ConsoleColor color)
         {
             Console.ForegroundColor = color;
             Console.WriteLine(title);

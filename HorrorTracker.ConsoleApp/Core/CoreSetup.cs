@@ -29,15 +29,6 @@ namespace HorrorTracker.ConsoleApp.Core
         }
 
         /// <summary>
-        /// Tests that the database is connected and running.
-        /// </summary>
-        /// <returns>True or false.</returns>
-        public bool TestDatabase()
-        {
-            return TestDatabaseConnection(SetupHorrorConnections());
-        }
-
-        /// <summary>
         /// Sets up the music player based on the users decision.
         /// </summary>
         /// <param name="listenToMusic">The users decision.</param>
@@ -61,12 +52,14 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <summary>
         /// Tests the connection to the database.
         /// </summary>
-        /// <param name="connections">The horror connections.</param>
         /// <returns>True or false.</returns>
-        private bool TestDatabaseConnection(HorrorConnections connections)
+        public bool TestDatabaseConnection()
         {
+            var connections = SetupHorrorConnections();
             _logger.LogInformation("Testing the Postgre database server and connection to the HorrorTracker database.");
-            TestingDatabaseConnectionMessage(ConsoleColor.DarkGray, "We are testing the connection to the database. Please standby.", "Testing", "Testing Complete!");
+            ConsoleHelper.ColorWriteLineWithReset("We are testing the connection to the database. Please standby.", ConsoleColor.DarkGray);
+            Console.WriteLine();
+            ConsoleHelper.ThinkingAnimation("Testing", 10, "Testing Complete!");
             Console.WriteLine();
 
             try
@@ -75,13 +68,17 @@ namespace HorrorTracker.ConsoleApp.Core
                 if (connectionMessage.Contains("successful!"))
                 {
                     _ = connections.CreateTables();
-                    TestingDatabaseConnectionMessage(ConsoleColor.Green, connectionMessage, "Directing to Main Menu", "Have fun!");
+                    ConsoleHelper.ColorWriteLineWithReset(connectionMessage, ConsoleColor.Green);
+                    Console.WriteLine();
+                    ConsoleHelper.ThinkingAnimation("Directing to Main Menu", 10, "Have fun!");
                     Thread.Sleep(3000);
                     return true;
                 }
                 else
                 {
-                    TestingDatabaseConnectionMessage(ConsoleColor.Red, connectionMessage, "Exiting Horror Tracker", "Goodbye!");
+                    ConsoleHelper.ColorWriteLineWithReset(connectionMessage, ConsoleColor.DarkRed);
+                    Console.WriteLine();
+                    ConsoleHelper.ThinkingAnimation("Exiting Horror Tracker", 10, "Goodbye!");
                     Thread.Sleep(3000);
                     return false;
                 }
@@ -89,32 +86,10 @@ namespace HorrorTracker.ConsoleApp.Core
             catch (Exception ex)
             {
                 _logger.LogError($"Connection failed: {ex.Message}", ex);
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("An error occurred while connecting to the database. Please check the logs for details. Returning to main menu...");
+                ConsoleHelper.ColorWriteLineWithReset("An error occurred while connecting to the database. Please check the logs for details. Returning to main menu...", ConsoleColor.DarkRed);
                 Console.WriteLine();
-                Console.ResetColor();
                 return false;
             }
-        }
-
-        /// <summary>
-        /// Displays the message for success or fail connection.
-        /// </summary>
-        /// <param name="foregroundColor">The foreground color.</param>
-        /// <param name="connectionMessage">The connection message.</param>
-        /// <param name="initialThinkingMessage">The initial thinking animation message.</param>
-        /// <param name="finalThinkingMessage">The final thinking animation message.</param>
-        private static void TestingDatabaseConnectionMessage(
-            ConsoleColor foregroundColor,
-            string connectionMessage,
-            string initialThinkingMessage,
-            string finalThinkingMessage)
-        {
-            Console.ForegroundColor = foregroundColor;
-            Console.WriteLine(connectionMessage);
-            Console.WriteLine();
-            Console.ResetColor();
-            ConsoleHelper.ThinkingAnimation(initialThinkingMessage, 10, finalThinkingMessage);
         }
     }
 }

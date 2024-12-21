@@ -14,7 +14,9 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
     /// The <see cref="FullLengthProvider"/> abstract class.
     /// </summary>
     /// <see cref="ProviderBase"/>
-    public abstract class FullLengthProvider : ProviderBase
+    /// <remarks>Initializes a new instance of the <see cref="FullLengthProvider"/> class.</remarks>
+    /// <param name="connectionString">The connection string.</param>
+    public abstract class FullLengthProvider(string? connectionString) : ProviderBase(connectionString)
     {
         /// <summary>
         /// Adds the collections and the movies from TMBD to the database.
@@ -56,8 +58,7 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
                         $"   - Overview {film.Overview}");
                 }
 
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                ConsoleHelper.TypeMessage("Would you like to add this series and its movies to your database? Type Y or N");
+                ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Would you like to add this series and its movies to your database? Type Y or N");
                 Console.ResetColor();
                 Console.WriteLine();
                 Console.Write(">> ");

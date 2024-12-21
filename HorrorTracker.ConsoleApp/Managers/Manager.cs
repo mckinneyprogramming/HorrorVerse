@@ -6,26 +6,21 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// <summary>
     /// The <see cref="Manager"/> abstract class.
     /// </summary>
-    public abstract class Manager
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="Manager"/> class.
+    /// </remarks>
+    /// <param name="logger">The logger.</param>
+    public abstract class Manager(LoggerService logger)
     {
         /// <summary>
         /// The logger.
         /// </summary>
-        protected readonly LoggerService _logger;
+        protected readonly LoggerService _logger = logger;
 
         /// <summary>
         /// IsNotDone indicator.
         /// </summary>
         protected bool IsNotDone = true;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Manager"/> class.
-        /// </summary>
-        /// <param name="logger">The logger.</param>
-        protected Manager(LoggerService logger)
-        {
-            _logger = logger;
-        }
 
         /// <summary>
         /// Performs actions on the database based on user input.
@@ -40,10 +35,9 @@ namespace HorrorTracker.ConsoleApp.Managers
             Console.Title = ConsoleTitles.Title(RetrieveTitle());
 
             Console.Clear();
-            ConsoleHelper.PrintHeaderTitle($"========== {RetrieveTitle()} ==========", ConsoleColor.Red);
+            ConsoleHelper.ColorWriteLineWithReset($"========== {RetrieveTitle()} ==========", ConsoleColor.Red);
 
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("Choose an option below to get started adding items to your database!");
+            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Choose an option below to get started adding items to your database!");
             Console.ResetColor();
             Console.WriteLine();
             Console.WriteLine(RetrieveMenuOptions());

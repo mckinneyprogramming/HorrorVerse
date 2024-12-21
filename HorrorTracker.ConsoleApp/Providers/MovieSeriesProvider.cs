@@ -18,9 +18,8 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <param name="logger">The logger service.</param>
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 #pragma warning disable CS8604 // Possible null reference argument.
-    public class MovieSeriesProvider(string connectionString, Parser parser, LoggerService logger) : FullLengthProvider
+    public class MovieSeriesProvider(string connectionString, Parser parser, LoggerService logger) : FullLengthProvider(connectionString)
     {
-        private readonly string? _connectionString = connectionString;
         private readonly Parser _parser = parser;
         private readonly LoggerService _logger = logger;
 
@@ -39,8 +38,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             var result = movieDatabaseService.SearchCollection($"{decision} Collection").Result;
 
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("The following series were found based on your input:");
+            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "The following series were found based on your input:");
             Console.ForegroundColor = ConsoleColor.Magenta;
             foreach (var collection in result.Results)
             {
@@ -54,7 +52,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 return;
             }
 
-            AddSeriesAndMoviesToDatabase(movieDatabaseService, collectionId, _connectionString, _logger);
+            AddSeriesAndMoviesToDatabase(movieDatabaseService, collectionId, ConnectionString, _logger);
         }
 
         /// <summary>
@@ -68,8 +66,7 @@ namespace HorrorTracker.ConsoleApp.Providers
 
             Console.ForegroundColor = ConsoleColor.Magenta;
             Console.WriteLine($"There are {totalPages} pages of films for the selected genre in TMDB API.");
-            Console.ResetColor();
-            ConsoleHelper.TypeMessage("Provide the number of pages you would like to search to find collections. We recommand no more than 400.");
+            ConsoleHelper.TypeMessage(ConsoleColor.White, "Provide the number of pages you would like to search to find collections. We recommand no more than 400.");
             Console.Write("Start: ");
             var startPage = Console.ReadLine();
             Console.Write("End: ");
@@ -112,7 +109,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 return;
             }
 
-            AddCollectionsAndMoviesToDatabase(movieDatabaseService, collectionIds, _connectionString, _logger, _parser);
+            AddCollectionsAndMoviesToDatabase(movieDatabaseService, collectionIds, ConnectionString, _logger, _parser);
         }
 
         /// <summary>
@@ -121,8 +118,7 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <returns>The series id.</returns>
         private int PromptForSeriesId()
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("Choose the series id above to add the series information to the database as well as its associated movies.");
+            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Choose the series id above to add the series information to the database as well as its associated movies.");
             Console.ResetColor();
             Console.WriteLine();
             Console.Write(">> ");
@@ -143,8 +139,10 @@ namespace HorrorTracker.ConsoleApp.Providers
         private List<int> PromptForSeriesIds()
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("Choose as many series ids above to add the series information to the database as well as its associated movies.");
-            ConsoleHelper.TypeMessage("Separate the Ids by commas.");
+            ConsoleHelper.TypeMessage(
+                ConsoleColor.DarkGray,
+                "Choose as many series ids above to add the series information to the database as well as its associated movies.",
+                "Separate the Ids by commas.");
             Console.ResetColor();
             Console.WriteLine();
             Console.Write(">> ");

@@ -115,7 +115,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         private void FindSeriesToAdd()
         {
             Console.Clear();
-            ConsoleHelper.PrintHeaderTitle("----- Find Collections to Add -----", ConsoleColor.Red);
+            ConsoleHelper.ColorWriteLineWithReset("----- Find Collections to Add -----", ConsoleColor.Red);
             Console.WriteLine();
             Console.WriteLine("Select a Genre Id:");
             Console.WriteLine(
@@ -143,11 +143,10 @@ namespace HorrorTracker.ConsoleApp.Managers
         private static string? InitialUserDecision(string title, string prompt)
         {
             Console.Clear();
-            ConsoleHelper.PrintHeaderTitle(title, ConsoleColor.Red);
+            ConsoleHelper.ColorWriteLineWithReset(title, ConsoleColor.Red);
             Console.WriteLine();
 
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage(prompt);
+            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, prompt);
             Console.ResetColor();
             Console.WriteLine();
             Console.Write(">> ");

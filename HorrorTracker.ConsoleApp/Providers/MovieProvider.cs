@@ -15,38 +15,19 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// </summary>
     /// <seealso cref="FullLengthProvider"/>
     /// <seealso cref="ProviderBase"/>
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="MovieProvider"/> class.
+    /// </remarks>
+    /// <param name="connectionString">The connection string.</param>
+    /// <param name="parser">The parser.</param>
+    /// <param name="logger">The logger service.</param>
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-    #pragma warning disable CS8604 // Possible null reference argument.
+#pragma warning disable CS8604 // Possible null reference argument.
 #pragma warning disable CS8629 // Nullable value type may be null.
-    public class MovieProvider : FullLengthProvider
+    public class MovieProvider(string connectionString, Parser parser, LoggerService logger) : FullLengthProvider(connectionString)
     {
-        /// <summary>
-        /// The connection string.
-        /// </summary>
-        private readonly string? _connectionString;
-
-        /// <summary>
-        /// The parser.
-        /// </summary>
-        private readonly Parser _parser;
-
-        /// <summary>
-        /// The logger service.
-        /// </summary>
-        private readonly LoggerService _logger;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MovieProvider"/> class.
-        /// </summary>
-        /// <param name="connectionString">The connection string.</param>
-        /// <param name="parser">The parser.</param>
-        /// <param name="logger">The logger service.</param>
-        public MovieProvider(string connectionString, Parser parser, LoggerService logger)
-        {
-            _connectionString = connectionString;
-            _parser = parser;
-            _logger = logger;
-        }
+        private readonly Parser _parser = parser;
+        private readonly LoggerService _logger = logger;
 
         /// <summary>
         /// Displays the upcoming horror films.
@@ -54,9 +35,8 @@ namespace HorrorTracker.ConsoleApp.Providers
         public static void UpcomingHorrorFilms()
         {
             Console.Clear();
-            ConsoleHelper.PrintHeaderTitle("========== Display Upcoming Movies ==========", ConsoleColor.Red);
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("Below will dispaly the next two years of upcoming horror films.");
+            ConsoleHelper.ColorWriteLineWithReset("========== Display Upcoming Movies ==========", ConsoleColor.Red);
+            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Below will dispaly the next two years of upcoming horror films.");
             var movieDatabaseService = CreateMovieDatabaseService();
             var upcomingMovies = movieDatabaseService.GetUpcomingHorrorMovies().Result;
 
@@ -95,8 +75,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             var result = movieDatabaseService.SearchMovie(decision).Result;
 
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("The following movies were found based on your input:");
+            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "The following movies were found based on your input:");
             Console.ForegroundColor = ConsoleColor.Magenta;
             foreach (var movie in result.Results)
             {
@@ -105,8 +84,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             }
 
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage("Choose a movie id above to select a movie you want to add to the database.");
+            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Choose a movie id above to select a movie you want to add to the database.");
             Console.ResetColor();
             Console.Write(">> ");
             var movieId = Console.ReadLine();
@@ -119,7 +97,7 @@ namespace HorrorTracker.ConsoleApp.Providers
 
             var movieInformation = movieDatabaseService.GetMovie(movieIdInt).Result;
             var collection = movieInformation.BelongsToCollection;
-            var databaseConnection = new DatabaseConnection(_connectionString);
+            var databaseConnection = new DatabaseConnection(ConnectionString);
             var movieRepository = new MovieRepository(databaseConnection, _logger);
             var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, _logger);
 
@@ -179,7 +157,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 else
                 {
                     Console.WriteLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
-                    AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id, _connectionString, _logger);
+                    AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id, ConnectionString, _logger);
                 }
             }
         }
@@ -219,7 +197,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 else
                 {
                     Console.WriteLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
-                    AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id, _connectionString, _logger);
+                    AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id, ConnectionString, _logger);
                 }
             }
             else
