@@ -8,7 +8,7 @@ using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
 using TMDbLib.Objects.Search;
 
-namespace HorrorTracker.ConsoleApp.Providers.Abstractions
+namespace HorrorTracker.ConsoleApp.Providers
 {
     /// <summary>
     /// The <see cref="FullLengthProvider"/> abstract class.

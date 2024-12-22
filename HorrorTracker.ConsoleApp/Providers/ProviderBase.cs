@@ -5,7 +5,7 @@ using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
 
-namespace HorrorTracker.ConsoleApp.Providers.Abstractions
+namespace HorrorTracker.ConsoleApp.Providers
 {
     /// <summary>
     /// The <see cref="ProviderBase"/> class.

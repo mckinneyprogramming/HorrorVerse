@@ -1,5 +1,4 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
-using HorrorTracker.ConsoleApp.Providers.Abstractions;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
 

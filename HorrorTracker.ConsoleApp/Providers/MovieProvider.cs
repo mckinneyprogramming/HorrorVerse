@@ -1,5 +1,4 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
-using HorrorTracker.ConsoleApp.Providers.Abstractions;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
