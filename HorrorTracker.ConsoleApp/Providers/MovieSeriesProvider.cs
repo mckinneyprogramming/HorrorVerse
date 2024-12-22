@@ -18,10 +18,8 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <param name="logger">The logger service.</param>
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 #pragma warning disable CS8604 // Possible null reference argument.
-    public class MovieSeriesProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString)
+    public class MovieSeriesProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString, logger)
     {
-        private readonly LoggerService _logger = logger;
-
         /// <summary>
         /// Searches for a movie series to add to the database.
         /// </summary>
@@ -51,7 +49,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 return;
             }
 
-            AddSeriesAndMoviesToDatabase(movieDatabaseService, collectionId, ConnectionString, _logger);
+            AddSeriesAndMoviesToDatabase(movieDatabaseService, collectionId);
         }
 
         /// <summary>
@@ -108,7 +106,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 return;
             }
 
-            AddCollectionsAndMoviesToDatabase(movieDatabaseService, collectionIds, ConnectionString, _logger);
+            AddCollectionsAndMoviesToDatabase(movieDatabaseService, collectionIds);
         }
 
         /// <summary>

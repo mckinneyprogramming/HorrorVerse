@@ -16,27 +16,23 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
     /// <see cref="ProviderBase"/>
     /// <remarks>Initializes a new instance of the <see cref="FullLengthProvider"/> class.</remarks>
     /// <param name="connectionString">The connection string.</param>
-    public abstract class FullLengthProvider(string? connectionString) : ProviderBase(connectionString)
+    public abstract class FullLengthProvider(string? connectionString, LoggerService logger) : ProviderBase(connectionString, logger)
     {
         /// <summary>
         /// Adds the collections and the movies from TMBD to the database.
         /// </summary>
         /// <param name="movieDatabaseService">The movie database service.</param>
         /// <param name="collectionIds">The list of collection ids.</param>
-        /// <param name="connectionString">The connection string.</param>
-        /// <param name="logger">The logger service.</param>
         protected void AddCollectionsAndMoviesToDatabase(
             MovieDatabaseService movieDatabaseService,
-            List<int> collectionIds,
-            string connectionString,
-            LoggerService logger)
+            List<int> collectionIds)
         {
             foreach (var collectionId in collectionIds)
             {
                 var collectionInformation = movieDatabaseService.GetCollection(collectionId).Result;
                 var collectionName = collectionInformation.Name.Replace("Collection", "").Trim();
-                var databaseConnection = new DatabaseConnection(connectionString);
-                var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, logger);
+                var databaseConnection = new DatabaseConnection(ConnectionString);
+                var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, Logger);
                 var seriesExists = movieSeriesRepository.GetByTitle(collectionName);
                 if (seriesExists != null)
                 {
@@ -87,7 +83,7 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
                     continue;
                 }
 
-                AddFilmsToDatabase(databaseConnection, filmsInSeries, addedSeries.Id, logger);
+                AddFilmsToDatabase(databaseConnection, filmsInSeries, addedSeries.Id);
                 SeriesAddedToDatabaseMessages(addedSeries.Title);
             }
         }
@@ -97,9 +93,7 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
         /// </summary>
         /// <param name="movieDatabaseService">Movie database service.</param>
         /// <param name="collectionId">The collection id.</param>
-        /// <param name="connectionString">The connection string.</param>
-        /// <param name="logger">The logger.</param>
-        protected static void AddSeriesAndMoviesToDatabase(MovieDatabaseService movieDatabaseService, int collectionId, string connectionString, LoggerService logger)
+        protected void AddSeriesAndMoviesToDatabase(MovieDatabaseService movieDatabaseService, int collectionId)
         {
             var collectionInformation = movieDatabaseService.GetCollection(collectionId).Result;
             var filmsInSeries = FetchFilmsInSeries(movieDatabaseService, collectionInformation.Parts);
@@ -107,8 +101,8 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
             var seriesName = collectionInformation.Name.Replace("Collection", string.Empty).Trim();
             var numberOfFilms = collectionInformation.Parts.Count(part => part.ReleaseDate != null);
             var series = new MovieSeries(seriesName, totalTimeOfFims, numberOfFilms, false);
-            var databaseConnection = new DatabaseConnection(connectionString);
-            var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, logger);
+            var databaseConnection = new DatabaseConnection(ConnectionString);
+            var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, Logger);
 
             if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, series))
             {
@@ -128,7 +122,7 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
                 return;
             }
 
-            AddFilmsToDatabase(databaseConnection, filmsInSeries, newSeries.Id, logger);
+            AddFilmsToDatabase(databaseConnection, filmsInSeries, newSeries.Id);
             SeriesAddedToDatabaseMessages(newSeries.Title);
         }
 
@@ -151,16 +145,15 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
         /// <param name="filmsInSeries">The films to add to the database.</param>
         /// <param name="addedSeriesId">The movie series id.</param>
         /// <param name="logger">The logger service.</param>
-        private static void AddFilmsToDatabase(
+        private void AddFilmsToDatabase(
             DatabaseConnection databaseConnection,
             List<TMDbLib.Objects.Movies.Movie> filmsInSeries,
-            int addedSeriesId,
-            LoggerService logger)
+            int addedSeriesId)
         {
             foreach (var film in filmsInSeries)
             {
                 var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, addedSeriesId, film.ReleaseDate!.Value.Year, false);
-                var movieRepository = new MovieRepository(databaseConnection, logger);
+                var movieRepository = new MovieRepository(databaseConnection, Logger);
 
                 if (!Inserter.MovieAddedSuccessfully(movieRepository, movie))
                 {

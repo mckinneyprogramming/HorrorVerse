@@ -23,10 +23,8 @@ namespace HorrorTracker.ConsoleApp.Providers
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 #pragma warning disable CS8604 // Possible null reference argument.
 #pragma warning disable CS8629 // Nullable value type may be null.
-    public class MovieProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString)
+    public class MovieProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString, logger)
     {
-        private readonly LoggerService _logger = logger;
-
         /// <summary>
         /// Displays the upcoming horror films.
         /// </summary>
@@ -96,8 +94,8 @@ namespace HorrorTracker.ConsoleApp.Providers
             var movieInformation = movieDatabaseService.GetMovie(movieIdInt).Result;
             var collection = movieInformation.BelongsToCollection;
             var databaseConnection = new DatabaseConnection(ConnectionString);
-            var movieRepository = new MovieRepository(databaseConnection, _logger);
-            var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, _logger);
+            var movieRepository = new MovieRepository(databaseConnection, Logger);
+            var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, Logger);
 
             Console.WriteLine("We are checking if the movie is already in your database. Please stand by.");
             Thread.Sleep(2000);
@@ -155,7 +153,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 else
                 {
                     Console.WriteLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
-                    AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id, ConnectionString, _logger);
+                    AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id);
                 }
             }
         }
@@ -195,7 +193,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 else
                 {
                     Console.WriteLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
-                    AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id, ConnectionString, _logger);
+                    AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id);
                 }
             }
             else

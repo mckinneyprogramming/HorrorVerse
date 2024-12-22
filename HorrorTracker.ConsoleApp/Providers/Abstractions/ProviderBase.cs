@@ -2,6 +2,7 @@
 using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
+using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Providers.Abstractions
@@ -11,12 +12,17 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
     /// </summary>
     /// <remarks>Initializes a new instance of the <see cref="ProviderBase"/> class.</remarks>
     /// <param name="connectionString">The connection string.</param>
-    public abstract class ProviderBase(string? connectionString)
+    public abstract class ProviderBase(string? connectionString, LoggerService logger)
     {
         /// <summary>
         /// The connection string.
         /// </summary>
         protected readonly string? ConnectionString = connectionString;
+
+        /// <summary>
+        /// The logger service.
+        /// </summary>
+        protected readonly LoggerService Logger = logger;
 
         /// <summary>
         /// The parser.
