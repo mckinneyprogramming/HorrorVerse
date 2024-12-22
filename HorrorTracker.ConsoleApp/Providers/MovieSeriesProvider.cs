@@ -71,24 +71,22 @@ namespace HorrorTracker.ConsoleApp.Providers
             var endPageNotValid = !Parser.IsInteger(endPage, out var endInt);
             if (startPageNotValid || endPageNotValid)
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("The start or end page was not a valid number.");
+                ConsoleHelper.WriteLineError("The start or end page was not a valid number.");
                 return;
             }
 
             if (startInt > endInt || endInt > totalPages)
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("The start page is greater than the end page or the end page is greater than the last page number.");
+                ConsoleHelper.WriteLineError("The start page is greater than the end page or the end page is greater than the last page number.");
                 return;
             }
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine("Please stand by.");
-            var collectionsFromCall = movieDatabaseService.GetHorrorCollections(startInt, endInt, genreInt).Result;
             Console.WriteLine("The following film series were found:");
-
             Console.ForegroundColor = ConsoleColor.Magenta;
+
+            var collectionsFromCall = movieDatabaseService.GetHorrorCollections(startInt, endInt, genreInt).Result;
             foreach (var series in collectionsFromCall)
             {
                 Console.WriteLine($"- {series.Name}; Id: {series.Id}");
@@ -97,8 +95,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             var collectionIds = PromptForSeriesIds();
             if (collectionIds.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("You did not provide a valid integer. Please try again.");
+                ConsoleHelper.WriteLineError("You did not provide a valid integer. Please try again.");
                 Thread.Sleep(1000);
                 Console.Clear();
                 return;

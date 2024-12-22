@@ -36,8 +36,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 var seriesExists = movieSeriesRepository.GetByTitle(collectionName);
                 if (seriesExists != null)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                    Console.WriteLine("The series you selected already exists in the database. Please try again.");
+                    ConsoleHelper.WriteLineError("The series you selected already exists in the database. Please try again.");
                     Thread.Sleep(1000);
                     Console.Clear();
                     return;
@@ -67,8 +66,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 var newSeries = new MovieSeries(collectionName, Convert.ToDecimal(filmsInSeries.Sum(s => s.Runtime)), filmsInSeries.Count, false);
                 if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, newSeries))
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                    Console.WriteLine("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
+                    ConsoleHelper.WriteLineError("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
                     continue;
                 }
 
@@ -106,8 +104,7 @@ namespace HorrorTracker.ConsoleApp.Providers
 
             if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, series))
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
+                ConsoleHelper.WriteLineError("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
                 return;
             }
 
@@ -157,8 +154,7 @@ namespace HorrorTracker.ConsoleApp.Providers
 
                 if (!Inserter.MovieAddedSuccessfully(movieRepository, movie))
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                    Console.WriteLine("The movie was not added. An error occurred or the movie was invalid.");
+                    ConsoleHelper.WriteLineError("The movie was not added. An error occurred or the movie was invalid.");
                     continue;
                 }
 

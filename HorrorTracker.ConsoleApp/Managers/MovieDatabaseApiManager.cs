@@ -123,8 +123,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             var genreId = Console.ReadLine();
             if (!Parser.IsInteger(genreId, out var genreInt))
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("The selection was not an integer. Please try again.");
+                ConsoleHelper.WriteLineError("The selection was not an integer. Please try again.");
                 return;
             }
 

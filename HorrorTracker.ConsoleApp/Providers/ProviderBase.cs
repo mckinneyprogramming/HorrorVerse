@@ -1,4 +1,5 @@
-﻿using HorrorTracker.Data.Models;
+﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+using HorrorTracker.Data.Models;
 using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
@@ -50,8 +51,7 @@ namespace HorrorTracker.ConsoleApp.Providers
         {
             if (!Inserter.MovieAddedSuccessfully(movieRepository, movie))
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("The movie you are trying to add already exists in the database or an error occurred. Please try a different movie.");
+                ConsoleHelper.WriteLineError("The movie you are trying to add already exists in the database or an error occurred. Please try a different movie.");
                 return;
             }
 

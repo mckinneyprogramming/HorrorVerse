@@ -31,12 +31,12 @@ namespace HorrorTracker.ConsoleApp.Providers
             Console.Clear();
             ConsoleHelper.ColorWriteLineWithReset("========== Display Upcoming Movies ==========", ConsoleColor.Red);
             ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Below will dispaly the next two years of upcoming horror films.");
-            var movieDatabaseService = CreateMovieDatabaseService();
-            var upcomingMovies = movieDatabaseService.GetUpcomingHorrorMovies().Result;
 
             var currentDate = DateTime.Now;
             var twoYearsFromNow = currentDate.AddYears(2);
 
+            var movieDatabaseService = CreateMovieDatabaseService();
+            var upcomingMovies = movieDatabaseService.GetUpcomingHorrorMovies().Result;
             var filteredMovies = upcomingMovies
                 .Where(movie => movie.ReleaseDate.HasValue && movie.ReleaseDate.Value <= twoYearsFromNow)
                 .OrderBy(movie => movie.ReleaseDate);
@@ -84,19 +84,19 @@ namespace HorrorTracker.ConsoleApp.Providers
             var movieId = Console.ReadLine();
             if (!Parser.IsInteger(movieId, out var movieIdInt))
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("The provided movie id is not an integer. Please try again.");
+                ConsoleHelper.WriteLineError("The provided movie id is not an integer. Please try again.");
                 return;
             }
 
             var movieInformation = movieDatabaseService.GetMovie(movieIdInt).Result;
-            var collection = movieInformation.BelongsToCollection;
             var databaseConnection = new DatabaseConnection(ConnectionString);
-            var movieRepository = new MovieRepository(databaseConnection, Logger);
-            var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, Logger);
 
             Console.WriteLine("We are checking if the movie is already in your database. Please stand by.");
             Thread.Sleep(2000);
+
+            var collection = movieInformation.BelongsToCollection;
+            var movieRepository = new MovieRepository(databaseConnection, Logger);
+            var movieSeriesRepository = new MovieSeriesRepository(databaseConnection, Logger);
             var existingMovie = movieRepository.GetByTitle(movieInformation.Title);
             if (existingMovie != null)
             {

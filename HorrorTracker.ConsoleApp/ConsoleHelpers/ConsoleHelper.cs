@@ -79,6 +79,16 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         }
 
         /// <summary>
+        /// Writes the informational error message to the console.
+        /// </summary>
+        /// <param name="message">The message.</param>
+        public static void WriteLineError(string message)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkRed;
+            Console.WriteLine(message);
+        }
+
+        /// <summary>
         /// Performs the actions based on the user selection.
         /// </summary>
         /// <param name="actualNumber">The decision number.</param>
@@ -95,8 +105,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
                 else
                 {
                     logger.LogWarning("Invalid selection made.");
-                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                    Console.WriteLine("Invalid selection. Please enter a valid number.");
+                    WriteLineError("Invalid selection. Please enter a valid number.");
                     Console.WriteLine();
                     Console.ResetColor();
                     Thread.Sleep(3000);
@@ -105,8 +114,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
             catch (Exception ex)
             {
                 logger.LogError("Error processing decision.", ex);
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("An error occurred while processing your selection. Please try again.");
+                WriteLineError("An error occurred while processing your selection. Please try again.");
                 Console.WriteLine();
                 Console.ResetColor();
                 Thread.Sleep(3000);

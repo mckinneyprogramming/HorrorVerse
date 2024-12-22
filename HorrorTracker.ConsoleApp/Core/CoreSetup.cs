@@ -37,15 +37,20 @@ namespace HorrorTracker.ConsoleApp.Core
             if (string.Equals(listenToMusic, "y", StringComparison.CurrentCultureIgnoreCase) ||
                 string.Equals(listenToMusic, "yes", StringComparison.CurrentCultureIgnoreCase))
             {
+                _logger.LogInformation("User has opted in for music.");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine("You have opted in for music!");
                 var musicPlayer = new MusicPlayer(_logger);
                 musicPlayer.LoadAndShuffleSongs();
                 musicPlayer.StartPlaying();
+                Thread.Sleep(2000);
             }
             else
             {
                 _logger.LogInformation("User has opted out of music.");
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine("You have opted out of music.");
+                Thread.Sleep(3000);
             }
         }
 
