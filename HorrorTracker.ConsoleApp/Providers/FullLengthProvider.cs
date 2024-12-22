@@ -152,15 +152,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 var movie = new Movie(film.Title, Convert.ToDecimal(film.Runtime), true, addedSeriesId, film.ReleaseDate!.Value.Year, false);
                 var movieRepository = new MovieRepository(databaseConnection, Logger);
 
-                if (!Inserter.MovieAddedSuccessfully(movieRepository, movie))
-                {
-                    ConsoleHelper.WriteLineError("The movie was not added. An error occurred or the movie was invalid.");
-                    continue;
-                }
-
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"The movie '{film.Title}' was added successfully.");
-                Thread.Sleep(1000);
+                AddMovieToDatabase(film, movieRepository, movie);
                 Console.ResetColor();
             }
         }
