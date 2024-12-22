@@ -1,5 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
 using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
@@ -9,13 +10,24 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// <remarks>
     /// Initializes a new instance of the <see cref="Manager"/> class.
     /// </remarks>
+    /// <param name="connectionString">The connection string.</param>
     /// <param name="logger">The logger.</param>
-    public abstract class Manager(LoggerService logger)
+    public abstract class Manager(string? connectionString, LoggerService logger)
     {
+        /// <summary>
+        /// The connection string.
+        /// </summary>
+        protected readonly string? ConnectionString = connectionString;
+
         /// <summary>
         /// The logger.
         /// </summary>
-        protected readonly LoggerService _logger = logger;
+        protected readonly LoggerService Logger = logger;
+
+        /// <summary>
+        /// The parser.
+        /// </summary>
+        protected readonly Parser Parser = new();
 
         /// <summary>
         /// IsNotDone indicator.
@@ -43,7 +55,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             Console.WriteLine(RetrieveMenuOptions());
             Console.Write(">> ");
 
-            _logger.LogInformation($"{RetrieveTitle()} Menu displayed.");
+            Logger.LogInformation($"{RetrieveTitle()} Menu displayed.");
         }
 
         /// <summary>

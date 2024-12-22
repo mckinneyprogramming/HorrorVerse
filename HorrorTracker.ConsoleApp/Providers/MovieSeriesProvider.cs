@@ -18,9 +18,8 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <param name="logger">The logger service.</param>
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 #pragma warning disable CS8604 // Possible null reference argument.
-    public class MovieSeriesProvider(string connectionString, Parser parser, LoggerService logger) : FullLengthProvider(connectionString)
+    public class MovieSeriesProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString)
     {
-        private readonly Parser _parser = parser;
         private readonly LoggerService _logger = logger;
 
         /// <summary>
@@ -29,7 +28,7 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <param name="decision">The user decision.</param>
         public void SearchForMovieSeries(string decision)
         {
-            if (_parser.StringIsNull(decision))
+            if (Parser.StringIsNull(decision))
             {
                 return;
             }
@@ -72,8 +71,8 @@ namespace HorrorTracker.ConsoleApp.Providers
             Console.Write("End: ");
             var endPage = Console.ReadLine();
 
-            var startPageNotValid = !_parser.IsInteger(startPage, out var startInt);
-            var endPageNotValid = !_parser.IsInteger(endPage, out var endInt);
+            var startPageNotValid = !Parser.IsInteger(startPage, out var startInt);
+            var endPageNotValid = !Parser.IsInteger(endPage, out var endInt);
             if (startPageNotValid || endPageNotValid)
             {
                 Console.ForegroundColor = ConsoleColor.DarkRed;
@@ -109,7 +108,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 return;
             }
 
-            AddCollectionsAndMoviesToDatabase(movieDatabaseService, collectionIds, ConnectionString, _logger, _parser);
+            AddCollectionsAndMoviesToDatabase(movieDatabaseService, collectionIds, ConnectionString, _logger);
         }
 
         /// <summary>
@@ -124,7 +123,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             Console.Write(">> ");
 
             var collectionIdSelection = Console.ReadLine();
-            if (_parser.IsInteger(collectionIdSelection, out var collectionId))
+            if (Parser.IsInteger(collectionIdSelection, out var collectionId))
             {
                 return collectionId;
             }
@@ -148,7 +147,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             Console.Write(">> ");
 
             var idsSelection = Console.ReadLine();
-            if (_parser.StringIsNull(idsSelection))
+            if (Parser.StringIsNull(idsSelection))
             {
                 return [];
             }
@@ -157,7 +156,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             var listOfIds = new List<int>();
             foreach (var id in ids)
             {
-                if (_parser.IsInteger(id, out var integerId))
+                if (Parser.IsInteger(id, out var integerId))
                 {
                     listOfIds.Add(integerId);
                 }

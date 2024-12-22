@@ -2,6 +2,7 @@
 using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
+using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Providers.Abstractions
 {
@@ -16,6 +17,11 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
         /// The connection string.
         /// </summary>
         protected readonly string? ConnectionString = connectionString;
+
+        /// <summary>
+        /// The parser.
+        /// </summary>
+        protected readonly Parser Parser = new();
 
         /// <summary>
         /// Creates TMDB API service.

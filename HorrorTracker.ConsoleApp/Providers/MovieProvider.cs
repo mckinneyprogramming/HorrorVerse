@@ -5,7 +5,6 @@ using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Logging;
-using HorrorTracker.Utilities.Parsing;
 using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.Providers
@@ -24,9 +23,8 @@ namespace HorrorTracker.ConsoleApp.Providers
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 #pragma warning disable CS8604 // Possible null reference argument.
 #pragma warning disable CS8629 // Nullable value type may be null.
-    public class MovieProvider(string connectionString, Parser parser, LoggerService logger) : FullLengthProvider(connectionString)
+    public class MovieProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString)
     {
-        private readonly Parser _parser = parser;
         private readonly LoggerService _logger = logger;
 
         /// <summary>
@@ -66,7 +64,7 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <param name="decision">The user decision.</param>
         public void SearchMovie(string decision)
         {
-            if (_parser.StringIsNull(decision))
+            if (Parser.StringIsNull(decision))
             {
                 return;
             }
@@ -88,7 +86,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             Console.ResetColor();
             Console.Write(">> ");
             var movieId = Console.ReadLine();
-            if (!_parser.IsInteger(movieId, out var movieIdInt))
+            if (!Parser.IsInteger(movieId, out var movieIdInt))
             {
                 Console.ForegroundColor = ConsoleColor.DarkRed;
                 Console.WriteLine("The provided movie id is not an integer. Please try again.");
@@ -131,14 +129,14 @@ namespace HorrorTracker.ConsoleApp.Providers
         {
             Console.WriteLine("Our records show that your selected movie is already in your database. We will go one step further to see if it belongs to a series.");
 
-            if (!_parser.StringIsNull(collection.Name) && existingMovie.PartOfSeries)
+            if (!Parser.StringIsNull(collection.Name) && existingMovie.PartOfSeries)
             {
                 Console.WriteLine("Our records indicate that your movie is part of a series and you have that in your database. Please search for a different movie.");
                 Thread.Sleep(2000);
                 return;
             }
 
-            if (!_parser.StringIsNull(collection.Name) && !existingMovie.PartOfSeries)
+            if (!Parser.StringIsNull(collection.Name) && !existingMovie.PartOfSeries)
             {
                 Console.WriteLine("TMDB indicates that this movie is part of a series, but you do not have that in your database.");
                 Console.WriteLine("We will check if the series is already in your database.");
@@ -179,7 +177,7 @@ namespace HorrorTracker.ConsoleApp.Providers
         {
             Console.WriteLine("Another movie to add to your database! We are now going to check if it is part of a series.");
             Thread.Sleep(2000);
-            if (!_parser.StringIsNull(collection.Name))
+            if (!Parser.StringIsNull(collection.Name))
             {
                 Console.WriteLine("Looks like the movie is part of a series. We will see if that series already exists in your database.");
                 var series = movieSeriesRepository.GetByTitle(collection.Name.Replace("Collection", string.Empty).Trim());

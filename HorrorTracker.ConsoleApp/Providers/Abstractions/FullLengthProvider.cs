@@ -25,13 +25,11 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
         /// <param name="collectionIds">The list of collection ids.</param>
         /// <param name="connectionString">The connection string.</param>
         /// <param name="logger">The logger service.</param>
-        /// <param name="parser">The parser.</param>
-        protected static void AddCollectionsAndMoviesToDatabase(
+        protected void AddCollectionsAndMoviesToDatabase(
             MovieDatabaseService movieDatabaseService,
             List<int> collectionIds,
             string connectionString,
-            LoggerService logger,
-            Parser parser)
+            LoggerService logger)
         {
             foreach (var collectionId in collectionIds)
             {
@@ -64,7 +62,7 @@ namespace HorrorTracker.ConsoleApp.Providers.Abstractions
                 Console.Write(">> ");
                 var addToDatabase = Console.ReadLine();
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                if (parser.StringIsNull(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.OrdinalIgnoreCase))
+                if (Parser.StringIsNull(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

@@ -14,11 +14,8 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// </remarks>
     /// <param name="logger">The logger.</param>
 #pragma warning disable CS8604 // Possible null reference argument.
-    public class MovieDatabaseApiManager(LoggerService logger, string? connectionString) : Manager(logger)
+    public class MovieDatabaseApiManager(LoggerService logger, string? connectionString) : Manager(connectionString, logger)
     {
-        private readonly string? _connectionString = connectionString;
-        private readonly Parser _parser = new();
-
         /// <inheritdoc/>
         public override void Manage()
         {
@@ -29,7 +26,7 @@ namespace HorrorTracker.ConsoleApp.Managers
                 var decision = Console.ReadLine();
                 var actions = MovieDatabaseApiDecisionActions();
 
-                ConsoleHelper.ProcessDecision(decision, _logger, actions);
+                ConsoleHelper.ProcessDecision(decision, Logger, actions);
             }
         }
 
@@ -55,7 +52,7 @@ namespace HorrorTracker.ConsoleApp.Managers
                 { 4, AddTelevisionShow },
                 { 5, AddEpisode },
                 { 6, FindSeriesToAdd },
-                { 7, () => { IsNotDone = false; _logger.LogInformation("Selected to exit."); } }
+                { 7, () => { IsNotDone = false; Logger.LogInformation("Selected to exit."); } }
             };
         }
 
@@ -65,7 +62,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         private void SearchSeriesToAdd()
         {
             var decision = InitialUserDecision("----- Add Series to Datebase -----", "Search for a series below to add to the database.");
-            var movieSeriesProvider = new MovieSeriesProvider(_connectionString, _parser, _logger);
+            var movieSeriesProvider = new MovieSeriesProvider(ConnectionString, Logger);
             movieSeriesProvider.SearchForMovieSeries(decision);
         }
 
@@ -75,7 +72,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         private void SearchMovieToAdd()
         {
             var decision = InitialUserDecision("----- Add Movie to Datebase -----", "Search for a movie below to add to the database.");
-            var movieProvider = new MovieProvider(_connectionString, _parser, _logger);
+            var movieProvider = new MovieProvider(ConnectionString, Logger);
             movieProvider.SearchMovie(decision);
         }
 
@@ -85,7 +82,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         private void AddDocumentary()
         {
             var decision = InitialUserDecision("----- Add Documentary to Datebase -----", "Search for a documentary below to add to the database.");
-            if (_parser.StringIsNull(decision))
+            if (Parser.StringIsNull(decision))
             {
                 return;
             }
@@ -124,14 +121,14 @@ namespace HorrorTracker.ConsoleApp.Managers
                 "Mystery - 9648");
             Console.Write(">> ");
             var genreId = Console.ReadLine();
-            if (!_parser.IsInteger(genreId, out var genreInt))
+            if (!Parser.IsInteger(genreId, out var genreInt))
             {
                 Console.ForegroundColor = ConsoleColor.DarkRed;
                 Console.WriteLine("The selection was not an integer. Please try again.");
                 return;
             }
 
-            var movieSeriesProvider = new MovieSeriesProvider(_connectionString, _parser, _logger);
+            var movieSeriesProvider = new MovieSeriesProvider(ConnectionString, Logger);
             movieSeriesProvider.FindSeriesToAdd(genreInt);
         }
 

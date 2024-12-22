@@ -11,10 +11,8 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// </remarks>
     /// <param name="connectionString">The connection string.</param>
     /// <param name="logger">The logger.</param>
-    public class ManualManager(string? connectionString, LoggerService logger) : Manager(logger)
+    public class ManualManager(string? connectionString, LoggerService logger) : Manager(connectionString, logger)
     {
-        private readonly string? _connectionString = connectionString;
-
         /// <inheritdoc/>
         public override void Manage()
         {
