@@ -12,19 +12,8 @@ namespace HorrorTracker.Data.Repositories.Abstractions
     /// <typeparam name="T">The horror object.</typeparam>
     public abstract class ExecutorBase
     {
-        /// <summary>
-        /// The database connection.
-        /// </summary>
         private readonly IDatabaseConnection _databaseConnection;
-
-        /// <summary>
-        /// The logger.
-        /// </summary>
         private readonly ILoggerService _logger;
-
-        /// <summary>
-        /// The logger helper.
-        /// </summary>
         private readonly DatabaseConnectionsHelper _databaseConnectionsHelper;
 
         /// <summary>

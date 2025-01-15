@@ -15,27 +15,16 @@ namespace HorrorTracker.Data.Repositories
     /// </summary>
     /// <seealso cref="RepositoryBase{T}"/>
     /// <seealso cref="IDocumentaryRepository"/>
-    public class DocumentaryRepository : RepositoryBase<Documentary>, IDocumentaryRepository
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="DocumentaryRepository"/> class.
+    /// </remarks>
+    /// <param name="databaseConnection">The database connection.</param>
+    /// <param name="loggerService">The logger service.</param>
+    public class DocumentaryRepository(IDatabaseConnection databaseConnection, ILoggerService loggerService) :
+        RepositoryBase<Documentary>(databaseConnection, loggerService), IDocumentaryRepository
     {
-        /// <summary>
-        /// Documentary string.
-        /// </summary>
         private const string Documentary = "Documentary";
-
-        /// <summary>
-        /// Documentaries string.
-        /// </summary>
         private const string Documentaries = "Documentaries";
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DocumentaryRepository"/> class.
-        /// </summary>
-        /// <param name="databaseConnection">The database connection.</param>
-        /// <param name="loggerService">The logger service.</param>
-        public DocumentaryRepository(IDatabaseConnection databaseConnection, ILoggerService loggerService)
-            : base (databaseConnection, loggerService)
-        {
-        }
 
         /// <inheritdoc/>
         public override int Add(Documentary entity)

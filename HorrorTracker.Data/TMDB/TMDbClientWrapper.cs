@@ -15,22 +15,17 @@ namespace HorrorTracker.Data.TMDB
     /// The <see cref="TMDbClientWrapper"/> class.
     /// </summary>
     /// <seealso cref="ITMDbClientWrapper"/>
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="TMDbClientWrapper"/> class.
+    /// </remarks>
+    /// <param name="apiKey">The API key.</param>
     [ExcludeFromCodeCoverage]
-    public class TMDbClientWrapper : ITMDbClientWrapper
+    public class TMDbClientWrapper(string? apiKey) : ITMDbClientWrapper
     {
         /// <summary>
         /// The TMDbClient.
         /// </summary>
-        private readonly TMDbClient _client;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TMDbClientWrapper"/> class.
-        /// </summary>
-        /// <param name="apiKey">The API key.</param>
-        public TMDbClientWrapper(string? apiKey)
-        {
-            _client = new TMDbClient(apiKey);
-        }
+        private readonly TMDbClient _client = new(apiKey);
 
         /// <inheritdoc/>
         public async Task<SearchContainer<AccountList>> GetLists()
@@ -131,7 +126,7 @@ namespace HorrorTracker.Data.TMDB
                 var helper = new TMDbClientWrapperHelper(_client);
                 var movies = await helper.QueryMoviesAsync(page, genreId);
                 var fetchTasks = helper.RetrieveTasks(movies, 50);
-                await helper.AddCollectionsToList(uniqueCollections, fetchTasks);
+                await TMDbClientWrapperHelper.AddCollectionsToList(uniqueCollections, fetchTasks);
 
                 page++;
                 await Task.Delay(delayBetweenRequestsMs);

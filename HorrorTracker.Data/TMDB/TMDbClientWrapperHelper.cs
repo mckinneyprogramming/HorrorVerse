@@ -10,22 +10,17 @@ namespace HorrorTracker.Data.TMDB
     /// <summary>
     /// The <see cref="TMDbClientWrapperHelper"/> class.
     /// </summary>
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="TMDbClientWrapperHelper"/> class.
+    /// </remarks>
+    /// <param name="client">The client.</param>
     [ExcludeFromCodeCoverage]
-    public class TMDbClientWrapperHelper
+    public class TMDbClientWrapperHelper(TMDbClient client)
     {
         /// <summary>
         /// The TMDbClient.
         /// </summary>
-        private readonly TMDbClient _client;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TMDbClientWrapperHelper"/> class.
-        /// </summary>
-        /// <param name="client">The client.</param>
-        public TMDbClientWrapperHelper(TMDbClient client)
-        {
-            _client = client;
-        }
+        private readonly TMDbClient _client = client;
 
         /// <summary>
         /// Queries through the discover movies and returns the container of movies.
@@ -77,8 +72,7 @@ namespace HorrorTracker.Data.TMDB
         /// <param name="uniqueCollections">The set of series.</param>
         /// <param name="fetchTasks">The list of movie tasks.</param>
         /// <returns>The task.</returns>
-        [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Non-static by design.")]
-        public async Task AddCollectionsToList(HashSet<SearchCollection> uniqueCollections, List<Task<Movie>> fetchTasks)
+        public static async Task AddCollectionsToList(HashSet<SearchCollection> uniqueCollections, List<Task<Movie>> fetchTasks)
         {
             var fetchedMovies = await Task.WhenAll(fetchTasks);
             foreach (var detailedMovie in fetchedMovies.Where(m => m.BelongsToCollection != null))
@@ -97,6 +91,7 @@ namespace HorrorTracker.Data.TMDB
         /// <returns>The search container of search movies.</returns>
         public async Task<SearchContainer<SearchMovie>> RetrieveUpcomingMoviesSearchContainer(int[] genreIds, DateTime currentDate, List<SearchMovie> allMovies, int pageNumber)
         {
+            // TODO: Add ReleaseDateBefore to query to handle stopping at a certain date.
             var searchContainer = await _client.DiscoverMoviesAsync()
                                             .WherePrimaryReleaseDateIsAfter(currentDate)
                                             .IncludeWithAllOfGenre(genreIds)

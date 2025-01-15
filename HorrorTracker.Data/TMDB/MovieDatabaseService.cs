@@ -11,20 +11,15 @@ namespace HorrorTracker.Data.TMDB
     /// <summary>
     /// The <see cref="MovieDatabaseService"/>
     /// </summary>
-    public class MovieDatabaseService
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="MovieDatabaseService"/> class.
+    /// </remarks>
+    public class MovieDatabaseService(ITMDbClientWrapper client)
     {
         /// <summary>
         /// The TMDB client.
         /// </summary>
-        private readonly ITMDbClientWrapper _client;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MovieDatabaseService"/> class.
-        /// </summary>
-        public MovieDatabaseService(ITMDbClientWrapper client)
-        {
-            _client = client;
-        }
+        private readonly ITMDbClientWrapper _client = client;
 
         /// <summary>
         /// Retrieves a list of collections in TMDB API.

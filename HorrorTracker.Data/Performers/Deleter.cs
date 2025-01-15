@@ -1,4 +1,4 @@
-﻿namespace HorrorTracker.ConsoleApp.Performers
+﻿namespace HorrorTracker.Data.Performers
 {
     public class Deleter
     {

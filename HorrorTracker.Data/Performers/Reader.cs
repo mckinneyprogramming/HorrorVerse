@@ -1,4 +1,4 @@
-﻿namespace HorrorTracker.ConsoleApp.Performers
+﻿namespace HorrorTracker.Data.Performers
 {
     /// <summary>
     /// The <see cref="Reader"/> class.

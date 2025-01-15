@@ -16,27 +16,16 @@ namespace HorrorTracker.Data.Repositories
     /// <seealso cref="RepositoryBase{T}"/>
     /// <seealso cref="IMovieRepository"/>
     /// <seealso cref="IVisualBaseRepository{T}"/>
-    public class MovieRepository : RepositoryBase<Movie>, IMovieRepository
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="MovieSeriesRepository"/> class.
+    /// </remarks>
+    /// <param name="databaseConnection">The database connection.</param>
+    /// <param name="logger">The logger.</param>
+    public class MovieRepository(IDatabaseConnection databaseConnection, ILoggerService logger) :
+        RepositoryBase<Movie>(databaseConnection, logger), IMovieRepository
     {
-        /// <summary>
-        /// The Movie string.
-        /// </summary>
         private const string Movie = "Movie";
-
-        /// <summary>
-        /// The movies string.
-        /// </summary>
         private const string Movies = "movies";
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MovieSeriesRepository"/> class.
-        /// </summary>
-        /// <param name="databaseConnection">The database connection.</param>
-        /// <param name="logger">The logger.</param>
-        public MovieRepository(IDatabaseConnection databaseConnection, ILoggerService logger)
-            : base(databaseConnection, logger)
-        {
-        }
 
         /// <inheritdoc/>
         public override int Add(Movie movie)
