@@ -8,8 +8,8 @@
         /// <summary>
         /// Capitalizes the first letter of the string.
         /// </summary>
-        /// <param name="value">The string.</param>
-        /// <returns>The new string.</returns>
+        /// <param name="value">The string value.</param>
+        /// <returns>The new string value.</returns>
         public static string CapitalizeFirstLetter(string value)
         {
             return char.ToUpper(value[0]) + value[1..];
