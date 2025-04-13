@@ -25,7 +25,7 @@ namespace HorrorTracker.ConsoleApp
             try
             {
                 Console.Title = ConsoleTitles.Title("Home");
-                var horrorTrackerApp = new HorrorTrackerUi(_connectionString, _logger);
+                HorrorTrackerUi horrorTrackerApp = new(_connectionString, _logger);
                 horrorTrackerApp.Run();
             }
             catch (Exception ex)
@@ -34,21 +34,13 @@ namespace HorrorTracker.ConsoleApp
             }
             finally
             {
-                CleanUp();
+                _logger.LogInformation("HorrorTracker has ended.");
+                _logger.CloseAndFlush();
+
+                Console.ResetColor();
+                Console.Write("Press any key to exit...");
+                _ = Console.ReadKey();
             }
-        }
-
-        /// <summary>
-        /// Closes the logger and exits the application.
-        /// </summary>
-        private static void CleanUp()
-        {
-            _logger.LogInformation("HorrorTracker has ended.");
-            _logger.CloseAndFlush();
-
-            Console.ResetColor();
-            Console.Write("Press any key to exit...");
-            _ = Console.ReadKey();
         }
     }
 }

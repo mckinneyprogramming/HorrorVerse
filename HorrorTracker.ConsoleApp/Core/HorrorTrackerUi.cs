@@ -24,8 +24,8 @@ namespace HorrorTracker.ConsoleApp.Core
         /// </summary>
         public void Run()
         {
-            var databaseConnection = new DatabaseConnection(_connectionString);
-            var coreSetup = new CoreSetup(databaseConnection, _logger);
+            DatabaseConnection databaseConnection = new(_connectionString);
+            CoreSetup coreSetup = new(databaseConnection, _logger);
             _isRunning = coreSetup.TestDatabaseConnection();
 
             Console.WriteLine();
