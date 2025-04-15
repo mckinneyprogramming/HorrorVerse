@@ -8,7 +8,7 @@ steps:
   - task: UseDotNet@2
     inputs:
       packageType: 'sdk'
-      version: '7.x'  # Update if using .NET 8
+      version: '9.x'  # Update if using .NET 8
 
   - script: dotnet restore
     displayName: 'Restore Dependencies'
