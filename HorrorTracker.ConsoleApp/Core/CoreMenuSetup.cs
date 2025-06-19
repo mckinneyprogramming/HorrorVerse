@@ -23,7 +23,7 @@ namespace HorrorTracker.ConsoleApp.Core
         /// </summary>
         public void DisplayMainMenu()
         {
-            ConsoleHelper.ColorWriteLineWithReset("========== Horror Tracker ==========", ConsoleColor.Red);
+            ConsoleHelper.ColorWriteLineWithReset("========== Welcome to HorrorVerse ==========", ConsoleColor.Red);
             ConsoleHelper.TypeMessage(
                 ConsoleColor.DarkGray,
                 "The Horror Tracker system uses TMDB (The Movie Database) API to quickly add items.",

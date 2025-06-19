@@ -19,6 +19,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             while (IsNotDone)
             {
                 DisplayManagerMenus();
+                var decision = Console.ReadLine();
             }
         }
 

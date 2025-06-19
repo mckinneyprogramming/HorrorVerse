@@ -11,7 +11,7 @@ namespace HorrorTracker.ConsoleApp
     [ExcludeFromCodeCoverage]
     static class Program
     {
-        private static readonly string? _connectionString = Environment.GetEnvironmentVariable("HorrorTrackerDb");
+        private static readonly string? _connectionString = Environment.GetEnvironmentVariable("HorrorVerseDb");
         private static readonly LoggerService _logger = new();
 
         /// <summary>

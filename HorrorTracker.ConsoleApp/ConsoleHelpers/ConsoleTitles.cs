@@ -11,7 +11,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// <summary>
         /// The base title.
         /// </summary>
-        private const string BaseTitle = "Horror Tracker -";
+        private const string BaseTitle = "HorrorVerse -";
 
         /// <summary>
         /// Retrieves the console title.

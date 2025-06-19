@@ -19,8 +19,6 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <param name="connectionString">The connection string.</param>
     /// <param name="parser">The parser.</param>
     /// <param name="logger">The logger service.</param>
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-#pragma warning disable CS8629 // Nullable value type may be null.
     public class MovieProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString, logger)
     {
         /// <summary>
@@ -202,6 +200,4 @@ namespace HorrorTracker.ConsoleApp.Providers
             }
         }
     }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
-#pragma warning restore CS8629 // Nullable value type may be null.
 }

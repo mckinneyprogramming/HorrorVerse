@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.50.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\HorrorTracker.Data\HorrorTracker.Data.csproj" />
     <ProjectReference Include="..\HorrorTracker.Utilities\HorrorTracker.Utilities.csproj" />
   </ItemGroup>

@@ -13,7 +13,6 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// Initializes a new instance of the <see cref="MovieDatabaseApiManager"/> class.
     /// </remarks>
     /// <param name="logger">The logger.</param>
-#pragma warning disable CS8604 // Possible null reference argument.
     public class MovieDatabaseApiManager(LoggerService logger, string? connectionString) : Manager(connectionString, logger)
     {
         /// <inheritdoc/>
@@ -162,5 +161,4 @@ namespace HorrorTracker.ConsoleApp.Managers
             "6. Find Series to Add\n" +
             "7. Exit";
     }
-#pragma warning restore CS8604 // Possible null reference argument.
 }
