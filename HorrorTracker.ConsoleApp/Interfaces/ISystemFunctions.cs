@@ -46,5 +46,11 @@
         /// <param name="maxAscii">The maximum number.</param>
         /// <returns>The character.</returns>
         char NextChar(int minAscii, int maxAscii);
+
+        /// <summary>
+        /// Delays the console by the given milliseconds.
+        /// </summary>
+        /// <param name="milliseconds">The number of milliseconds.</param>
+        void Sleep(int milliseconds);
     }
 }

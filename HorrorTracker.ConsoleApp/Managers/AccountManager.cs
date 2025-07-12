@@ -1,4 +1,5 @@
-﻿using HorrorTracker.Utilities.Logging;
+﻿using HorrorTracker.ConsoleApp.Interfaces;
+using HorrorTracker.Utilities.Logging;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
@@ -10,7 +11,10 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// Initializes a new instance of the <see cref="AccountManager"/> class.
     /// </remarks>
     /// <param name="logger">The logger service.</param>
-    public class AccountManager(LoggerService logger) : Manager(null, logger)
+    /// <param name="horrorConsole">The horror console.</param>
+    /// <param name="systemFunctions">The system functions.</param>
+    public class AccountManager(LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+        : Manager(null, logger, horrorConsole, systemFunctions)
     {
         /// <inheritdoc/>
         public override void Manage()
@@ -19,7 +23,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             {
                 DisplayManagerMenus();
 
-                var decision = Console.ReadLine();
+                var decision = HorrorConsole.ReadLine();
             }
         }
 

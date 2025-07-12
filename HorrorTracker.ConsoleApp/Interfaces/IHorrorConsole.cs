@@ -25,6 +25,12 @@ namespace HorrorTracker.ConsoleApp.Interfaces
         void Sleep(int milliseconds);
 
         /// <summary>
+        /// Reads what is typed to the console.
+        /// </summary>
+        /// <returns>The text.</returns>
+        string? ReadLine();
+
+        /// <summary>
         /// Reads any key from the users keyboard.
         /// </summary>
         /// <param name="intercept">True if the key info recieves a key stroke; false otherwise.</param>

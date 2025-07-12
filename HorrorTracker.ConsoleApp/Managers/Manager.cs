@@ -1,4 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+using HorrorTracker.ConsoleApp.Factories;
+using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
 
@@ -12,7 +14,9 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// </remarks>
     /// <param name="connectionString">The connection string.</param>
     /// <param name="logger">The logger.</param>
-    public abstract class Manager(string? connectionString, LoggerService logger)
+    /// <param name="horrorConsole">the horror console.</param>
+    /// <param name="systemFunctions">The system functions.</param>
+    public abstract class Manager(string? connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
     {
         /// <summary>
         /// The connection string.
@@ -23,6 +27,16 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// The logger.
         /// </summary>
         protected readonly LoggerService Logger = logger;
+
+        /// <summary>
+        /// The horror console.
+        /// </summary>
+        protected readonly IHorrorConsole HorrorConsole = horrorConsole;
+
+        /// <summary>
+        /// The system functions.
+        /// </summary>
+        protected readonly ISystemFunctions SystemFunctions = systemFunctions;
 
         /// <summary>
         /// The parser.
@@ -46,14 +60,17 @@ namespace HorrorTracker.ConsoleApp.Managers
         {
             Console.Title = ConsoleTitles.Title(RetrieveTitle());
 
-            Console.Clear();
-            ConsoleHelper.ColorWriteLineWithReset($"========== {RetrieveTitle()} ==========", ConsoleColor.Red);
+            HorrorConsole.Clear();
+            HorrorConsole.SetForegroundColor(ConsoleColor.Red);
+            HorrorConsole.MarkupLine($"========== {RetrieveTitle()} ==========");
+            HorrorConsole.ResetColor();
 
-            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Choose an option below to get started adding items to your database!");
-            Console.ResetColor();
-            Console.WriteLine();
-            Console.WriteLine(RetrieveMenuOptions());
-            Console.Write(">> ");
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Choose an option below to get started adding items to your database!");
+            HorrorConsole.ResetColor();
+            HorrorConsole.WriteLine();
+            HorrorConsole.MarkupLine(RetrieveMenuOptions());
+            HorrorConsole.Write(">> ");
 
             Logger.LogInformation($"{RetrieveTitle()} Menu displayed.");
         }

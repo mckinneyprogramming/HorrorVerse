@@ -1,4 +1,5 @@
-﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+﻿using HorrorTracker.ConsoleApp.Factories;
+using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
@@ -17,18 +18,24 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// Initializes a new instance of the <see cref="MovieProvider"/> class.
     /// </remarks>
     /// <param name="connectionString">The connection string.</param>
-    /// <param name="parser">The parser.</param>
     /// <param name="logger">The logger service.</param>
-    public class MovieProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString, logger)
+    /// <param name="horrorConsole">The horror console.</param>
+    /// <param name="systemFunctions">The system functions.</param>
+    public class MovieProvider(string connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+        : FullLengthProvider(connectionString, logger, horrorConsole, systemFunctions)
     {
         /// <summary>
         /// Displays the upcoming horror films.
         /// </summary>
-        public static void UpcomingHorrorFilms()
+        public void UpcomingHorrorFilms()
         {
-            Console.Clear();
-            ConsoleHelper.ColorWriteLineWithReset("========== Display Upcoming Movies ==========", ConsoleColor.Red);
-            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Below will dispaly the next two years of upcoming horror films.");
+            HorrorConsole.Clear();
+            HorrorConsole.SetForegroundColor(ConsoleColor.Red);
+            HorrorConsole.MarkupLine("========== Display Upcoming Movies ==========");
+            HorrorConsole.ResetColor();
+
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Below will dispaly the next two years of upcoming horror films.");
 
             var currentDate = DateTime.Now;
             var twoYearsFromNow = currentDate.AddYears(2);
@@ -39,17 +46,17 @@ namespace HorrorTracker.ConsoleApp.Providers
                 .Where(movie => movie.ReleaseDate.HasValue && movie.ReleaseDate.Value <= twoYearsFromNow)
                 .OrderBy(movie => movie.ReleaseDate);
 
-            Console.ResetColor();
-            Console.WriteLine("Upcoming Horror Movies (Next 2 Years):");
-            Console.ForegroundColor = ConsoleColor.Magenta;
+            HorrorConsole.ResetColor();
+            HorrorConsole.MarkupLine("Upcoming Horror Movies (Next 2 Years):");
+            HorrorConsole.SetForegroundColor(ConsoleColor.Magenta);
             foreach (var movie in filteredMovies)
             {
-                Console.WriteLine($"- {movie.Title} (Release Date: {movie.ReleaseDate?.ToString("yyyy-MM-dd")})");
+                HorrorConsole.MarkupLine($"- {movie.Title} (Release Date: {movie.ReleaseDate?.ToString("yyyy-MM-dd")})");
             }
 
-            Console.ResetColor();
-            Console.Write("Press any key to return to the main menu...");
-            Console.ReadKey();
+            HorrorConsole.ResetColor();
+            HorrorConsole.Write("Press any key to return to the main menu...");
+            HorrorConsole.ReadKey(true);
         }
 
         /// <summary>
@@ -66,31 +73,33 @@ namespace HorrorTracker.ConsoleApp.Providers
             var movieDatabaseService = CreateMovieDatabaseService();
             var result = movieDatabaseService.SearchMovie(decision).Result;
 
-            Console.WriteLine();
-            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "The following movies were found based on your input:");
-            Console.ForegroundColor = ConsoleColor.Magenta;
+            HorrorConsole.WriteLine();
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "The following movies were found based on your input:");
+            HorrorConsole.SetForegroundColor(ConsoleColor.Magenta);
             foreach (var movie in result.Results)
             {
-                Console.WriteLine($"- {movie.Title}; Id: {movie.Id}\n" +
+                HorrorConsole.MarkupLine($"- {movie.Title}; Id: {movie.Id}\n" +
                     $"  - {movie.Overview}");
             }
 
-            Console.WriteLine();
-            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Choose a movie id above to select a movie you want to add to the database.");
-            Console.ResetColor();
-            Console.Write(">> ");
-            var movieId = Console.ReadLine();
+            HorrorConsole.WriteLine();
+            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Choose a movie id above to select a movie you want to add to the database.");
+            HorrorConsole.ResetColor();
+            HorrorConsole.Write(">> ");
+            var movieId = HorrorConsole.ReadLine();
             if (!Parser.IsInteger(movieId, out var movieIdInt))
             {
-                ConsoleHelper.WriteLineError("The provided movie id is not an integer. Please try again.");
+                HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                HorrorConsole.MarkupLine("The provided movie id is not an integer. Please try again.");
                 return;
             }
 
             var movieInformation = movieDatabaseService.GetMovie(movieIdInt).Result;
             var databaseConnection = new DatabaseConnection(ConnectionString);
 
-            Console.WriteLine("We are checking if the movie is already in your database. Please stand by.");
-            Thread.Sleep(2000);
+            HorrorConsole.MarkupLine("We are checking if the movie is already in your database. Please stand by.");
+            SystemFunctions.Sleep(2000);
 
             var collection = movieInformation.BelongsToCollection;
             var movieRepository = new MovieRepository(databaseConnection, Logger);
@@ -121,25 +130,25 @@ namespace HorrorTracker.ConsoleApp.Providers
             MovieSeriesRepository movieSeriesRepository,
             Movie? existingMovie)
         {
-            Console.WriteLine("Our records show that your selected movie is already in your database. We will go one step further to see if it belongs to a series.");
+            HorrorConsole.MarkupLine("Our records show that your selected movie is already in your database. We will go one step further to see if it belongs to a series.");
 
             if (!Parser.StringIsNull(collection.Name) && existingMovie.PartOfSeries)
             {
-                Console.WriteLine("Our records indicate that your movie is part of a series and you have that in your database. Please search for a different movie.");
-                Thread.Sleep(2000);
+                HorrorConsole.MarkupLine("Our records indicate that your movie is part of a series and you have that in your database. Please search for a different movie.");
+                SystemFunctions.Sleep(2000);
                 return;
             }
 
             if (!Parser.StringIsNull(collection.Name) && !existingMovie.PartOfSeries)
             {
-                Console.WriteLine("TMDB indicates that this movie is part of a series, but you do not have that in your database.");
-                Console.WriteLine("We will check if the series is already in your database.");
-                Thread.Sleep(2000);
+                HorrorConsole.MarkupLine("TMDB indicates that this movie is part of a series, but you do not have that in your database.");
+                HorrorConsole.MarkupLine("We will check if the series is already in your database.");
+                SystemFunctions.Sleep(2000);
 
                 var series = movieSeriesRepository.GetByTitle(collection.Name.Replace("Collection", string.Empty).Trim());
                 if (series != null)
                 {
-                    Console.WriteLine("We found the series in your database. We will update the movie in the database and associate it with the series.");
+                    HorrorConsole.MarkupLine("We found the series in your database. We will update the movie in the database and associate it with the series.");
                     existingMovie.PartOfSeries = true;
                     existingMovie.SeriesId = series.Id;
                     movieRepository.Update(existingMovie);
@@ -148,7 +157,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 }
                 else
                 {
-                    Console.WriteLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
+                    HorrorConsole.MarkupLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
                     AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id);
                 }
             }
@@ -169,32 +178,32 @@ namespace HorrorTracker.ConsoleApp.Providers
             MovieRepository movieRepository,
             MovieSeriesRepository movieSeriesRepository)
         {
-            Console.WriteLine("Another movie to add to your database! We are now going to check if it is part of a series.");
-            Thread.Sleep(2000);
+            HorrorConsole.MarkupLine("Another movie to add to your database! We are now going to check if it is part of a series.");
+            SystemFunctions.Sleep(2000);
             if (!Parser.StringIsNull(collection.Name))
             {
-                Console.WriteLine("Looks like the movie is part of a series. We will see if that series already exists in your database.");
+                HorrorConsole.MarkupLine("Looks like the movie is part of a series. We will see if that series already exists in your database.");
                 var series = movieSeriesRepository.GetByTitle(collection.Name.Replace("Collection", string.Empty).Trim());
                 if (series != null)
                 {
-                    Console.WriteLine("We found the series in your database. We will add the movie to the database and associate it with the series.");
+                    HorrorConsole.MarkupLine("We found the series in your database. We will add the movie to the database and associate it with the series.");
 
                     var newMovie = new Movie(movieInformation.Title, Convert.ToDecimal(movieInformation.Runtime), true, series.Id, movieInformation.ReleaseDate.Value.Year, false);
                     AddMovieToDatabase(movieInformation, movieRepository, newMovie);
 
                     movieSeriesRepository.UpdateTotalMovies(series.Id);
                     movieSeriesRepository.UpdateTotalTime(series.Id);
-                    Console.WriteLine("The associated movie series was also updated for total movies and total runtime.");
+                    HorrorConsole.MarkupLine("The associated movie series was also updated for total movies and total runtime.");
                 }
                 else
                 {
-                    Console.WriteLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
+                    HorrorConsole.MarkupLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
                     AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id);
                 }
             }
             else
             {
-                Console.WriteLine("This movie is not part of a movie series (not yet anyway!). We will get this movie added to your database.");
+                HorrorConsole.MarkupLine("This movie is not part of a movie series (not yet anyway!). We will get this movie added to your database.");
                 var newMovie = new Movie(movieInformation.Title, Convert.ToDecimal(movieInformation.Runtime), false, null, movieInformation.ReleaseDate.Value.Year, false);
                 AddMovieToDatabase(movieInformation, movieRepository, newMovie);
             }

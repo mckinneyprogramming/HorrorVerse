@@ -21,6 +21,9 @@ namespace HorrorTracker.ConsoleApp.Consoles
         public void Sleep(int ms) => Thread.Sleep(ms);
 
         /// <inheritdoc/>
+        public string? ReadLine() => Console.ReadLine();
+
+        /// <inheritdoc/>
         public ConsoleKeyInfo ReadKey(bool intercept) => Console.ReadKey(intercept);
 
         /// <inheritdoc/>

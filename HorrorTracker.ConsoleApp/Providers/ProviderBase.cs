@@ -1,4 +1,4 @@
-﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+﻿using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.Repositories;
@@ -13,7 +13,10 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// </summary>
     /// <remarks>Initializes a new instance of the <see cref="ProviderBase"/> class.</remarks>
     /// <param name="connectionString">The connection string.</param>
-    public abstract class ProviderBase(string? connectionString, LoggerService logger)
+    /// <param name="logger">The logger service.</param>
+    /// <param name="horrorConsole">The horror console.</param>
+    /// <param name="systemFunctions">The system functions.</param>
+    public abstract class ProviderBase(string? connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
     {
         /// <summary>
         /// The connection string.
@@ -24,6 +27,16 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// The logger service.
         /// </summary>
         protected readonly LoggerService Logger = logger;
+
+        /// <summary>
+        /// The horror console.
+        /// </summary>
+        protected readonly IHorrorConsole HorrorConsole = horrorConsole;
+
+        /// <summary>
+        /// The system functions.
+        /// </summary>
+        protected readonly ISystemFunctions SystemFunctions = systemFunctions;
 
         /// <summary>
         /// The parser.
@@ -47,17 +60,18 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <param name="movieInformation">The movie information.</param>
         /// <param name="movieRepository">The movie repository.</param>
         /// <param name="movie">The new movie.</param>
-        protected static void AddMovieToDatabase(TMDbLib.Objects.Movies.Movie movieInformation, MovieRepository movieRepository, Movie movie)
+        protected void AddMovieToDatabase(TMDbLib.Objects.Movies.Movie movieInformation, MovieRepository movieRepository, Movie movie)
         {
             if (!Inserter.MovieAddedSuccessfully(movieRepository, movie))
             {
-                ConsoleHelper.WriteLineError("The movie you are trying to add already exists in the database or an error occurred. Please try a different movie.");
+                HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                HorrorConsole.MarkupLine("The movie you are trying to add already exists in the database or an error occurred. Please try a different movie.");
                 return;
             }
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Movie: {movieInformation.Title} was added to the database successfully.");
-            Thread.Sleep(2000);
+            HorrorConsole.SetForegroundColor(ConsoleColor.Green);
+            HorrorConsole.MarkupLine($"Movie: {movieInformation.Title} was added to the database successfully.");
+            SystemFunctions.Sleep(2000);
         }
     }
 }

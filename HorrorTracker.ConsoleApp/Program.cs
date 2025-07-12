@@ -1,5 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+using HorrorTracker.ConsoleApp.Consoles;
 using HorrorTracker.ConsoleApp.Core;
+using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.Utilities.Logging;
 using System.Diagnostics.CodeAnalysis;
 
@@ -13,20 +15,29 @@ namespace HorrorTracker.ConsoleApp
     {
         private static readonly string? _connectionString = Environment.GetEnvironmentVariable("HorrorVerseDb");
         private static readonly LoggerService _logger = new();
+        private static readonly HorrorConsole _horrorConsole = new();
+        private static readonly SystemFunctions _systemFunctions = new();
 
         /// <summary>
         /// The main method.
         /// </summary>
-        /// <param name="args">The arguments.</param>
-        static void Main(string[] args)
+        static async Task Main()
         {
             _logger.LogInformation("HorrorTracker has started.");
 
             try
             {
                 Console.Title = ConsoleTitles.Title("Home");
-                HorrorTrackerUi horrorTrackerApp = new(_connectionString, _logger);
-                horrorTrackerApp.Run();
+
+                var themersFactory = new ThemersFactory(_horrorConsole, _systemFunctions);
+                var spookyStartupGenerator = new SpookyStartupGenerator(themersFactory, _horrorConsole, _systemFunctions);
+                await spookyStartupGenerator.Startup();
+                _horrorConsole.Markup("Press any key to continue...");
+                _horrorConsole.ReadKey(true);
+                _horrorConsole.Clear();
+
+                HorrorVerseUi horrorVerseUi = new(_connectionString, _logger, _horrorConsole, _systemFunctions);
+                await horrorVerseUi.Run();
             }
             catch (Exception ex)
             {
@@ -37,8 +48,8 @@ namespace HorrorTracker.ConsoleApp
                 _logger.LogInformation("HorrorTracker has ended.");
                 _logger.CloseAndFlush();
 
-                Console.ResetColor();
-                Console.Write("Press any key to exit...");
+                _horrorConsole.ResetColor();
+                _horrorConsole.Write("Press any key to exit...");
                 _ = Console.ReadKey();
             }
         }

@@ -29,5 +29,8 @@ namespace HorrorTracker.ConsoleApp.Consoles
 
         /// <inheritdoc/>
         public double NextDouble() => _random.NextDouble();
+
+        /// <inheritdoc/>
+        public void Sleep(int milliseconds) => Thread.Sleep(milliseconds);
     }
 }

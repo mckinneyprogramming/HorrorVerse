@@ -1,4 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+using HorrorTracker.ConsoleApp.Factories;
+using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.PostgreHelpers;
@@ -16,7 +18,9 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <see cref="ProviderBase"/>
     /// <remarks>Initializes a new instance of the <see cref="FullLengthProvider"/> class.</remarks>
     /// <param name="connectionString">The connection string.</param>
-    public abstract class FullLengthProvider(string? connectionString, LoggerService logger) : ProviderBase(connectionString, logger)
+    /// <param name="logger">The logger service.</param>
+    public abstract class FullLengthProvider(string? connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+        : ProviderBase(connectionString, logger, horrorConsole, systemFunctions)
     {
         /// <summary>
         /// Adds the collections and the movies from TMBD to the database.
@@ -36,44 +40,48 @@ namespace HorrorTracker.ConsoleApp.Providers
                 var seriesExists = movieSeriesRepository.GetByTitle(collectionName);
                 if (seriesExists != null)
                 {
-                    ConsoleHelper.WriteLineError("The series you selected already exists in the database. Please try again.");
-                    Thread.Sleep(1000);
-                    Console.Clear();
+                    HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                    HorrorConsole.MarkupLine("The series you selected already exists in the database. Please try again.");
+                    SystemFunctions.Sleep(1000);
+                    HorrorConsole.Clear();
                     return;
                 }
 
                 var filmsInSeries = FetchFilmsInSeries(movieDatabaseService, collectionInformation.Parts);
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($"Series Name: {collectionInformation.Name}; Parts:");
+                HorrorConsole.SetForegroundColor(ConsoleColor.Magenta);
+                HorrorConsole.MarkupLine($"Series Name: {collectionInformation.Name}; Parts:");
                 foreach (var film in filmsInSeries)
                 {
-                    Console.WriteLine($"- Title: {film.Title}; Runtime: {film.Runtime}, Release Year: {film.ReleaseDate!.Value.Year}\n" +
+                    HorrorConsole.MarkupLine($"- Title: {film.Title}; Runtime: {film.Runtime}, Release Year: {film.ReleaseDate!.Value.Year}\n" +
                         $"   - Overview {film.Overview}");
                 }
 
-                ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Would you like to add this series and its movies to your database? Type Y or N");
-                Console.ResetColor();
-                Console.WriteLine();
-                Console.Write(">> ");
-                var addToDatabase = Console.ReadLine();
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+                themersFactory.SpookyTextStyler.Typewriter(
+                    ConsoleColor.DarkGray,
+                    25,
+                    "Would you like to add this series and its movies to your database? Type Y or N");
+                HorrorConsole.ResetColor();
+                HorrorConsole.WriteLine();
+                HorrorConsole.Write(">> ");
+                var addToDatabase = HorrorConsole.ReadLine();
                 if (Parser.StringIsNull(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
                 var newSeries = new MovieSeries(collectionName, Convert.ToDecimal(filmsInSeries.Sum(s => s.Runtime)), filmsInSeries.Count, false);
                 if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, newSeries))
                 {
-                    ConsoleHelper.WriteLineError("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
+                    HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                    HorrorConsole.MarkupLine("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
                     continue;
                 }
 
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"The movie series '{newSeries.Title}' was added successfully.");
-                Thread.Sleep(1000);
-                Console.ResetColor();
+                HorrorConsole.SetForegroundColor(ConsoleColor.Green);
+                HorrorConsole.MarkupLine($"The movie series '{newSeries.Title}' was added successfully.");
+                SystemFunctions.Sleep(1000);
+                HorrorConsole.ResetColor();
 
                 var addedSeries = movieSeriesRepository.GetByTitle(newSeries.Title);
                 if (addedSeries == null)
@@ -104,14 +112,15 @@ namespace HorrorTracker.ConsoleApp.Providers
 
             if (!Inserter.MovieSeriesAddedSuccessfully(movieSeriesRepository, series))
             {
-                ConsoleHelper.WriteLineError("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
+                HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                HorrorConsole.MarkupLine("The movie series you are trying to add already exists in the database or an error occurred. Please try a different series.");
                 return;
             }
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"The movie series '{series.Title}' was added successfully.");
-            Thread.Sleep(1000);
-            Console.ResetColor();
+            HorrorConsole.SetForegroundColor(ConsoleColor.Green);
+            HorrorConsole.MarkupLine($"The movie series '{series.Title}' was added successfully.");
+            SystemFunctions.Sleep(1000);
+            HorrorConsole.ResetColor();
 
             var newSeries = movieSeriesRepository.GetByTitle(series.Title);
             if (newSeries == null)
@@ -127,12 +136,12 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// Displays the message for the series being added to the database.
         /// </summary>
         /// <param name="title">The series title.</param>
-        private static void SeriesAddedToDatabaseMessages(string title)
+        private void SeriesAddedToDatabaseMessages(string title)
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Movie series: {title} was added successfully as well as the movies in the series.");
-            Thread.Sleep(2000);
-            Console.ResetColor();
+            HorrorConsole.SetForegroundColor(ConsoleColor.Green);
+            HorrorConsole.MarkupLine($"Movie series: {title} was added successfully as well as the movies in the series.");
+            SystemFunctions.Sleep(2000);
+            HorrorConsole.ResetColor();
         }
 
         /// <summary>
@@ -153,7 +162,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 var movieRepository = new MovieRepository(databaseConnection, Logger);
 
                 AddMovieToDatabase(film, movieRepository, movie);
-                Console.ResetColor();
+                HorrorConsole.ResetColor();
             }
         }
 

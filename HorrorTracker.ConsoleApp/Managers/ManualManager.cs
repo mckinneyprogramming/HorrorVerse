@@ -1,4 +1,5 @@
-﻿using HorrorTracker.Utilities.Logging;
+﻿using HorrorTracker.ConsoleApp.Interfaces;
+using HorrorTracker.Utilities.Logging;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
@@ -11,7 +12,10 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// </remarks>
     /// <param name="connectionString">The connection string.</param>
     /// <param name="logger">The logger.</param>
-    public class ManualManager(string? connectionString, LoggerService logger) : Manager(connectionString, logger)
+    /// <param name="horrorConsole">The horror console.</param>
+    /// <param name="systemFunctions">The system functions.</param>
+    public class ManualManager(string? connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+        : Manager(connectionString, logger, horrorConsole, systemFunctions)
     {
         /// <inheritdoc/>
         public override void Manage()
@@ -19,7 +23,7 @@ namespace HorrorTracker.ConsoleApp.Managers
             while (IsNotDone)
             {
                 DisplayManagerMenus();
-                var decision = Console.ReadLine();
+                var decision = HorrorConsole.ReadLine();
             }
         }
 

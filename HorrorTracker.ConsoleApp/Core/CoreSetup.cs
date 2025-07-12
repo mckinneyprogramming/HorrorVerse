@@ -1,4 +1,5 @@
-﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+﻿using HorrorTracker.ConsoleApp.Factories;
+using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data;
 using HorrorTracker.Data.Audio;
 using HorrorTracker.Data.PostgreHelpers;
@@ -14,10 +15,14 @@ namespace HorrorTracker.ConsoleApp.Core
     /// </remarks>
     /// <param name="databaseConnection">The database connection.</param>
     /// <param name="logger">The logger service.</param>
-    public class CoreSetup(DatabaseConnection databaseConnection, LoggerService logger)
+    /// <param name="horrorConsole">The horror console.</param>
+    /// <param name="systemFunctions">The system functions.</param>
+    public class CoreSetup(DatabaseConnection databaseConnection, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
     {
         private readonly DatabaseConnection _databaseConnection = databaseConnection;
         private readonly LoggerService _logger = logger;
+        private readonly IHorrorConsole _horrorConsole = horrorConsole;
+        private readonly ISystemFunctions _systemFunctions = systemFunctions;
 
         /// <summary>
         /// Creates the horror connections.
@@ -38,19 +43,19 @@ namespace HorrorTracker.ConsoleApp.Core
                 string.Equals(listenToMusic, "yes", StringComparison.CurrentCultureIgnoreCase))
             {
                 _logger.LogInformation("User has opted in for music.");
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine("You have opted in for music!");
+                _horrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
+                _horrorConsole.MarkupLine("You have opted in for music!");
                 var musicPlayer = new MusicPlayer(_logger);
                 musicPlayer.LoadAndShuffleSongs();
                 musicPlayer.StartPlaying();
-                Thread.Sleep(2000);
+                _systemFunctions.Sleep(2000);
             }
             else
             {
                 _logger.LogInformation("User has opted out of music.");
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine("You have opted out of music.");
-                Thread.Sleep(3000);
+                _horrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
+                _horrorConsole.MarkupLine("You have opted out of music.");
+                _systemFunctions.Sleep(3000);
             }
         }
 
@@ -61,11 +66,15 @@ namespace HorrorTracker.ConsoleApp.Core
         public bool TestDatabaseConnection()
         {
             var connections = SetupHorrorConnections();
+            var themersFactory = new ThemersFactory(_horrorConsole, _systemFunctions);
+
             _logger.LogInformation("Testing the Postgre database server and connection to the HorrorTracker database.");
-            ConsoleHelper.ColorWriteLineWithReset("We are testing the connection to the database. Please standby.", ConsoleColor.DarkGray);
-            Console.WriteLine();
-            ConsoleHelper.ThinkingAnimation("Testing", 10, "Testing Complete!");
-            Console.WriteLine();
+            _horrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
+            _horrorConsole.MarkupLine("We are testing the connection to the database. Please standby.");
+            _horrorConsole.ResetColor();
+            _horrorConsole.WriteLine();
+            themersFactory.SpookyTextStyler.ThinkingAnimation("Testing", 10, "Testing Complete!");
+            _horrorConsole.WriteLine();
 
             try
             {
@@ -73,26 +82,32 @@ namespace HorrorTracker.ConsoleApp.Core
                 if (connectionMessage.Contains("successful!"))
                 {
                     _ = connections.CreateTables();
-                    ConsoleHelper.ColorWriteLineWithReset(connectionMessage, ConsoleColor.Green);
-                    Console.WriteLine();
-                    ConsoleHelper.ThinkingAnimation("Directing to Main Menu", 10, "Have fun!");
-                    Thread.Sleep(3000);
+                    _horrorConsole.SetForegroundColor(ConsoleColor.Green);
+                    _horrorConsole.MarkupLine(connectionMessage);
+                    _horrorConsole.ResetColor();
+                    _horrorConsole.WriteLine();
+                    themersFactory.SpookyTextStyler.ThinkingAnimation("Directing to Main Menu", 10, "Have fun!");
+                    _systemFunctions.Sleep(3000);
                     return true;
                 }
                 else
                 {
-                    ConsoleHelper.ColorWriteLineWithReset(connectionMessage, ConsoleColor.DarkRed);
-                    Console.WriteLine();
-                    ConsoleHelper.ThinkingAnimation("Exiting Horror Tracker", 10, "Goodbye!");
-                    Thread.Sleep(3000);
+                    _horrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                    _horrorConsole.MarkupLine(connectionMessage);
+                    _horrorConsole.ResetColor();
+                    _horrorConsole.WriteLine();
+                    themersFactory.SpookyTextStyler.ThinkingAnimation("Exiting Horror Tracker", 10, "Goodbye!");
+                    _systemFunctions.Sleep(3000);
                     return false;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Connection failed: {ex.Message}", ex);
-                ConsoleHelper.ColorWriteLineWithReset("An error occurred while connecting to the database. Please check the logs for details. Returning to main menu...", ConsoleColor.DarkRed);
-                Console.WriteLine();
+                _horrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                _horrorConsole.MarkupLine("An error occurred while connecting to the database. Please check the logs for details. Returning to main menu...");
+                _horrorConsole.ResetColor();
+                _horrorConsole.WriteLine();
                 return false;
             }
         }

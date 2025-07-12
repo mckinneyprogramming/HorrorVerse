@@ -1,4 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+using HorrorTracker.ConsoleApp.Factories;
+using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
 
@@ -13,10 +15,11 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// Initializes a new instance of the <see cref="MovieSeriesProvider"/> class.
     /// </remarks>
     /// <param name="connectionString">The connection string.</param>
-    /// <param name="parser">The parser.</param>
     /// <param name="logger">The logger service.</param>
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-    public class MovieSeriesProvider(string connectionString, LoggerService logger) : FullLengthProvider(connectionString, logger)
+    /// <param name="horrorConsole">The horror console.</param>
+    /// <param name="systemFunctions">The system functions.</param>
+    public class MovieSeriesProvider(string connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+        : FullLengthProvider(connectionString, logger, horrorConsole, systemFunctions)
     {
         /// <summary>
         /// Searches for a movie series to add to the database.
@@ -32,12 +35,13 @@ namespace HorrorTracker.ConsoleApp.Providers
             var movieDatabaseService = CreateMovieDatabaseService();
             var result = movieDatabaseService.SearchCollection($"{decision} Collection").Result;
 
-            Console.WriteLine();
-            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "The following series were found based on your input:");
-            Console.ForegroundColor = ConsoleColor.Magenta;
+            HorrorConsole.WriteLine();
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "The following series were found based on your input:");
+            HorrorConsole.SetForegroundColor(ConsoleColor.Magenta);
             foreach (var collection in result.Results)
             {
-                Console.WriteLine($"- {collection.Name}; Id: {collection.Id}\n" +
+                HorrorConsole.MarkupLine($"- {collection.Name}; Id: {collection.Id}\n" +
                     $"  - {collection.Overview}");
             }
 
@@ -59,45 +63,53 @@ namespace HorrorTracker.ConsoleApp.Providers
             var movieDatabaseService = CreateMovieDatabaseService();
             var totalPages = movieDatabaseService.GetNumberOfPages(genreInt).Result;
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"There are {totalPages} pages of films for the selected genre in TMDB API.");
-            ConsoleHelper.TypeMessage(ConsoleColor.White, "Provide the number of pages you would like to search to find collections. We recommand no more than 400.");
-            Console.Write("Start: ");
-            var startPage = Console.ReadLine();
-            Console.Write("End: ");
-            var endPage = Console.ReadLine();
+            HorrorConsole.SetForegroundColor(ConsoleColor.Magenta);
+            HorrorConsole.MarkupLine($"There are {totalPages} pages of films for the selected genre in TMDB API.");
+
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            themersFactory.SpookyTextStyler.Typewriter(
+                ConsoleColor.White,
+                25,
+                "Provide the number of pages you would like to search to find collections. We recommand no more than 400.");
+            HorrorConsole.Write("Start: ");
+            var startPage = HorrorConsole.ReadLine();
+            HorrorConsole.Write("End: ");
+            var endPage = HorrorConsole.ReadLine();
 
             var startPageNotValid = !Parser.IsInteger(startPage, out var startInt);
             var endPageNotValid = !Parser.IsInteger(endPage, out var endInt);
             if (startPageNotValid || endPageNotValid)
             {
-                ConsoleHelper.WriteLineError("The start or end page was not a valid number.");
+                HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                HorrorConsole.MarkupLine("The start or end page was not a valid number.");
                 return;
             }
 
             if (startInt > endInt || endInt > totalPages)
             {
-                ConsoleHelper.WriteLineError("The start page is greater than the end page or the end page is greater than the last page number.");
+                HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                HorrorConsole.MarkupLine("The start page is greater than the end page or the end page is greater than the last page number.");
                 return;
             }
 
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("Please stand by.");
-            Console.WriteLine("The following film series were found:");
-            Console.ForegroundColor = ConsoleColor.Magenta;
+            HorrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
+            HorrorConsole.MarkupLine("Please stand by.");
+            HorrorConsole.MarkupLine("The following film series were found:");
+            HorrorConsole.SetForegroundColor(ConsoleColor.Magenta);
 
             var collectionsFromCall = movieDatabaseService.GetHorrorCollections(startInt, endInt, genreInt).Result;
             foreach (var series in collectionsFromCall)
             {
-                Console.WriteLine($"- {series.Name}; Id: {series.Id}");
+                HorrorConsole.MarkupLine($"- {series.Name}; Id: {series.Id}");
             }
 
             var collectionIds = PromptForSeriesIds();
             if (collectionIds.Count == 0)
             {
-                ConsoleHelper.WriteLineError("You did not provide a valid integer. Please try again.");
-                Thread.Sleep(1000);
-                Console.Clear();
+                HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                HorrorConsole.MarkupLine("You did not provide a valid integer. Please try again.");
+                SystemFunctions.Sleep(1000);
+                HorrorConsole.Clear();
                 return;
             }
 
@@ -110,12 +122,17 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <returns>The series id.</returns>
         private int PromptForSeriesId()
         {
-            ConsoleHelper.TypeMessage(ConsoleColor.DarkGray, "Choose the series id above to add the series information to the database as well as its associated movies.");
-            Console.ResetColor();
-            Console.WriteLine();
-            Console.Write(">> ");
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            themersFactory.SpookyTextStyler.Typewriter(
+                ConsoleColor.DarkGray,
+                25,
+                "Choose the series id above to add the series information to the database as well as its associated movies.");
 
-            var collectionIdSelection = Console.ReadLine();
+            HorrorConsole.ResetColor();
+            HorrorConsole.WriteLine();
+            HorrorConsole.Write(">> ");
+
+            var collectionIdSelection = HorrorConsole.ReadLine();
             if (Parser.IsInteger(collectionIdSelection, out var collectionId))
             {
                 return collectionId;
@@ -130,16 +147,19 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <returns>List of integer series ids.</returns>
         private List<int> PromptForSeriesIds()
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            ConsoleHelper.TypeMessage(
+            HorrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            themersFactory.SpookyTextStyler.Typewriter(
                 ConsoleColor.DarkGray,
+                25,
                 "Choose as many series ids above to add the series information to the database as well as its associated movies.",
                 "Separate the Ids by commas.");
-            Console.ResetColor();
-            Console.WriteLine();
-            Console.Write(">> ");
 
-            var idsSelection = Console.ReadLine();
+            HorrorConsole.ResetColor();
+            HorrorConsole.WriteLine();
+            HorrorConsole.Write(">> ");
+
+            var idsSelection = HorrorConsole.ReadLine();
             if (Parser.StringIsNull(idsSelection))
             {
                 return [];
@@ -158,5 +178,4 @@ namespace HorrorTracker.ConsoleApp.Providers
             return listOfIds;
         }
     }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
 }
