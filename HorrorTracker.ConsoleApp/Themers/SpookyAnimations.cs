@@ -74,7 +74,7 @@ namespace HorrorTracker.ConsoleApp.Themers
         }
 
         /// <inheritdoc/>
-        public async Task GlitchWipe(int lines = 8, int delayMs = 35)
+        public void GlitchWipe(int lines = 8, int delayMs = 35)
         {
             for (int i = 0; i < lines; i++)
             {
@@ -83,7 +83,7 @@ namespace HorrorTracker.ConsoleApp.Themers
                 var color = GetRandomSpectreColor();
 
                 _horrorConsole.MarkupLine($"[{color}]{glitchLine}[/]");
-                await _systemFunctions.Delay(delayMs);
+                _systemFunctions.Sleep(delayMs);
             }
 
             _horrorConsole.Clear();
@@ -138,23 +138,23 @@ namespace HorrorTracker.ConsoleApp.Themers
         }
 
         /// <inheritdoc/>
-        public async Task LoopPulse(string text, ConsoleColor consoleColor = ConsoleColor.Red, int intervalMs = 500, int repetitions = 3)
+        public void LoopPulse(string text, ConsoleColor consoleColor = ConsoleColor.Red, int intervalMs = 500, int repetitions = 3)
         {
             var spectreColor = ThemersUtility.GetSpectreColor(consoleColor);
             for (int i = 0; i < repetitions; i++)
             {
                 _horrorConsole.MarkupLine($"[{spectreColor}]{text}[/]");
-                await _systemFunctions.Delay(intervalMs);
+                _systemFunctions.Sleep(intervalMs);
 
                 _horrorConsole.Clear();
-                await _systemFunctions.Delay(intervalMs / 2);
+                _systemFunctions.Sleep(intervalMs / 2);
             }
 
             _horrorConsole.MarkupLine($"[{spectreColor}]{text}[/]");
         }
 
         /// <inheritdoc/>
-        public async Task GlitchText(
+        public void GlitchText(
             string text,
             ConsoleColor consoleColor = ConsoleColor.Magenta,
             int glitches = 6,
@@ -168,13 +168,13 @@ namespace HorrorTracker.ConsoleApp.Themers
                 if (_systemFunctions.NextDouble() < 0.1)
                 {
                     _horrorConsole.Clear();
-                    await _systemFunctions.Delay(30);
+                    _systemFunctions.Sleep(30);
                 }
 
                 string glitchedString = ApplyGlitchPattern(text, pattern);
 
                 _horrorConsole.MarkupLine($"[{spectreColor}]{glitchedString}[/]");
-                await _systemFunctions.Delay(delayMs);
+                _systemFunctions.Sleep(delayMs);
                 _horrorConsole.Clear();
             }
 
@@ -182,7 +182,7 @@ namespace HorrorTracker.ConsoleApp.Themers
         }
 
         /// <inheritdoc/>
-        public async Task ScreenShake(string text, int shakes = 6, int intensity = 2, int delayMs = 60)
+        public void ScreenShake(string text, int shakes = 6, int intensity = 2, int delayMs = 60)
         {
             for (var i = 0; i < shakes; i++)
             {
@@ -192,7 +192,7 @@ namespace HorrorTracker.ConsoleApp.Themers
                 _horrorConsole.Clear();
                 _horrorConsole.Write(new string('\n', Math.Max(0, offsetY)));
                 _horrorConsole.MarkupLine($"{new string(' ', Math.Max(0, offsetX))}[red]{text}[/]");
-                await _systemFunctions.Delay(delayMs);
+                _systemFunctions.Sleep(delayMs);
             }
 
             _horrorConsole.Clear();
@@ -211,7 +211,7 @@ namespace HorrorTracker.ConsoleApp.Themers
                 _horrorConsole.SetForegroundColor(ConsoleColor.Red);
                 _horrorConsole.MarkupLine("You must have at least one drop.");
                 _horrorConsole.ResetColor();
-                _systemFunctions.Delay(2000);
+                _systemFunctions.Sleep(2000);
                 _horrorConsole.Clear();
                 return false;
             }

@@ -37,7 +37,7 @@ namespace HorrorTracker.ConsoleApp.Interfaces
         /// <param name="lines">Number of lines.</param>
         /// <param name="delayMs">The delay of milliseconds.</param>
         /// <returns>The task.</returns>
-        Task GlitchWipe(int lines = 8, int delayMs = 35);
+        void GlitchWipe(int lines = 8, int delayMs = 35);
 
         /// <summary>
         /// Effect that shows a candle on the console window as if it is flickering.
@@ -62,7 +62,7 @@ namespace HorrorTracker.ConsoleApp.Interfaces
         /// <param name="intervalMs">The intervals in milliseconds between pulses.</param>
         /// <param name="repetitions">The number of loops.</param>
         /// <returns>The task.</returns>
-        Task LoopPulse(string text, ConsoleColor consoleColor = ConsoleColor.Red, int intervalMs = 500, int repetitions = 3);
+        void LoopPulse(string text, ConsoleColor consoleColor = ConsoleColor.Red, int intervalMs = 500, int repetitions = 3);
 
         /// <summary>
         /// Glitches the console text message on the window.
@@ -73,7 +73,7 @@ namespace HorrorTracker.ConsoleApp.Interfaces
         /// <param name="delayMs">The delay in milliseconds.</param>
         /// <param name="pattern">The pattern of the glitch.</param>
         /// <returns>The task.</returns>
-        Task GlitchText(
+        void GlitchText(
             string text,
             ConsoleColor consoleColor = ConsoleColor.Magenta,
             int glitches = 6,
@@ -88,6 +88,6 @@ namespace HorrorTracker.ConsoleApp.Interfaces
         /// <param name="intensity">The intensity.</param>
         /// <param name="delayMs">The delay in milliseconds.</param>
         /// <returns>The task.</returns>
-        Task ScreenShake(string text, int shakes = 6, int intensity = 2, int delayMs = 60);
+        void ScreenShake(string text, int shakes = 6, int intensity = 2, int delayMs = 60);
     }
 }

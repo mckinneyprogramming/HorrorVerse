@@ -6,13 +6,6 @@
     public interface ISystemFunctions
     {
         /// <summary>
-        /// Delay's the task by the specified milliseconds.
-        /// </summary>
-        /// <param name="milliseconds">The milliseconds to delay.</param>
-        /// <returns>The task.</returns>
-        Task Delay(int milliseconds);
-
-        /// <summary>
         /// Retrieves the next random integer.
         /// </summary>
         /// <returns>The random integer.</returns>

@@ -24,15 +24,15 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// The spooky startup text for the console application.
         /// </summary>
         /// <returns>The task.</returns>
-        public async Task Startup()
+        public void Startup()
         {
             _themersFactory.SpookyTextStyler.AmbientBeep();
             _themersFactory.SpookyAnimations.ParticleRain();
             _themersFactory.SpookyAnimations.StaticNoise();
 
-            await HauntedSplashScreen();
+            HauntedSplashScreen();
 
-            await _themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.Red, 100, "The spirits follow...");
+            _themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.Red, 100, "The spirits follow...");
             _themersFactory.SpookyAnimations.FlickeringCandle(3000, 100);
             _themersFactory.SpookyTextStyler.SpectralMist();
 
@@ -45,23 +45,23 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
         /// Displays a sppoky screen of shakes and glitching text.
         /// </summary>
         /// <returns>The task.</returns>
-        private async Task HauntedSplashScreen()
+        private void HauntedSplashScreen()
         {
             _horrorConsole.Clear();
 
             _horrorConsole.MarkupLine("[red bold slowblink]>>> HORRORVERSE <<<[/]");
-            await _systemFunctions.Delay(600);
+            _systemFunctions.Sleep(600);
 
-            await _themersFactory.SpookyAnimations.GlitchText(">>> WARNING: ENTITY DETECTED <<<", ConsoleColor.Magenta, 6, 80, GlitchPattern.Noise);
-            await _themersFactory.SpookyAnimations.ScreenShake(">>> ENGAGING LOCKDOWN <<<", shakes: 7, intensity: 3, delayMs: 60);
-            await _systemFunctions.Delay(400);
+            _themersFactory.SpookyAnimations.GlitchText(">>> WARNING: ENTITY DETECTED <<<", ConsoleColor.Magenta, 6, 80, GlitchPattern.Noise);
+            _themersFactory.SpookyAnimations.ScreenShake(">>> ENGAGING LOCKDOWN <<<", shakes: 7, intensity: 3, delayMs: 60);
+            _systemFunctions.Sleep(400);
 
-            await _themersFactory.SpookyAnimations.LoopPulse(":: INITIALIZING CURSED CORE ::", ConsoleColor.Red, intervalMs: 1500, repetitions: 1);
-            await _systemFunctions.Delay(500);
+            _themersFactory.SpookyAnimations.LoopPulse(":: INITIALIZING CURSED CORE ::", ConsoleColor.Red, intervalMs: 1500, repetitions: 1);
+            _systemFunctions.Sleep(500);
 
-            await _themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.Yellow, 45, "Do not proceed if you value your soul...");
-            await _themersFactory.SpookyTextStyler.CrawlCursor("~", steps: 40, delayMs: 80);
-            await _themersFactory.SpookyAnimations.LoopPulse("ENTERING NIGHTMARE MODE...", ConsoleColor.DarkRed, intervalMs: 1000, repetitions: 3);
+            _themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.Yellow, 45, "Do not proceed if you value your soul...");
+            _themersFactory.SpookyTextStyler.CrawlCursor("~", steps: 40, delayMs: 80);
+            _themersFactory.SpookyAnimations.LoopPulse("ENTERING NIGHTMARE MODE...", ConsoleColor.DarkRed, intervalMs: 1000, repetitions: 3);
 
             _horrorConsole.WriteLine();
             _horrorConsole.MarkupLine("[red]Press any key to continue...[/]");

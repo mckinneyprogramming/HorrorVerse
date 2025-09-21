@@ -13,9 +13,6 @@ namespace HorrorTracker.ConsoleApp.Consoles
         private readonly Random _random = new();
 
         /// <inheritdoc/>
-        public Task Delay(int milliseconds) => Task.Delay(milliseconds);
-
-        /// <inheritdoc/>
         public int Next() => _random.Next();
 
         /// <inheritdoc/>

@@ -26,12 +26,14 @@ namespace HorrorTracker.ConsoleApp.Managers
         {
             while (IsNotDone)
             {
-                DisplayManagerMenus();
+                DisplayManagerTitles();
 
-                var decision = HorrorConsole.ReadLine();
+                var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+                var decision = themersFactory.SpookyTextStyler.InteractiveMenu("=== TMDB Menu ===", RetrieveMenuOptions());
                 var actions = MovieDatabaseApiDecisionActions();
 
-                ConsoleHelper.ProcessDecision(decision, Logger, actions);
+                var decisionProcessor = new DecisionProcessor(new Parser(), Logger, HorrorConsole, SystemFunctions);
+                decisionProcessor.Process(decision, actions);
             }
         }
 
@@ -122,14 +124,11 @@ namespace HorrorTracker.ConsoleApp.Managers
             HorrorConsole.MarkupLine("----- Find Collections to Add -----");
             HorrorConsole.ResetColor();
             HorrorConsole.WriteLine();
-            HorrorConsole.MarkupLine("Select a Genre Id:");
-            HorrorConsole.MarkupLine(
-                "Horror - 27\n" +
-                "Thriller - 53\n" +
-                "Mystery - 9648");
-            HorrorConsole.Write(">> ");
-            var genreId = HorrorConsole.ReadLine();
-            if (!Parser.IsInteger(genreId, out var genreInt))
+
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            var genreIdSelection = themersFactory.SpookyTextStyler.InteractiveMenu("--- Genre Selection ---", ["27 = Horror", "53 = Thriller", "9648 = Mystery"]);
+            var genreIdSelectionNumber = genreIdSelection.Split('=').First().Trim();
+            if (!Parser.IsInteger(genreIdSelectionNumber, out var genreInt))
             {
                 HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
                 HorrorConsole.MarkupLine("The selection was not an integer. Please try again.");
@@ -165,13 +164,13 @@ namespace HorrorTracker.ConsoleApp.Managers
         protected override string RetrieveTitle() => "The Movie Database API";
 
         /// <inheritdoc/>
-        protected override string RetrieveMenuOptions() => 
-            "1. Search Series to Add\n" +
-            "2. Serach Movie to Add\n" +
-            "3. Add Documentary\n" +
-            "4. Add TV Show\n" +
-            "5. Add Episode\n" +
-            "6. Find Series to Add\n" +
-            "7. Exit";
+        protected override string[] RetrieveMenuOptions() => 
+            ["1. Search Series to Add",
+            "2. Serach Movie to Add",
+            "3. Add Documentary",
+            "4. Add TV Show",
+            "5. Add Episode",
+            "6. Find Series to Add",
+            "7. Exit"];
     }
 }

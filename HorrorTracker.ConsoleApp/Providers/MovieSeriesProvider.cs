@@ -1,8 +1,9 @@
-﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
-using HorrorTracker.ConsoleApp.Factories;
+﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Parsing;
+using NAudio.Mixer;
+using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.Providers
 {
@@ -35,17 +36,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             var movieDatabaseService = CreateMovieDatabaseService();
             var result = movieDatabaseService.SearchCollection($"{decision} Collection").Result;
 
-            HorrorConsole.WriteLine();
-            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
-            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "The following series were found based on your input:");
-            HorrorConsole.SetForegroundColor(ConsoleColor.Magenta);
-            foreach (var collection in result.Results)
-            {
-                HorrorConsole.MarkupLine($"- {collection.Name}; Id: {collection.Id}\n" +
-                    $"  - {collection.Overview}");
-            }
-
-            var collectionId = PromptForSeriesId();
+            var collectionId = PromptForSeriesId(result.Results);
             if (collectionId == 0)
             {
                 return;
@@ -119,21 +110,29 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <summary>
         /// Retrieves the users input for the series id.
         /// </summary>
+        /// <param name="collectionResults">The list of collections.</param>
         /// <returns>The series id.</returns>
-        private int PromptForSeriesId()
+        private int PromptForSeriesId(List<SearchCollection> collectionResults)
         {
             var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
             themersFactory.SpookyTextStyler.Typewriter(
                 ConsoleColor.DarkGray,
                 25,
-                "Choose the series id above to add the series information to the database as well as its associated movies.");
+                "Choose the series below to add the series information to the database as well as its associated movies.");
 
-            HorrorConsole.ResetColor();
             HorrorConsole.WriteLine();
-            HorrorConsole.Write(">> ");
 
-            var collectionIdSelection = HorrorConsole.ReadLine();
-            if (Parser.IsInteger(collectionIdSelection, out var collectionId))
+            var listOfCollections = new List<string>();
+            foreach (var collection in collectionResults)
+            {
+                listOfCollections.Add($"- Id: {collection.Id}; Name: {collection.Name}\n" +
+                    $"  - {collection.Overview}");
+            }
+
+            var collectionSelection = themersFactory.SpookyTextStyler.InteractiveMenu("--- Collection Selection ---", [.. listOfCollections]);
+            var collectionSelectionSplit = collectionSelection.Split(':');
+            var collectionIdString = collectionSelectionSplit[1].Trim();
+            if (Parser.IsInteger(collectionIdString, out var collectionId))
             {
                 return collectionId;
             }

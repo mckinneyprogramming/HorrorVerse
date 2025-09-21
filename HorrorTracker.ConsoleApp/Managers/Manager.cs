@@ -56,7 +56,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// Displays the UI manager menus.
         /// </summary>
-        protected void DisplayManagerMenus()
+        protected void DisplayManagerTitles()
         {
             Console.Title = ConsoleTitles.Title(RetrieveTitle());
 
@@ -69,10 +69,17 @@ namespace HorrorTracker.ConsoleApp.Managers
             themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Choose an option below to get started adding items to your database!");
             HorrorConsole.ResetColor();
             HorrorConsole.WriteLine();
-            HorrorConsole.MarkupLine(RetrieveMenuOptions());
-            HorrorConsole.Write(">> ");
+        }
 
-            Logger.LogInformation($"{RetrieveTitle()} Menu displayed.");
+        /// <summary>
+        /// Retrieves the menu selection for the manager.
+        /// </summary>
+        /// <param name="menuTitle">The menu title.</param>
+        /// <returns>The user selection.</returns>
+        protected string RetrieveMenuSelection(string menuTitle)
+        {
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            return themersFactory.SpookyTextStyler.InteractiveMenu(menuTitle, RetrieveMenuOptions());
         }
 
         /// <summary>
@@ -85,6 +92,6 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// Retrieves the menu options to display.
         /// </summary>
         /// <returns></returns>
-        protected abstract string RetrieveMenuOptions();
+        protected abstract string[] RetrieveMenuOptions();
     }
 }

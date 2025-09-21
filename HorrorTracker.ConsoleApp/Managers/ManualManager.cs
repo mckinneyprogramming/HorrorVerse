@@ -1,4 +1,5 @@
-﻿using HorrorTracker.ConsoleApp.Interfaces;
+﻿using HorrorTracker.ConsoleApp.Factories;
+using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Utilities.Logging;
 
 namespace HorrorTracker.ConsoleApp.Managers
@@ -22,19 +23,14 @@ namespace HorrorTracker.ConsoleApp.Managers
         {
             while (IsNotDone)
             {
-                DisplayManagerMenus();
-                var decision = HorrorConsole.ReadLine();
+                DisplayManagerTitles();
+                var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+                var decision = themersFactory.SpookyTextStyler.InteractiveMenu("=== CRUD Menu ===", RetrieveMenuOptions());
             }
         }
 
         /// <inheritdoc/>
-        protected override string RetrieveMenuOptions() =>
-            "1. Series\n" +
-            "2. Movie\n" +
-            "3. Documentary\n" +
-            "4. TV Show\n" +
-            "5. Episode\n" +
-            "6. Exit";
+        protected override string[] RetrieveMenuOptions() => ["1. Series", "2. Movie", "3. Documentary", "4. TV Show", "5. Episode", "6. Exit"];
 
         /// <inheritdoc/>
         protected override string RetrieveTitle() => "Manual CRUD";

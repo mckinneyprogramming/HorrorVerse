@@ -21,7 +21,7 @@ namespace HorrorTracker.ConsoleApp
         /// <summary>
         /// The main method.
         /// </summary>
-        static async Task Main()
+        static void Main()
         {
             _logger.LogInformation("HorrorTracker has started.");
 
@@ -31,13 +31,13 @@ namespace HorrorTracker.ConsoleApp
 
                 var themersFactory = new ThemersFactory(_horrorConsole, _systemFunctions);
                 var spookyStartupGenerator = new SpookyStartupGenerator(themersFactory, _horrorConsole, _systemFunctions);
-                await spookyStartupGenerator.Startup();
+                spookyStartupGenerator.Startup();
                 _horrorConsole.Markup("Press any key to continue...");
                 _horrorConsole.ReadKey(true);
                 _horrorConsole.Clear();
 
                 HorrorVerseUi horrorVerseUi = new(_connectionString, _logger, _horrorConsole, _systemFunctions);
-                await horrorVerseUi.Run();
+                horrorVerseUi.Run();
             }
             catch (Exception ex)
             {

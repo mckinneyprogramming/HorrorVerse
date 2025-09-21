@@ -35,7 +35,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             HorrorConsole.ResetColor();
 
             var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
-            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Below will dispaly the next two years of upcoming horror films.");
+            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Below will display the next two years of upcoming horror films.");
 
             var currentDate = DateTime.Now;
             var twoYearsFromNow = currentDate.AddYears(2);
@@ -73,21 +73,27 @@ namespace HorrorTracker.ConsoleApp.Providers
             var movieDatabaseService = CreateMovieDatabaseService();
             var result = movieDatabaseService.SearchMovie(decision).Result;
 
-            HorrorConsole.WriteLine();
-            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
-            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "The following movies were found based on your input:");
-            HorrorConsole.SetForegroundColor(ConsoleColor.Magenta);
-            foreach (var movie in result.Results)
+            if (result == null)
             {
-                HorrorConsole.MarkupLine($"- {movie.Title}; Id: {movie.Id}\n" +
-                    $"  - {movie.Overview}");
+                HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
+                HorrorConsole.MarkupLine("No movie was found based on your search. Please try again.");
+                return;
             }
 
             HorrorConsole.WriteLine();
-            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Choose a movie id above to select a movie you want to add to the database.");
-            HorrorConsole.ResetColor();
-            HorrorConsole.Write(">> ");
-            var movieId = HorrorConsole.ReadLine();
+            var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
+            themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Choose a movie you want to add to the database.");
+
+            var movieChoices = new List<string>();
+            foreach (var movie in result.Results)
+            {
+                movieChoices.Add($"- Id: {movie.Id}; Title: {movie.Title}\n" +
+                    $"  - {movie.Overview}");
+            }
+
+            var movieSelection = themersFactory.SpookyTextStyler.InteractiveMenu("--- Movie Selection ---", [.. movieChoices]);
+            var movieSelectionId = movieSelection.Split(':');
+            var movieId = movieSelectionId[1].Trim();
             if (!Parser.IsInteger(movieId, out var movieIdInt))
             {
                 HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);

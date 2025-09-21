@@ -16,7 +16,7 @@
         /// </summary>
         /// <param name="title">The title of the menu.</param>
         /// <param name="options">The option selections.</param>
-        void InteractiveMenu(string title, string[] options);
+        string InteractiveMenu(string title, string[] options);
 
         /// <summary>
         /// Randomly generates beeps from the console.
@@ -41,7 +41,7 @@
         /// <param name="delayMs">The delay in milliseconds.</param>
         /// <param name="messages">The list of messages.</param>
         /// <returns>The task.</returns>
-        Task Typewriter(ConsoleColor consoleColor = ConsoleColor.White, int delayMs = 50, params string[] messages);
+        void Typewriter(ConsoleColor consoleColor = ConsoleColor.White, int delayMs = 50, params string[] messages);
 
         /// <summary>
         /// Crawls the given character across the console window.
@@ -50,7 +50,7 @@
         /// <param name="steps">The steps.</param>
         /// <param name="delayMs">The delay in milliseconds.</param>
         /// <returns>The task.</returns>
-        Task CrawlCursor(string symbol = "*", int steps = 30, int delayMs = 50);
+        void CrawlCursor(string symbol = "*", int steps = 30, int delayMs = 50);
 
         /// <summary>
         /// Puts an underline under the text.
@@ -80,7 +80,7 @@
         /// <param name="trailColor">The trail color.</param>
         /// <param name="delayMs">The delay in milliseconds.</param>
         /// <returns>The task.</returns>
-        Task TextWithTrail(
+        void TextWithTrail(
             string text,
             ConsoleColor headColor = ConsoleColor.Red,
             ConsoleColor trailColor = ConsoleColor.DarkRed,

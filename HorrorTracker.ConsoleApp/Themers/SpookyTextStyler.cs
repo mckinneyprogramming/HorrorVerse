@@ -35,16 +35,15 @@ namespace HorrorTracker.ConsoleApp.Themers
         }
 
         /// <inheritdoc/>
-        public void InteractiveMenu(string title, string[] options)
+        public string InteractiveMenu(string title, string[] options)
         {
             var prompt = new SelectionPrompt<string>()
-                .Title($"[bold purple]{title}[/]")
+                .Title($"[bold red]{title}[/]")
                 .PageSize(10)
-                .AddChoices([.. options.Select(option => $"[bold red]{option}[/]")])
-                .HighlightStyle(new Style(foreground: Color.Orange1));
+                .AddChoices(options)
+                .HighlightStyle(new Style(foreground: Color.DarkViolet));
 
-            var choice = _horrorConsole.Prompt(prompt);
-            _horrorConsole.MarkupLine($"You chose: [green]{choice}[/]");
+            return _horrorConsole.Prompt(prompt);
         }
 
         /// <inheritdoc/>
@@ -79,7 +78,7 @@ namespace HorrorTracker.ConsoleApp.Themers
         }
 
         /// <inheritdoc/>
-        public async Task Typewriter(ConsoleColor consoleColor = ConsoleColor.White, int delayMs = 50, params string[] messages)
+        public void Typewriter(ConsoleColor consoleColor = ConsoleColor.White, int delayMs = 50, params string[] messages)
         {
             var spectreColor = ToSpectreColor(consoleColor);
             foreach (var message in messages)
@@ -87,7 +86,7 @@ namespace HorrorTracker.ConsoleApp.Themers
                 foreach (char character in message)
                 {
                     _horrorConsole.Markup($"[{spectreColor}]{character}[/]");
-                    await _systemFunctions.Delay(delayMs);
+                    _systemFunctions.Sleep(delayMs);
                 }
 
                 _horrorConsole.WriteLine();
@@ -95,13 +94,13 @@ namespace HorrorTracker.ConsoleApp.Themers
         }
 
         /// <inheritdoc/>
-        public async Task CrawlCursor(string symbol = "*", int steps = 30, int delayMs = 50)
+        public void CrawlCursor(string symbol = "*", int steps = 30, int delayMs = 50)
         {
             _horrorConsole.HideCursor();
             for (int i = 0; i < steps; i++)
             {
                 _horrorConsole.Markup(symbol);
-                await _systemFunctions.Delay(delayMs);
+                _systemFunctions.Sleep(delayMs);
             }
 
             _horrorConsole.WriteLine();
@@ -122,7 +121,7 @@ namespace HorrorTracker.ConsoleApp.Themers
         }
 
         /// <inheritdoc/>
-        public async Task TextWithTrail(
+        public void TextWithTrail(
             string text,
             ConsoleColor headColor = ConsoleColor.Red,
             ConsoleColor trailColor = ConsoleColor.DarkRed,
@@ -144,7 +143,7 @@ namespace HorrorTracker.ConsoleApp.Themers
 
                 _horrorConsole.Clear();
                 _horrorConsole.MarkupLine(trail + head);
-                await _systemFunctions.Delay(delayMs);
+                _systemFunctions.Sleep(delayMs);
             }
 
             _horrorConsole.WriteLine();

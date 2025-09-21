@@ -26,14 +26,14 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <summary>
         /// Displays the intro of the HorrorVerse.
         /// </summary>
-        public async Task DisplayHorrorVerseIntro()
+        public void DisplayHorrorVerseIntro()
         {
             _horrorConsole.SetForegroundColor(ConsoleColor.Red);
             _horrorConsole.MarkupLine("========== Welcome to HorrorVerse ==========");
             _horrorConsole.ResetColor();
 
             var themersFactory = new ThemersFactory(_horrorConsole, _systemFunctions);
-            await themersFactory.SpookyTextStyler.Typewriter(
+            themersFactory.SpookyTextStyler.Typewriter(
                 ConsoleColor.DarkGray,
                 25,
                 "The Horror Tracker system uses TMDB (The Movie Database) API to quickly add items.",
@@ -48,17 +48,11 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <summary>
         /// Displays the main menu.
         /// </summary>
-        public void DisplayMainMenu()
+        public string DisplayMainMenu()
         {
-            _horrorConsole.MarkupLine(
-                "1. Use TMDB API\n" +
-                "2. CRUD Database\n" +
-                "3. Display Upcoming Movies\n" +
-                "4. Account Details\n" +
-                "5. Exit");
-            _horrorConsole.Write(">> ");
-
-            _logger.LogInformation("Main menu displayed.");
+            var themersFactory = new ThemersFactory(_horrorConsole, _systemFunctions);
+            var options = new string[] { "1. Use TMDB API", "2. CRUD Database", "3. Display Upcoming Movies", "4. Account Details", "5. Exit" };
+            return themersFactory.SpookyTextStyler.InteractiveMenu("=== HorrorVerse Main Menu ===", options);
         }
 
         /// <summary>

@@ -3,6 +3,7 @@ using HorrorTracker.Utilities.Logging;
 using HorrorTracker.ConsoleApp.Managers;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.ConsoleApp.Interfaces;
+using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Core
 {
@@ -26,7 +27,7 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <summary>
         /// Runs the horror tracker console application.
         /// </summary>
-        public async Task Run()
+        public void Run()
         {
             DatabaseConnection databaseConnection = new(_connectionString);
             CoreSetup coreSetup = new(databaseConnection, _logger, _horrorConsole, _systemFunctions);
@@ -39,15 +40,13 @@ namespace HorrorTracker.ConsoleApp.Core
             _horrorConsole.Clear();
 
             var coreMenuSetup = new CoreMenuSetup(coreSetup.SetupHorrorConnections(), _logger, _horrorConsole, _systemFunctions);
-            await coreMenuSetup.DisplayHorrorVerseIntro();
+            coreMenuSetup.DisplayHorrorVerseIntro();
 
             while (_isRunning)
             {
-                coreMenuSetup.DisplayMainMenu();
-                var decision = _horrorConsole.ReadLine();
-                var actions = MainMenuDecisionActions();
-
-                ConsoleHelper.ProcessDecision(decision, _logger, actions);
+                var decision = coreMenuSetup.DisplayMainMenu();
+                var decisionProcessor = new DecisionProcessor(new Parser(), _logger, _horrorConsole, _systemFunctions);
+                decisionProcessor.Process(decision, MainMenuDecisionActions());
                 _horrorConsole.Clear();
             }
         }
