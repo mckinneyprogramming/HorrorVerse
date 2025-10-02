@@ -59,28 +59,54 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: dotnet tool install --global coverlet.console
 
-      # 8️⃣ Build, test, and analyze
+      # 8️⃣ Build, test, and analyze with aggregated coverage
       - name: Build, Test, Analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
+          # Create folder for coverage reports
+          New-Item -ItemType Directory -Force -Path ./TestResults
+
           # Begin SonarCloud analysis
           .\.sonar\scanner\dotnet-sonarscanner begin `
             /k:"mckinneyprogramming_HorrorTracker" `
             /o:"mckinneyprogramming" `
             /d:sonar.login=$env:SONAR_TOKEN `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="coverage.xml"
+            /d:sonar.cs.opencover.reportsPaths="TestResults\coverage.xml"
 
           # Build the solution
           dotnet build HorrorTracker.sln --no-incremental
 
-          # Run tests with Coverlet
-          dotnet test HorrorTracker.MSTests/HorrorTracker.MSTests.csproj `
-            /p:CollectCoverage=true `
-            /p:CoverletOutputFormat=opencover `
-            /p:CoverletOutput="coverage.xml"
+          # Run all MSTest projects and merge coverage
+          $coverageFiles = @()
+          $testProjects = @(
+            "HorrorTracker.MSTests/HorrorTracker.MSTests.csproj",
+            "HorrorTracker.MSTests.Shared/HorrorTracker.MSTests.Shared.csproj"
+          )
+
+          foreach ($proj in $testProjects) {
+            $projName = Split-Path $proj -LeafBase
+            $projCoverage = "TestResults\$projName.coverage.xml"
+
+            dotnet test $proj `
+              /p:CollectCoverage=true `
+              /p:CoverletOutputFormat=opencover `
+              /p:CoverletOutput=$projCoverage
+
+            $coverageFiles += $projCoverage
+          }
+
+          # Merge all coverage files into one (requires reportgenerator)
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          reportgenerator "-reports:$($coverageFiles -join ';')" "-targetdir:TestResults/coverage-merged" -reporttypes:Xml
+
+          # Move merged coverage to Sonar expected path
+          Copy-Item "TestResults/coverage-merged/Summary.xml" "TestResults/coverage.xml" -Force
+
+          # Debug check
+          if (!(Test-Path "TestResults\coverage.xml")) { Write-Error "Merged coverage file not found!" }
 
           # End SonarCloud analysis
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
