@@ -8,73 +8,79 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  build:
-    name: Build, Test, and Analyze
+  build-and-analyze:
     runs-on: windows-latest
 
     steps:
-      # Checkout repo
-      - uses: actions/checkout@v3
+      # 1️⃣ Checkout the repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      # Install .NET 10
+      # 2️⃣ Setup .NET 10
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: '10.0.x'
+          include-prerelease: false
 
-      # Install JDK 17 for SonarScanner
+      # 3️⃣ Setup JDK 17 for SonarScanner
       - name: Setup JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: 'zulu'
 
-      # Cache SonarScanner
+      # 4️⃣ Cache SonarScanner
       - name: Cache SonarScanner
         uses: actions/cache@v3
         with:
           path: .\.sonar\scanner
           key: ${{ runner.os }}-sonar-scanner
 
-      # Install SonarScanner
+      # 5️⃣ Install SonarScanner if not cached
       - name: Install SonarScanner
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true'
         shell: powershell
         run: |
           New-Item -Path .\.sonar\scanner -ItemType Directory -Force
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+          dotnet tool install dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-      # Install Coverlet
+      # 6️⃣ Cache .NET global tools (Coverlet)
+      - name: Cache .NET global tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.USERPROFILE }}\.dotnet\tools
+          key: ${{ runner.os }}-dotnet-tools
+
+      # 7️⃣ Install Coverlet if not cached
       - name: Install Coverlet
+        if: steps.cache.outputs.cache-hit != 'true'
         run: dotnet tool install --global coverlet.console
 
-      # Build, test, collect coverage, run SonarCloud
-      - name: Build, Test, Coverage, and SonarCloud Analysis
+      # 8️⃣ Build, test, and analyze
+      - name: Build, Test, Analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          Write-Host "=== Starting SonarCloud Analysis ==="
-
-          # Start SonarScanner
+          # Begin SonarCloud analysis
           .\.sonar\scanner\dotnet-sonarscanner begin `
-            /k:mckinneyprogramming_HorrorTracker `
-            /o:mckinneyprogramming `
-            /d:sonar.host.url=https://sonarcloud.io `
+            /k:"mckinneyprogramming_HorrorTracker" `
+            /o:"mckinneyprogramming" `
             /d:sonar.login=$env:SONAR_TOKEN `
-            /d:sonar.cs.opencover.reportsPaths=coverage.xml
+            /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.cs.opencover.reportsPaths="coverage.xml"
 
-          # Build solution
-          dotnet build --no-incremental
+          # Build the solution
+          dotnet build HorrorTracker.sln --no-incremental
 
-          # Run all MSTest projects with Coverlet
-          $testDlls = Get-ChildItem -Path . -Recurse -Filter "*MSTests.dll" | Select-Object -ExpandProperty FullName
-          foreach ($dll in $testDlls) {
-              Write-Host "Running coverage on $dll"
-              coverlet $dll --target "dotnet" --targetargs "test --no-build" -f opencover -o coverage.xml
-          }
+          # Run tests with Coverlet
+          dotnet test HorrorTracker.MSTests/HorrorTracker.MSTests.csproj `
+            /p:CollectCoverage=true `
+            /p:CoverletOutputFormat=opencover `
+            /p:CoverletOutput="coverage.xml"
 
-          # End SonarScanner
+          # End SonarCloud analysis
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
