@@ -9,66 +9,57 @@ on:
 
 jobs:
   build:
-    name: Build and analyze
+    name: Build, Test, and Analyze
     runs-on: windows-latest
     steps:
-      - name: Set up JDK 17
+      # 1️⃣ Checkout code
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 2️⃣ Setup .NET 10 SDK
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '10.0.x'
+
+      # 3️⃣ Setup Java for SonarScanner
+      - name: Setup JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: 'zulu'
 
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      # 4️⃣ Install SonarScanner globally
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+      - name: Add .NET tools to PATH
+        run: echo "${{ runner.user }}/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
+      # 5️⃣ Restore dependencies
+      - name: Restore
+        run: dotnet restore
 
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v3
-        with:
-          path: ~\sonar\cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+      # 6️⃣ Build solution
+      - name: Build
+        run: dotnet build --no-incremental
 
-      - name: Cache SonarCloud scanner
-        id: cache-sonar-scanner
-        uses: actions/cache@v3
-        with:
-          path: .\.sonar\scanner
-          key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
-
-      - name: Install SonarCloud scanner
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          New-Item -Path .\.sonar\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
-
-      - name: Install Coverlet
-        run: dotnet tool install --global coverlet.console
-
-      - name: Build and analyze
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        shell: powershell
-        run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"mckinneyprogramming_HorrorTracker" /o:"mckinneyprogramming" /d:sonar.token=$env:SONAR_TOKEN /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="coverage.xml"
-          dotnet build --no-incremental
-          coverlet .\HorrorTracker.MSTests\bin\Debug\net10.0\HorrorTracker.MSTests.dll --target "dotnet" --targetargs "test --no-build" -f=opencover -o:"coverage.xml"
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token=$env:SONAR_TOKEN
-
-      - name: Report coverage to SonarCloud
+      # 7️⃣ Run tests with coverage and SonarCloud analysis
+      - name: Test with coverage & SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          $coverageReport = (Get-ChildItem -Recurse -Filter "coverage.opencover.xml" | Select-Object -First 1).FullName
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"mckinneyprogramming_HorrorTracker" /o:"mckinneyprogramming" /d:sonar.token=$env:SONAR_TOKEN /d:sonar.host.url="https://sonarcloud.io" /d:sonar.coverage.opencover.reportPaths=$coverageReport
-          dotnet build
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token=$env:SONAR_TOKEN
+          # Start SonarCloud analysis
+          dotnet sonarscanner begin `
+            /k:"mckinneyprogramming_HorrorTracker" `
+            /o:"mckinneyprogramming" `
+            /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.login=$env:SONAR_TOKEN `
+            /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.cobertura.xml"
+
+          # Run all tests using coverlet collector (cobertura format)
+          dotnet test --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+          # End SonarCloud analysis
+          dotnet sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
