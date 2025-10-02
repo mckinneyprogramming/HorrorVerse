@@ -13,12 +13,18 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # Set up JDK 17 (required for SonarCloud)
+      # Set up JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: 'zulu'
+
+      # Install .NET 10 SDK
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '10.0.x'
 
       # Checkout code
       - uses: actions/checkout@v3
@@ -50,18 +56,17 @@ jobs:
           New-Item -Path .\.sonar\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-      # Install Coverlet for code coverage
+      # Install Coverlet for coverage
       - name: Install Coverlet
         run: dotnet tool install --global coverlet.console
 
-      # Build, test, collect coverage, and analyze
+      # Build, test, coverage, and Sonar analysis
       - name: Build, test, and analyze
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          # Start SonarCloud analysis
           .\.sonar\scanner\dotnet-sonarscanner begin `
             /k:"mckinneyprogramming_HorrorTracker" `
             /o:"mckinneyprogramming" `
@@ -69,15 +74,12 @@ jobs:
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}" `
             /d:sonar.cs.opencover.reportsPaths="coverage.xml"
           
-          # Build solution
           dotnet build --no-incremental
-          
-          # Find all test DLLs and run Coverlet
+
           $testDlls = Get-ChildItem -Path . -Recurse -Filter "*MSTests.dll" | Select-Object -ExpandProperty FullName
           foreach ($dll in $testDlls) {
               Write-Host "Running coverage on $dll"
               coverlet $dll --target "dotnet" --targetargs "test --no-build" -f opencover -o coverage.xml
           }
-          
-          # End SonarCloud analysis
+
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
