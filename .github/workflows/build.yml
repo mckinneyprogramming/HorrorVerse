@@ -36,4 +36,45 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .\.sonar\scanner
-          key: ${{ runner.os }}-sonar-sca
+          key: ${{ runner.os }}-sonar-scanner
+
+      # Install SonarScanner
+      - name: Install SonarScanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          New-Item -Path .\.sonar\scanner -ItemType Directory -Force
+          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+
+      # Install Coverlet
+      - name: Install Coverlet
+        run: dotnet tool install --global coverlet.console
+
+      # Build, test, collect coverage, run SonarCloud
+      - name: Build, Test, Coverage, and SonarCloud Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
+        run: |
+          Write-Host "=== Starting SonarCloud Analysis ==="
+
+          # Start SonarScanner
+          .\.sonar\scanner\dotnet-sonarscanner begin `
+            /k:mckinneyprogramming_HorrorTracker `
+            /o:mckinneyprogramming `
+            /d:sonar.host.url=https://sonarcloud.io `
+            /d:sonar.login=$env:SONAR_TOKEN `
+            /d:sonar.cs.opencover.reportsPaths=coverage.xml
+
+          # Build solution
+          dotnet build --no-incremental
+
+          # Run all MSTest projects with Coverlet
+          $testDlls = Get-ChildItem -Path . -Recurse -Filter "*MSTests.dll" | Select-Object -ExpandProperty FullName
+          foreach ($dll in $testDlls) {
+              Write-Host "Running coverage on $dll"
+              coverlet $dll --target "dotnet" --targetargs "test --no-build" -f opencover -o coverage.xml
+          }
+
+          # End SonarScanner
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
