@@ -9,57 +9,75 @@ on:
 
 jobs:
   build:
-    name: Build, Test, and Analyze
+    name: Build and analyze
     runs-on: windows-latest
+
     steps:
-      # 1️⃣ Checkout code
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      # 2️⃣ Setup .NET 10 SDK
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '10.0.x'
-
-      # 3️⃣ Setup Java for SonarScanner
-      - name: Setup JDK 17
+      # Set up JDK 17 (required for SonarCloud)
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: 'zulu'
 
-      # 4️⃣ Install SonarScanner globally
-      - name: Install SonarScanner
-        run: dotnet tool install --global dotnet-sonarscanner
-      - name: Add .NET tools to PATH
-        run: echo "${{ runner.user }}/.dotnet/tools" >> $GITHUB_PATH
+      # Checkout code
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      # 5️⃣ Restore dependencies
-      - name: Restore
-        run: dotnet restore
+      # Cache SonarCloud packages
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+          path: ~\sonar\cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
-      # 6️⃣ Build solution
-      - name: Build
-        run: dotnet build --no-incremental
+      # Cache SonarScanner
+      - name: Cache SonarScanner
+        id: cache-sonar-scanner
+        uses: actions/cache@v3
+        with:
+          path: .\.sonar\scanner
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
 
-      # 7️⃣ Run tests with coverage and SonarCloud analysis
-      - name: Test with coverage & SonarCloud
+      # Install SonarScanner if cache missed
+      - name: Install SonarCloud scanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          New-Item -Path .\.sonar\scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+
+      # Install Coverlet for code coverage
+      - name: Install Coverlet
+        run: dotnet tool install --global coverlet.console
+
+      # Build, test, collect coverage, and analyze
+      - name: Build, test, and analyze
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
           # Start SonarCloud analysis
-          dotnet sonarscanner begin `
+          .\.sonar\scanner\dotnet-sonarscanner begin `
             /k:"mckinneyprogramming_HorrorTracker" `
             /o:"mckinneyprogramming" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.login=$env:SONAR_TOKEN `
-            /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.cobertura.xml"
-
-          # Run all tests using coverlet collector (cobertura format)
-          dotnet test --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults
-
+            /d:sonar.login="${{ secrets.SONAR_TOKEN }}" `
+            /d:sonar.cs.opencover.reportsPaths="coverage.xml"
+          
+          # Build solution
+          dotnet build --no-incremental
+          
+          # Find all test DLLs and run Coverlet
+          $testDlls = Get-ChildItem -Path . -Recurse -Filter "*MSTests.dll" | Select-Object -ExpandProperty FullName
+          foreach ($dll in $testDlls) {
+              Write-Host "Running coverage on $dll"
+              coverlet $dll --target "dotnet" --targetargs "test --no-build" -f opencover -o coverage.xml
+          }
+          
           # End SonarCloud analysis
-          dotnet sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
