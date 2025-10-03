@@ -47,7 +47,7 @@ jobs:
           New-Item -Path .\.sonar\scanner -ItemType Directory -Force
           dotnet tool install dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-      # 6️⃣ Install ReportGenerator (to merge coverage reports)
+      # 6️⃣ Install ReportGenerator (for coverage merging)
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
@@ -63,7 +63,7 @@ jobs:
             /o:"mckinneyprogramming" `
             /d:sonar.login=$env:SONAR_TOKEN `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="coverage.opencover.xml" `
+            /d:sonar.cs.opencover.reportsPaths="coverage/coverage.cobertura.xml" `
             /d:sonar.coverage.exclusions="**/Migrations/**,**/*.g.cs,**/Shared/**"
 
           # Build the solution
@@ -76,18 +76,15 @@ jobs:
             /p:Exclude="[*.Tests]*" `
             /p:ExcludeByFile="**/Migrations/*"
 
-          # Debug - show what coverage files exist
+          # Debug - show coverage files
           echo "Coverage files found:"
-          dir TestResults -Recurse
+          Get-ChildItem TestResults -Recurse
 
-          # Merge coverage reports into a single OpenCover file
+          # Merge coverage reports into a single Cobertura file
           reportgenerator `
             -reports:"TestResults/**/coverage.cobertura.xml" `
             -targetdir:"coverage" `
-            -reporttypes:opencover
-
-          # Rename merged report so Sonar can find it
-          Move-Item -Force coverage\Summary.opencover.xml coverage.opencover.xml
+            -reporttypes:Cobertura
 
           # End SonarCloud analysis
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
