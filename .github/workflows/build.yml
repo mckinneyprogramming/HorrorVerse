@@ -80,21 +80,14 @@ jobs:
           echo "Coverage files found:"
           dir TestResults /s
 
-          # Merge coverage reports into OpenCover + HTML
+          # Merge coverage reports into a single OpenCover file
           reportgenerator `
             -reports:"TestResults/**/coverage.cobertura.xml" `
             -targetdir:"coverage" `
-            -reporttypes:opencover;Html
+            -reporttypes:opencover
 
           # Rename merged report so Sonar can find it
           Move-Item -Force coverage\Summary.opencover.xml coverage.opencover.xml
 
           # End SonarCloud analysis
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
-
-      # 8️⃣ Upload HTML Coverage Report as artifact
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v3
-        with:
-          name: CoverageReport
-          path: coverage
