@@ -47,19 +47,11 @@ jobs:
           New-Item -Path .\.sonar\scanner -ItemType Directory -Force
           dotnet tool install dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-      # 6️⃣ Cache .NET global tools (Coverlet)
-      - name: Cache .NET global tools
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.USERPROFILE }}\.dotnet\tools
-          key: ${{ runner.os }}-dotnet-tools
+      # 6️⃣ Install ReportGenerator (to merge coverage reports)
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      # 7️⃣ Install Coverlet if not cached
-      - name: Install Coverlet
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: dotnet tool install --global coverlet.console
-
-      # 8️⃣ Build, test, and analyze
+      # 7️⃣ Build, test, and analyze
       - name: Build, Test, Analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -71,20 +63,31 @@ jobs:
             /o:"mckinneyprogramming" `
             /d:sonar.login=$env:SONAR_TOKEN `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="coverage.xml"
+            /d:sonar.cs.opencover.reportsPaths="coverage.opencover.xml" `
+            /d:sonar.coverage.exclusions="**/Migrations/**,**/*.g.cs,**/Shared/**"
 
           # Build the solution
           dotnet build HorrorTracker.sln --no-incremental
 
-          # Run tests with Coverlet
-          dotnet test HorrorTracker.MSTests/HorrorTracker.MSTests.csproj `
-            /p:CollectCoverage=true `
-            /p:CoverletOutputFormat=opencover `
-            /p:CoverletOutput="coverage.xml"
+          # Run all tests with coverage
+          dotnet test --no-build `
+            --collect:"XPlat Code Coverage" `
+            --results-directory TestResults `
+            /p:Exclude="[*.Tests]*" `
+            /p:ExcludeByFile="**/Migrations/*"
 
-          # If you need project name without extension
-          # $projName = [System.IO.Path]::GetFileNameWithoutExtension("HorrorTracker.MSTests.csproj")
-          # Write-Host "Project Name: $projName"
+          # Debug - show what coverage files exist
+          echo "Coverage files found:"
+          dir TestResults /s
+
+          # Merge coverage reports into a single OpenCover file
+          reportgenerator `
+            -reports:"TestResults/**/coverage.cobertura.xml" `
+            -targetdir:"coverage" `
+            -reporttypes:opencover
+
+          # Rename merged report so Sonar can find it
+          Move-Item -Force coverage\Summary.opencover.xml coverage.opencover.xml
 
           # End SonarCloud analysis
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
