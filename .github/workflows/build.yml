@@ -47,7 +47,7 @@ jobs:
           New-Item -Path .\.sonar\scanner -ItemType Directory -Force
           dotnet tool install dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-      # 6️⃣ Install ReportGenerator (for merging coverage)
+      # 6️⃣ Install ReportGenerator (for coverage merging)
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
@@ -63,36 +63,28 @@ jobs:
             /o:"mckinneyprogramming" `
             /d:sonar.login=$env:SONAR_TOKEN `
             /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.cs.opencover.reportsPaths="coverage/coverage.cobertura.xml" `
             /d:sonar.coverage.exclusions="**/Migrations/**,**/*.g.cs,**/Shared/**"
 
           # Build the solution
           dotnet build HorrorTracker.sln --no-incremental
 
-          # Run all tests with Coverlet producing OpenCover reports
-          dotnet test HorrorTracker.MSTests/HorrorTracker.MSTests.csproj `
-            --no-build `
-            /p:CollectCoverage=true `
-            /p:CoverletOutputFormat=opencover `
-            /p:CoverletOutput="coverage/HorrorTracker.MSTests.xml" `
+          # Run all tests with coverage
+          dotnet test --no-build `
+            --collect:"XPlat Code Coverage" `
+            --results-directory TestResults `
             /p:Exclude="[*.Tests]*" `
             /p:ExcludeByFile="**/Migrations/*"
 
-          # If you have multiple test projects, repeat dotnet test for each or merge here
+          # Debug - show coverage files
+          echo "Coverage files found:"
+          Get-ChildItem TestResults -Recurse
 
-          # Merge OpenCover reports into a single file for Sonar
+          # Merge coverage reports into a single Cobertura file
           reportgenerator `
-            -reports:"coverage/*.xml" `
+            -reports:"TestResults/**/coverage.cobertura.xml" `
             -targetdir:"coverage" `
-            -reporttypes:opencover
+            -reporttypes:Cobertura
 
-          # Sonar expects the merged OpenCover file to exist
-          $mergedReport = "coverage/Summary.opencover.xml"
-          if (-Not (Test-Path $mergedReport)) {
-              Write-Error "Merged coverage report not found!"
-              exit 1
-          }
-
-          # End SonarCloud analysis pointing to the merged report
-          .\.sonar\scanner\dotnet-sonarscanner end `
-            /d:sonar.login=$env:SONAR_TOKEN `
-            /d:sonar.cs.opencover.reportsPaths=$mergedReport
+          # End SonarCloud analysis
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login=$env:SONAR_TOKEN
