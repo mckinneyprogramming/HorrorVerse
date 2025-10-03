@@ -78,7 +78,7 @@ jobs:
 
           # Debug - show what coverage files exist
           echo "Coverage files found:"
-          dir TestResults /s
+          dir TestResults -Recurse
 
           # Merge coverage reports into a single OpenCover file
           reportgenerator `
