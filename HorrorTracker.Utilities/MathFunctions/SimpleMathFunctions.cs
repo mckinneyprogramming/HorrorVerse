@@ -1,4 +1,6 @@
-﻿namespace HorrorTracker.Utilities.MathFunctions
+﻿using System.Numerics;
+
+namespace HorrorTracker.Utilities.MathFunctions
 {
     /// <summary>
     /// The <see cref="SimpleMathFunctions"/> class.
@@ -6,32 +8,37 @@
     public static class SimpleMathFunctions
     {
         /// <summary>
-        /// Adds two numbers together.
+        /// Adds multiple numbers together of any numeric type.
         /// </summary>
-        /// <param name="numberOne">The first number.</param>
-        /// <param name="numberTwo">The second number.</param>
+        /// <typeparam name="T">A numeric type.</typeparam>
+        /// <param name="numbers">The numbers to add.</param>
         /// <returns>The sum of the numbers.</returns>
-        public static decimal Add(decimal numberOne, decimal numberTwo)
+        public static T Add<T>(params T[] numbers) where T : INumber<T>
         {
-            return numberOne + numberTwo;
+            T sum = T.Zero;
+            foreach (var number in numbers)
+            {
+                sum += number;
+            }
+
+            return sum;
         }
 
         /// <summary>
-        /// Divides the first number with the second number.
+        /// Divides the first number by the second number for any numeric type.
         /// </summary>
+        /// <typeparam name="T">A numeric type.</typeparam>
         /// <param name="numberOne">The first number.</param>
         /// <param name="numberTwo">The second number.</param>
         /// <returns>The division of the numbers.</returns>
-        public static decimal Divide(decimal numberOne, decimal numberTwo)
+        public static T Divide<T>(T numberOne, T numberTwo) where T : INumber<T>
         {
-            try
+            if (numberTwo == T.Zero)
             {
-                return numberOne / numberTwo;
+                throw new DivideByZeroException("Attempted to divide by zero.");
             }
-            catch (DivideByZeroException ex)
-            {
-                throw new DivideByZeroException(ex.Message);
-            }
+
+            return numberOne / numberTwo;
         }
     }
 }
