@@ -85,6 +85,10 @@ jobs:
     - name: Restore the application
       run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
       env:
+        Solution_Name: HorrorTracker.sln
+        Test_Project_Path: HorrorTracker.MSTests\HorrorTracker.MSTests.csproj
+        Wap_Project_Directory: HorrorTracker.Package
+        Wap_Project_Path: HorrorTracker.Package\HorrorTracker.Package.wapproj
         Configuration: ${{ matrix.configuration }}
 
     # Decode the base 64 encoded pfx and save the Signing_Certificate
