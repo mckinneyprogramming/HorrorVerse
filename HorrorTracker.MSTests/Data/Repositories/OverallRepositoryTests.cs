@@ -39,8 +39,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
         }
 
-        [DataTestMethod]
-        [DynamicData(nameof(GetTimeSuccess), DynamicDataSourceType.Method)]
+        [TestMethod]
+        [DynamicData(nameof(GetTimeSuccess))]
         public void WhenSuccessfulConnectionAndDatabaseCall_ShouldReturnTime(string query, string methodName, decimal expectedReturnValue)
         {
             // Arrange
@@ -56,8 +56,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
                 $"Time in the database: {actualReturnValue} was retrieved successfully.");
         }
 
-        [DataTestMethod]
-        [DynamicData(nameof(GetTimeFailure), DynamicDataSourceType.Method)]
+        [TestMethod]
+        [DynamicData(nameof(GetTimeFailure))]
         public void WhenDatabaseCallFails_ShouldLogMessageAndReturnZero(string query, string methodName, object returnValue, string expectedLogMessage)
         {
             // Arrange
@@ -72,8 +72,8 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _loggerVerifier.VerifyWarningMessage(expectedLogMessage);
         }
 
-        [DataTestMethod]
-        [DynamicData(nameof(GetTimeException), DynamicDataSourceType.Method)]
+        [TestMethod]
+        [DynamicData(nameof(GetTimeException))]
         public void WhenDatabaseCallThrowsException_ShouldLogMessageAndReturnZero(string methodName, string initialMessage, string exceptionMessage)
         {
             // Arrange

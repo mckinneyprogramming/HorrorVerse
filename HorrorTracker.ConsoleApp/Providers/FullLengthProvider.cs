@@ -5,7 +5,7 @@ using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 using TMDbLib.Objects.Search;
 
@@ -18,7 +18,11 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <remarks>Initializes a new instance of the <see cref="FullLengthProvider"/> class.</remarks>
     /// <param name="connectionString">The connection string.</param>
     /// <param name="logger">The logger service.</param>
-    public abstract class FullLengthProvider(string? connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    public abstract class FullLengthProvider(
+        string? connectionString,
+        ILoggerService logger,
+        IHorrorConsole horrorConsole,
+        ISystemFunctions systemFunctions)
         : ProviderBase(connectionString, logger, horrorConsole, systemFunctions)
     {
         /// <summary>

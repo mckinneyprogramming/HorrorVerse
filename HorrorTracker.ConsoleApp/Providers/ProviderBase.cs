@@ -3,7 +3,7 @@ using HorrorTracker.Data.Models;
 using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Providers
@@ -16,7 +16,11 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <param name="logger">The logger service.</param>
     /// <param name="horrorConsole">The horror console.</param>
     /// <param name="systemFunctions">The system functions.</param>
-    public abstract class ProviderBase(string? connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    public abstract class ProviderBase(
+        string? connectionString,
+        ILoggerService logger,
+        IHorrorConsole horrorConsole,
+        ISystemFunctions systemFunctions)
     {
         /// <summary>
         /// The connection string.
@@ -26,7 +30,7 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <summary>
         /// The logger service.
         /// </summary>
-        protected readonly LoggerService Logger = logger;
+        protected readonly ILoggerService Logger = logger;
 
         /// <summary>
         /// The horror console.

@@ -6,6 +6,7 @@ using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
 using HorrorTracker.Data.Repositories.Constants;
 using HorrorTracker.Data.Repositories.Interfaces;
+using HorrorTracker.Data.Repositories.Records;
 using HorrorTracker.Utilities;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
@@ -25,11 +26,12 @@ namespace HorrorTracker.Data.Repositories
         private const string MovieSeries = "Movie series";
 
         /// <inheritdoc/>
-        public override int Add(MovieSeries series)
+        public override ExecutionNonQueryResult Add(MovieSeries series)
         {
             return ExecuteNonQuery(
                 MovieSeriesQueries.InsertSeries,
                 HorrorObjectsParameters.InsertParameters(series),
+                string.Empty,
                 RepositoryMessages.AddSuccess($"{MovieSeries} {series.Title}"),
                 RepositoryMessages.AddError(MovieSeries.ToLower()));
         }
@@ -47,7 +49,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override string Update(MovieSeries series)
+        public override ExecutionNonQueryResult Update(MovieSeries series)
         {
             return ExecuteNonQuery(
                 MovieSeriesQueries.UpdateMovieSeries,
@@ -58,7 +60,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override string Delete(int id)
+        public override ExecutionNonQueryResult Delete(int id)
         {
             return ExecuteNonQuery(
                 MovieSeriesQueries.DeleteMovieSeries,
@@ -82,13 +84,13 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public string UpdateTotalTime(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateTotalTime, "total time");
+        public ExecutionNonQueryResult UpdateTotalTime(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateTotalTime, "total time");
 
         /// <inheritdoc/>
-        public string UpdateTotalMovies(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateTotalMovies, "total movies");
+        public ExecutionNonQueryResult UpdateTotalMovies(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateTotalMovies, "total movies");
 
         /// <inheritdoc/>
-        public string UpdateWatched(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateWatched, "watched");
+        public ExecutionNonQueryResult UpdateWatched(int seriesId) => UpdateMovieSeriesProperty(seriesId, MovieSeriesQueries.UpdateWatched, "watched");
 
         /// <inheritdoc/>
         public decimal GetTimeLeft(int seriesId)
@@ -130,7 +132,7 @@ namespace HorrorTracker.Data.Repositories
         /// <param name="query">The query.</param>
         /// <param name="type">The substring value.</param>
         /// <returns>The message.</returns>
-        private string UpdateMovieSeriesProperty(int seriesId, string query, string type)
+        private ExecutionNonQueryResult UpdateMovieSeriesProperty(int seriesId, string query, string type)
         {
             return UpdateSeries(
                 seriesId,
@@ -149,7 +151,7 @@ namespace HorrorTracker.Data.Repositories
         /// <param name="successMessage">The success message.</param>
         /// <param name="errorMessage">The error message.</param>
         /// <returns>The message.</returns>
-        private string UpdateSeries(int seriesId, string query, string failedMessage, string successMessage, string errorMessage)
+        private ExecutionNonQueryResult UpdateSeries(int seriesId, string query, string failedMessage, string successMessage, string errorMessage)
         {
             return ExecuteNonQuery(
                 query,

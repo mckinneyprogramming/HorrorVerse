@@ -1,8 +1,10 @@
 ﻿using HorrorTracker.Data.Models;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.MSTests.Shared.Comparers
 {
+    [ExcludeFromCodeCoverage]
     public class MovieSeriesComparer : IComparer
     {
         public int Compare(object? x, object? y)

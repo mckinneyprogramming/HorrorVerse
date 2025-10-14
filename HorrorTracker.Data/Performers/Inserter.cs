@@ -22,8 +22,8 @@ namespace HorrorTracker.Data.Performers
                 return false;
             }
 
-            var success = repository.Add(series);
-            return success != 0;
+            var addMovieSeriesResult = repository.Add(series);
+            return addMovieSeriesResult.Success;
         }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace HorrorTracker.Data.Performers
         public static bool MovieAddedSuccessfully(RepositoryBase<Movie> repository, Movie movie)
         {
             var addMovieResult = repository.Add(movie);
-            return addMovieResult != 0;
+            return addMovieResult.Success;
         }
     }
 }

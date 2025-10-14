@@ -51,16 +51,16 @@ namespace HorrorTracker.Data.Helpers
         /// <summary>
         /// Checks if the result from the execute is successful.
         /// </summary>
-        /// <param name="result">The result.</param>
+        /// <param name="rowsAffected">The result.</param>
         /// <returns>True if value is not null; false otherwise.</returns>
-        public static bool IsSuccessfulResult(object? result)
+        public static bool IsSuccessfulResult(object? rowsAffected)
         {
-            if (result is int intResult)
+            if (rowsAffected is int integer)
             {
-                return intResult == 1;
+                return integer == 1;
             }
 
-            return result != null && result != DBNull.Value;
+            return rowsAffected != null && rowsAffected != DBNull.Value;
         }
 
         /// <summary>

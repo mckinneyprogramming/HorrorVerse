@@ -1,8 +1,10 @@
 ﻿using HorrorTracker.Utilities.MathFunctions;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.MSTests.Utilities.MathFunctions
 {
     [TestClass]
+    [ExcludeFromCodeCoverage]
     public class SimpleMathFunctionsTests
     {
         [TestMethod]

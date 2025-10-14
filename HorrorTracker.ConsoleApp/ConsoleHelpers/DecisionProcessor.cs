@@ -1,5 +1,5 @@
 ﻿using HorrorTracker.ConsoleApp.Interfaces;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.ConsoleHelpers
@@ -14,10 +14,10 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
     /// <param name="logger">The logger service.</param>
     /// <param name="horrorConsole">The horror console.</param>
     /// <param name="systemFunctions">The system functions.</param>
-    public class DecisionProcessor(Parser parser, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    public class DecisionProcessor(Parser parser, ILoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
     {
         private readonly Parser _parser = parser;
-        private readonly LoggerService _logger = logger;
+        private readonly ILoggerService _logger = logger;
         private readonly IHorrorConsole _horrorConsole = horrorConsole;
         private readonly ISystemFunctions _systemFunctions = systemFunctions;
 

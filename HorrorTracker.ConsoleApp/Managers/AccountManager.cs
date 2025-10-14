@@ -1,6 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
@@ -14,8 +14,8 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// <param name="logger">The logger service.</param>
     /// <param name="horrorConsole">The horror console.</param>
     /// <param name="systemFunctions">The system functions.</param>
-    public class AccountManager(LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
-        : Manager(null, logger, horrorConsole, systemFunctions)
+    public class AccountManager(ILoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+        : Manager(string.Empty, logger, horrorConsole, systemFunctions)
     {
         /// <inheritdoc/>
         public override void Manage()

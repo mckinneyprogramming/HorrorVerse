@@ -1,7 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data;
-using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.MathFunctions;
 
 namespace HorrorTracker.ConsoleApp.Core
@@ -13,13 +12,11 @@ namespace HorrorTracker.ConsoleApp.Core
     /// Initializes a new instance of the <see cref="CoreMenuSetup"/> class.
     /// </remarks>
     /// <param name="horrorConnections">The horror connections.</param>
-    /// <param name="logger">The logger service.</param>
     /// <param name="horrorConsole">The horror console.</param>
     /// <param name="systemFunctions">The system functions.</param>
-    public class CoreMenuSetup(HorrorConnections horrorConnections, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    public class CoreMenuSetup(HorrorConnections horrorConnections, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
     {
         private readonly HorrorConnections _horrorConnections = horrorConnections;
-        private readonly LoggerService _logger = logger;
         private readonly IHorrorConsole _horrorConsole = horrorConsole;
         private readonly ISystemFunctions _systemFunctions = systemFunctions;
 

@@ -1,10 +1,11 @@
-﻿using HorrorTracker.ConsoleApp.Factories;
+﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
+using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.Providers
@@ -21,7 +22,11 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <param name="logger">The logger service.</param>
     /// <param name="horrorConsole">The horror console.</param>
     /// <param name="systemFunctions">The system functions.</param>
-    public class MovieProvider(string connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    public class MovieProvider(
+        string connectionString,
+        ILoggerService logger,
+        IHorrorConsole horrorConsole,
+        ISystemFunctions systemFunctions)
         : FullLengthProvider(connectionString, logger, horrorConsole, systemFunctions)
     {
         /// <summary>
@@ -55,7 +60,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             }
 
             HorrorConsole.ResetColor();
-            HorrorConsole.Write("Press any key to return to the main menu...");
+            HorrorConsole.Write(ConsoleStrings.PressAnyKey("return to the main menu"));
             HorrorConsole.ReadKey(true);
         }
 

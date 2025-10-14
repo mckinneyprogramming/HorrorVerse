@@ -6,6 +6,7 @@ using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
 using HorrorTracker.Data.Repositories.Constants;
 using HorrorTracker.Data.Repositories.Interfaces;
+using HorrorTracker.Data.Repositories.Records;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.Data.Repositories
@@ -28,17 +29,18 @@ namespace HorrorTracker.Data.Repositories
         private const string Movies = "movies";
 
         /// <inheritdoc/>
-        public override int Add(Movie movie)
+        public override ExecutionNonQueryResult Add(Movie movie)
         {
             return ExecuteNonQuery(
                 MovieQueries.InsertMovie,
                 HorrorObjectsParameters.InsertParameters(movie),
+                string.Empty,
                 RepositoryMessages.AddSuccess($"{Movie} '{movie.Title}'"),
                 RepositoryMessages.AddError($"{Movie.ToLower()} '{movie.Title}'"));
         }
 
         /// <inheritdoc/>
-        public override string Delete(int id)
+        public override ExecutionNonQueryResult Delete(int id)
         {
             return ExecuteNonQuery(
                 MovieQueries.DeleteMovie,
@@ -72,7 +74,7 @@ namespace HorrorTracker.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override string Update(Movie entity)
+        public override ExecutionNonQueryResult Update(Movie entity)
         {
             return ExecuteNonQuery(
                 MovieQueries.UpdateMovie,

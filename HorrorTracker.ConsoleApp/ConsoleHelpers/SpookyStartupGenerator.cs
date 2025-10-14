@@ -64,7 +64,7 @@ namespace HorrorTracker.ConsoleApp.ConsoleHelpers
             _themersFactory.SpookyAnimations.LoopPulse("ENTERING NIGHTMARE MODE...", ConsoleColor.DarkRed, intervalMs: 1000, repetitions: 3);
 
             _horrorConsole.WriteLine();
-            _horrorConsole.MarkupLine("[red]Press any key to continue...[/]");
+            _horrorConsole.MarkupLine($"[red]{ConsoleStrings.PressAnyKey("continue")}[/]");
             _horrorConsole.ReadKey(true);
         }
     }

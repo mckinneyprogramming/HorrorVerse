@@ -35,11 +35,11 @@ namespace HorrorTracker.MSTests.Shared
         /// Sets up the ExecuteNonQuery database command.
         /// </summary>
         /// <param name="commandText">The command text.</param>
-        /// <param name="returnStatus">The return status.</param>
-        public void SetupExecuteNonQueryDatabaseCommand(string commandText, int returnStatus)
+        /// <param name="rowsAffected">The rows affected.</param>
+        public void SetupExecuteNonQueryDatabaseCommand(string commandText, int rowsAffected)
         {
             _mockDatabaseConnection.Setup(db => db.Open());
-            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(returnStatus);
+            _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(rowsAffected);
             _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
             _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, commandText);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);

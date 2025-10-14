@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.Data.Helpers;
 using HorrorTracker.Data.Models.Bases;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
+using HorrorTracker.Data.Repositories.Records;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using System.Collections.ObjectModel;
 using System.Data;
@@ -11,36 +12,25 @@ namespace HorrorTracker.Data.Repositories.Abstractions
     /// The <see cref="RepositoryBase{T}"/> class.
     /// </summary>
     /// <typeparam name="T">The horror object.</typeparam>
-    public abstract class RepositoryBase<T> : ExecutorBase where T : HorrorBase
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="RepositoryBase{T}"/> class.
+    /// </remarks>
+    public abstract class RepositoryBase<T>(IDatabaseConnection databaseConnection, ILoggerService logger)
+        : ExecutorBase(databaseConnection, logger) where T : HorrorBase
     {
-        private readonly IDatabaseConnection _databaseConnection;
-        private readonly ILoggerService _logger;
-        private readonly DatabaseConnectionsHelper _databaseConnectionsHelper;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="RepositoryBase{T}"/> class.
-        /// </summary>
-        protected RepositoryBase(IDatabaseConnection databaseConnection, ILoggerService logger)
-            : base(databaseConnection, logger)
-        {
-            _databaseConnection = databaseConnection;
-            _logger = logger;
-            _databaseConnectionsHelper = new DatabaseConnectionsHelper(_databaseConnection, _logger);
-        }
-
         /// <summary>
         /// Add an item to the database.
         /// </summary>
         /// <param name="entity">The horror object.</param>
         /// <returns></returns>
-        public abstract int Add(T entity);
+        public abstract ExecutionNonQueryResult Add(T entity);
 
         /// <summary>
         /// Deletes an item in the database.
         /// </summary>
         /// <param name="id">The id.</param>
         /// <returns>the message.</returns>
-        public abstract string Delete(int id);
+        public abstract ExecutionNonQueryResult Delete(int id);
 
         /// <summary>
         /// Retrieves all the items from the database.
@@ -60,7 +50,7 @@ namespace HorrorTracker.Data.Repositories.Abstractions
         /// </summary>
         /// <param name="entity">The horror object.</param>
         /// <returns>The message.</returns>
-        public abstract string Update(T entity);
+        public abstract ExecutionNonQueryResult Update(T entity);
 
         /// <summary>
         /// Performs the reader command on the database.
@@ -90,9 +80,9 @@ namespace HorrorTracker.Data.Repositories.Abstractions
                     _logger.LogWarning(notFoundMessage);
                 }
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                _logger.LogError(errorMessage, ex);
+                HandleException(exception, errorMessage);
             }
             finally
             {
@@ -126,9 +116,9 @@ namespace HorrorTracker.Data.Repositories.Abstractions
 
                 _logger.LogInformation(successMessage);
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                _logger.LogError(errorMessage, ex);
+                HandleException(exception, errorMessage);
             }
             finally
             {

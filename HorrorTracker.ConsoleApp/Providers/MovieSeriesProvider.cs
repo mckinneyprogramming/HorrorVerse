@@ -1,8 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
-using NAudio.Mixer;
 using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.Providers
@@ -19,7 +18,7 @@ namespace HorrorTracker.ConsoleApp.Providers
     /// <param name="logger">The logger service.</param>
     /// <param name="horrorConsole">The horror console.</param>
     /// <param name="systemFunctions">The system functions.</param>
-    public class MovieSeriesProvider(string connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    public class MovieSeriesProvider(string connectionString, ILoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
         : FullLengthProvider(connectionString, logger, horrorConsole, systemFunctions)
     {
         /// <summary>

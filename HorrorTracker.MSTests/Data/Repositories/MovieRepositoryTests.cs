@@ -46,14 +46,15 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var movie = Fixtures.Movie();
-            var expectedResult = 1;
-            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.InsertMovie, expectedResult);
+            var expectedRowsAffected = 1;
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.InsertMovie, expectedRowsAffected);
 
             // Act
-            var actualResult = _repository.Add(movie);
+            var result = _repository.Add(movie);
 
             // Assert
-            Assert.AreEqual(expectedResult, actualResult);
+            Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
+            Assert.IsTrue(result.Success);
             _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, $"Movie '{movie.Title}' was added successfully.");
         }
 
@@ -62,14 +63,15 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var movie = Fixtures.Movie();
-            var expectedResult = 0;
-            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.InsertMovie, expectedResult);
+            var expectedRowsAffected = 0;
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.InsertMovie, expectedRowsAffected);
 
             // Act
-            var actualResult = _repository.Add(movie);
+            var result = _repository.Add(movie);
 
             // Assert
-            Assert.AreEqual(expectedResult, actualResult);
+            Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
+            Assert.IsFalse(result.Success);
             _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
@@ -78,14 +80,15 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var movie = Fixtures.Movie();
-            var expectedResult = 0;
+            var expectedRowsAffected = 0;
             _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
-            var actualResult = _repository.Add(movie);
+            var result = _repository.Add(movie);
 
             // Assert
-            Assert.AreEqual(expectedResult, actualResult);
+            Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
+            Assert.IsFalse(result.Success);
             _loggerVerifier.VerifyErrorMessage($"Error adding movie '{movie.Title}'.", Messages.ExceptionMessage);
         }
 
@@ -95,14 +98,17 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Arrange
             var id = Fixtures.Movie().Id;
             var expectedMessage = $"Movie with ID '{id}' deleted successfully.";
-            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.DeleteMovie, 1);
+            var expectedRowsAffected = 1;
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.DeleteMovie, expectedRowsAffected);
 
             // Act
-            var actualMessage = _repository.Delete(id);
+            var result = _repository.Delete(id);
 
             // Assert
-            Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, actualMessage);
+            Assert.AreEqual(expectedMessage, result.Message);
+            Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
+            Assert.IsTrue(result.Success);
+            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, result.Message);
         }
 
         [TestMethod]
@@ -111,13 +117,16 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Arrange
             var id = Fixtures.Movie().Id;
             var expectedMessage = "Deleting movie was not successful.";
-            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.DeleteMovie, 0);
+            var expectedRowsAffected = 0;
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.DeleteMovie, expectedRowsAffected);
 
             // Act
-            var actualMessage = _repository.Delete(id);
+            var result = _repository.Delete(id);
 
             // Assert
-            Assert.AreEqual(expectedMessage, actualMessage);
+            Assert.AreEqual(expectedMessage, result.Message);
+            Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
+            Assert.IsFalse(result.Success);
             _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
@@ -130,10 +139,12 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
-            var actualMessage = _repository.Delete(id);
+            var result = _repository.Delete(id);
 
             // Assert
-            Assert.AreEqual(expectedMessage, actualMessage);
+            Assert.AreEqual(expectedMessage, result.Message);
+            Assert.AreEqual(0, result.RowsAffected);
+            Assert.IsFalse(result.Success);
             _loggerVerifier.VerifyErrorMessage(expectedMessage, Messages.ExceptionMessage);
         }
 
@@ -156,7 +167,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.IsNotNull(actualResult);
-            Assert.AreEqual(expectedListOfMovies.Count, actualResult.Count);
+            Assert.HasCount(expectedListOfMovies.Count, actualResult);
             CollectionAssert.AreEqual(expectedListOfMovies, actualResult, new MovieComparer());
             _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, "Successfully retrieved all of the movies.");
         }
@@ -255,16 +266,19 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Arrange
             var movie = Fixtures.Movie();
             var expectedMessage = $"Movie '{movie.Title}' updated successfully.";
-            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.UpdateMovie, 1);
+            var expectedRowsAffected = 1;
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.UpdateMovie, expectedRowsAffected);
 
             // Act
-            var actualMessage = _repository.Update(movie);
+            var result = _repository.Update(movie);
 
             // Assert
-            Assert.AreEqual(expectedMessage, actualMessage);
+            Assert.AreEqual(expectedMessage, result.Message);
+            Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
+            Assert.IsTrue(result.Success);
             _loggerVerifier.VerifyLoggerInformationMessages(
                 Messages.DatabaseOpened,
-                actualMessage);
+                result.Message);
         }
 
         [TestMethod]
@@ -272,14 +286,17 @@ namespace HorrorTracker.MSTests.Data.Repositories
         {
             // Arrange
             var expectedMessage = "Updating movie was not successful.";
+            var expectedRowsAffected = 0;
             var movie = Fixtures.Movie();
-            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.UpdateMovie, 0);
+            _mockSetupManager.SetupExecuteNonQueryDatabaseCommand(MovieQueries.UpdateMovie, expectedRowsAffected);
 
             // Act
-            var actualMessage = _repository.Update(movie);
+            var result = _repository.Update(movie);
 
             // Assert
-            Assert.AreEqual(expectedMessage, actualMessage);
+            Assert.AreEqual(expectedMessage, result.Message);
+            Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
+            Assert.IsFalse(result.Success);
             _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog($"Movie '{movie.Title}' updated successfully.");
         }
@@ -293,14 +310,16 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _mockSetupManager.SetupException(Messages.ExceptionMessage);
 
             // Act
-            var actualMessage = _repository.Update(movie);
+            var result = _repository.Update(movie);
 
             // Assert
-            Assert.AreEqual(expectedMessage, actualMessage);
-            _loggerVerifier.VerifyErrorMessage(actualMessage, Messages.ExceptionMessage);
+            Assert.AreEqual(expectedMessage, result.Message);
+            Assert.AreEqual(0, result.RowsAffected);
+            Assert.IsFalse(result.Success);
+            _loggerVerifier.VerifyErrorMessage(result.Message, Messages.ExceptionMessage);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(true, "Successfully retrieved list of watched movies.")]
         [DataRow(false, "Successfully retrieved list of unwatched movies.")]
         public void GetUnwatchedOrWatched_WhenSuccessful_ShouldReturnListOfMovies(bool watched, string message)
@@ -329,7 +348,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, message);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(true, "Error fetching watched movies.")]
         [DataRow(false, "Error fetching unwatched movies.")]
         public void GetUnwatchedOrWatched_WhenNotSuccessful_ShouldReturnEmptyListAndLogError(bool watched, string errorMessage)
@@ -341,11 +360,11 @@ namespace HorrorTracker.MSTests.Data.Repositories
             var result = _repository.GetUnwatchedOrWatched(watched);
 
             // Assert
-            Assert.IsTrue(!result.Any());
+            Assert.IsFalse(result.Any());
             _loggerVerifier.VerifyErrorMessage(errorMessage, Messages.ExceptionMessage);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(MovieQueries.GetTotalTimeOfWatchedMovie, 400)]
         [DataRow(MovieQueries.GetTimeLeftOfUnwatchedMovie, 500)]
         public void GetTime_WhenSuccessful_ShouldReturnCorrectDecimalAndLogMessage(string query, int time)
@@ -362,7 +381,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(MovieQueries.GetTotalTimeOfWatchedMovie, "Error fetching total time of watched movies.")]
         [DataRow(MovieQueries.GetTimeLeftOfUnwatchedMovie, "Error fetching time left of unwatched movies.")]
         public void GetTime_WhenExceptionOccurs_ShouldReturnZeroAndLogError(string query, string errorMessage)
@@ -374,11 +393,11 @@ namespace HorrorTracker.MSTests.Data.Repositories
             var result = _repository.GetTime(query);
 
             // Assert
-            Assert.IsTrue(result == 0.0M);
+            Assert.AreEqual(0.0M, result);
             _loggerVerifier.VerifyErrorMessage(errorMessage, Messages.ExceptionMessage);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(true, "Successfully retrieved list of watched movies in the series.")]
         [DataRow(false, "Successfully retrieved list of unwatched movies in the series.")]
         public void GetUnwatchedOrWatchedMoviesInSeries_WhenSuccessful_ShouldReturnListOfMovies(bool watched, string message)
@@ -401,7 +420,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, message);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(true, "Error fetching watched movies in the series.")]
         [DataRow(false, "Error fetching unwatched movies in the series.")]
         public void GetUnwatchedOrWatchedMoviesInSeries_WhenNotSuccessful_ShouldReturnEmptyListOfMoviesAndLogErrorMessage(bool watched, string message)
@@ -413,7 +432,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             var result = _repository.GetUnwatchedOrWatchedMoviesInSeries(watched, "Test Series");
 
             // Assert
-            Assert.IsTrue(!result.Any());
+            Assert.IsFalse(result.Any());
             _loggerVerifier.VerifyErrorMessage(message, Messages.ExceptionMessage);
         }
 

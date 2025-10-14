@@ -27,14 +27,11 @@
     </ProjectReference>
     <ProjectReference Include="..\HorrorTracker.Data\HorrorTracker.Data.csproj" />
     <ProjectReference Include="..\HorrorTracker.MSTests.Shared\HorrorTracker.MSTests.Shared.csproj" />
+    <ProjectReference Include="..\HorrorTracker.Utilities\HorrorTracker.Utilities.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="ConsoleApp\" />
   </ItemGroup>
 
 </Project>

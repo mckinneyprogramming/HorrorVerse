@@ -3,7 +3,7 @@ using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data;
 using HorrorTracker.Data.Audio;
 using HorrorTracker.Data.PostgreHelpers;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.Core
 {
@@ -17,10 +17,14 @@ namespace HorrorTracker.ConsoleApp.Core
     /// <param name="logger">The logger service.</param>
     /// <param name="horrorConsole">The horror console.</param>
     /// <param name="systemFunctions">The system functions.</param>
-    public class CoreSetup(DatabaseConnection databaseConnection, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    public class CoreSetup(
+        DatabaseConnection databaseConnection,
+        ILoggerService logger,
+        IHorrorConsole horrorConsole,
+        ISystemFunctions systemFunctions)
     {
         private readonly DatabaseConnection _databaseConnection = databaseConnection;
-        private readonly LoggerService _logger = logger;
+        private readonly ILoggerService _logger = logger;
         private readonly IHorrorConsole _horrorConsole = horrorConsole;
         private readonly ISystemFunctions _systemFunctions = systemFunctions;
 

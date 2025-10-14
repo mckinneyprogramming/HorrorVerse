@@ -18,7 +18,7 @@ namespace HorrorTracker.Data.PostgreHelpers
         /// <summary>
         /// The connection to a Postgre server.
         /// </summary>
-        private readonly NpgsqlConnection _connection = new NpgsqlConnection(connectionString);
+        private readonly NpgsqlConnection _connection = new(connectionString);
 
         /// <inheritdoc/>
         public void Open()

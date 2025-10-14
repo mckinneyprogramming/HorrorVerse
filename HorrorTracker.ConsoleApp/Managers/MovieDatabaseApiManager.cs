@@ -2,7 +2,7 @@
 using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.ConsoleApp.Providers;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Managers
@@ -18,7 +18,11 @@ namespace HorrorTracker.ConsoleApp.Managers
     /// <param name="connectionString">The connection string.</param>
     /// <param name="horroConsole">The horror console.</param>
     /// <param name="systemFunctions">The system functions.</param>
-    public class MovieDatabaseApiManager(LoggerService logger, string? connectionString, IHorrorConsole horroConsole, ISystemFunctions systemFunctions)
+    public class MovieDatabaseApiManager(
+        ILoggerService logger,
+        string connectionString,
+        IHorrorConsole horroConsole,
+        ISystemFunctions systemFunctions)
         : Manager(connectionString, logger, horroConsole, systemFunctions)
     {
         /// <inheritdoc/>

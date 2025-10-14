@@ -1,4 +1,4 @@
-﻿using HorrorTracker.Utilities.Logging;
+﻿using HorrorTracker.Utilities.Logging.Interfaces;
 using NAudio.Wave;
 using System.Diagnostics.CodeAnalysis;
 
@@ -30,17 +30,17 @@ namespace HorrorTracker.Data.Audio
         /// <summary>
         /// The logger service.
         /// </summary>
-        private LoggerService _logger;
+        private readonly ILoggerService _logger;
 
         /// <summary>
         /// The lock object.
         /// </summary>
-        private readonly object lockObject = new();
+        private readonly Lock lockObject = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MusicPlayer"/> class.
         /// </summary>
-        public MusicPlayer(LoggerService logger)
+        public MusicPlayer(ILoggerService logger)
         {
             random = new Random();
             songQueue = new Queue<string>();

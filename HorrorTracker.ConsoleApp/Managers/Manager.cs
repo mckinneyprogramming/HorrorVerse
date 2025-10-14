@@ -1,32 +1,38 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
 using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
     /// <summary>
-    /// The <see cref="Manager"/> abstract class.
+    /// Provides a base class for managing database operations and user interface interactions within the application.
+    /// Derived classes implement specific management functionality and menu options.
     /// </summary>
-    /// <remarks>
-    /// Initializes a new instance of the <see cref="Manager"/> class.
-    /// </remarks>
-    /// <param name="connectionString">The connection string.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="horrorConsole">the horror console.</param>
-    /// <param name="systemFunctions">The system functions.</param>
-    public abstract class Manager(string? connectionString, LoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    /// <remarks>This class is intended to be inherited by specialized manager types that define their own
+    /// menu titles and options. It encapsulates common functionality for displaying menus and handling user input.
+    /// Thread safety is not guaranteed; derived classes should ensure appropriate synchronization if accessed
+    /// concurrently.</remarks>
+    /// <param name="connectionString">The connection string used to establish a connection to the database. Cannot be null or empty.</param>
+    /// <param name="logger">The logger service used for recording application events and errors. Cannot be null.</param>
+    /// <param name="horrorConsole">The console interface used for displaying styled output and interacting with the user. Cannot be null.</param>
+    /// <param name="systemFunctions">The system functions provider used for accessing platform-specific operations. Cannot be null.</param>
+    public abstract class Manager(
+        string connectionString,
+        ILoggerService logger,
+        IHorrorConsole horrorConsole,
+        ISystemFunctions systemFunctions)
     {
         /// <summary>
         /// The connection string.
         /// </summary>
-        protected readonly string? ConnectionString = connectionString;
+        protected readonly string ConnectionString = connectionString;
 
         /// <summary>
         /// The logger.
         /// </summary>
-        protected readonly LoggerService Logger = logger;
+        protected readonly ILoggerService Logger = logger;
 
         /// <summary>
         /// The horror console.
@@ -58,7 +64,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// </summary>
         protected void DisplayManagerTitles()
         {
-            Console.Title = ConsoleTitles.Title(RetrieveTitle());
+            Console.Title = ConsoleStrings.Title(RetrieveTitle());
 
             HorrorConsole.Clear();
             HorrorConsole.SetForegroundColor(ConsoleColor.Red);
@@ -85,11 +91,11 @@ namespace HorrorTracker.ConsoleApp.Managers
         /// <summary>
         /// Retrieves the title for the menu.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The title string.</returns>
         protected abstract string RetrieveTitle();
 
         /// <summary>
-        /// Retrieves the menu options to display.
+        /// 
         /// </summary>
         /// <returns></returns>
         protected abstract string[] RetrieveMenuOptions();

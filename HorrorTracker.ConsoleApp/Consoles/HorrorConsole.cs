@@ -18,7 +18,7 @@ namespace HorrorTracker.ConsoleApp.Consoles
         public void ResetColor() => Console.ResetColor();
 
         /// <inheritdoc/>
-        public void Sleep(int ms) => Thread.Sleep(ms);
+        public void Sleep(int milliseconds) => Thread.Sleep(milliseconds);
 
         /// <inheritdoc/>
         public string? ReadLine() => Console.ReadLine();
@@ -30,13 +30,13 @@ namespace HorrorTracker.ConsoleApp.Consoles
         public void Write(char character) => Console.Write(character);
 
         /// <inheritdoc/>
+        public void Write(string text) => AnsiConsole.Write(text);
+
+        /// <inheritdoc/>
         public void Markup(string text) => AnsiConsole.Markup(text);
 
         /// <inheritdoc/>
         public void MarkupLine(string text) => AnsiConsole.MarkupLine(text);
-
-        /// <inheritdoc/>
-        public void Write(string text) => AnsiConsole.Write(text);
 
         /// <inheritdoc/>
         public void WriteLine() => AnsiConsole.WriteLine();

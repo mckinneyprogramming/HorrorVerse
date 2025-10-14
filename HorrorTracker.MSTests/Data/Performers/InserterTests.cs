@@ -2,6 +2,7 @@
 using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories.Abstractions;
+using HorrorTracker.Data.Repositories.Records;
 using HorrorTracker.MSTests.Shared;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using Moq;
@@ -18,12 +19,6 @@ namespace HorrorTracker.MSTests.Data.Performers
         private Mock<RepositoryBase<Movie>> _mockMovieRepository;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-        [TestInitialize]
-        public void Initialize()
-        {
-            
-        }
-
         [TestMethod]
         public void MovieSeriesAddedSuccessfully_ReturnsTrue_WhenSeriesDoesNotExist()
         {
@@ -33,7 +28,7 @@ namespace HorrorTracker.MSTests.Data.Performers
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
             _mockMovieSeriesRepository.Setup(repo => repo.GetByTitle(series.Title)).Returns((MovieSeries)null);
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
-            _mockMovieSeriesRepository.Setup(repo => repo.Add(series)).Returns(1);
+            _mockMovieSeriesRepository.Setup(repo => repo.Add(series)).Returns(new ExecutionNonQueryResult(1, true, string.Empty));
 
             // Act
             var result = Inserter.MovieSeriesAddedSuccessfully(_mockMovieSeriesRepository.Object, series);
@@ -63,7 +58,7 @@ namespace HorrorTracker.MSTests.Data.Performers
             // Arrange
             _mockMovieRepository = new Mock<RepositoryBase<Movie>>(It.IsAny<IDatabaseConnection>(), It.IsAny<ILoggerService>());
             var movie = Fixtures.Movie();
-            _mockMovieRepository.Setup(repo => repo.Add(movie)).Returns(1);
+            _mockMovieRepository.Setup(repo => repo.Add(movie)).Returns(new ExecutionNonQueryResult(1, true, string.Empty));
 
             // Act
             var result = Inserter.MovieAddedSuccessfully(_mockMovieRepository.Object, movie);
@@ -78,7 +73,7 @@ namespace HorrorTracker.MSTests.Data.Performers
             // Arrange
             _mockMovieRepository = new Mock<RepositoryBase<Movie>>(It.IsAny<IDatabaseConnection>(), It.IsAny<ILoggerService>());
             var movie = Fixtures.Movie();
-            _mockMovieRepository.Setup(repo => repo.Add(movie)).Returns(0);
+            _mockMovieRepository.Setup(repo => repo.Add(movie)).Returns(new ExecutionNonQueryResult(0, false, string.Empty));
 
             // Act
             var result = Inserter.MovieAddedSuccessfully(_mockMovieRepository.Object, movie);
