@@ -13,14 +13,10 @@ namespace HorrorTracker.ConsoleApp.Factories
     /// <param name="systemFunctions">The system functions.</param>
     public class ThemersFactory(IHorrorConsole horrorConsole, ISystemFunctions systemFunctions) : IThemersFactory
     {
-        /// <summary>
-        /// Gets the SpookyAnimations.
-        /// </summary>
+        /// <inheritdoc/>
         public ISpookyAnimations SpookyAnimations { get; } = new SpookyAnimations(horrorConsole, systemFunctions);
 
-        /// <summary>
-        /// Gets the SpookyTextStyler.
-        /// </summary>
+        /// <inheritdoc/>
         public ISpookyTextStyler SpookyTextStyler { get; } = new SpookyTextStyler(horrorConsole, systemFunctions);
     }
 }

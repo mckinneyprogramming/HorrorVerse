@@ -1,11 +1,11 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
 using HorrorTracker.ConsoleApp.Consoles;
-using HorrorTracker.ConsoleApp.Core;
 using HorrorTracker.ConsoleApp.Factories;
+using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Utilities.Logging;
 using System.Diagnostics.CodeAnalysis;
 
-namespace HorrorTracker.ConsoleApp
+namespace HorrorTracker.ConsoleApp.Core
 {
     /// <summary>
     /// Represents the entry point and lifecycle management for the HorrorTracker application, coordinating startup,
@@ -33,10 +33,13 @@ namespace HorrorTracker.ConsoleApp
     [ExcludeFromCodeCoverage]
     public class Program(string connectionString, LoggerService logger, HorrorConsole horrorConsole, SystemFunctions systemFunctions)
     {
-        private readonly string _connectionString = connectionString;
         private readonly LoggerService _logger = logger;
         private readonly HorrorConsole _horrorConsole = horrorConsole;
         private readonly SystemFunctions _systemFunctions = systemFunctions;
+
+        private readonly ISetupFactory setupFactory = new SetupFactory(connectionString, logger, horrorConsole, systemFunctions);
+        private readonly IProcessorFactory processorFactory = new ProcessorFactory(logger, horrorConsole, systemFunctions);
+        private readonly IManagerFactory managerFactory = new ManagerFactory(connectionString, logger, horrorConsole, systemFunctions);
 
         /// <summary>
         /// Starts the application, handling initialization, execution, and cleanup. Logs startup and any unexpected
@@ -49,7 +52,7 @@ namespace HorrorTracker.ConsoleApp
         /// </remarks>
         public void Main()
         {
-            _logger.LogInformation("HorrorTracker has started.");
+            _logger.LogInformation("HorrorVerse has started.");
 
             try
             {
@@ -84,7 +87,7 @@ namespace HorrorTracker.ConsoleApp
             _horrorConsole.ReadKey(true);
             _horrorConsole.Clear();
 
-            HorrorVerseUi horrorVerseUi = new(_connectionString, _logger, _horrorConsole, _systemFunctions);
+            HorrorVerseUi horrorVerseUi = new(_logger, _horrorConsole, setupFactory, processorFactory, managerFactory);
             horrorVerseUi.Run();
         }
 
@@ -99,7 +102,7 @@ namespace HorrorTracker.ConsoleApp
         /// </remarks>
         private void Cleanup()
         {
-            _logger.LogInformation("HorrorTracker has ended.");
+            _logger.LogInformation("HorrorVerse has ended.");
             _logger.CloseAndFlush();
 
             _horrorConsole.ResetColor();

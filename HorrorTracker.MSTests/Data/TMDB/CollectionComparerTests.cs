@@ -1,7 +1,6 @@
 ﻿using HorrorTracker.Data.TMDB;
 using HorrorTracker.MSTests.Shared;
 using System.Diagnostics.CodeAnalysis;
-using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.MSTests.Data.TMDB
 {

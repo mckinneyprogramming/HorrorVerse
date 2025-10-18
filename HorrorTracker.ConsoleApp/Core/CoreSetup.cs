@@ -43,12 +43,15 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <param name="listenToMusic">The users decision.</param>
         public void SetupMusic(string? listenToMusic)
         {
-            if (string.Equals(listenToMusic, "y", StringComparison.CurrentCultureIgnoreCase) ||
-                string.Equals(listenToMusic, "yes", StringComparison.CurrentCultureIgnoreCase))
+            var wantsMusic = IsAffirmative(listenToMusic);
+            var wantsMusicString = wantsMusic ? "in" : "out";
+
+            _logger.LogInformation($"User has opted {wantsMusicString} of music.");
+            _horrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
+            _horrorConsole.MarkupLine($"You have opted {wantsMusicString} for music.");
+
+            if (wantsMusic)
             {
-                _logger.LogInformation("User has opted in for music.");
-                _horrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
-                _horrorConsole.MarkupLine("You have opted in for music!");
                 var musicPlayer = new MusicPlayer(_logger);
                 musicPlayer.LoadAndShuffleSongs();
                 musicPlayer.StartPlaying();
@@ -56,9 +59,6 @@ namespace HorrorTracker.ConsoleApp.Core
             }
             else
             {
-                _logger.LogInformation("User has opted out of music.");
-                _horrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
-                _horrorConsole.MarkupLine("You have opted out of music.");
                 _systemFunctions.Sleep(3000);
             }
         }
@@ -115,5 +115,15 @@ namespace HorrorTracker.ConsoleApp.Core
                 return false;
             }
         }
+
+        /// <summary>
+        /// Determines whether the given input is an affirmative response.
+        /// </summary>
+        private static bool IsAffirmative(string? input) =>
+            input?.Trim().ToLowerInvariant() switch
+            {
+                "y" or "yes" or "yeah" or "yep" or "sure" or "ok" => true,
+                _ => false
+            };
     }
 }

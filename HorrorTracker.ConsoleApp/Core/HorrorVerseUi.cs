@@ -1,8 +1,4 @@
-﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
-using HorrorTracker.ConsoleApp.Managers;
-using HorrorTracker.Data.PostgreHelpers;
-using HorrorTracker.ConsoleApp.Interfaces;
-using HorrorTracker.Utilities.Parsing;
+﻿using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.Core
@@ -14,19 +10,24 @@ namespace HorrorTracker.ConsoleApp.Core
     /// <remarks>This class coordinates the initialization and main menu flow of the HorrorVerse application.
     /// It relies on the provided services to manage user interactions, database connectivity, and system-level
     /// operations. The application remains active until the user chooses to exit from the main menu.</remarks>
-    /// <param name="connectionString">The connection string used to establish a database connection for application data storage and retrieval. Can be
-    /// null if database features are not required.</param>
     /// <param name="logger">The logger service used to record informational messages, warnings, and errors throughout the application's
     /// execution.</param>
     /// <param name="horrorConsole">The console interface used for user input and output operations within the application.</param>
-    /// <param name="systemFunctions">The system functions provider used to access platform-specific operations required by the application.</param>
-    public class HorrorVerseUi(string connectionString, ILoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
+    /// <param name="setupFactory">The setup factory.</param>
+    /// <param name="processorFactory">The processor factory.</param>
+    /// <param name="managerFactory">The manager factory.</param>
+    public class HorrorVerseUi(
+        ILoggerService logger,
+        IHorrorConsole horrorConsole,
+        ISetupFactory setupFactory,
+        IProcessorFactory processorFactory,
+        IManagerFactory managerFactory)
     {
-        private readonly string _connectionString = connectionString;
         private readonly ILoggerService _logger = logger;
         private readonly IHorrorConsole _horrorConsole = horrorConsole;
-        private readonly ISystemFunctions _systemFunctions = systemFunctions;
-        private bool _isRunning;
+        private readonly ISetupFactory _setupFactory = setupFactory;
+        private readonly IProcessorFactory _processorFactory = processorFactory;
+        private readonly IManagerFactory _managerFactory = managerFactory;
 
         private const string MusicPrompt = "Would you like to listen to horror music (Y/N): ";
 
@@ -39,9 +40,9 @@ namespace HorrorTracker.ConsoleApp.Core
         /// running. It should be called once to start the application's interactive session.</remarks>
         public void Run()
         {
-            DatabaseConnection databaseConnection = new(_connectionString);
-            CoreSetup coreSetup = new(databaseConnection, _logger, _horrorConsole, _systemFunctions);
-            _isRunning = coreSetup.TestDatabaseConnection();
+            bool isRunning;
+            var coreSetup = _setupFactory.CreateCoreSetup();
+            isRunning = coreSetup.TestDatabaseConnection();
 
             _horrorConsole.WriteLine();
             _horrorConsole.Write(MusicPrompt);
@@ -49,14 +50,16 @@ namespace HorrorTracker.ConsoleApp.Core
             coreSetup.SetupMusic(listenToMusic);
             _horrorConsole.Clear();
 
-            var coreMenuSetup = new CoreMenuSetup(coreSetup.SetupHorrorConnections(), _horrorConsole, _systemFunctions);
+            var coreMenuSetup = _setupFactory.CreateCoreMenuSetup(coreSetup);
             coreMenuSetup.DisplayHorrorVerseIntro();
 
-            while (_isRunning)
+            var actions = MainMenuDecisionActions(() => isRunning = false);
+
+            while (isRunning)
             {
                 var decision = coreMenuSetup.DisplayMainMenu();
-                var decisionProcessor = new DecisionProcessor(new Parser(), _logger, _horrorConsole, _systemFunctions);
-                decisionProcessor.Process(decision, MainMenuDecisionActions());
+                var decisionProcessor = _processorFactory.CreateDecisionProcessor();
+                decisionProcessor.Process(decision, actions);
                 _horrorConsole.Clear();
             }
         }
@@ -69,15 +72,21 @@ namespace HorrorTracker.ConsoleApp.Core
         /// The caller can use this mapping to invoke the appropriate functionality based on user input.</remarks>
         /// <returns>A dictionary where each key is an integer representing a main menu option, and each value is an action to
         /// execute when that option is selected.</returns>
-        private Dictionary<int, Action> MainMenuDecisionActions()
+        private Dictionary<int, Action> MainMenuDecisionActions(Action exitAction)
         {
-            return new Dictionary<int, Action>
+            var movieDatabaseApiManager = _managerFactory.CreateMovieDatabaseApiManager();
+
+            return new()
             {
-                { 1, () => new MovieDatabaseApiManager(_logger, _connectionString, _horrorConsole, _systemFunctions).Manage() },
-                { 2, () => new ManualManager(_connectionString, _logger, _horrorConsole, _systemFunctions).Manage() },
-                { 3, () => new MovieDatabaseApiManager(_logger, _connectionString, _horrorConsole, _systemFunctions).DisplayUpcomingHorrorFilms() },
-                { 4, () => new AccountManager(_logger, _horrorConsole, _systemFunctions).Manage() },
-                { 5, () => { _isRunning = false; _logger.LogInformation("Selected to exit."); } }
+                [1] = movieDatabaseApiManager.Manage,
+                [2] = _managerFactory.CreateManualManager().Manage,
+                [3] = movieDatabaseApiManager.DisplayUpcomingHorrorFilms,
+                [4] = _managerFactory.CreateAccountManager().Manage,
+                [5] = () =>
+                {
+                    _logger.LogInformation("Selected to exit.");
+                    exitAction();
+                }
             };
         }
     }

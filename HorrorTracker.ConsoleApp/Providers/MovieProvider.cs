@@ -89,16 +89,11 @@ namespace HorrorTracker.ConsoleApp.Providers
             var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
             themersFactory.SpookyTextStyler.Typewriter(ConsoleColor.DarkGray, 25, "Choose a movie you want to add to the database.");
 
-            var movieChoices = new List<string>();
-            foreach (var movie in result.Results)
-            {
-                movieChoices.Add($"- Id: {movie.Id}; Title: {movie.Title}\n" +
-                    $"  - {movie.Overview}");
-            }
-
+            var movieChoices = result.Results.Select(movie => $"- Id: {movie.Id}; Title: {movie.Title}\n  - {movie.Overview}").ToList();
             var movieSelection = themersFactory.SpookyTextStyler.InteractiveMenu("--- Movie Selection ---", [.. movieChoices]);
-            var movieSelectionId = movieSelection.Split(':');
-            var movieId = movieSelectionId[1].Trim();
+            var movieSelectionSplit = movieSelection.Split(';');
+            var movieIdSplit = movieSelectionSplit[0].Trim().Split(' ');
+            var movieId = movieIdSplit[^1];
             if (!Parser.IsInteger(movieId, out var movieIdInt))
             {
                 HorrorConsole.SetForegroundColor(ConsoleColor.DarkRed);
@@ -191,7 +186,15 @@ namespace HorrorTracker.ConsoleApp.Providers
         {
             HorrorConsole.MarkupLine("Another movie to add to your database! We are now going to check if it is part of a series.");
             SystemFunctions.Sleep(2000);
-            if (!Parser.StringIsNull(collection.Name))
+
+            if (collection == null)
+            {
+                HorrorConsole.MarkupLine("This movie is not part of a movie series (not yet anyway!). We will get this movie added to your database.");
+                var newMovie = new Movie(movieInformation.Title, Convert.ToDecimal(movieInformation.Runtime), false, null, movieInformation.ReleaseDate.Value.Year, false);
+                AddMovieToDatabase(movieInformation, movieRepository, newMovie);
+            }
+
+            if (collection != null && !Parser.StringIsNull(collection.Name))
             {
                 HorrorConsole.MarkupLine("Looks like the movie is part of a series. We will see if that series already exists in your database.");
                 var series = movieSeriesRepository.GetByTitle(collection.Name.Replace("Collection", string.Empty).Trim());
@@ -211,12 +214,6 @@ namespace HorrorTracker.ConsoleApp.Providers
                     HorrorConsole.MarkupLine("The series is not found at all in your database. We will grab the series and add it to your database and its movies.");
                     AddSeriesAndMoviesToDatabase(movieDatabaseService, collection.Id);
                 }
-            }
-            else
-            {
-                HorrorConsole.MarkupLine("This movie is not part of a movie series (not yet anyway!). We will get this movie added to your database.");
-                var newMovie = new Movie(movieInformation.Title, Convert.ToDecimal(movieInformation.Runtime), false, null, movieInformation.ReleaseDate.Value.Year, false);
-                AddMovieToDatabase(movieInformation, movieRepository, newMovie);
             }
         }
     }
