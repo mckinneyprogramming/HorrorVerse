@@ -1,58 +1,34 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
-using HorrorTracker.ConsoleApp.Consoles;
 using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
-using HorrorTracker.Utilities.Logging;
+using HorrorTracker.Utilities.Logging.Interfaces;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.ConsoleApp.Core
 {
-    /// <summary>
-    /// Represents the entry point and lifecycle management for the HorrorTracker application, coordinating startup,
-    /// execution, and shutdown processes.
-    /// </summary>
-    /// <remarks>
-    /// This class should be instantiated once to manage the application's lifecycle, including
-    /// initialization, user interface activation, error handling, and resource cleanup. It coordinates dependencies
-    /// such as logging, console interaction, and system utilities to ensure a consistent and reliable application
-    /// experience.
-    /// </remarks>
-    /// <param name="connectionString">
-    /// The database connection string used to initialize application data sources.
-    /// Can be null if no database is required.
-    /// </param>
-    /// <param name="logger">
-    /// The logging service used to record informational messages, errors, and application events throughout the application's lifecycle.
-    /// </param>
-    /// <param name="horrorConsole">
-    /// The console interface responsible for user interaction, display output, and themed presentation within the application.
-    /// </param>
-    /// <param name="systemFunctions">
-    /// Provides access to system-level operations and utilities required by the application for environment setup and control.
-    /// </param>
     [ExcludeFromCodeCoverage]
-    public class Program(string connectionString, LoggerService logger, HorrorConsole horrorConsole, SystemFunctions systemFunctions)
+    public class Program(
+        ILoggerService logger,
+        IHorrorConsole horrorConsole,
+        ISystemFunctions systemFunctions,
+        ISetupFactory setupFactory,
+        IProcessorFactory processorFactory,
+        IManagerFactory managerFactory)
     {
-        private readonly LoggerService _logger = logger;
-        private readonly HorrorConsole _horrorConsole = horrorConsole;
-        private readonly SystemFunctions _systemFunctions = systemFunctions;
+        private readonly ILoggerService _logger = logger;
+        private readonly IHorrorConsole _horrorConsole = horrorConsole;
+        private readonly ISystemFunctions _systemFunctions = systemFunctions;
 
-        private readonly ISetupFactory setupFactory = new SetupFactory(connectionString, logger, horrorConsole, systemFunctions);
-        private readonly IProcessorFactory processorFactory = new ProcessorFactory(logger, horrorConsole, systemFunctions);
-        private readonly IManagerFactory managerFactory = new ManagerFactory(connectionString, logger, horrorConsole, systemFunctions);
+        private readonly ISetupFactory _setupFactory = setupFactory;
+        private readonly IProcessorFactory _processorFactory = processorFactory;
+        private readonly IManagerFactory _managerFactory = managerFactory;
 
-        /// <summary>
-        /// Starts the application, handling initialization, execution, and cleanup. Logs startup and any unexpected
-        /// errors encountered during execution.
-        /// </summary>
-        /// <remarks>
-        /// This method should be called once to begin the application's lifecycle. It ensures
-        /// that resources are properly cleaned up even if an error occurs during execution. Any exceptions thrown by
-        /// the application are logged for diagnostic purposes.
-        /// </remarks>
+        public Action? OnExit { get; set; }
+
         public void Main()
         {
             _logger.LogInformation("HorrorVerse has started.");
+            _horrorConsole.MarkupLine("[bold green]HorrorVerse started successfully![/]");
 
             try
             {
@@ -87,8 +63,8 @@ namespace HorrorTracker.ConsoleApp.Core
             _horrorConsole.ReadKey(true);
             _horrorConsole.Clear();
 
-            HorrorVerseUi horrorVerseUi = new(_logger, _horrorConsole, setupFactory, processorFactory, managerFactory);
-            horrorVerseUi.Run();
+            HorrorVerseUi horrorVerseUi = new(_logger, _horrorConsole, _setupFactory, _processorFactory, _managerFactory);
+            horrorVerseUi.Run(() => OnExit?.Invoke());
         }
 
         /// <summary>
@@ -105,9 +81,12 @@ namespace HorrorTracker.ConsoleApp.Core
             _logger.LogInformation("HorrorVerse has ended.");
             _logger.CloseAndFlush();
 
+            _horrorConsole.SetForegroundColor(ConsoleColor.Green);
+            _horrorConsole.Write("Thank you for visiting HorrorVerse! Come back for more scares soon!\n");
+            Thread.Sleep(2000);
+
             _horrorConsole.ResetColor();
-            _horrorConsole.Write(ConsoleStrings.PressAnyKey("exit"));
-            _ = Console.ReadKey();
+            _horrorConsole.Clear();
         }
     }
 }

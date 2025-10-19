@@ -25,7 +25,7 @@ namespace HorrorTracker.Data.Repositories.Abstractions
         {
             _databaseConnection = databaseConnection;
             _logger = logger;
-            _databaseConnectionsHelper = new DatabaseConnectionsHelper(_databaseConnection, _logger);
+            _databaseConnectionsHelper = new DatabaseConnectionsHelper(_databaseConnection);
         }
 
         /// <summary>

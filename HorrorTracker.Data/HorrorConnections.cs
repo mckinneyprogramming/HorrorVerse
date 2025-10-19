@@ -19,7 +19,7 @@ namespace HorrorTracker.Data
     {
         private readonly IDatabaseConnection _databaseConnection = databaseConnection;
         private readonly ILoggerService _logger = logger;
-        private readonly DatabaseConnectionsHelper _databaseConnectionsHelper = new(databaseConnection, logger);
+        private readonly DatabaseConnectionsHelper _databaseConnectionsHelper = new(databaseConnection);
 
         /// <summary>
         /// Makes a connection to the database.

@@ -12,48 +12,42 @@ namespace HorrorTracker.Utilities.Logging
     [ExcludeFromCodeCoverage]
     public class LoggerService : ILoggerService
     {
-        /// <summary>
-        /// The logger.
-        /// </summary>
-        private readonly Logger _logger;
+        private readonly ILogger _logger;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="LoggerService"/> class.
+        /// Uses the Serilog.Log static instance configured in HostBuilder.
         /// </summary>
         public LoggerService()
         {
-#pragma warning disable CS8604 // Possible null reference argument.
-            _logger = new LoggerConfiguration().WriteTo.Seq(LoggerUrl).CreateLogger();
-#pragma warning restore CS8604 // Possible null reference argument.
+            _logger = Log.Logger ?? throw new InvalidOperationException(
+                "Serilog is not initialized. Make sure HostBuilder.UseSerilog() is called.");
         }
 
-        /// <inheritdoc/>
         public void CloseAndFlush()
         {
             Log.CloseAndFlush();
         }
 
-        /// <inheritdoc/>
-        public void LogError(string message, Exception exception)
+        public void LogError(string message, Exception? exception)
         {
-            _logger.Error(message, exception);
+            if (exception != null)
+            {
+                _logger.Error(exception, message);
+            }
+            else
+            {
+                _logger.Error(message);
+            }
         }
 
-        /// <inheritdoc/>
         public void LogInformation(string message)
         {
             _logger.Information(message);
         }
 
-        /// <inheritdoc/>
         public void LogWarning(string message)
         {
             _logger.Warning(message);
         }
-
-        /// <summary>
-        /// Retrieves the logger url from the app settings.
-        /// </summary>
-        private static string? LoggerUrl => Environment.GetEnvironmentVariable("LoggerUrl");
     }
 }

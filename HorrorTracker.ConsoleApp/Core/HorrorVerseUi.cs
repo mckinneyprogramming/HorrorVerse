@@ -38,7 +38,8 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <remarks>This method establishes a database connection, configures music and horror-related
         /// features, and repeatedly displays the main menu to process user decisions until the application is no longer
         /// running. It should be called once to start the application's interactive session.</remarks>
-        public void Run()
+        /// <param name="hostExit">The action to execute when the application is exiting.</param>
+        public void Run(Action hostExit)
         {
             bool isRunning;
             var coreSetup = _setupFactory.CreateCoreSetup();
@@ -53,7 +54,11 @@ namespace HorrorTracker.ConsoleApp.Core
             var coreMenuSetup = _setupFactory.CreateCoreMenuSetup(coreSetup);
             coreMenuSetup.DisplayHorrorVerseIntro();
 
-            var actions = MainMenuDecisionActions(() => isRunning = false);
+            var actions = MainMenuDecisionActions(() =>
+            {
+                isRunning = false;
+                hostExit();
+            });
 
             while (isRunning)
             {
