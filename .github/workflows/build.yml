@@ -61,12 +61,16 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           .\.sonar\scanner\dotnet-sonarscanner begin `
-            /k:"mckinneyprogramming_HorrorTracker" `
-            /o:"mckinneyprogramming" `
-            /d:sonar.login=$env:SONAR_TOKEN `
-            /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.cobertura.reportsPaths="coverage/Cobertura.xml" `
-            /d:sonar.coverage.exclusions="**/Migrations/**,**/*.g.cs,**/Shared/**"
+          /k:"mckinneyprogramming_HorrorTracker" `
+          /o:"mckinneyprogramming" `
+          /d:sonar.login=$env:SONAR_TOKEN `
+          /d:sonar.host.url="https://sonarcloud.io" `
+          /d:sonar.verbose=true `
+          /d:sonar.cs.cobertura.reportsPaths="coverage/Cobertura.xml"
+
+          if (!(Test-Path .sonarqube)) {
+          Write-Error "Sonar begin FAILED. .sonarqube folder not created."
+          }
 
           # Build the solution
           dotnet build HorrorTracker.sln --no-incremental
