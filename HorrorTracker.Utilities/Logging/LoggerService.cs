@@ -1,6 +1,5 @@
 ﻿using HorrorTracker.Utilities.Logging.Interfaces;
 using Serilog;
-using Serilog.Core;
 using System.Diagnostics.CodeAnalysis;
 
 namespace HorrorTracker.Utilities.Logging

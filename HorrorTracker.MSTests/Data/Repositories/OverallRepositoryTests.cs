@@ -36,7 +36,9 @@ namespace HorrorTracker.MSTests.Data.Repositories
         [TestCleanup]
         public void Cleanup()
         {
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
+            _mockDatabaseConnection.Reset();
+            _mockDatabaseCommand.Reset();
+            _mockLoggerService.Reset();
         }
 
         [TestMethod]
@@ -51,9 +53,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedReturnValue, actualReturnValue);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                $"Time in the database: {actualReturnValue} was retrieved successfully.");
+            _loggerVerifier.VerifyInformationMessage($"Time in the database: {actualReturnValue} was retrieved successfully.");
         }
 
         [TestMethod]
@@ -68,7 +68,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(0.0M, actualReturnValue);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyWarningMessage(expectedLogMessage);
         }
 

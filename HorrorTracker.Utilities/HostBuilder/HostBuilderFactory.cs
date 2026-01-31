@@ -4,7 +4,6 @@ using HorrorTracker.Utilities.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using System.Configuration;
 
 namespace HorrorTracker.Utilities.HostBuilder
 {
@@ -20,19 +19,9 @@ namespace HorrorTracker.Utilities.HostBuilder
         /// <returns>The host builder.</returns>
         public static IHostBuilder CreateBaseHostBuilder(string[] args)
         {
-            var backupLoggerUrl = ConfigurationManager.AppSettings["LoggerUrl"] ?? string.Empty;
-            var logTextFileLocation = ConfigurationManager.AppSettings["LogTextFileLocation"] ?? "logs";
+            Log.Logger = SerilogConfigurator.ConfigureLogger("horrorverse");
 
-            Directory.CreateDirectory(logTextFileLocation);
-
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .WriteTo.File(Path.Combine(logTextFileLocation, "horrorverse-.txt"), rollingInterval: RollingInterval.Day)
-                .WriteTo.Seq(Environment.GetEnvironmentVariable("LoggerUrl") ?? backupLoggerUrl)
-                .Enrich.FromLogContext()
-                .CreateLogger();
-
-            return Host.CreateDefaultBuilder(args ?? [])
+            return Host.CreateDefaultBuilder(args)
                 .UseSerilog()
                 .ConfigureServices((context, services) =>
                 {

@@ -39,10 +39,14 @@ namespace HorrorTracker.MSTests.Shared
         public void SetupExecuteNonQueryDatabaseCommand(string commandText, int rowsAffected)
         {
             _mockDatabaseConnection.Setup(db => db.Open());
+            _mockDatabaseConnection.Setup(db => db.Close());
             _mockDatabaseCommand.Setup(cmd => cmd.ExecuteNonQuery()).Returns(rowsAffected);
             _mockDatabaseCommand.Setup(cmd => cmd.AddParameter(It.IsAny<string>(), It.IsAny<object>()));
             _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, commandText);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockLoggerService.Setup(x => x.LogInformation(It.IsAny<string>()));
+            _mockLoggerService.Setup(x => x.LogWarning(It.IsAny<string>()));
+            _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
         }
 
         /// <summary>
@@ -53,9 +57,13 @@ namespace HorrorTracker.MSTests.Shared
         public void SetupExecuteScalarDatabaseCommand(string query, object returnValue)
         {
             _mockDatabaseConnection.Setup(db => db.Open());
+            _mockDatabaseConnection.Setup(db => db.Close());
             _mockDatabaseCommand.Setup(cmd => cmd.ExecuteScalar()).Returns(returnValue);
             _mockDatabaseCommand.SetupProperty(cmd => cmd.CommandText, query);
             _mockDatabaseConnection.Setup(db => db.CreateCommand()).Returns(_mockDatabaseCommand.Object);
+            _mockLoggerService.Setup(x => x.LogInformation(It.IsAny<string>()));
+            _mockLoggerService.Setup(x => x.LogWarning(It.IsAny<string>()));
+            _mockLoggerService.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<Exception>()));
         }
 
         /// <summary>

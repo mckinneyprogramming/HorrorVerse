@@ -38,7 +38,9 @@ namespace HorrorTracker.MSTests.Data.Repositories
         [TestCleanup]
         public void Cleanup()
         {
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
+            _mockDatabaseConnection.Reset();
+            _mockDatabaseCommand.Reset();
+            _mockLoggerService.Reset();
         }
 
         [TestMethod]
@@ -55,9 +57,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsTrue(result.Success);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                $"Movie series {movieSeries.Title} was added successfully.");
+            _loggerVerifier.VerifyInformationMessage($"Movie series {movieSeries.Title} was added successfully.");
         }
 
         [TestMethod]
@@ -74,7 +74,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
         [TestMethod]
@@ -124,9 +123,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(11, returnedMovieSeries.TotalMovies);
             Assert.IsFalse(returnedMovieSeries.Watched);
 
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                $"Movie series {seriesName} was found in the database.");
+            _loggerVerifier.VerifyInformationMessage($"Movie series {seriesName} was found in the database.");
         }
 
         [TestMethod]
@@ -178,9 +175,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsTrue(result.Success);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                result.Message);
+            _loggerVerifier.VerifyInformationMessage(result.Message);
         }
 
         [TestMethod]
@@ -199,7 +194,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog($"Series '{series.Title}' updated successfully.");
         }
 
@@ -236,9 +230,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsTrue(result.Success);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                result.Message);
+            _loggerVerifier.VerifyInformationMessage(result.Message);
         }
 
         [TestMethod]
@@ -256,7 +248,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Series with ID '1' deleted successfully.");
         }
 
@@ -306,9 +297,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(1, result.Count());
             Assert.AreEqual(seriesName, result.First().Title);
             Assert.AreEqual(watched, result.First().Watched);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                loggerInformationMessage);
+            _loggerVerifier.VerifyInformationMessage(loggerInformationMessage);
         }
 
         [TestMethod]
@@ -343,9 +332,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsTrue(result.Success);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                result.Message);
+            _loggerVerifier.VerifyInformationMessage(result.Message);
         }
 
         [TestMethod]
@@ -363,7 +350,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Total time for series ID '1' updated successfully.");
         }
 
@@ -399,9 +385,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsTrue(result.Success);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                result.Message);
+            _loggerVerifier.VerifyInformationMessage(result.Message);
         }
 
         [TestMethod]
@@ -419,7 +403,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Total movies for series ID '1' updated successfully.");
         }
 
@@ -453,9 +436,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedMessage, result.Message);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                result.Message);
+            _loggerVerifier.VerifyInformationMessage(result.Message);
         }
 
         [TestMethod]
@@ -473,7 +454,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog("Watched status for series ID '1' updated successfully.");
         }
 

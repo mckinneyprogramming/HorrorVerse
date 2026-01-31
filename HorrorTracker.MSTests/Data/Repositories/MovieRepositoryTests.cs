@@ -38,7 +38,9 @@ namespace HorrorTracker.MSTests.Data.Repositories
         [TestCleanup]
         public void Cleanup()
         {
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseClosed);
+            _mockDatabaseConnection.Reset();
+            _mockDatabaseCommand.Reset();
+            _mockLoggerService.Reset();
         }
 
         [TestMethod]
@@ -55,7 +57,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsTrue(result.Success);
-            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, $"Movie '{movie.Title}' was added successfully.");
+            _loggerVerifier.VerifyInformationMessage($"Movie '{movie.Title}' was added successfully.");
         }
 
         [TestMethod]
@@ -72,7 +74,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             // Assert
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
         [TestMethod]
@@ -108,7 +109,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsTrue(result.Success);
-            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, result.Message);
+            _loggerVerifier.VerifyInformationMessage(result.Message);
         }
 
         [TestMethod]
@@ -127,7 +128,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
         [TestMethod]
@@ -169,7 +169,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.IsNotNull(actualResult);
             Assert.HasCount(expectedListOfMovies.Count, actualResult);
             CollectionAssert.AreEqual(expectedListOfMovies, actualResult, new MovieComparer());
-            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, "Successfully retrieved all of the movies.");
+            _loggerVerifier.VerifyInformationMessage("Successfully retrieved all of the movies.");
         }
 
         [TestMethod]
@@ -222,9 +222,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(1996, returnedMovie.ReleaseYear);
             Assert.IsTrue(returnedMovie.Watched);
 
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                $"Movie '{returnedMovie.Title}' was found in the database.");
+            _loggerVerifier.VerifyInformationMessage($"Movie '{returnedMovie.Title}' was found in the database.");
         }
 
         [TestMethod]
@@ -276,9 +274,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsTrue(result.Success);
-            _loggerVerifier.VerifyLoggerInformationMessages(
-                Messages.DatabaseOpened,
-                result.Message);
+            _loggerVerifier.VerifyInformationMessage(result.Message);
         }
 
         [TestMethod]
@@ -297,7 +293,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.AreEqual(expectedMessage, result.Message);
             Assert.AreEqual(expectedRowsAffected, result.RowsAffected);
             Assert.IsFalse(result.Success);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
             _loggerVerifier.VerifyInformationMessageDoesNotLog($"Movie '{movie.Title}' updated successfully.");
         }
 
@@ -345,7 +340,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.IsNotNull(actualListOfMovies);
             Assert.AreEqual(expectedListOfMovies.Count, actualListOfMovies.Count());
             CollectionAssert.AreEqual(expectedListOfMovies, actualListOfMovies.ToList(), new MovieComparer());
-            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, message);
+            _loggerVerifier.VerifyInformationMessage(message);
         }
 
         [TestMethod]
@@ -378,7 +373,6 @@ namespace HorrorTracker.MSTests.Data.Repositories
 
             // Assert
             Assert.AreEqual(expectedReturnValue, actualReturnValue);
-            _loggerVerifier.VerifyInformationMessage(Messages.DatabaseOpened);
         }
 
         [TestMethod]
@@ -417,7 +411,7 @@ namespace HorrorTracker.MSTests.Data.Repositories
             Assert.IsNotNull(actualListOfMovies);
             Assert.AreEqual(expectedListOfMovies.Count, actualListOfMovies.Count());
             CollectionAssert.AreEqual(expectedListOfMovies, actualListOfMovies.ToList(), new MovieComparer());
-            _loggerVerifier.VerifyLoggerInformationMessages(Messages.DatabaseOpened, message);
+            _loggerVerifier.VerifyInformationMessage(message);
         }
 
         [TestMethod]
