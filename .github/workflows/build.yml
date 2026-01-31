@@ -58,12 +58,14 @@ jobs:
         shell: powershell
         run: |
           # Begin SonarCloud analysis
+          $ErrorActionPreference = "Stop"
+
           .\.sonar\scanner\dotnet-sonarscanner begin `
             /k:"mckinneyprogramming_HorrorTracker" `
             /o:"mckinneyprogramming" `
             /d:sonar.login=$env:SONAR_TOKEN `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="coverage/coverage.cobertura.xml" `
+            /d:sonar.cs.cobertura.reportsPaths="coverage/Cobertura.xml" `
             /d:sonar.coverage.exclusions="**/Migrations/**,**/*.g.cs,**/Shared/**"
 
           # Build the solution
