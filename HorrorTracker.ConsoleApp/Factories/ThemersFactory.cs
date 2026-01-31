@@ -1,5 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.ConsoleApp.Themers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.Factories
 {

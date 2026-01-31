@@ -8,13 +8,15 @@ using HorrorTracker.Utilities.Logging.Interfaces;
 namespace HorrorTracker.Data
 {
     /// <summary>
-    /// The <see cref="HorrorConnections"/> class.
+    /// Provides access to database connection management, logging, and repository creation for the HorrorTracker
+    /// application.
     /// </summary>
-    /// <remarks>
-    /// Initializes a new instance of the <see cref="HorrorConnections"/> class.
-    /// </remarks>
-    /// <param name="databaseConnection">The database connection.</param>
-    /// <param name="logger">The logger.</param>
+    /// <remarks>This class centralizes database connectivity and repository instantiation for movies, series,
+    /// documentaries, shows, and episodes. It ensures that connections are managed and logging is performed for key
+    /// operations. All repository instances returned are configured with the provided database connection and
+    /// logger.</remarks>
+    /// <param name="databaseConnection">The database connection used for executing queries and managing data operations.</param>
+    /// <param name="logger">The logger service used to record informational, warning, and error messages during database operations.</param>
     public class HorrorConnections(IDatabaseConnection databaseConnection, ILoggerService logger)
     {
         private readonly IDatabaseConnection _databaseConnection = databaseConnection;
@@ -22,9 +24,17 @@ namespace HorrorTracker.Data
         private readonly DatabaseConnectionsHelper _databaseConnectionsHelper = new(databaseConnection);
 
         /// <summary>
-        /// Makes a connection to the database.
+        /// Attempts to establish a connection to the PostgreSQL server and verifies the existence of the HorrorTracker
+        /// database.
         /// </summary>
-        /// <returns>A connection message.</returns>
+        /// <remarks>This method logs informational or warning messages based on the outcome of the
+        /// connection and database existence check. If an error occurs during the connection process, the error message
+        /// is included in the returned string and an error is logged. The connection is closed after the operation
+        /// completes, regardless of the outcome.</remarks>
+        /// <returns>A string indicating the result of the connection attempt. Returns "Connection successful! Database exists on
+        /// the server." if the connection and database check succeed; "Connection is successful, but database does not
+        /// exist on the server." if the connection succeeds but the database is not found; or an error message if the
+        /// connection fails.</returns>
         public string Connect()
         {
             try
@@ -58,9 +68,13 @@ namespace HorrorTracker.Data
         }
 
         /// <summary>
-        /// Creates the tables for the database.
+        /// Creates the required database tables for movies, series, documentaries, shows, and episodes if they do not
+        /// already exist.
         /// </summary>
-        /// <returns>The status.</returns>
+        /// <remarks>This method attempts to create all necessary tables in the database. If any table
+        /// creation fails, the method returns 0 and logs the error. The method opens and closes the database connection
+        /// automatically.</remarks>
+        /// <returns>1 if all tables are created successfully or already exist; otherwise, 0.</returns>
         public int CreateTables()
         {
             int result = 0;
@@ -73,16 +87,16 @@ namespace HorrorTracker.Data
                 var createdDocumentarySuccessfully = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, OverallQueries.CreateDocumentaryTable);
                 var createdShowSuccessfully = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, OverallQueries.CreateShowTable);
                 var createdEpisodeSuccessfully = DatabaseCommandsHelper.ExecuteNonQuery(_databaseConnection, OverallQueries.CreateEpisodeTable);
-                var results = new[]
-                {
+                List<int> results =
+                [
                     createdMovieSeriesSuccessfully,
                     createdMovieSuccessfully,
                     createdDocumentarySuccessfully,
                     createdShowSuccessfully,
                     createdEpisodeSuccessfully
-                };
+                ];
 
-                var allTablesCreatedSuccessfully = AllTablesCreatedSuccessfully(results);
+                var allTablesCreatedSuccessfully = AllTablesCreatedSuccessfully([.. results]);
                 if (DatabaseCommandsHelper.IsSuccessfulResult(allTablesCreatedSuccessfully))
                 {
                     result = 1;
@@ -104,46 +118,51 @@ namespace HorrorTracker.Data
         }
 
         /// <summary>
-        /// Retrievs the overall repository.
+        /// Retrieves an instance of the overall repository for accessing aggregated data and operations.
         /// </summary>
-        /// <returns>The overall repository.</returns>
+        /// <returns>An <see cref="OverallRepository"/> object initialized with the current database connection and logger.</returns>
         public OverallRepository RetrieveOverallRepository()
         {
             return new OverallRepository(_databaseConnection, _logger);
         }
 
         /// <summary>
-        /// Retrieves the movie series repository.
+        /// Retrieves a repository instance for accessing and managing movie series data.
         /// </summary>
-        /// <returns>The movie series repository.</returns>
+        /// <returns>A <see cref="MovieSeriesRepository"/> object that provides methods for querying and updating movie series
+        /// information.</returns>
         public MovieSeriesRepository RetrieveMovieSeriesRepository()
         {
             return new MovieSeriesRepository(_databaseConnection, _logger);
         }
 
         /// <summary>
-        /// Retrieves the movie repository.
+        /// Retrieves a new instance of the movie repository configured with the current database connection and logger.
         /// </summary>
-        /// <returns>The movie repository.</returns>
+        /// <returns>A <see cref="MovieRepository"/> instance that provides access to movie data operations.</returns>
         public MovieRepository RetrieveMovieRepository()
         {
             return new MovieRepository(_databaseConnection, _logger);
         }
 
         /// <summary>
-        /// Retrieves the documentary repository.
+        /// Retrieves an instance of the documentary repository for accessing documentary data.
         /// </summary>
-        /// <returns>The documentary repository.</returns>
+        /// <returns>A <see cref="DocumentaryRepository"/> object configured to interact with the current database connection and
+        /// logger.</returns>
         public DocumentaryRepository RetrieveDocumentaryRepository()
         {
             return new DocumentaryRepository(_databaseConnection, _logger);
         }
 
         /// <summary>
-        /// Checks that all the results for the table creations are successful.
+        /// Determines whether all tables were created successfully based on the specified results array.
         /// </summary>
-        /// <param name="resultsArray">The results.</param>
-        /// <returns>True if all are successful; false otherwise.</returns>
+        /// <remarks>If the array is empty, the method returns true. Ensure that the array contains the
+        /// results of all relevant table creation operations for accurate evaluation.</remarks>
+        /// <param name="resultsArray">An array of integers representing the result of each table creation operation. Each element should be 1 to
+        /// indicate success.</param>
+        /// <returns>true if every element in the array equals 1; otherwise, false.</returns>
         private static bool AllTablesCreatedSuccessfully(int[] resultsArray) => Array.TrueForAll(resultsArray, res => res == 1);
     }
 }

@@ -1,6 +1,4 @@
 ﻿using HorrorTracker.Data.PostgreHelpers.Interfaces;
-using HorrorTracker.Utilities.Logging;
-using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.Data.Helpers
 {

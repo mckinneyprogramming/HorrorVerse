@@ -1,7 +1,7 @@
-﻿using HorrorTracker.ConsoleApp.Interfaces;
+﻿using HorrorTracker.Utilities.Helpers.Interfaces;
 using System.Diagnostics.CodeAnalysis;
 
-namespace HorrorTracker.ConsoleApp.Consoles
+namespace HorrorTracker.Utilities.Helpers
 {
     /// <summary>
     /// The <see cref="SystemFunctions"/> class.

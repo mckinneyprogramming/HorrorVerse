@@ -5,6 +5,8 @@ using HorrorTracker.Data.Performers;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
+using HorrorTracker.Utilities.Helpers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 using TMDbLib.Objects.Search;
@@ -68,7 +70,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 HorrorConsole.WriteLine();
                 HorrorConsole.Write(">> ");
                 var addToDatabase = HorrorConsole.ReadLine();
-                if (Parser.StringIsNull(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.OrdinalIgnoreCase))
+                if (StringHelper.StringIsNull(addToDatabase) || !addToDatabase.Equals("Y", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

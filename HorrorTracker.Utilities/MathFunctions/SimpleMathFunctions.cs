@@ -40,5 +40,15 @@ namespace HorrorTracker.Utilities.MathFunctions
 
             return numberOne / numberTwo;
         }
+
+        public static T ConvertToHours<T>(T minutes) where T : INumber<T>
+        {
+            return Divide(minutes, T.CreateChecked(60));
+        }
+
+        public static T ConvertToDays<T>(T minutes) where T : INumber<T>
+        {
+            return Divide(minutes, T.CreateChecked(1440));
+        }
     }
 }

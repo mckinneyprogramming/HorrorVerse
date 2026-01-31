@@ -1,4 +1,5 @@
 ﻿using HorrorTracker.ConsoleApp.Interfaces;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using Spectre.Console;
 using static System.Net.Mime.MediaTypeNames;
 
@@ -35,7 +36,7 @@ namespace HorrorTracker.ConsoleApp.Themers
         }
 
         /// <inheritdoc/>
-        public string InteractiveMenu(string title, string[] options)
+        public string InteractiveMenu(string title, List<string> options)
         {
             var prompt = new SelectionPrompt<string>()
                 .Title($"[bold red]{title}[/]")

@@ -12,15 +12,15 @@ using HorrorTracker.Utilities.Logging.Interfaces;
 namespace HorrorTracker.Data.Repositories
 {
     /// <summary>
-    /// The <see cref="DocumentaryRepository"/> class.
+    /// Provides data access operations for documentary entities, including adding, updating, deleting, and retrieving
+    /// documentaries from the underlying database.
     /// </summary>
-    /// <seealso cref="RepositoryBase{T}"/>
-    /// <seealso cref="IDocumentaryRepository"/>
-    /// <remarks>
-    /// Initializes a new instance of the <see cref="DocumentaryRepository"/> class.
-    /// </remarks>
-    /// <param name="databaseConnection">The database connection.</param>
-    /// <param name="loggerService">The logger service.</param>
+    /// <remarks>This repository specializes in handling documentary objects and extends the base repository
+    /// functionality with methods specific to documentaries, such as retrieving watched or unwatched items and
+    /// calculating viewing times. All operations are logged and executed using the provided database connection. Thread
+    /// safety and transaction management depend on the underlying database connection implementation.</remarks>
+    /// <param name="databaseConnection">The database connection used to execute queries and commands against the data store.</param>
+    /// <param name="loggerService">The logging service used to record repository operations and errors.</param>
     public class DocumentaryRepository(IDatabaseConnection databaseConnection, ILoggerService loggerService) :
         RepositoryBase<Documentary>(databaseConnection, loggerService), IDocumentaryRepository
     {

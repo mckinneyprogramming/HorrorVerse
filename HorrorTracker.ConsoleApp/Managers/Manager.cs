@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.ConsoleHelpers;
 using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 
@@ -60,8 +61,11 @@ namespace HorrorTracker.ConsoleApp.Managers
         public abstract void Manage();
 
         /// <summary>
-        /// Displays the UI manager menus.
+        /// Displays the application title and introductory instructions in the console using themed formatting.
         /// </summary>
+        /// <remarks>This method sets the console window title and outputs a stylized header and prompt to
+        /// guide users in starting database item entry. The output uses color and typewriter effects for enhanced
+        /// visibility and user engagement.</remarks>
         protected void DisplayManagerTitles()
         {
             Console.Title = ConsoleStrings.Title(RetrieveTitle());
@@ -78,10 +82,12 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Retrieves the menu selection for the manager.
+        /// Displays an interactive menu with the specified title and returns the user's selected option as a string.
         /// </summary>
-        /// <param name="menuTitle">The menu title.</param>
-        /// <returns>The user selection.</returns>
+        /// <remarks>The available menu options are determined by the current context and may vary. The
+        /// method blocks until the user makes a selection.</remarks>
+        /// <param name="menuTitle">The title to display at the top of the interactive menu. Cannot be null or empty.</param>
+        /// <returns>A string representing the option selected by the user from the menu.</returns>
         protected string RetrieveMenuSelection(string menuTitle)
         {
             var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
@@ -89,15 +95,16 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Retrieves the title for the menu.
+        /// Retrieves the title associated with the current instance.
         /// </summary>
-        /// <returns>The title string.</returns>
+        /// <returns>A string containing the title. The value may be null or empty if no title is available.</returns>
         protected abstract string RetrieveTitle();
 
         /// <summary>
-        /// 
+        /// Retrieves a list of available menu options for the current context.
         /// </summary>
-        /// <returns></returns>
-        protected abstract string[] RetrieveMenuOptions();
+        /// <returns>A list of strings representing the available menu options. The list will be empty if no options are
+        /// available.</returns>
+        protected abstract List<string> RetrieveMenuOptions();
     }
 }

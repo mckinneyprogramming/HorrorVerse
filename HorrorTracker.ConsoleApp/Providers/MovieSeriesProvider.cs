@@ -1,5 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
+using HorrorTracker.Utilities.Helpers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 using TMDbLib.Objects.Search;
@@ -7,27 +9,30 @@ using TMDbLib.Objects.Search;
 namespace HorrorTracker.ConsoleApp.Providers
 {
     /// <summary>
-    /// The <see cref="MovieSeriesProvider"/> class.
+    /// Provides functionality for searching, selecting, and adding movie series and their associated movies to the
+    /// database, with support for user interaction and genre-based exploration.
     /// </summary>
-    /// <see cref="FullLengthProvider"/>
-    /// <seealso cref="ProviderBase"/>
-    /// <remarks>
-    /// Initializes a new instance of the <see cref="MovieSeriesProvider"/> class.
-    /// </remarks>
-    /// <param name="connectionString">The connection string.</param>
-    /// <param name="logger">The logger service.</param>
-    /// <param name="horrorConsole">The horror console.</param>
-    /// <param name="systemFunctions">The system functions.</param>
+    /// <remarks>This provider extends FullLengthProvider to offer specialized workflows for discovering and
+    /// importing movie series, including interactive prompts and genre filtering. It is intended for scenarios where
+    /// users need to browse, select, and add collections of movies based on series information.</remarks>
+    /// <param name="connectionString">The connection string used to access the movie database.</param>
+    /// <param name="logger">The logging service used to record application events and errors.</param>
+    /// <param name="horrorConsole">The console interface used for user interaction and output formatting.</param>
+    /// <param name="systemFunctions">The system functions provider used for operations such as sleeping and clearing the console.</param>
     public class MovieSeriesProvider(string connectionString, ILoggerService logger, IHorrorConsole horrorConsole, ISystemFunctions systemFunctions)
         : FullLengthProvider(connectionString, logger, horrorConsole, systemFunctions)
     {
         /// <summary>
-        /// Searches for a movie series to add to the database.
+        /// Searches for a movie series based on the specified decision and adds the series and its movies to the
+        /// database if found.
         /// </summary>
-        /// <param name="decision">The user decision.</param>
-        public void SearchForMovieSeries(string decision)
+        /// <remarks>This method prompts the user to select a series from the search results and adds the
+        /// selected series and its movies to the database. No action is taken if no valid series is selected.</remarks>
+        /// <param name="decision">The decision or name used to identify the movie series to search for. If <paramref name="decision"/> is null
+        /// or empty, the method does not perform a search.</param>
+        public void SearchForMovieSeries(string? decision)
         {
-            if (Parser.StringIsNull(decision))
+            if (StringHelper.StringIsNull(decision))
             {
                 return;
             }
@@ -45,9 +50,14 @@ namespace HorrorTracker.ConsoleApp.Providers
         }
 
         /// <summary>
-        /// Finds series that a user might want to explore and add.
+        /// Prompts the user to select a range of pages for a specified genre and displays available film series from
+        /// the TMDB API, allowing the user to choose series to add to the database.
         /// </summary>
-        /// <param name="genreInt">The genre that they would like to search.</param>
+        /// <remarks>The method interacts with the user via the console to determine the page range and
+        /// series selection. Input validation is performed to ensure valid page numbers and selections. The recommended
+        /// maximum number of pages to search is 400 to avoid excessive API calls.</remarks>
+        /// <param name="genreInt">The integer identifier of the genre to search for film series. Must correspond to a valid genre supported by
+        /// the TMDB API.</param>
         public void FindSeriesToAdd(int genreInt)
         {
             var movieDatabaseService = CreateMovieDatabaseService();
@@ -107,10 +117,14 @@ namespace HorrorTracker.ConsoleApp.Providers
         }
 
         /// <summary>
-        /// Retrieves the users input for the series id.
+        /// Prompts the user to select a series from the provided collection results and returns the selected series
+        /// identifier.
         /// </summary>
-        /// <param name="collectionResults">The list of collections.</param>
-        /// <returns>The series id.</returns>
+        /// <remarks>The method displays the available series collections in an interactive console menu.
+        /// If the user does not select a valid series, the method returns 0. This method is intended for use in
+        /// interactive console applications.</remarks>
+        /// <param name="collectionResults">A list of search results representing available series collections for user selection. Cannot be null.</param>
+        /// <returns>The identifier of the selected series if a valid selection is made; otherwise, 0.</returns>
         private int PromptForSeriesId(List<SearchCollection> collectionResults)
         {
             var themersFactory = new ThemersFactory(HorrorConsole, SystemFunctions);
@@ -140,9 +154,12 @@ namespace HorrorTracker.ConsoleApp.Providers
         }
 
         /// <summary>
-        /// Retrieves the users list of series ids.
+        /// Prompts the user to enter one or more series IDs and returns a list of valid integer IDs entered.
         /// </summary>
-        /// <returns>List of integer series ids.</returns>
+        /// <remarks>Series IDs should be entered as a comma-separated list. Only valid integer values are
+        /// included in the returned list; any non-integer or empty entries are ignored.</remarks>
+        /// <returns>A list of integers representing the series IDs entered by the user. The list will be empty if no valid IDs
+        /// are provided.</returns>
         private List<int> PromptForSeriesIds()
         {
             HorrorConsole.SetForegroundColor(ConsoleColor.DarkGray);
@@ -158,7 +175,7 @@ namespace HorrorTracker.ConsoleApp.Providers
             HorrorConsole.Write(">> ");
 
             var idsSelection = HorrorConsole.ReadLine();
-            if (Parser.StringIsNull(idsSelection))
+            if (StringHelper.StringIsNull(idsSelection))
             {
                 return [];
             }

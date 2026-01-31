@@ -99,7 +99,7 @@ namespace HorrorTracker.MSTests.Data.Helpers
             Assert.IsTrue(reader.Read());
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(null, false)]
         [DataRow(1, true)]
         public void IsSuccessfulResult_WhenNullAndOneArePassedIn_ShouldReturnCorrectResult(object? result, bool expectedReturnValue)

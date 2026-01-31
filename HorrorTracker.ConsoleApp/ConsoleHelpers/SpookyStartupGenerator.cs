@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data.Enumerations;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.ConsoleHelpers
 {

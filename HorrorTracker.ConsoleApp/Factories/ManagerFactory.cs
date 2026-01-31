@@ -1,5 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.ConsoleApp.Managers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.Factories

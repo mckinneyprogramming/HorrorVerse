@@ -1,4 +1,5 @@
 ﻿using HorrorTracker.ConsoleApp.Interfaces;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging;
 using Microsoft.Extensions.Hosting;
 using System.Configuration;

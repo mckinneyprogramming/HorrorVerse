@@ -5,6 +5,8 @@ using HorrorTracker.Data.Models;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.Repositories;
 using HorrorTracker.Data.TMDB;
+using HorrorTracker.Utilities.Helpers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using TMDbLib.Objects.Search;
 
@@ -70,7 +72,7 @@ namespace HorrorTracker.ConsoleApp.Providers
         /// <param name="decision">The user decision.</param>
         public void SearchMovie(string decision)
         {
-            if (Parser.StringIsNull(decision))
+            if (StringHelper.StringIsNull(decision))
             {
                 return;
             }
@@ -138,14 +140,14 @@ namespace HorrorTracker.ConsoleApp.Providers
         {
             HorrorConsole.MarkupLine("Our records show that your selected movie is already in your database. We will go one step further to see if it belongs to a series.");
 
-            if (!Parser.StringIsNull(collection.Name) && existingMovie.PartOfSeries)
+            if (!StringHelper.StringIsNull(collection.Name) && existingMovie.PartOfSeries)
             {
                 HorrorConsole.MarkupLine("Our records indicate that your movie is part of a series and you have that in your database. Please search for a different movie.");
                 SystemFunctions.Sleep(2000);
                 return;
             }
 
-            if (!Parser.StringIsNull(collection.Name) && !existingMovie.PartOfSeries)
+            if (!StringHelper.StringIsNull(collection.Name) && !existingMovie.PartOfSeries)
             {
                 HorrorConsole.MarkupLine("TMDB indicates that this movie is part of a series, but you do not have that in your database.");
                 HorrorConsole.MarkupLine("We will check if the series is already in your database.");
@@ -194,7 +196,7 @@ namespace HorrorTracker.ConsoleApp.Providers
                 AddMovieToDatabase(movieInformation, movieRepository, newMovie);
             }
 
-            if (collection != null && !Parser.StringIsNull(collection.Name))
+            if (collection != null && !StringHelper.StringIsNull(collection.Name))
             {
                 HorrorConsole.MarkupLine("Looks like the movie is part of a series. We will see if that series already exists in your database.");
                 var series = movieSeriesRepository.GetByTitle(collection.Name.Replace("Collection", string.Empty).Trim());

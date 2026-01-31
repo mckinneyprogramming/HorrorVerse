@@ -16,7 +16,7 @@
         /// </summary>
         /// <param name="title">The title of the menu.</param>
         /// <param name="options">The option selections.</param>
-        string InteractiveMenu(string title, string[] options);
+        string InteractiveMenu(string title, List<string> options);
 
         /// <summary>
         /// Randomly generates beeps from the console.

@@ -1,6 +1,8 @@
 ﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data;
+using HorrorTracker.Utilities.Extenions;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.MathFunctions;
 
 namespace HorrorTracker.ConsoleApp.Core
@@ -48,7 +50,16 @@ namespace HorrorTracker.ConsoleApp.Core
         public string DisplayMainMenu()
         {
             var themersFactory = new ThemersFactory(_horrorConsole, _systemFunctions);
-            var options = new string[] { "1. Use TMDB API", "2. CRUD Database", "3. Display Upcoming Movies", "4. Account Details", "5. Exit" };
+            var options = new List<string>();
+            options.ResetAndFill(
+            [
+                "1. Use TMDB API",
+                "2. CRUD Database",
+                "3. Display Upcoming Movies",
+                "4. Account Details",
+                "5. Exit"
+            ]);
+
             return themersFactory.SpookyTextStyler.InteractiveMenu("=== HorrorVerse Main Menu ===", options);
         }
 
@@ -75,9 +86,7 @@ namespace HorrorTracker.ConsoleApp.Core
         /// <returns>Tuple containing hours and days.</returns>
         private static (decimal hours, decimal days) ConvertTime(decimal timeInMinutes)
         {
-            var hours = SimpleMathFunctions.Divide(timeInMinutes, 60);
-            var days = SimpleMathFunctions.Divide(hours, 24);
-            return (hours, days);
+            return (SimpleMathFunctions.ConvertToHours(timeInMinutes), SimpleMathFunctions.ConvertToDays(timeInMinutes));
         }
     }
 }

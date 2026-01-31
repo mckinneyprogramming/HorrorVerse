@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.ConsoleApp.Themers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using Moq;
 using System.Diagnostics.CodeAnalysis;
 

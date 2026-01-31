@@ -1,6 +1,7 @@
 ﻿using HorrorTracker.ConsoleApp.Core;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data.PostgreHelpers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.Factories

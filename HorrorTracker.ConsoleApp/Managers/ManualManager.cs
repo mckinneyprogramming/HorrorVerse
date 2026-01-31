@@ -1,5 +1,6 @@
 ﻿using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.Managers
@@ -30,7 +31,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <inheritdoc/>
-        protected override string[] RetrieveMenuOptions() => ["1. Series", "2. Movie", "3. Documentary", "4. TV Show", "5. Episode", "6. Exit"];
+        protected override List<string> RetrieveMenuOptions() => ["1. Series", "2. Movie", "3. Documentary", "4. TV Show", "5. Episode", "6. Exit"];
 
         /// <inheritdoc/>
         protected override string RetrieveTitle() => "Manual CRUD";

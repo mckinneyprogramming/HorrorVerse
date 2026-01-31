@@ -2,22 +2,24 @@
 using HorrorTracker.ConsoleApp.Factories;
 using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.ConsoleApp.Providers;
+using HorrorTracker.Utilities.Helpers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using HorrorTracker.Utilities.Parsing;
 
 namespace HorrorTracker.ConsoleApp.Managers
 {
     /// <summary>
-    /// The <see cref="MovieDatabaseApiManager"/> class.
+    /// Provides management functionality for interacting with The Movie Database (TMDB) API, including operations to
+    /// add movies, series, documentaries, and television shows to the database.
     /// </summary>
-    /// <seealso cref="Manager"/>
-    /// <remarks>
-    /// Initializes a new instance of the <see cref="MovieDatabaseApiManager"/> class.
-    /// </remarks>
-    /// <param name="logger">The logger.</param>
-    /// <param name="connectionString">The connection string.</param>
-    /// <param name="horroConsole">The horror console.</param>
-    /// <param name="systemFunctions">The system functions.</param>
+    /// <remarks>This manager presents an interactive menu for performing various TMDB-related actions, such
+    /// as searching for movies or series to add. It is designed to be used in console-based applications and relies on
+    /// injected services for logging, user interaction, and system operations.</remarks>
+    /// <param name="logger">The logger service used to record informational and error messages during API management operations.</param>
+    /// <param name="connectionString">The connection string used to access the underlying database for storing and retrieving movie-related data.</param>
+    /// <param name="horroConsole">The console interface used for user interaction and displaying output in the application.</param>
+    /// <param name="systemFunctions">The system functions provider used to perform platform-specific operations required by the manager.</param>
     public class MovieDatabaseApiManager(
         ILoggerService logger,
         string connectionString,
@@ -42,8 +44,11 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Displays the upcoming movies.
+        /// Displays a list of upcoming horror films to the console.
         /// </summary>
+        /// <remarks>This method retrieves upcoming horror films and outputs them using the configured
+        /// console and logging services. It is intended for informational display purposes and does not return any data
+        /// to the caller.</remarks>
         public void DisplayUpcomingHorrorFilms()
         {
             var movieProvider = new MovieProvider(ConnectionString, Logger, HorrorConsole, SystemFunctions);
@@ -51,9 +56,15 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Retrieves the dictionary of actions.
+        /// Provides a mapping of decision identifiers to actions for handling various operations in the movie database
+        /// API.
         /// </summary>
-        /// <returns>The dictionary of actions.</returns>
+        /// <remarks>The returned dictionary associates decision codes with actions such as searching for
+        /// series or movies, adding documentaries, television shows, or episodes, and exiting the workflow. This
+        /// mapping enables dynamic selection and execution of API-related tasks based on user input or program
+        /// logic.</remarks>
+        /// <returns>A dictionary where each key is an integer representing a decision option, and each value is an action to
+        /// execute the corresponding operation.</returns>
         private Dictionary<int, Action> MovieDatabaseApiDecisionActions()
         {
             return new Dictionary<int, Action>()
@@ -69,8 +80,11 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Adds a series and its movies to the database.
+        /// Initiates the process for searching and adding a movie series to the database based on the user's input.
         /// </summary>
+        /// <remarks>This method prompts the user to search for a movie series and delegates the search
+        /// operation to the underlying provider. The method is intended to be used as part of a workflow for managing
+        /// movie series within the application.</remarks>
         private void SearchSeriesToAdd()
         {
             var decision = InitialUserDecision("----- Add Series to Datebase -----", "Search for a series below to add to the database.");
@@ -79,8 +93,11 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Adds a movie to the database.
+        /// Initiates the process for searching and adding a movie to the database.
         /// </summary>
+        /// <remarks>This method prompts the user to search for a movie and delegates the search operation
+        /// to the movie provider. It is intended to be used as part of the workflow for adding new movies to the
+        /// database.</remarks>
         private void SearchMovieToAdd()
         {
             var decision = InitialUserDecision("----- Add Movie to Datebase -----", "Search for a movie below to add to the database.");
@@ -94,7 +111,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         private void AddDocumentary()
         {
             var decision = InitialUserDecision("----- Add Documentary to Datebase -----", "Search for a documentary below to add to the database.");
-            if (Parser.StringIsNull(decision))
+            if (StringHelper.StringIsNull(decision))
             {
                 return;
             }
@@ -119,8 +136,12 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Finds a series to add to the database.
+        /// Prompts the user to select a genre and initiates the process to find and add movie series for the chosen
+        /// genre.
         /// </summary>
+        /// <remarks>This method displays an interactive menu for genre selection and validates the user's
+        /// input. If a valid genre is selected, it delegates the search and addition of movie series to the
+        /// corresponding provider. The method provides feedback to the user in case of invalid input.</remarks>
         private void FindSeriesToAdd()
         {
             HorrorConsole.Clear();
@@ -144,10 +165,14 @@ namespace HorrorTracker.ConsoleApp.Managers
         }
 
         /// <summary>
-        /// Retrieves the initial user decision to search the database.
+        /// Prompts the user with a styled title and message, then reads the user's initial decision from the console
+        /// input.
         /// </summary>
-        /// <param name="title">The console title.</param>
-        /// <param name="prompt">The console prompt.</param>
+        /// <remarks>The prompt uses themed console styling to enhance user engagement. The returned value
+        /// is not validated and may be empty or null depending on user input and console state.</remarks>
+        /// <param name="title">The title text to display at the top of the prompt. This is shown in a highlighted style to draw attention.</param>
+        /// <param name="prompt">The message or question presented to the user, describing the decision to be made.</param>
+        /// <returns>A string containing the user's input, or null if the input stream is closed.</returns>
         private string? InitialUserDecision(string title, string prompt)
         {
             HorrorConsole.Clear();
@@ -168,7 +193,7 @@ namespace HorrorTracker.ConsoleApp.Managers
         protected override string RetrieveTitle() => "The Movie Database API";
 
         /// <inheritdoc/>
-        protected override string[] RetrieveMenuOptions() => 
+        protected override List<string> RetrieveMenuOptions() => 
             ["1. Search Series to Add",
             "2. Serach Movie to Add",
             "3. Add Documentary",

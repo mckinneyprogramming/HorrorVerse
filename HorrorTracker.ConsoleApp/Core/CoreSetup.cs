@@ -3,20 +3,23 @@ using HorrorTracker.ConsoleApp.Interfaces;
 using HorrorTracker.Data;
 using HorrorTracker.Data.Audio;
 using HorrorTracker.Data.PostgreHelpers;
+using HorrorTracker.Utilities.Helpers;
+using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
 
 namespace HorrorTracker.ConsoleApp.Core
 {
     /// <summary>
-    /// The <see cref="CoreSetup"/> class.
+    /// Provides core setup functionality for initializing horror-themed application components, including database
+    /// connections, logging, console interactions, and system utilities.
     /// </summary>
-    /// <remarks>
-    /// Initializes a new instance of the <see cref="CoreSetup"/> class.
-    /// </remarks>
-    /// <param name="databaseConnection">The database connection.</param>
-    /// <param name="logger">The logger service.</param>
-    /// <param name="horrorConsole">The horror console.</param>
-    /// <param name="systemFunctions">The system functions.</param>
+    /// <remarks>Use this class to configure and initialize essential services required for the application's
+    /// startup and runtime operations. All dependencies must be provided and valid to ensure correct setup and
+    /// functionality.</remarks>
+    /// <param name="databaseConnection">The database connection to be used for accessing and managing application data.</param>
+    /// <param name="logger">The logger service for recording informational and error messages throughout the application's lifecycle.</param>
+    /// <param name="horrorConsole">The console interface for displaying output and interacting with the user in a themed manner.</param>
+    /// <param name="systemFunctions">The system functions provider for performing operations such as sleeping or other system-level tasks.</param>
     public class CoreSetup(
         DatabaseConnection databaseConnection,
         ILoggerService logger,
@@ -29,21 +32,26 @@ namespace HorrorTracker.ConsoleApp.Core
         private readonly ISystemFunctions _systemFunctions = systemFunctions;
 
         /// <summary>
-        /// Creates the horror connections.
+        /// Initializes and returns a new instance of the HorrorConnections class configured with the current database
+        /// connection and logger.
         /// </summary>
-        /// <returns>The horror connections.</returns>
+        /// <returns>A HorrorConnections object that uses the existing database connection and logger for horror-related operations.</returns>
         public HorrorConnections SetupHorrorConnections()
         {
             return new HorrorConnections(_databaseConnection, _logger);
         }
 
         /// <summary>
-        /// Sets up the music player based on the users decision.
+        /// Configures music playback based on the user's preference input.
         /// </summary>
-        /// <param name="listenToMusic">The users decision.</param>
+        /// <remarks>This method logs the user's choice and provides console feedback. If music is
+        /// enabled, songs are loaded, shuffled, and playback begins. The method introduces a brief delay after
+        /// processing the user's selection.</remarks>
+        /// <param name="listenToMusic">A string indicating whether the user wants to listen to music. Accepts affirmative values such as "yes" or
+        /// "y" to enable music; otherwise, music will be disabled. Can be null.</param>
         public void SetupMusic(string? listenToMusic)
         {
-            var wantsMusic = IsAffirmative(listenToMusic);
+            var wantsMusic = StringHelper.IsAffirmative(listenToMusic);
             var wantsMusicString = wantsMusic ? "in" : "out";
 
             _logger.LogInformation($"User has opted {wantsMusicString} of music.");
@@ -64,9 +72,12 @@ namespace HorrorTracker.ConsoleApp.Core
         }
 
         /// <summary>
-        /// Tests the connection to the database.
+        /// Tests the connection to the PostgreSQL database server and verifies access to the HorrorTracker database.
         /// </summary>
-        /// <returns>True or false.</returns>
+        /// <remarks>This method attempts to establish a connection to the database and create required
+        /// tables if the connection is successful. If the connection fails or an error occurs, the method logs the
+        /// error and returns false. The method provides console feedback during the process.</remarks>
+        /// <returns>true if the connection to the database is successful; otherwise, false.</returns>
         public bool TestDatabaseConnection()
         {
             var connections = SetupHorrorConnections();
@@ -115,15 +126,5 @@ namespace HorrorTracker.ConsoleApp.Core
                 return false;
             }
         }
-
-        /// <summary>
-        /// Determines whether the given input is an affirmative response.
-        /// </summary>
-        private static bool IsAffirmative(string? input) =>
-            input?.Trim().ToLowerInvariant() switch
-            {
-                "y" or "yes" or "yeah" or "yep" or "sure" or "ok" => true,
-                _ => false
-            };
     }
 }

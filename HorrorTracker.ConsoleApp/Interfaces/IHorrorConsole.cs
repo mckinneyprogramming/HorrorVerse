@@ -38,12 +38,6 @@ namespace HorrorTracker.ConsoleApp.Interfaces
         ConsoleKeyInfo ReadKey(bool intercept);
 
         /// <summary>
-        /// Writes a character to the console.
-        /// </summary>
-        /// <param name="character">The character.</param>
-        void Write(char character);
-
-        /// <summary>
         /// Writes the specified markup to the console.
         /// </summary>
         /// <param name="text">The text to write.</param>
@@ -54,6 +48,12 @@ namespace HorrorTracker.ConsoleApp.Interfaces
         /// </summary>
         /// <param name="text">The text to write.</param>
         void MarkupLine(string text);
+
+        /// <summary>
+        /// Writes a character to the console.
+        /// </summary>
+        /// <param name="character">The character.</param>
+        void Write(char character);
 
         /// <summary>
         /// Writes a message to the console.

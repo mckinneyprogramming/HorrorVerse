@@ -1,4 +1,4 @@
-﻿namespace HorrorTracker.ConsoleApp.Interfaces
+﻿namespace HorrorTracker.Utilities.Helpers.Interfaces
 {
     /// <summary>
     /// The <see cref="ISystemFunctions"/> interface.
