@@ -91,11 +91,13 @@ jobs:
     # Decode the base 64 encoded pfx and save the Signing_Certificate
     - name: Decode the pfx
       if: hashFiles('HorrorTracker.Package/HorrorTracker.Package.wapproj') != ''
+      env:
+        BASE64_PFX: ${{ secrets.Base64_Encoded_Pfx }}
       run: |
         if (-not (Test-Path $env:Wap_Project_Directory)) {
           New-Item -ItemType Directory -Path $env:Wap_Project_Directory -Force
         }
-        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
+        $pfx_cert_byte = [System.Convert]::FromBase64String("$env:BASE64_PFX")
         $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
         [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
 
@@ -108,11 +110,12 @@ jobs:
     - name: Create the app package
       if: hashFiles('HorrorTracker.Package/HorrorTracker.Package.wapproj') != ''
       timeout-minutes: 15
-      run: msbuild $env:Wap_Project_Path /p:Configuration=$env:Configuration /p:UapAppxPackageBuildMode=$env:Appx_Package_Build_Mode /p:AppxBundle=$env:Appx_Bundle /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx /p:PackageCertificatePassword=${{ secrets.Pfx_Key }}
+      run: msbuild $env:Wap_Project_Path /p:Configuration=$env:Configuration /p:UapAppxPackageBuildMode=$env:Appx_Package_Build_Mode /p:AppxBundle=$env:Appx_Bundle /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx /p:PackageCertificatePassword=$env:PFX_PASSWORD
       env:
         Appx_Bundle: Always
         Appx_Bundle_Platforms: x86|x64
         Appx_Package_Build_Mode: StoreUpload
+        PFX_PASSWORD: ${{ secrets.Pfx_Key }}
 
     # Remove the pfx
     - name: Remove the pfx
