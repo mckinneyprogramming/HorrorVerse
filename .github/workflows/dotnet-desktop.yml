@@ -87,3 +87,29 @@ jobs:
     - name: Execute unit tests
       timeout-minutes: 10
       run: dotnet test $env:Solution_Name --configuration $env:Configuration --no-build --verbosity normal
+
+    # Check available Windows SDKs
+    - name: Check Windows SDK versions
+      shell: pwsh
+      run: |
+        Write-Host "=== Checking Windows SDK installations ===" -ForegroundColor Cyan
+
+        # Check Program Files
+        $sdkPath = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP"
+        if (Test-Path $sdkPath) {
+          Write-Host "`nUAP Platform SDKs found:" -ForegroundColor Green
+          Get-ChildItem $sdkPath | Select-Object Name
+        } else {
+          Write-Host "`nNo UAP Platform SDKs found at: $sdkPath" -ForegroundColor Yellow
+        }
+
+        # Check extension SDKs
+        $extPath = "C:\Program Files (x86)\Windows Kits\10\Extension SDKs"
+        if (Test-Path $extPath) {
+          Write-Host "`nExtension SDKs:" -ForegroundColor Green
+          Get-ChildItem $extPath | Select-Object Name
+        }
+
+        # Check SDK roots
+        Write-Host "`nChecking SDK Roots:" -ForegroundColor Green
+        Get-ChildItem "C:\Program Files (x86)\Windows Kits" -ErrorAction SilentlyContinue | Select-Object Name
