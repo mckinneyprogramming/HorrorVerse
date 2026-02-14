@@ -49,18 +49,14 @@ jobs:
   build:
 
     timeout-minutes: 30
-    strategy:
-      matrix:
-        configuration: [Debug, Release]
-
-    runs-on: windows-latest  # For a list of available runner types, refer to
-                             # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
+    runs-on: windows-latest
 
     env:
       Solution_Name: HorrorTracker.sln
       Test_Project_Path: HorrorTracker.MSTests\HorrorTracker.MSTests.csproj
       Wap_Project_Directory: HorrorTracker.Package
       Wap_Project_Path: HorrorTracker.Package\HorrorTracker.Package.wapproj
+      Configuration: Release
 
     steps:
     - name: Checkout
@@ -81,22 +77,16 @@ jobs:
     # Restore the application to populate the obj folder with RuntimeIdentifiers
     - name: Restore the application
       run: dotnet restore $env:Solution_Name /p:TreatWarningsAsErrors=false
-      env:
-        Configuration: ${{ matrix.configuration }}
 
     # Build the solution
     - name: Build the solution
       timeout-minutes: 10
       run: msbuild $env:Solution_Name /p:Configuration=$env:Configuration /p:Platform="Any CPU" /verbosity:minimal
-      env:
-        Configuration: ${{ matrix.configuration }}
 
     # Execute all unit tests in the solution
     - name: Execute unit tests
       timeout-minutes: 10
       run: dotnet test $env:Solution_Name --configuration $env:Configuration --no-build --verbosity normal
-      env:
-        Configuration: ${{ matrix.configuration }}
 
     # Decode the base 64 encoded pfx and save the Signing_Certificate
     - name: Decode the pfx
@@ -107,12 +97,12 @@ jobs:
 
     # Create the app package by building and packaging the Windows Application Packaging project
     - name: Create the app package
+      timeout-minutes: 15
       run: msbuild $env:Wap_Project_Path /p:Configuration=$env:Configuration /p:UapAppxPackageBuildMode=$env:Appx_Package_Build_Mode /p:AppxBundle=$env:Appx_Bundle /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx /p:PackageCertificatePassword=${{ secrets.Pfx_Key }}
       env:
         Appx_Bundle: Always
         Appx_Bundle_Platforms: x86|x64
         Appx_Package_Build_Mode: StoreUpload
-        Configuration: ${{ matrix.configuration }}
 
     # Remove the pfx
     - name: Remove the pfx
