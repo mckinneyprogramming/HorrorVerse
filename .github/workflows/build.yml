@@ -47,11 +47,7 @@ jobs:
           New-Item -Path .\.sonar\scanner -ItemType Directory -Force
           dotnet tool install dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-      # 6️⃣ Install ReportGenerator (for coverage merging)
-      - name: Install ReportGenerator
-        run: dotnet tool install --global dotnet-reportgenerator-globaltool
-
-      # 7️⃣ Build, test, and analyze
+      # 6️⃣ Build, test, and analyze
       - name: Build, Test, Analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
