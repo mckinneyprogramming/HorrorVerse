@@ -94,22 +94,30 @@ jobs:
       run: |
         Write-Host "=== Checking Windows SDK installations ===" -ForegroundColor Cyan
 
-        # Check Program Files
-        $sdkPath = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP"
-        if (Test-Path $sdkPath) {
-          Write-Host "`nUAP Platform SDKs found:" -ForegroundColor Green
-          Get-ChildItem $sdkPath | Select-Object Name
+        # Check for UAP.props in the SDK
+        Write-Host "`nSearching for UAP.props files:" -ForegroundColor Green
+        Get-ChildItem "C:\Program Files (x86)\Windows Kits\10" -Recurse -Filter "UAP.props" -ErrorAction SilentlyContinue | Select-Object FullName
+
+        # Check specific SDK version
+        $sdkVersion = "10.0.26100.0"
+        $sdkRoot = "C:\Program Files (x86)\Windows Kits\10"
+        Write-Host "`nChecking SDK $sdkVersion structure:" -ForegroundColor Green
+
+        $platformsPath = Join-Path $sdkRoot "Platforms\UAP\$sdkVersion"
+        if (Test-Path $platformsPath) {
+          Write-Host "Found: $platformsPath" -ForegroundColor Green
         } else {
-          Write-Host "`nNo UAP Platform SDKs found at: $sdkPath" -ForegroundColor Yellow
+          Write-Host "Not found: $platformsPath" -ForegroundColor Yellow
         }
 
-        # Check extension SDKs
-        $extPath = "C:\Program Files (x86)\Windows Kits\10\Extension SDKs"
-        if (Test-Path $extPath) {
-          Write-Host "`nExtension SDKs:" -ForegroundColor Green
-          Get-ChildItem $extPath | Select-Object Name
-        }
+        # Check what's actually in the SDK
+        Write-Host "`nSDK Contents:" -ForegroundColor Green
+        Get-ChildItem $sdkRoot -Directory | Select-Object Name
 
-        # Check SDK roots
-        Write-Host "`nChecking SDK Roots:" -ForegroundColor Green
-        Get-ChildItem "C:\Program Files (x86)\Windows Kits" -ErrorAction SilentlyContinue | Select-Object Name
+        # Check if Desktop Bridge components exist
+        $appxPath = Join-Path $sdkRoot "bin\$sdkVersion\x64"
+        if (Test-Path $appxPath) {
+          Write-Host "`nDesktop Bridge tools found in:" -ForegroundColor Green
+          Write-Host $appxPath
+          Get-ChildItem $appxPath -Filter "makeappx.exe" -ErrorAction SilentlyContinue
+        }
