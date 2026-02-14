@@ -60,20 +60,22 @@ jobs:
           # Begin SonarCloud analysis
           $ErrorActionPreference = "Stop"
 
-          # Add SonarScanner to PATH
-          $env:PATH = "$pwd\.sonar\scanner;$env:PATH"
-
-          dotnet-sonarscanner begin `
+          & .\.sonar\scanner\dotnet-sonarscanner.exe begin `
           /k:"mckinneyprogramming_HorrorTracker" `
           /o:"mckinneyprogramming" `
-          /d:sonar.token=$env:SONAR_TOKEN `
+          /d:sonar.token="$env:SONAR_TOKEN" `
           /d:sonar.host.url="https://sonarcloud.io" `
           /d:sonar.verbose=true `
           /d:sonar.cs.cobertura.reportsPaths="coverage/Cobertura.xml"
 
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Sonar begin command failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
           if (!(Test-Path .sonarqube)) {
-          Write-Error "Sonar begin FAILED. .sonarqube folder not created."
-          exit 1
+            Write-Error "Sonar begin FAILED. .sonarqube folder not created."
+            exit 1
           }
 
           # Build the solution
@@ -97,4 +99,4 @@ jobs:
             -reporttypes:Cobertura
 
           # End SonarCloud analysis
-          dotnet-sonarscanner end /d:sonar.token=$env:SONAR_TOKEN
+          & .\.sonar\scanner\dotnet-sonarscanner.exe end /d:sonar.token="$env:SONAR_TOKEN"
