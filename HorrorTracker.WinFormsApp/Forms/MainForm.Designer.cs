@@ -31,6 +31,14 @@
             this.titleLabel = new System.Windows.Forms.Label();
             this.descriptionLabel = new System.Windows.Forms.Label();
             this.statsPanel = new System.Windows.Forms.Panel();
+            this.lblWatchedShows = new System.Windows.Forms.Label();
+            this.lblWatchedDocumentaries = new System.Windows.Forms.Label();
+            this.lblWatchedMovies = new System.Windows.Forms.Label();
+            this.lblWatchedSeries = new System.Windows.Forms.Label();
+            this.lblTotalShows = new System.Windows.Forms.Label();
+            this.lblTotalDocumentaries = new System.Windows.Forms.Label();
+            this.lblTotalMovies = new System.Windows.Forms.Label();
+            this.lblTotalSeries = new System.Windows.Forms.Label();
             this.lblWatched = new System.Windows.Forms.Label();
             this.lblWatchedTitle = new System.Windows.Forms.Label();
             this.lblTimeLeft = new System.Windows.Forms.Label();
@@ -38,6 +46,14 @@
             this.lblTotalTime = new System.Windows.Forms.Label();
             this.lblTotalTimeTitle = new System.Windows.Forms.Label();
             this.statsTitle = new System.Windows.Forms.Label();
+            this.countsPanel = new System.Windows.Forms.Panel();
+            this.countsTitle = new System.Windows.Forms.Label();
+            this.lblShowsTitle = new System.Windows.Forms.Label();
+            this.lblDocumentariesTitle = new System.Windows.Forms.Label();
+            this.lblMoviesTitle = new System.Windows.Forms.Label();
+            this.lblSeriesTitle = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
             this.buttonsPanel = new System.Windows.Forms.Panel();
             this.btnExit = new System.Windows.Forms.Button();
             this.btnEpisode = new System.Windows.Forms.Button();
@@ -46,6 +62,7 @@
             this.btnMovie = new System.Windows.Forms.Button();
             this.btnSeries = new System.Windows.Forms.Button();
             this.statsPanel.SuspendLayout();
+            this.countsPanel.SuspendLayout();
             this.buttonsPanel.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -57,7 +74,7 @@
             this.titleLabel.Location = new System.Drawing.Point(0, 0);
             this.titleLabel.Name = "titleLabel";
             this.titleLabel.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
-            this.titleLabel.Size = new System.Drawing.Size(884, 80);
+            this.titleLabel.Size = new System.Drawing.Size(984, 80);
             this.titleLabel.TabIndex = 0;
             this.titleLabel.Text = "🎬 Horror Tracker";
             this.titleLabel.TextAlign = System.Drawing.ContentAlignment.TopCenter;
@@ -70,7 +87,7 @@
             this.descriptionLabel.Location = new System.Drawing.Point(0, 80);
             this.descriptionLabel.Name = "descriptionLabel";
             this.descriptionLabel.Padding = new System.Windows.Forms.Padding(20, 0, 20, 10);
-            this.descriptionLabel.Size = new System.Drawing.Size(884, 60);
+            this.descriptionLabel.Size = new System.Drawing.Size(984, 60);
             this.descriptionLabel.TabIndex = 1;
             this.descriptionLabel.Text = "Manage your horror movie collection, track series, documentaries, TV shows, and " +
     "episodes.\r\nSelect an option below to get started.";
@@ -87,7 +104,7 @@
             this.statsPanel.Controls.Add(this.lblTotalTime);
             this.statsPanel.Controls.Add(this.lblTotalTimeTitle);
             this.statsPanel.Controls.Add(this.statsTitle);
-            this.statsPanel.Location = new System.Drawing.Point(242, 160);
+            this.statsPanel.Location = new System.Drawing.Point(50, 160);
             this.statsPanel.Name = "statsPanel";
             this.statsPanel.Size = new System.Drawing.Size(400, 150);
             this.statsPanel.TabIndex = 2;
@@ -167,8 +184,198 @@
             this.statsTitle.Name = "statsTitle";
             this.statsTitle.Size = new System.Drawing.Size(398, 30);
             this.statsTitle.TabIndex = 0;
-            this.statsTitle.Text = "📊 Overall Statistics";
+            this.statsTitle.Text = "⏱️ Time Statistics";
             this.statsTitle.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // countsPanel
+            // 
+            this.countsPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(35)))), ((int)(((byte)(35)))), ((int)(((byte)(35)))));
+            this.countsPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.countsPanel.Controls.Add(this.lblWatchedShows);
+            this.countsPanel.Controls.Add(this.lblWatchedDocumentaries);
+            this.countsPanel.Controls.Add(this.lblWatchedMovies);
+            this.countsPanel.Controls.Add(this.lblWatchedSeries);
+            this.countsPanel.Controls.Add(this.lblTotalShows);
+            this.countsPanel.Controls.Add(this.lblTotalDocumentaries);
+            this.countsPanel.Controls.Add(this.lblTotalMovies);
+            this.countsPanel.Controls.Add(this.lblTotalSeries);
+            this.countsPanel.Controls.Add(this.label2);
+            this.countsPanel.Controls.Add(this.label1);
+            this.countsPanel.Controls.Add(this.lblShowsTitle);
+            this.countsPanel.Controls.Add(this.lblDocumentariesTitle);
+            this.countsPanel.Controls.Add(this.lblMoviesTitle);
+            this.countsPanel.Controls.Add(this.lblSeriesTitle);
+            this.countsPanel.Controls.Add(this.countsTitle);
+            this.countsPanel.Location = new System.Drawing.Point(534, 160);
+            this.countsPanel.Name = "countsPanel";
+            this.countsPanel.Size = new System.Drawing.Size(400, 220);
+            this.countsPanel.TabIndex = 3;
+            // 
+            // countsTitle
+            // 
+            this.countsTitle.Dock = System.Windows.Forms.DockStyle.Top;
+            this.countsTitle.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
+            this.countsTitle.ForeColor = System.Drawing.Color.White;
+            this.countsTitle.Location = new System.Drawing.Point(0, 0);
+            this.countsTitle.Name = "countsTitle";
+            this.countsTitle.Size = new System.Drawing.Size(398, 30);
+            this.countsTitle.TabIndex = 0;
+            this.countsTitle.Text = "📊 Content Statistics";
+            this.countsTitle.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblShowsTitle
+            // 
+            this.lblShowsTitle.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.lblShowsTitle.ForeColor = System.Drawing.Color.LightGray;
+            this.lblShowsTitle.Location = new System.Drawing.Point(20, 170);
+            this.lblShowsTitle.Name = "lblShowsTitle";
+            this.lblShowsTitle.Size = new System.Drawing.Size(120, 25);
+            this.lblShowsTitle.TabIndex = 7;
+            this.lblShowsTitle.Text = "📡 TV Shows:";
+            this.lblShowsTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // lblDocumentariesTitle
+            // 
+            this.lblDocumentariesTitle.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.lblDocumentariesTitle.ForeColor = System.Drawing.Color.LightGray;
+            this.lblDocumentariesTitle.Location = new System.Drawing.Point(20, 135);
+            this.lblDocumentariesTitle.Name = "lblDocumentariesTitle";
+            this.lblDocumentariesTitle.Size = new System.Drawing.Size(130, 25);
+            this.lblDocumentariesTitle.TabIndex = 5;
+            this.lblDocumentariesTitle.Text = "🎞️ Documentaries:";
+            this.lblDocumentariesTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // lblMoviesTitle
+            // 
+            this.lblMoviesTitle.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.lblMoviesTitle.ForeColor = System.Drawing.Color.LightGray;
+            this.lblMoviesTitle.Location = new System.Drawing.Point(20, 100);
+            this.lblMoviesTitle.Name = "lblMoviesTitle";
+            this.lblMoviesTitle.Size = new System.Drawing.Size(120, 25);
+            this.lblMoviesTitle.TabIndex = 3;
+            this.lblMoviesTitle.Text = "🎥 Movies:";
+            this.lblMoviesTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // lblSeriesTitle
+            // 
+            this.lblSeriesTitle.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.lblSeriesTitle.ForeColor = System.Drawing.Color.LightGray;
+            this.lblSeriesTitle.Location = new System.Drawing.Point(20, 65);
+            this.lblSeriesTitle.Name = "lblSeriesTitle";
+            this.lblSeriesTitle.Size = new System.Drawing.Size(120, 25);
+            this.lblSeriesTitle.TabIndex = 1;
+            this.lblSeriesTitle.Text = "🎬 Series:";
+            this.lblSeriesTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // label1
+            // 
+            this.label1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.label1.ForeColor = System.Drawing.Color.Silver;
+            this.label1.Location = new System.Drawing.Point(150, 40);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(100, 20);
+            this.label1.TabIndex = 8;
+            this.label1.Text = "Total";
+            this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label2
+            // 
+            this.label2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.label2.ForeColor = System.Drawing.Color.Silver;
+            this.label2.Location = new System.Drawing.Point(270, 40);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(100, 20);
+            this.label2.TabIndex = 9;
+            this.label2.Text = "Watched";
+            this.label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblTotalSeries
+            // 
+            this.lblTotalSeries.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+            this.lblTotalSeries.ForeColor = System.Drawing.Color.Cyan;
+            this.lblTotalSeries.Location = new System.Drawing.Point(150, 65);
+            this.lblTotalSeries.Name = "lblTotalSeries";
+            this.lblTotalSeries.Size = new System.Drawing.Size(100, 25);
+            this.lblTotalSeries.TabIndex = 10;
+            this.lblTotalSeries.Text = "0";
+            this.lblTotalSeries.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblTotalMovies
+            // 
+            this.lblTotalMovies.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+            this.lblTotalMovies.ForeColor = System.Drawing.Color.Cyan;
+            this.lblTotalMovies.Location = new System.Drawing.Point(150, 100);
+            this.lblTotalMovies.Name = "lblTotalMovies";
+            this.lblTotalMovies.Size = new System.Drawing.Size(100, 25);
+            this.lblTotalMovies.TabIndex = 11;
+            this.lblTotalMovies.Text = "0";
+            this.lblTotalMovies.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblTotalDocumentaries
+            // 
+            this.lblTotalDocumentaries.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+            this.lblTotalDocumentaries.ForeColor = System.Drawing.Color.Cyan;
+            this.lblTotalDocumentaries.Location = new System.Drawing.Point(150, 135);
+            this.lblTotalDocumentaries.Name = "lblTotalDocumentaries";
+            this.lblTotalDocumentaries.Size = new System.Drawing.Size(100, 25);
+            this.lblTotalDocumentaries.TabIndex = 12;
+            this.lblTotalDocumentaries.Text = "0";
+            this.lblTotalDocumentaries.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblTotalShows
+            // 
+            this.lblTotalShows.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+            this.lblTotalShows.ForeColor = System.Drawing.Color.Cyan;
+            this.lblTotalShows.Location = new System.Drawing.Point(150, 170);
+            this.lblTotalShows.Name = "lblTotalShows";
+            this.lblTotalShows.Size = new System.Drawing.Size(100, 25);
+            this.lblTotalShows.TabIndex = 13;
+            this.lblTotalShows.Text = "0";
+            this.lblTotalShows.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblWatchedSeries
+            // 
+            this.lblWatchedSeries.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+            this.lblWatchedSeries.ForeColor = System.Drawing.Color.LimeGreen;
+            this.lblWatchedSeries.Location = new System.Drawing.Point(270, 65);
+            this.lblWatchedSeries.Name = "lblWatchedSeries";
+            this.lblWatchedSeries.Size = new System.Drawing.Size(100, 25);
+            this.lblWatchedSeries.TabIndex = 14;
+            this.lblWatchedSeries.Text = "0";
+            this.lblWatchedSeries.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblWatchedMovies
+            // 
+            this.lblWatchedMovies.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+            this.lblWatchedMovies.ForeColor = System.Drawing.Color.LimeGreen;
+            this.lblWatchedMovies.Location = new System.Drawing.Point(270, 100);
+            this.lblWatchedMovies.Name = "lblWatchedMovies";
+            this.lblWatchedMovies.Size = new System.Drawing.Size(100, 25);
+            this.lblWatchedMovies.TabIndex = 15;
+            this.lblWatchedMovies.Text = "0";
+            this.lblWatchedMovies.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblWatchedDocumentaries
+            // 
+            this.lblWatchedDocumentaries.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+            this.lblWatchedDocumentaries.ForeColor = System.Drawing.Color.LimeGreen;
+            this.lblWatchedDocumentaries.Location = new System.Drawing.Point(270, 135);
+            this.lblWatchedDocumentaries.Name = "lblWatchedDocumentaries";
+            this.lblWatchedDocumentaries.Size = new System.Drawing.Size(100, 25);
+            this.lblWatchedDocumentaries.TabIndex = 16;
+            this.lblWatchedDocumentaries.Text = "0";
+            this.lblWatchedDocumentaries.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblWatchedShows
+            // 
+            this.lblWatchedShows.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+            this.lblWatchedShows.ForeColor = System.Drawing.Color.LimeGreen;
+            this.lblWatchedShows.Location = new System.Drawing.Point(270, 170);
+            this.lblWatchedShows.Name = "lblWatchedShows";
+            this.lblWatchedShows.Size = new System.Drawing.Size(100, 25);
+            this.lblWatchedShows.TabIndex = 17;
+            this.lblWatchedShows.Text = "0";
+            this.lblWatchedShows.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // buttonsPanel
             // 
@@ -178,10 +385,10 @@
             this.buttonsPanel.Controls.Add(this.btnDocumentary);
             this.buttonsPanel.Controls.Add(this.btnMovie);
             this.buttonsPanel.Controls.Add(this.btnSeries);
-            this.buttonsPanel.Location = new System.Drawing.Point(192, 330);
+            this.buttonsPanel.Location = new System.Drawing.Point(242, 410);
             this.buttonsPanel.Name = "buttonsPanel";
             this.buttonsPanel.Size = new System.Drawing.Size(500, 310);
-            this.buttonsPanel.TabIndex = 3;
+            this.buttonsPanel.TabIndex = 4;
             // 
             // btnExit
             // 
@@ -284,14 +491,16 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(45)))));
-            this.ClientSize = new System.Drawing.Size(884, 661);
+            this.ClientSize = new System.Drawing.Size(984, 761);
             this.Controls.Add(this.buttonsPanel);
+            this.Controls.Add(this.countsPanel);
             this.Controls.Add(this.statsPanel);
             this.Controls.Add(this.descriptionLabel);
             this.Controls.Add(this.titleLabel);
             this.Name = "MainForm";
             this.Text = "Horror Tracker";
             this.statsPanel.ResumeLayout(false);
+            this.countsPanel.ResumeLayout(false);
             this.buttonsPanel.ResumeLayout(false);
             this.ResumeLayout(false);
         }
@@ -308,6 +517,22 @@
         private System.Windows.Forms.Label lblTimeLeftTitle;
         private System.Windows.Forms.Label lblWatched;
         private System.Windows.Forms.Label lblWatchedTitle;
+        private System.Windows.Forms.Panel countsPanel;
+        private System.Windows.Forms.Label countsTitle;
+        private System.Windows.Forms.Label lblSeriesTitle;
+        private System.Windows.Forms.Label lblMoviesTitle;
+        private System.Windows.Forms.Label lblDocumentariesTitle;
+        private System.Windows.Forms.Label lblShowsTitle;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label lblTotalSeries;
+        private System.Windows.Forms.Label lblTotalMovies;
+        private System.Windows.Forms.Label lblTotalDocumentaries;
+        private System.Windows.Forms.Label lblTotalShows;
+        private System.Windows.Forms.Label lblWatchedSeries;
+        private System.Windows.Forms.Label lblWatchedMovies;
+        private System.Windows.Forms.Label lblWatchedDocumentaries;
+        private System.Windows.Forms.Label lblWatchedShows;
         private System.Windows.Forms.Panel buttonsPanel;
         private System.Windows.Forms.Button btnExit;
         private System.Windows.Forms.Button btnEpisode;

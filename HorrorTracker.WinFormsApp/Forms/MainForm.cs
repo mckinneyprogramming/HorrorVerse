@@ -8,7 +8,7 @@ namespace HorrorTracker.WinFormsApp.Forms
     /// <summary>
     /// The main form for the Horror Tracker application.
     /// </summary>
-    public partial class MainForm : Form
+    public partial class MainForm : BaseHorrorForm
     {
         private readonly string _connectionString;
         private readonly ILoggerService _logger;
@@ -34,8 +34,11 @@ namespace HorrorTracker.WinFormsApp.Forms
         private void SetupForm()
         {
             this.Text = "Horror Tracker - Home";
-            this.Size = new System.Drawing.Size(900, 700);
+            this.Size = new System.Drawing.Size(1000, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
+            
+            // Set hand cursor for all buttons
+            SetHandCursorForButtons();
         }
 
         /// <summary>
@@ -94,8 +97,9 @@ namespace HorrorTracker.WinFormsApp.Forms
                 _logger.LogInformation("Loading overall statistics...");
                 
                 var connection = new DatabaseConnection(_connectionString);
+                
+                // Time statistics
                 var overallRepository = new OverallRepository(connection, _logger);
-
                 var totalTime = overallRepository.GetOverallTime() / 60;
                 var timeLeft = overallRepository.GetOverallTimeLeft() / 60;
 
@@ -103,14 +107,45 @@ namespace HorrorTracker.WinFormsApp.Forms
                 lblTimeLeft.Text = $"{timeLeft:F2} hours";
                 lblWatched.Text = $"{(totalTime - timeLeft):F2} hours";
                 
+                // Content counts
+                var movieSeriesRepository = new MovieSeriesRepository(connection, _logger);
+                var movieRepository = new MovieRepository(connection, _logger);
+                var documentaryRepository = new DocumentaryRepository(connection, _logger);
+                
+                var allSeries = movieSeriesRepository.GetAll().ToList();
+                var allMovies = movieRepository.GetAll().ToList();
+                var allDocumentaries = documentaryRepository.GetAll().ToList();
+                
+                // Total counts
+                lblTotalSeries.Text = allSeries.Count.ToString();
+                lblTotalMovies.Text = allMovies.Count.ToString();
+                lblTotalDocumentaries.Text = allDocumentaries.Count.ToString();
+                
+                // Watched counts
+                lblWatchedSeries.Text = allSeries.Count(s => s.Watched).ToString();
+                lblWatchedMovies.Text = allMovies.Count(m => m.Watched).ToString();
+                lblWatchedDocumentaries.Text = allDocumentaries.Count(d => d.Watched).ToString();
+                
                 _logger.LogInformation("Overall statistics loaded successfully.");
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Failed to load overall stats: {ex.Message}", ex);
+                
+                // Set time stats to N/A
                 lblTotalTime.Text = "N/A";
                 lblTimeLeft.Text = "N/A";
                 lblWatched.Text = "N/A";
+                
+                // Set count stats to N/A
+                lblTotalSeries.Text = "N/A";
+                lblTotalMovies.Text = "N/A";
+                lblTotalDocumentaries.Text = "N/A";
+                lblTotalShows.Text = "N/A";
+                lblWatchedSeries.Text = "N/A";
+                lblWatchedMovies.Text = "N/A";
+                lblWatchedDocumentaries.Text = "N/A";
+                lblWatchedShows.Text = "N/A";
             }
         }
     }

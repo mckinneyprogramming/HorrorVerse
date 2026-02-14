@@ -8,7 +8,6 @@ using HorrorTracker.Data.TMDB;
 using HorrorTracker.Utilities.Helpers;
 using HorrorTracker.Utilities.Helpers.Interfaces;
 using HorrorTracker.Utilities.Logging.Interfaces;
-using HorrorTracker.Utilities.Parsing;
 using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.ConsoleApp.Providers
