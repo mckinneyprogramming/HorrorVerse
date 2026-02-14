@@ -106,7 +106,6 @@ jobs:
 
     # Remove the pfx
     - name: Remove the pfx
-      if: ${{ secrets.Base64_Encoded_Pfx != '' }}
       run: Remove-Item -path $env:Wap_Project_Directory\GitHubActionsWorkflow.pfx
 
     # Upload the MSIX package: https://github.com/marketplace/actions/upload-a-build-artifact
