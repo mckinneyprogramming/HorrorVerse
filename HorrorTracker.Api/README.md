@@ -32,7 +32,7 @@ dotnet build
 dotnet run --launch-profile production
 ```
 
-That listens on `http://0.0.0.0:8080` and serves the PWA from `wwwroot`.
+That listens on `http://localhost:5088` and serves the PWA from `wwwroot`. Port 8080 is left alone (EnterpriseDB often uses it).
 
 `dotnet publish -c Release` also runs `npm ci` / `npm run build` and copies the files into the published `wwwroot`.
 
@@ -41,7 +41,7 @@ That listens on `http://0.0.0.0:8080` and serves the PWA from `wwwroot`.
 Your database stays on this PC. Run the API locally, then put a tunnel in front of it (Cloudflare Tunnel, ngrok, etc.):
 
 ```bash
-cloudflared tunnel --url http://localhost:8080
+cloudflared tunnel --url http://localhost:5088
 ```
 
 Open the `https://…` URL on the phone, then **Add to Home Screen**. The app talks to that HTTPS origin, which forwards to this API, which reads local Postgres.
@@ -56,7 +56,7 @@ $env:HorrorVerseDb = "Host=host.docker.internal;Username=postgres;Password=...;D
 docker compose up --build
 ```
 
-Then tunnel `http://localhost:8080` the same way, or put the image on a host that can reach a cloud Postgres (set `HorrorVerseDb` to that host, not `localhost`).
+Then tunnel `http://localhost:5088` the same way, or put the image on a host that can reach a cloud Postgres (set `HorrorVerseDb` to that host, not `localhost`).
 
 A cloud server **cannot** use `Host=localhost` for the database on your PC. Move Postgres (Neon, Azure, etc.) or use Option A.
 

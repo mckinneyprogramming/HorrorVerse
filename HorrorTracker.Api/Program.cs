@@ -40,15 +40,23 @@ if (app.Configuration.GetValue("ForceHttpsRedirection", false))
     app.UseHttpsRedirection();
 }
 
+var webRoot = app.Environment.WebRootPath;
+var hasSpa = !string.IsNullOrWhiteSpace(webRoot)
+    && Directory.Exists(webRoot)
+    && File.Exists(Path.Combine(webRoot, "index.html"));
+
+if (hasSpa)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
+
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/catalog", (CatalogService catalog) => catalog.GetAll());
 app.MapGet("/api/catalog/{kind}", (string kind, CatalogService catalog) => catalog.GetByKind(kind));
 
-var webRoot = app.Environment.WebRootPath;
-if (!string.IsNullOrWhiteSpace(webRoot) && Directory.Exists(webRoot) && File.Exists(Path.Combine(webRoot, "index.html")))
+if (hasSpa)
 {
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
     app.MapFallbackToFile("index.html");
 }
 
