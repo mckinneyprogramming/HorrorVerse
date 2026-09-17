@@ -19,7 +19,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HorrorTracker.MSTests.Share
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HorrorTracker.WinFormsApp", "HorrorTracker.WinFormsApp\HorrorTracker.WinFormsApp.csproj", "{04F81BA2-62D1-4E75-922F-03C092CE2ED5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HorrorTracker.MauiApp", "HorrorTracker.MauiApp\HorrorTracker.MauiApp.csproj", "{21DB79A5-02D7-45A1-96BD-819910CF16BB}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HorrorTracker.WebApp", "HorrorTracker.WebApp", "{FAD3CA67-F88F-4747-B63D-57E8C1820448}"
+	ProjectSection(SolutionItems) = preProject
+		HorrorTracker.WebApp\package.json = HorrorTracker.WebApp\package.json
+		HorrorTracker.WebApp\README.md = HorrorTracker.WebApp\README.md
+		HorrorTracker.WebApp\vite.config.ts = HorrorTracker.WebApp\vite.config.ts
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -103,18 +108,6 @@ Global
 		{04F81BA2-62D1-4E75-922F-03C092CE2ED5}.Release|x64.Build.0 = Release|Any CPU
 		{04F81BA2-62D1-4E75-922F-03C092CE2ED5}.Release|x86.ActiveCfg = Release|Any CPU
 		{04F81BA2-62D1-4E75-922F-03C092CE2ED5}.Release|x86.Build.0 = Release|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Debug|x64.Build.0 = Debug|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Debug|x86.Build.0 = Debug|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Release|x64.ActiveCfg = Release|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Release|x64.Build.0 = Release|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Release|x86.ActiveCfg = Release|Any CPU
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -124,7 +117,7 @@ Global
 		{B29B483E-1FC1-4ED9-BD88-B1A429807939} = {99AD8EB3-414A-4521-A24B-2377C35454F8}
 		{11C71081-5FE3-49B6-845C-3E79BF22313D} = {99AD8EB3-414A-4521-A24B-2377C35454F8}
 		{04F81BA2-62D1-4E75-922F-03C092CE2ED5} = {43736422-3B7D-43E2-B9D1-8E233073E2AA}
-		{21DB79A5-02D7-45A1-96BD-819910CF16BB} = {43736422-3B7D-43E2-B9D1-8E233073E2AA}
+		{FAD3CA67-F88F-4747-B63D-57E8C1820448} = {43736422-3B7D-43E2-B9D1-8E233073E2AA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B60793E5-2C59-4FCC-B5C1-DAB6587F02F1}

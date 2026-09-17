@@ -24,8 +24,8 @@ It’s more than a tracker — it’s an evolving **horror universe** where your
   - Distinguishes between films, series, episodes, docs, books, and more.
 - 🧩 **Scalable Design**
   - Built with modularity in mind — managers, providers, and facades separate layers for easier expansion.
-- 🔮 **Future Expansion**
-  - Plans for a web dashboard and Windows Forms UI to make tracking even more immersive.
+- 📱 **Installable web app**
+  - TypeScript PWA you can open in a browser and save to the home screen on iPhone and Android.
 
 ---
 
@@ -33,7 +33,9 @@ It’s more than a tracker — it’s an evolving **horror universe** where your
 
 | Layer | Purpose |
 |-------|----------|
-| **Console Application (Current)** | Core system for adding and managing horror content. |
+| **Console Application** | Core system for adding and managing horror content. |
+| **Windows Forms UI** | Desktop tracker against the PostgreSQL catalog. |
+| **Web App (PWA)** | TypeScript app in `HorrorTracker.WebApp` that installs to a phone home screen. |
 | **PostgreSQL Database** | Stores user data, horror entries, achievements, and relationships. |
 | **TMDB API (via TMDbLib)** | Fetches real-time horror content metadata. |
 | **C# & .NET** | Core logic and application framework. |
@@ -51,3 +53,16 @@ It’s more than a tracker — it’s an evolving **horror universe** where your
 - **Badges & Achievements** – Linked to user activity
 
 ---
+
+## 📱 Web app
+
+The MAUI project is gone. Phone and tablet use is the TypeScript PWA in `HorrorTracker.WebApp`.
+
+```bash
+cd HorrorTracker.WebApp
+npm install
+npm run dev
+```
+
+On an iPhone, open the site in Safari and use **Share → Add to Home Screen**. On Android, Chrome can **Install app**. For phone testing on your LAN, run `npm run dev:https` so the install behaves like a real app. Details are in `HorrorTracker.WebApp/README.md`.
+
