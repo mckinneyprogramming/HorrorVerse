@@ -1,0 +1,35 @@
+using HorrorTracker.Api.Catalog;
+using HorrorTracker.Api.Logging;
+using HorrorTracker.Data.PostgreHelpers;
+using HorrorTracker.Data.PostgreHelpers.Interfaces;
+using HorrorTracker.Data.Repositories;
+using HorrorTracker.Utilities.Logging.Interfaces;
+
+var builder = WebApplication.CreateBuilder(args);
+
+var connectionString = CatalogService.ResolveConnectionString(builder.Configuration);
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Set the HorrorVerseDb environment variable or ConnectionStrings:HorrorVerse so the API can reach PostgreSQL.");
+}
+
+builder.Services.AddSingleton<ILoggerService, MicrosoftLoggerAdapter>();
+builder.Services.AddScoped<IDatabaseConnection>(_ => new DatabaseConnection(connectionString));
+builder.Services.AddScoped<MovieRepository>();
+builder.Services.AddScoped<MovieSeriesRepository>();
+builder.Services.AddScoped<DocumentaryRepository>();
+builder.Services.AddScoped<CatalogService>();
+
+var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/api/catalog", (CatalogService catalog) => catalog.GetAll());
+app.MapGet("/api/catalog/{kind}", (string kind, CatalogService catalog) => catalog.GetByKind(kind));
+
+app.Run();

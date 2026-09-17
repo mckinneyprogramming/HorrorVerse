@@ -49,11 +49,25 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
+          {
+            urlPattern: /\/api\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "horrorverse-api",
+              expiration: { maxEntries: 16, maxAgeSeconds: 60 },
+            },
+          },
         ],
       },
     }),
   ],
   server: {
     port: 5173,
+    proxy: {
+      "/api": {
+        target: "http://localhost:5116",
+        changeOrigin: true,
+      },
+    },
   },
 }));

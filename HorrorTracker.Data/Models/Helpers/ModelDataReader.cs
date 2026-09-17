@@ -26,7 +26,7 @@ namespace HorrorTracker.Data.Models.Helpers
                             reader.GetString(1),
                             reader.GetDecimal(2),
                             reader.GetBoolean(3),
-                            reader.GetInt32(4),
+                            reader.IsDBNull(4) ? null : reader.GetInt32(4),
                             reader.GetInt32(5),
                             reader.GetBoolean(6),
                             reader.GetInt32(0));

@@ -1,33 +1,28 @@
-import {
-  createEntry,
-  loadCatalog,
-  MEDIA_KINDS,
-  saveCatalog,
-  type CatalogEntry,
-  type MediaKind,
-} from "./catalog";
+import { fetchCatalog, MEDIA_KINDS, type CatalogEntry, type MediaKind } from "./catalog";
 import { canPromptInstall, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "install";
 type LibraryFilter = MediaKind | "all";
+type LoadStatus = "loading" | "ready" | "error";
 
 interface AppState {
   view: View;
   filter: LibraryFilter;
   entries: CatalogEntry[];
-  sheetOpen: boolean;
+  status: LoadStatus;
 }
 
 const state: AppState = {
   view: "home",
   filter: "all",
-  entries: loadCatalog(),
-  sheetOpen: false,
+  entries: [],
+  status: "loading",
 };
 
 export function mountApp(root: HTMLElement): void {
   render(root);
   onInstallAvailabilityChange(() => render(root));
+  void refreshCatalog(root);
 
   root.addEventListener("click", async (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>("[data-action]");
@@ -41,7 +36,6 @@ export function mountApp(root: HTMLElement): void {
       if (target.dataset.filter) {
         state.filter = target.dataset.filter as LibraryFilter;
       }
-      state.sheetOpen = false;
       render(root);
       return;
     }
@@ -52,35 +46,8 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
-    if (action === "toggle") {
-      const id = target.dataset.id;
-      state.entries = state.entries.map((entry) => (entry.id === id ? { ...entry, completed: !entry.completed } : entry));
-      persist();
-      render(root);
-      return;
-    }
-
-    if (action === "remove") {
-      const id = target.dataset.id;
-      state.entries = state.entries.filter((entry) => entry.id !== id);
-      persist();
-      render(root);
-      return;
-    }
-
-    if (action === "open-sheet") {
-      state.sheetOpen = true;
-      if (target.dataset.kind && target.dataset.kind !== "all") {
-        state.filter = target.dataset.kind as MediaKind;
-      }
-      render(root);
-      root.querySelector<HTMLInputElement>("#entry-title")?.focus();
-      return;
-    }
-
-    if (action === "close-sheet") {
-      state.sheetOpen = false;
-      render(root);
+    if (action === "reload") {
+      await refreshCatalog(root);
       return;
     }
 
@@ -89,33 +56,21 @@ export function mountApp(root: HTMLElement): void {
       render(root);
     }
   });
-
-  root.addEventListener("submit", (event) => {
-    const form = event.target as HTMLFormElement;
-    if (form.id !== "add-form") {
-      return;
-    }
-
-    event.preventDefault();
-    const data = new FormData(form);
-    const title = String(data.get("title") ?? "");
-    const kindValue = String(data.get("kind") ?? "movie");
-    const kind = MEDIA_KINDS.some((item) => item.id === kindValue) ? (kindValue as MediaKind) : "movie";
-
-    if (!title.trim()) {
-      return;
-    }
-
-    state.entries = [createEntry(title, kind), ...state.entries];
-    state.sheetOpen = false;
-    state.view = "library";
-    persist();
-    render(root);
-  });
 }
 
-function persist(): void {
-  saveCatalog(state.entries);
+async function refreshCatalog(root: HTMLElement): Promise<void> {
+  state.status = "loading";
+  render(root);
+
+  try {
+    state.entries = await fetchCatalog();
+    state.status = "ready";
+  } catch {
+    state.entries = [];
+    state.status = "error";
+  }
+
+  render(root);
 }
 
 function render(root: HTMLElement): void {
@@ -132,7 +87,6 @@ function render(root: HTMLElement): void {
         ${dockButton("library", "Library", libraryIcon())}
         ${standalone ? "" : dockButton("install", "Install", installIcon())}
       </nav>
-      ${state.sheetOpen ? renderSheet() : ""}
     </div>
   `;
 }
@@ -158,6 +112,7 @@ function renderHome(): string {
       <div class="rule"></div>
       <p class="tagline">Every scream, every shadow, every story — all connected.</p>
     </header>
+    ${renderStatus()}
     <section class="stats" aria-label="Library totals">
       <article>
         <strong>${total}</strong>
@@ -184,7 +139,6 @@ function renderHome(): string {
         `;
       }).join("")}
     </section>
-    <button class="primary-btn" type="button" data-action="open-sheet" data-kind="movie">Add to the vault</button>
   `;
 }
 
@@ -195,19 +149,46 @@ function renderLibrary(): string {
   return `
     <header class="page-head">
       <h1>${escapeHtml(heading)}</h1>
-      <p>Track what you watch, read, and survive.</p>
+      <p>Live from the HorrorTracker catalog.</p>
     </header>
+    ${renderStatus()}
     <div class="chips" role="tablist" aria-label="Filter by type">
       ${chip("all", "All")}
       ${MEDIA_KINDS.map((kind) => chip(kind.id, kind.label)).join("")}
     </div>
     ${
       visible.length === 0
-        ? `<p class="empty">Nothing here yet. Add a title and let the collection grow.</p>`
+        ? `<p class="empty">${emptyCopy()}</p>`
         : `<ul class="catalog">${visible.map(renderEntry).join("")}</ul>`
     }
-    <button class="fab" type="button" data-action="open-sheet" data-kind="${state.filter}" aria-label="Add title">+</button>
   `;
+}
+
+function renderStatus(): string {
+  if (state.status === "loading") {
+    return `<p class="status">Opening the vault…</p>`;
+  }
+
+  if (state.status === "error") {
+    return `
+      <p class="status is-error">Could not reach the API. Start HorrorTracker.Api, then retry.</p>
+      <button class="primary-btn" type="button" data-action="reload">Try again</button>
+    `;
+  }
+
+  return "";
+}
+
+function emptyCopy(): string {
+  if (state.status === "loading") {
+    return "Loading titles…";
+  }
+
+  if (state.status === "error") {
+    return "The catalog is unreachable until the API is running.";
+  }
+
+  return "Nothing in this part of the vault yet.";
 }
 
 function chip(filter: LibraryFilter, label: string): string {
@@ -219,14 +200,13 @@ function renderEntry(entry: CatalogEntry): string {
   const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
   return `
     <li class="entry${entry.completed ? " is-done" : ""}">
-      <button class="entry-toggle" type="button" data-action="toggle" data-id="${entry.id}" aria-pressed="${entry.completed}">
+      <div class="entry-toggle">
         <span class="mark" aria-hidden="true"></span>
         <span class="entry-copy">
           <strong>${escapeHtml(entry.title)}</strong>
           <em>${kindLabel}</em>
         </span>
-      </button>
-      <button class="entry-remove" type="button" data-action="remove" data-id="${entry.id}" aria-label="Remove ${escapeHtml(entry.title)}">✕</button>
+      </div>
     </li>
   `;
 }
@@ -270,31 +250,7 @@ function renderInstall(standalone: boolean): string {
           `
       }
     </ol>
-    <p class="fine-print">Phones need HTTPS (or localhost) for a true installable app. Use <code>npm run dev:https</code> when testing on a real device.</p>
-  `;
-}
-
-function renderSheet(): string {
-  const selected = state.filter === "all" ? "movie" : state.filter;
-  return `
-    <div class="sheet-backdrop" data-action="close-sheet"></div>
-    <form id="add-form" class="sheet" method="dialog">
-      <h2>Add a title</h2>
-      <label>
-        Title
-        <input id="entry-title" name="title" type="text" autocomplete="off" required maxlength="160" placeholder="Hereditary" />
-      </label>
-      <label>
-        Type
-        <select name="kind">
-          ${MEDIA_KINDS.map((kind) => `<option value="${kind.id}" ${kind.id === selected ? "selected" : ""}>${kind.label}</option>`).join("")}
-        </select>
-      </label>
-      <div class="sheet-actions">
-        <button class="ghost-btn" type="button" data-action="close-sheet">Cancel</button>
-        <button class="primary-btn" type="submit">Save</button>
-      </div>
-    </form>
+    <p class="fine-print">Phones need HTTPS (or localhost) for a true installable app. Use <code>npm run dev:https</code> when testing on a real device. The API must also be reachable from the phone.</p>
   `;
 }
 

@@ -12,48 +12,28 @@ export type MediaKind = (typeof MEDIA_KINDS)[number]["id"];
 
 export interface CatalogEntry {
   id: string;
+  mediaId: number;
   title: string;
   kind: MediaKind;
   completed: boolean;
-  createdAt: string;
 }
-
-const STORAGE_KEY = "horrorverse.catalog.v1";
 
 export function isMediaKind(value: string): value is MediaKind {
   return MEDIA_KINDS.some((kind) => kind.id === value);
 }
 
-export function loadCatalog(): CatalogEntry[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
+export async function fetchCatalog(): Promise<CatalogEntry[]> {
+  const response = await fetch("/api/catalog");
+  if (!response.ok) {
+    throw new Error(`Catalog request failed (${response.status})`);
+  }
 
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(isCatalogEntry);
-  } catch {
+  const payload: unknown = await response.json();
+  if (!Array.isArray(payload)) {
     return [];
   }
-}
 
-export function saveCatalog(entries: CatalogEntry[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-}
-
-export function createEntry(title: string, kind: MediaKind): CatalogEntry {
-  return {
-    id: crypto.randomUUID(),
-    title: title.trim(),
-    kind,
-    completed: false,
-    createdAt: new Date().toISOString(),
-  };
+  return payload.filter(isCatalogEntry);
 }
 
 function isCatalogEntry(value: unknown): value is CatalogEntry {
@@ -64,10 +44,10 @@ function isCatalogEntry(value: unknown): value is CatalogEntry {
   const entry = value as Partial<CatalogEntry>;
   return (
     typeof entry.id === "string" &&
+    typeof entry.mediaId === "number" &&
     typeof entry.title === "string" &&
     typeof entry.kind === "string" &&
     isMediaKind(entry.kind) &&
-    typeof entry.completed === "boolean" &&
-    typeof entry.createdAt === "string"
+    typeof entry.completed === "boolean"
   );
 }

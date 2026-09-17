@@ -29,6 +29,11 @@ namespace HorrorTracker.Data.Constants.Parameters
             {
                 MovieParameters(parameters, movie);
             }
+            else if (item is Documentary documentary)
+            {
+                VisualBaseObjectParameters(parameters, documentary);
+                parameters.Add("ReleaseYear", documentary.ReleaseYear);
+            }
 
             return parameters;
         }

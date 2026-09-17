@@ -1,18 +1,25 @@
 # HorrorVerse web app
 
-A TypeScript progressive web app (PWA) you can open in a browser and save to the home screen on iPhone and Android. It is a webpage that launches like an app: full screen, with its own icon, no App Store or Play Store fee.
+A TypeScript progressive web app (PWA) you can open in a browser and save to the home screen on iPhone and Android.
 
-Local titles are stored in the browser for now. The console and Windows apps remain the source of truth for the PostgreSQL catalog.
+The library is read from PostgreSQL through `HorrorTracker.Api`. The connection string stays on the server — never in this app.
 
 ## Run it
 
+Set `HorrorVerseDb` to your Postgres connection string, then start both processes:
+
 ```bash
+# terminal 1
+cd HorrorTracker.Api
+dotnet run --launch-profile http
+
+# terminal 2
 cd HorrorTracker.WebApp
 npm install
 npm run dev
 ```
 
-Then open the URL Vite prints (usually `http://localhost:5173`).
+Open the URL Vite prints (usually `http://localhost:5173`). Vite proxies `/api` to `http://localhost:5116`.
 
 To test install on a phone on the same Wi-Fi, use HTTPS so Safari and Chrome treat it as a real PWA:
 
@@ -20,7 +27,7 @@ To test install on a phone on the same Wi-Fi, use HTTPS so Safari and Chrome tre
 npm run dev:https
 ```
 
-Accept the local certificate warning, then follow the install steps on the **Install** tab.
+The phone still needs a reachable API (not just `localhost` on your PC).
 
 ## Add to Home Screen
 
@@ -34,5 +41,3 @@ Accept the local certificate warning, then follow the install steps on the **Ins
 1. Open the site in Chrome.
 2. Tap the menu and choose **Install app** or **Add to Home screen**.
 3. Confirm.
-
-Installed, it opens without the browser chrome. Production hosting must be HTTPS.
