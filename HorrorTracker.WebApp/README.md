@@ -29,6 +29,12 @@ npm run dev:https
 
 The phone still needs a reachable API (not just `localhost` on your PC).
 
+## Production
+
+Do not install from Vite/`localhost` if you want the home-screen icon to keep working away from this PC. Publish the API so it serves this app from `wwwroot`, then put **HTTPS** in front of that process. Phones then open one URL; `/api/catalog` hits the same host and Postgres.
+
+Details are in `HorrorTracker.Api/README.md`.
+
 ## Add to Home Screen
 
 **iPhone / iPad (Safari)**

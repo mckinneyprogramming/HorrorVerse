@@ -4,11 +4,36 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <SpaRoot>..\HorrorTracker.WebApp\</SpaRoot>
+    <BuildSpaOnPublish>true</BuildSpaOnPublish>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\HorrorTracker.Data\HorrorTracker.Data.csproj" />
     <ProjectReference Include="..\HorrorTracker.Utilities\HorrorTracker.Utilities.csproj" />
   </ItemGroup>
+
+  <Target Name="CopySpaFromDist" AfterTargets="Build" Condition="Exists('$(SpaRoot)dist\index.html')">
+    <ItemGroup>
+      <SpaDistFiles Include="$(SpaRoot)dist\**\*.*" />
+    </ItemGroup>
+    <MakeDir Directories="$(ProjectDir)wwwroot" />
+    <Copy
+      SourceFiles="@(SpaDistFiles)"
+      DestinationFiles="@(SpaDistFiles->'$(ProjectDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="BuildSpaOnPublish" AfterTargets="ComputeFilesToPublish" Condition="'$(BuildSpaOnPublish)' == 'true'">
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm ci" />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
+    <ItemGroup>
+      <DistFiles Include="$(SpaRoot)dist\**" />
+      <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(FileName)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 
 </Project>

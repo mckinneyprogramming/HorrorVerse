@@ -72,5 +72,5 @@ npm run dev
 
 Set `HorrorVerseDb` to your PostgreSQL connection string (same variable the console and WinForms apps use). Vite proxies `/api` to `http://localhost:5116`.
 
-On an iPhone, open the site in Safari and use **Share → Add to Home Screen**. On Android, Chrome can **Install app**. For phone testing on your LAN, run `npm run dev:https` so the install behaves like a real app. Details are in `HorrorTracker.WebApp/README.md`.
+For a phone home-screen app that reads the live database, host **one HTTPS origin** that serves both the webpage and `/api` (the API project does that in production). See [`HorrorTracker.Api/README.md`](HorrorTracker.Api/README.md). `localhost` on the phone is the phone, not this PC.
 

@@ -32,6 +32,8 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
+        navigateFallback: "index.html",
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -55,6 +57,7 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: "horrorverse-api",
               expiration: { maxEntries: 16, maxAgeSeconds: 60 },
+              networkTimeoutSeconds: 10,
             },
           },
         ],
