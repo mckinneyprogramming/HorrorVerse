@@ -119,7 +119,7 @@ h1 {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 14px 8px;
+  padding: 14px 8px 12px;
   text-align: center;
 }
 
@@ -130,8 +130,18 @@ h1 {
 }
 
 .stats span {
-  color: var(--text-muted);
+  display: block;
+  color: var(--text-secondary);
   font-size: 0.78rem;
+}
+
+.stats em {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-style: normal;
+  font-size: 0.68rem;
+  line-height: 1.35;
 }
 
 .kinds {

@@ -195,14 +195,17 @@ function renderHome(): string {
       <article>
         <strong>${total}</strong>
         <span>Tracked</span>
+        <em>Every title in the catalog</em>
       </article>
       <article>
         <strong>${completed}</strong>
         <span>Finished</span>
+        <em>Marked as watched or read</em>
       </article>
       <article>
         <strong>${total - completed}</strong>
         <span>Still waiting</span>
+        <em>Left to watch or read</em>
       </article>
     </section>
     <section class="kinds">
