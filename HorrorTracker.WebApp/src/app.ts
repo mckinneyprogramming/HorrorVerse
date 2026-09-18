@@ -723,7 +723,17 @@ function normalizeQuery(value: string): string {
 function sortByTitle(entries: CatalogEntry[]): CatalogEntry[] {
   return [...entries].sort((left, right) => {
     const byTitle = left.title.localeCompare(right.title, undefined, { sensitivity: "base", numeric: true });
-    return byTitle !== 0 ? byTitle : left.id.localeCompare(right.id);
+    if (byTitle !== 0) {
+      return byTitle;
+    }
+
+    const leftYear = left.releaseYear ?? Number.MAX_SAFE_INTEGER;
+    const rightYear = right.releaseYear ?? Number.MAX_SAFE_INTEGER;
+    if (leftYear !== rightYear) {
+      return leftYear - rightYear;
+    }
+
+    return left.id.localeCompare(right.id);
   });
 }
 
