@@ -2,6 +2,7 @@ import {
   createCatalogEntry,
   deleteCatalogEntry,
   fetchCatalog,
+  isMediaKind,
   MEDIA_KINDS,
   updateCatalogEntry,
   WRITABLE_KINDS,
@@ -40,6 +41,7 @@ interface AppState {
   sheet: CatalogSheet | null;
   catalogBusy: boolean;
   catalogMessage: string;
+  collapsedKinds: Set<MediaKind>;
 }
 
 const state: AppState = {
@@ -54,6 +56,7 @@ const state: AppState = {
   sheet: null,
   catalogBusy: false,
   catalogMessage: "",
+  collapsedKinds: new Set<MediaKind>(),
 };
 
 export function mountApp(root: HTMLElement): void {
@@ -82,6 +85,23 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "filter") {
       state.filter = target.dataset.filter as LibraryFilter;
+      render(root);
+      return;
+    }
+
+    if (action === "toggle-kind") {
+      event.preventDefault();
+      const kind = target.dataset.kind;
+      if (!kind || !isMediaKind(kind)) {
+        return;
+      }
+
+      if (state.collapsedKinds.has(kind)) {
+        state.collapsedKinds.delete(kind);
+      } else {
+        state.collapsedKinds.add(kind);
+      }
+
       render(root);
       return;
     }
@@ -362,7 +382,6 @@ function renderSignedInLine(): string {
 }
 
 function renderLibrary(): string {
-  const visible = state.filter === "all" ? state.entries : state.entries.filter((entry) => entry.kind === state.filter);
   const heading = state.filter === "all" ? "The vault" : MEDIA_KINDS.find((kind) => kind.id === state.filter)?.label ?? "The vault";
 
   return `
@@ -376,12 +395,50 @@ function renderLibrary(): string {
       ${chip("all", "All")}
       ${MEDIA_KINDS.map((kind) => chip(kind.id, kind.label)).join("")}
     </div>
-    ${
-      visible.length === 0
-        ? `<p class="empty">${emptyCopy()}</p>`
-        : `<ul class="catalog">${visible.map(renderEntry).join("")}</ul>`
-    }
+    ${state.filter === "all" ? renderGroupedCatalog() : renderFlatCatalog()}
   `;
+}
+
+function renderFlatCatalog(): string {
+  const visible = sortByTitle(state.entries.filter((entry) => entry.kind === state.filter));
+  if (visible.length === 0) {
+    return `<p class="empty">${emptyCopy()}</p>`;
+  }
+
+  return `<ul class="catalog">${visible.map((entry) => renderEntry(entry)).join("")}</ul>`;
+}
+
+function renderGroupedCatalog(): string {
+  const groups = MEDIA_KINDS.map((kind) => ({
+    kind,
+    entries: sortByTitle(state.entries.filter((entry) => entry.kind === kind.id)),
+  })).filter((group) => group.entries.length > 0);
+
+  if (groups.length === 0) {
+    return `<p class="empty">${emptyCopy()}</p>`;
+  }
+
+  return groups
+    .map((group) => {
+      const open = !state.collapsedKinds.has(group.kind.id);
+      return `
+        <details class="kind-group"${open ? " open" : ""}>
+          <summary data-action="toggle-kind" data-kind="${group.kind.id}">
+            <span class="kind-group-label">${escapeHtml(group.kind.label)}</span>
+            <span class="kind-group-count">${group.entries.length}</span>
+          </summary>
+          <ul class="catalog">${group.entries.map((entry) => renderEntry(entry, false)).join("")}</ul>
+        </details>
+      `;
+    })
+    .join("");
+}
+
+function sortByTitle(entries: CatalogEntry[]): CatalogEntry[] {
+  return [...entries].sort((left, right) => {
+    const byTitle = left.title.localeCompare(right.title, undefined, { sensitivity: "base", numeric: true });
+    return byTitle !== 0 ? byTitle : left.id.localeCompare(right.id);
+  });
 }
 
 function renderAccount(): string {
@@ -475,14 +532,14 @@ function chip(filter: LibraryFilter, label: string): string {
   return `<button class="chip${active}" type="button" data-action="filter" data-filter="${filter}">${label}</button>`;
 }
 
-function renderEntry(entry: CatalogEntry): string {
+function renderEntry(entry: CatalogEntry, showKind = true): string {
   const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
   const admin = Boolean(state.user?.isAdmin);
   const body = `
     <span class="mark" aria-hidden="true"></span>
     <span class="entry-copy">
       <strong>${escapeHtml(entry.title)}</strong>
-      <em>${kindLabel}</em>
+      ${showKind ? `<em>${kindLabel}</em>` : ""}
     </span>
   `;
 
