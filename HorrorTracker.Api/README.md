@@ -17,6 +17,9 @@ Vite (`npm run dev`) proxies `/api` to `http://localhost:5116`.
 - `GET /api/health`
 - `GET /api/catalog`
 - `GET /api/catalog/{kind}` — `movie`, `series`, `show`, `documentary`, or `book`
+- `POST /api/catalog` — administrator create `{ "title", "kind", "completed", "releaseYear?" }`
+- `PATCH /api/catalog` — administrator update `{ "id", "title", "completed" }`
+- `DELETE /api/catalog?id=movie:1` — administrator delete
 - `GET /api/auth` — current user, or `{ "user": null }`
 - `POST /api/auth` — `{ "action": "register" | "login", "email", "password", "displayName?" }`
 - `DELETE /api/auth` — sign out

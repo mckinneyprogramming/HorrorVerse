@@ -1,4 +1,13 @@
-import { fetchCatalog, MEDIA_KINDS, type CatalogEntry, type MediaKind } from "./catalog";
+import {
+  createCatalogEntry,
+  deleteCatalogEntry,
+  fetchCatalog,
+  MEDIA_KINDS,
+  updateCatalogEntry,
+  WRITABLE_KINDS,
+  type CatalogEntry,
+  type MediaKind,
+} from "./catalog";
 import {
   fetchCurrentUser,
   loginAccount,
@@ -12,6 +21,12 @@ type View = "home" | "library" | "account" | "install";
 type LibraryFilter = MediaKind | "all";
 type LoadStatus = "loading" | "ready" | "error";
 type AuthMode = "login" | "register";
+type SheetMode = "add" | "edit";
+
+interface CatalogSheet {
+  mode: SheetMode;
+  entry?: CatalogEntry;
+}
 
 interface AppState {
   view: View;
@@ -22,6 +37,9 @@ interface AppState {
   authMode: AuthMode;
   authMessage: string;
   authBusy: boolean;
+  sheet: CatalogSheet | null;
+  catalogBusy: boolean;
+  catalogMessage: string;
 }
 
 const state: AppState = {
@@ -33,6 +51,9 @@ const state: AppState = {
   authMode: "login",
   authMessage: "",
   authBusy: false,
+  sheet: null,
+  catalogBusy: false,
+  catalogMessage: "",
 };
 
 export function mountApp(root: HTMLElement): void {
@@ -54,6 +75,7 @@ export function mountApp(root: HTMLElement): void {
         state.filter = target.dataset.filter as LibraryFilter;
       }
       state.authMessage = "";
+      state.sheet = null;
       render(root);
       return;
     }
@@ -90,6 +112,61 @@ export function mountApp(root: HTMLElement): void {
     if (action === "install") {
       await promptInstall();
       render(root);
+      return;
+    }
+
+    if (action === "open-add" && state.user?.isAdmin) {
+      state.sheet = { mode: "add" };
+      state.catalogMessage = "";
+      render(root);
+      return;
+    }
+
+    if (action === "open-edit" && state.user?.isAdmin) {
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      if (!entry) {
+        return;
+      }
+
+      state.sheet = { mode: "edit", entry };
+      state.catalogMessage = "";
+      render(root);
+      return;
+    }
+
+    if (action === "close-sheet") {
+      state.sheet = null;
+      state.catalogMessage = "";
+      render(root);
+      return;
+    }
+
+    if (action === "toggle" && state.user?.isAdmin) {
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      if (!entry || state.catalogBusy) {
+        return;
+      }
+
+      await saveCatalogChange(root, () =>
+        updateCatalogEntry({ id: entry.id, title: entry.title, completed: !entry.completed }),
+      );
+      return;
+    }
+
+    if (action === "delete" && state.user?.isAdmin) {
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      if (!entry || state.catalogBusy) {
+        return;
+      }
+
+      if (!window.confirm(`Remove “${entry.title}” from the vault?`)) {
+        return;
+      }
+
+      await saveCatalogChange(root, async () => {
+        await deleteCatalogEntry(entry.id);
+        return null;
+      });
     }
   });
 
@@ -126,6 +203,37 @@ export function mountApp(root: HTMLElement): void {
     state.authBusy = false;
     render(root);
   });
+
+  root.addEventListener("submit", async (event) => {
+    const catalogForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-catalog-form]");
+    if (!catalogForm) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!state.user?.isAdmin || state.catalogBusy || !state.sheet) {
+      return;
+    }
+
+    const data = new FormData(catalogForm);
+    const title = String(data.get("title") ?? "");
+    const kind = String(data.get("kind") ?? state.sheet.entry?.kind ?? "movie");
+    const completed = data.get("completed") === "on";
+    const releaseYear = Number(data.get("releaseYear") ?? 0);
+
+    await saveCatalogChange(root, async () => {
+      if (state.sheet?.mode === "edit" && state.sheet.entry) {
+        return updateCatalogEntry({ id: state.sheet.entry.id, title, completed });
+      }
+
+      return createCatalogEntry({
+        title,
+        kind,
+        completed,
+        releaseYear: Number.isInteger(releaseYear) && releaseYear > 0 ? releaseYear : undefined,
+      });
+    });
+  });
 }
 
 async function refreshCatalog(root: HTMLElement): Promise<void> {
@@ -148,6 +256,25 @@ async function refreshUser(root: HTMLElement): Promise<void> {
   render(root);
 }
 
+async function saveCatalogChange(root: HTMLElement, work: () => Promise<unknown>): Promise<void> {
+  state.catalogBusy = true;
+  state.catalogMessage = "";
+  render(root);
+
+  try {
+    await work();
+    state.entries = await fetchCatalog();
+    state.status = "ready";
+    state.sheet = null;
+    state.catalogMessage = "";
+  } catch (error) {
+    state.catalogMessage = error instanceof Error ? error.message : "Could not change the catalog.";
+  }
+
+  state.catalogBusy = false;
+  render(root);
+}
+
 function render(root: HTMLElement): void {
   const standalone = isStandalone();
   root.innerHTML = `
@@ -158,6 +285,8 @@ function render(root: HTMLElement): void {
         ${state.view === "account" ? renderAccount() : ""}
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
+      ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
+      ${state.sheet && state.user?.isAdmin ? renderSheet() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
@@ -239,9 +368,10 @@ function renderLibrary(): string {
   return `
     <header class="page-head">
       <h1>${escapeHtml(heading)}</h1>
-      <p>Live from the HorrorTracker catalog.</p>
+      <p>${state.user?.isAdmin ? "Add, edit, and mark titles in the vault." : "Live from the HorrorTracker catalog."}</p>
     </header>
     ${renderStatus()}
+    ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
     <div class="chips" role="tablist" aria-label="Filter by type">
       ${chip("all", "All")}
       ${MEDIA_KINDS.map((kind) => chip(kind.id, kind.label)).join("")}
@@ -267,8 +397,8 @@ function renderAccount(): string {
         <span class="role-badge${state.user.isAdmin ? " is-admin" : ""}">${state.user.isAdmin ? "Admin" : "Member"}</span>
         ${
           state.user.isAdmin
-            ? `<p class="account-note">You are the only administrator. Other people can register as members.</p>`
-            : `<p class="account-note">Members can sign in and follow the catalog. Admin tools come next.</p>`
+            ? `<p class="account-note">You can add, edit, and remove titles in the library. Other people who register are members.</p>`
+            : `<p class="account-note">Members can browse the catalog. Only the administrator can change it.</p>`
         }
         <button class="primary-btn" type="button" data-action="logout" ${state.authBusy ? "disabled" : ""}>Sign out</button>
       </section>
@@ -347,16 +477,77 @@ function chip(filter: LibraryFilter, label: string): string {
 
 function renderEntry(entry: CatalogEntry): string {
   const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
+  const admin = Boolean(state.user?.isAdmin);
+  const body = `
+    <span class="mark" aria-hidden="true"></span>
+    <span class="entry-copy">
+      <strong>${escapeHtml(entry.title)}</strong>
+      <em>${kindLabel}</em>
+    </span>
+  `;
+
   return `
     <li class="entry${entry.completed ? " is-done" : ""}">
-      <div class="entry-toggle">
-        <span class="mark" aria-hidden="true"></span>
-        <span class="entry-copy">
-          <strong>${escapeHtml(entry.title)}</strong>
-          <em>${kindLabel}</em>
-        </span>
-      </div>
+      ${
+        admin
+          ? `<button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>`
+          : `<div class="entry-toggle">${body}</div>`
+      }
+      ${
+        admin
+          ? `
+            <button class="entry-edit" type="button" data-action="open-edit" data-id="${escapeHtml(entry.id)}" aria-label="Edit ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>Edit</button>
+            <button class="entry-remove" type="button" data-action="delete" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
+          `
+          : ""
+      }
     </li>
+  `;
+}
+
+function renderSheet(): string {
+  if (!state.sheet) {
+    return "";
+  }
+
+  const editing = state.sheet.mode === "edit";
+  const entry = state.sheet.entry;
+  const selectedKind = entry?.kind ?? "movie";
+
+  return `
+    <div class="sheet-backdrop" data-action="close-sheet"></div>
+    <form class="sheet" data-catalog-form="${state.sheet.mode}">
+      <h2>${editing ? "Edit title" : "Add a title"}</h2>
+      ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
+      <label>
+        Title
+        <input name="title" type="text" required maxlength="200" value="${escapeHtml(entry?.title ?? "")}" />
+      </label>
+      <label>
+        Type
+        <select name="kind" ${editing ? "disabled" : ""}>
+          ${WRITABLE_KINDS.map((kind) => `<option value="${kind.id}" ${kind.id === selectedKind ? "selected" : ""}>${kind.label}</option>`).join("")}
+        </select>
+      </label>
+      ${
+        editing
+          ? ""
+          : `
+            <label>
+              Release year
+              <input name="releaseYear" type="number" min="1888" max="3000" inputmode="numeric" placeholder="Optional" />
+            </label>
+          `
+      }
+      <label class="sheet-check">
+        <input name="completed" type="checkbox" ${entry?.completed ? "checked" : ""} />
+        Finished
+      </label>
+      <div class="sheet-actions">
+        <button class="ghost-btn" type="button" data-action="close-sheet">Cancel</button>
+        <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Saving…" : "Save"}</button>
+      </div>
+    </form>
   `;
 }
 

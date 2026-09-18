@@ -20,6 +20,45 @@ export async function GET() {
   }
 }
 
+export async function POST(request: Request) {
+  return writeCatalog(request, async (connectionString, body) => {
+    const kind = normalizeKind(body.kind);
+    const title = normalizeTitle(body.title);
+    await ensureOptionalTables(connectionString, kind);
+    const rows = await queryRows(connectionString, insertSql(kind), insertParams(kind, title, body));
+    const item = mapRows(rows, kind)[0];
+    if (!item) {
+      throw new CatalogError("Could not save that title.", 500);
+    }
+
+    return Response.json(item);
+  });
+}
+
+export async function PATCH(request: Request) {
+  return writeCatalog(request, async (connectionString, body) => {
+    const { kind, mediaId } = parseCatalogId(body.id);
+    const title = normalizeTitle(body.title);
+    await ensureOptionalTables(connectionString, kind);
+    const rows = await queryRows(connectionString, updateSql(kind), [title, Boolean(body.completed), mediaId]);
+    const item = mapRows(rows, kind)[0];
+    if (!item) {
+      throw new CatalogError("That title was not found.", 400);
+    }
+
+    return Response.json(item);
+  });
+}
+
+export async function DELETE(request: Request) {
+  return writeCatalog(request, async (connectionString, body, url) => {
+    const { kind, mediaId } = parseCatalogId(body.id ?? url.searchParams.get("id"));
+    await ensureOptionalTables(connectionString, kind);
+    await execute(connectionString, deleteSql(kind), [mediaId]);
+    return Response.json({ ok: true });
+  });
+}
+
 async function loadCatalog(): Promise<CatalogItem[]> {
   const connectionString = resolveDatabaseUrl();
   if (!connectionString) {
@@ -59,7 +98,21 @@ async function readOptional(
 async function queryRows(
   connectionString: string,
   query: string,
+  params: unknown[] = [],
 ): Promise<Record<string, unknown>[]> {
+  const payload = await neonRequest(connectionString, query, params);
+  if (!isNeonRows(payload)) {
+    throw new Error("Neon HTTP response did not include rows.");
+  }
+
+  return payload.rows;
+}
+
+async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
+  await neonRequest(connectionString, query, params);
+}
+
+async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {
   const url = new URL(connectionString);
   const response = await fetch(`https://${url.hostname}/sql`, {
     method: "POST",
@@ -68,7 +121,7 @@ async function queryRows(
       "content-type": "application/json",
       "neon-connection-string": connectionString,
     },
-    body: JSON.stringify({ query, params: [] }),
+    body: JSON.stringify({ query, params }),
   });
 
   const payload: unknown = await response.json().catch(() => undefined);
@@ -76,11 +129,240 @@ async function queryRows(
     throw new Error(neonErrorMessage(payload, response.status));
   }
 
-  if (!isNeonRows(payload)) {
-    throw new Error("Neon HTTP response did not include rows.");
+  return payload;
+}
+
+interface CatalogWriteBody {
+  id?: string;
+  title?: string;
+  kind?: string;
+  completed?: boolean;
+  releaseYear?: number;
+  totalTime?: number;
+  pages?: number;
+  totalEpisodes?: number;
+  numberOfSeasons?: number;
+  totalMovies?: number;
+}
+
+async function writeCatalog(
+  request: Request,
+  action: (connectionString: string, body: CatalogWriteBody, url: URL) => Promise<Response>,
+): Promise<Response> {
+  try {
+    const connectionString = resolveDatabaseUrl();
+    if (!connectionString) {
+      throw new CatalogError("DATABASE_URL is not configured.", 503);
+    }
+
+    await requireAdmin(request, connectionString);
+    const body = (await request.json().catch(() => ({}))) as CatalogWriteBody;
+    return await action(connectionString, body, new URL(request.url));
+  } catch (error) {
+    console.error("Catalog write failed.", error);
+    if (error instanceof CatalogError) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
+
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("not configured")) {
+      return Response.json({ error: "Catalog unavailable." }, { status: 503 });
+    }
+
+    return Response.json({ error: "Could not change the catalog." }, { status: 500 });
+  }
+}
+
+async function requireAdmin(request: Request, connectionString: string): Promise<void> {
+  const token = readSessionToken(request);
+  if (!token) {
+    throw new CatalogError("Sign in to continue.", 401);
   }
 
-  return payload.rows;
+  const rows = await queryRows(
+    connectionString,
+    `SELECT u.email, u.is_admin
+     FROM app_session s
+     JOIN app_user u ON u.id = s.user_id
+     WHERE s.token = $1 AND s.expires_at > NOW()`,
+    [token],
+  );
+  const row = rows[0];
+  if (!row) {
+    throw new CatalogError("Sign in to continue.", 401);
+  }
+
+  const email = String(row.email ?? "").toLowerCase();
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const isAdmin = Boolean(row.is_admin ?? row.isAdmin) || Boolean(adminEmail && email === adminEmail);
+  if (!isAdmin) {
+    throw new CatalogError("Only the administrator can change the catalog.", 403);
+  }
+}
+
+function readSessionToken(request: Request): string | undefined {
+  const cookie = request.headers.get("cookie");
+  if (!cookie) {
+    return undefined;
+  }
+
+  for (const part of cookie.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 1) {
+      continue;
+    }
+
+    if (part.slice(0, separator).trim() === "hv_session") {
+      return decodeURIComponent(part.slice(separator + 1).trim());
+    }
+  }
+
+  return undefined;
+}
+
+async function ensureOptionalTables(connectionString: string, kind: string): Promise<void> {
+  if (kind === "show") {
+    await execute(
+      connectionString,
+      `CREATE TABLE IF NOT EXISTS show (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        totaltime DECIMAL(10, 2) NOT NULL,
+        totalepisodes INTEGER NOT NULL,
+        numberofseasons INTEGER NOT NULL,
+        watched BOOLEAN NOT NULL
+      )`,
+    );
+  }
+
+  if (kind === "book") {
+    await execute(
+      connectionString,
+      `CREATE TABLE IF NOT EXISTS book (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        seriesid INTEGER,
+        pages INTEGER NOT NULL,
+        partofseries BOOLEAN NOT NULL,
+        releaseyear INTEGER NOT NULL,
+        read BOOLEAN NOT NULL
+      )`,
+    );
+  }
+}
+
+function insertSql(kind: string): string {
+  switch (kind) {
+    case "movie":
+      return `INSERT INTO movie (title, totaltime, partofseries, seriesid, releaseyear, watched)
+              VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, watched AS completed`;
+    case "series":
+      return `INSERT INTO movieseries (title, totaltime, totalmovies, watched)
+              VALUES ($1, $2, $3, $4) RETURNING id, title, watched AS completed`;
+    case "documentary":
+      return `INSERT INTO documentary (title, totaltime, releaseyear, watched)
+              VALUES ($1, $2, $3, $4) RETURNING id, title, watched AS completed`;
+    case "show":
+      return `INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched)
+              VALUES ($1, $2, $3, $4, $5) RETURNING id, title, watched AS completed`;
+    case "book":
+      return `INSERT INTO book (title, seriesid, pages, partofseries, releaseyear, read)
+              VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, read AS completed`;
+    default:
+      throw new CatalogError("That type cannot be stored yet.", 400);
+  }
+}
+
+function insertParams(kind: string, title: string, body: CatalogWriteBody): unknown[] {
+  const year = Number.isInteger(body.releaseYear) && (body.releaseYear ?? 0) > 0 ? Number(body.releaseYear) : new Date().getUTCFullYear();
+  const totalTime = typeof body.totalTime === "number" && body.totalTime >= 0 ? body.totalTime : 0;
+  const completed = Boolean(body.completed);
+
+  switch (kind) {
+    case "movie":
+      return [title, totalTime, false, null, year, completed];
+    case "series":
+      return [title, totalTime, Math.max(Number(body.totalMovies) || 0, 0), completed];
+    case "documentary":
+      return [title, totalTime, year, completed];
+    case "show":
+      return [title, totalTime, Math.max(Number(body.totalEpisodes) || 0, 0), Math.max(Number(body.numberOfSeasons) || 0, 0), completed];
+    case "book":
+      return [title, null, Math.max(Number(body.pages) || 0, 0), false, year, completed];
+    default:
+      throw new CatalogError("That type cannot be stored yet.", 400);
+  }
+}
+
+function updateSql(kind: string): string {
+  switch (kind) {
+    case "movie":
+      return "UPDATE movie SET title = $1, watched = $2 WHERE id = $3 RETURNING id, title, watched AS completed";
+    case "series":
+      return "UPDATE movieseries SET title = $1, watched = $2 WHERE id = $3 RETURNING id, title, watched AS completed";
+    case "documentary":
+      return "UPDATE documentary SET title = $1, watched = $2 WHERE id = $3 RETURNING id, title, watched AS completed";
+    case "show":
+      return "UPDATE show SET title = $1, watched = $2 WHERE id = $3 RETURNING id, title, watched AS completed";
+    case "book":
+      return "UPDATE book SET title = $1, read = $2 WHERE id = $3 RETURNING id, title, read AS completed";
+    default:
+      throw new CatalogError("That type cannot be stored yet.", 400);
+  }
+}
+
+function deleteSql(kind: string): string {
+  switch (kind) {
+    case "movie":
+      return "DELETE FROM movie WHERE id = $1";
+    case "series":
+      return "DELETE FROM movieseries WHERE id = $1";
+    case "documentary":
+      return "DELETE FROM documentary WHERE id = $1";
+    case "show":
+      return "DELETE FROM show WHERE id = $1";
+    case "book":
+      return "DELETE FROM book WHERE id = $1";
+    default:
+      throw new CatalogError("That type cannot be stored yet.", 400);
+  }
+}
+
+function parseCatalogId(id: string | null | undefined): { kind: string; mediaId: number } {
+  const parts = (id ?? "").split(":");
+  const mediaId = Number(parts[1]);
+  if (parts.length !== 2 || !Number.isInteger(mediaId) || mediaId < 1) {
+    throw new CatalogError("That title was not found.", 400);
+  }
+
+  return { kind: normalizeKind(parts[0]), mediaId };
+}
+
+function normalizeKind(kind: string | undefined): string {
+  const value = (kind ?? "").trim().toLowerCase();
+  if (value === "movie" || value === "series" || value === "documentary" || value === "show" || value === "book") {
+    return value;
+  }
+
+  throw new CatalogError("That type cannot be stored yet.", 400);
+}
+
+function normalizeTitle(title: string | undefined): string {
+  const value = (title ?? "").trim();
+  if (value.length < 1 || value.length > 200) {
+    throw new CatalogError("Enter a title.", 400);
+  }
+
+  return value;
+}
+
+class CatalogError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
 }
 
 function neonErrorMessage(payload: unknown, status: number): string {

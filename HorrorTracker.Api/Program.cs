@@ -56,6 +56,16 @@ if (hasSpa)
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/catalog", (CatalogService catalog) => catalog.GetAll());
 app.MapGet("/api/catalog/{kind}", (string kind, CatalogService catalog) => catalog.GetByKind(kind));
+app.MapPost("/api/catalog", (CatalogWriteRequest body, HttpContext http, AuthService auth, CatalogService catalog) =>
+    WriteCatalog(http, auth, () => Results.Json(catalog.Create(body))));
+app.MapPatch("/api/catalog", (CatalogWriteRequest body, HttpContext http, AuthService auth, CatalogService catalog) =>
+    WriteCatalog(http, auth, () => Results.Json(catalog.Update(body))));
+app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, CatalogService catalog) =>
+    WriteCatalog(http, auth, () =>
+    {
+        catalog.Delete(id);
+        return Results.Json(new { ok = true });
+    }));
 app.MapGet("/api/auth", (HttpContext http, AuthService auth) =>
 {
     return Results.Json(new { user = auth.GetCurrent(AuthCookies.Read(http.Request)) });
@@ -89,3 +99,20 @@ if (hasSpa)
 }
 
 app.Run();
+
+static IResult WriteCatalog(HttpContext http, AuthService auth, Func<IResult> write)
+{
+    try
+    {
+        auth.RequireAdmin(AuthCookies.Read(http.Request));
+        return write();
+    }
+    catch (AuthException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: exception.StatusCode);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: StatusCodes.Status400BadRequest);
+    }
+}
