@@ -6,10 +6,49 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
+let updateReady = false;
+let showUpdatePrompt = false;
+let applyUpdate: ((reloadPage?: boolean) => Promise<void>) | null = null;
 const listeners = new Set<() => void>();
 
 export function registerPwa(): void {
-  registerSW({ immediate: true });
+  applyUpdate = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      updateReady = true;
+      showUpdatePrompt = true;
+      notify();
+    },
+    onRegisteredSW(_url, registration) {
+      const checkForUpdate = () => {
+        void registration?.update();
+      };
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") {
+          return;
+        }
+
+        checkForUpdate();
+        if (updateReady) {
+          showUpdatePrompt = true;
+          notify();
+        }
+      });
+
+      window.addEventListener("pageshow", (event) => {
+        if (!event.persisted) {
+          return;
+        }
+
+        checkForUpdate();
+        if (updateReady) {
+          showUpdatePrompt = true;
+          notify();
+        }
+      });
+    },
+  });
 
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
@@ -37,6 +76,21 @@ export async function promptInstall(): Promise<boolean> {
   deferredPrompt = null;
   notify();
   return outcome === "accepted";
+}
+
+export function canPromptUpdate(): boolean {
+  return showUpdatePrompt;
+}
+
+export async function applyPendingUpdate(): Promise<void> {
+  showUpdatePrompt = false;
+  notify();
+  await applyUpdate?.(true);
+}
+
+export function dismissPendingUpdate(): void {
+  showUpdatePrompt = false;
+  notify();
 }
 
 export function onInstallAvailabilityChange(listener: () => void): () => void {

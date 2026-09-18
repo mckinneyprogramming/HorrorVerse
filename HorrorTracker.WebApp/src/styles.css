@@ -601,6 +601,54 @@ code {
   font-size: 1.8rem;
   line-height: 1;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  z-index: 16;
+}
+
+.update-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + var(--dock-height) + var(--safe-bottom));
+  z-index: 15;
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-alt);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.update-banner p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.update-banner-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.update-banner-later,
+.update-banner-refresh {
+  min-height: 42px;
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.update-banner-later {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.update-banner-refresh {
+  border: 1px solid var(--blood-bright);
+  background: var(--blood);
+  color: var(--text);
 }
 
 .sheet-backdrop {

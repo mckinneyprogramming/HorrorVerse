@@ -17,7 +17,7 @@ import {
   registerAccount,
   type AuthUser,
 } from "./auth";
-import { canPromptInstall, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
+import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "account" | "install";
 type LibraryFilter = MediaKind | "all";
@@ -141,6 +141,17 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "install") {
       await promptInstall();
+      render(root);
+      return;
+    }
+
+    if (action === "apply-update") {
+      await applyPendingUpdate();
+      return;
+    }
+
+    if (action === "dismiss-update") {
+      dismissPendingUpdate();
       render(root);
       return;
     }
@@ -347,6 +358,7 @@ function render(root: HTMLElement): void {
       </main>
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
       ${state.sheet && state.user?.isAdmin ? renderSheet() : ""}
+      ${!state.sheet && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
@@ -354,6 +366,18 @@ function render(root: HTMLElement): void {
         ${standalone ? "" : dockButton("install", "Install", installIcon())}
       </nav>
     </div>
+  `;
+}
+
+function renderUpdateBanner(): string {
+  return `
+    <aside class="update-banner" role="status">
+      <p>A newer HorrorVerse is ready. Refresh to update?</p>
+      <div class="update-banner-actions">
+        <button class="update-banner-later" type="button" data-action="dismiss-update">Later</button>
+        <button class="update-banner-refresh" type="button" data-action="apply-update">Refresh</button>
+      </div>
+    </aside>
   `;
 }
 

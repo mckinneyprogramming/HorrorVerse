@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     ...(mode === "https" ? [basicSsl()] : []),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: [
         "apple-touch-icon.png",
         "icons/icon-32.png",
