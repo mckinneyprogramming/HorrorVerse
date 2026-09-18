@@ -9,13 +9,13 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host"
   },
+  "engines": {
+    "node": "20.x"
+  },
   "devDependencies": {
     "@vitejs/plugin-basic-ssl": "^1.2.0",
     "typescript": "^5.9.2",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^0.21.2"
-  },
-  "dependencies": {
-    "@neondatabase/serverless": "^1.1.0"
   }
 }
