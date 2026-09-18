@@ -1,15 +1,27 @@
 import { fetchCatalog, MEDIA_KINDS, type CatalogEntry, type MediaKind } from "./catalog";
+import {
+  fetchCurrentUser,
+  loginAccount,
+  logoutAccount,
+  registerAccount,
+  type AuthUser,
+} from "./auth";
 import { canPromptInstall, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
-type View = "home" | "library" | "install";
+type View = "home" | "library" | "account" | "install";
 type LibraryFilter = MediaKind | "all";
 type LoadStatus = "loading" | "ready" | "error";
+type AuthMode = "login" | "register";
 
 interface AppState {
   view: View;
   filter: LibraryFilter;
   entries: CatalogEntry[];
   status: LoadStatus;
+  user: AuthUser | null;
+  authMode: AuthMode;
+  authMessage: string;
+  authBusy: boolean;
 }
 
 const state: AppState = {
@@ -17,12 +29,17 @@ const state: AppState = {
   filter: "all",
   entries: [],
   status: "loading",
+  user: null,
+  authMode: "login",
+  authMessage: "",
+  authBusy: false,
 };
 
 export function mountApp(root: HTMLElement): void {
   render(root);
   onInstallAvailabilityChange(() => render(root));
   void refreshCatalog(root);
+  void refreshUser(root);
 
   root.addEventListener("click", async (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>("[data-action]");
@@ -36,6 +53,7 @@ export function mountApp(root: HTMLElement): void {
       if (target.dataset.filter) {
         state.filter = target.dataset.filter as LibraryFilter;
       }
+      state.authMessage = "";
       render(root);
       return;
     }
@@ -51,10 +69,62 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
+    if (action === "auth-mode") {
+      state.authMode = target.dataset.mode as AuthMode;
+      state.authMessage = "";
+      render(root);
+      return;
+    }
+
+    if (action === "logout") {
+      state.authBusy = true;
+      render(root);
+      await logoutAccount();
+      state.user = null;
+      state.authBusy = false;
+      state.authMessage = "";
+      render(root);
+      return;
+    }
+
     if (action === "install") {
       await promptInstall();
       render(root);
     }
+  });
+
+  root.addEventListener("submit", async (event) => {
+    const form = (event.target as HTMLElement).closest<HTMLFormElement>("[data-auth-form]");
+    if (!form) {
+      return;
+    }
+
+    event.preventDefault();
+    if (state.authBusy) {
+      return;
+    }
+
+    const data = new FormData(form);
+    const email = String(data.get("email") ?? "");
+    const password = String(data.get("password") ?? "");
+    const displayName = String(data.get("displayName") ?? "");
+
+    state.authBusy = true;
+    state.authMessage = "";
+    render(root);
+
+    try {
+      state.user =
+        form.dataset.authForm === "register"
+          ? await registerAccount({ email, password, displayName })
+          : await loginAccount({ email, password });
+      state.authMessage = "";
+    } catch (error) {
+      state.authMessage = error instanceof Error ? error.message : "Could not sign in.";
+    }
+
+    state.authBusy = false;
+    render(root);
   });
 }
 
@@ -73,6 +143,11 @@ async function refreshCatalog(root: HTMLElement): Promise<void> {
   render(root);
 }
 
+async function refreshUser(root: HTMLElement): Promise<void> {
+  state.user = await fetchCurrentUser();
+  render(root);
+}
+
 function render(root: HTMLElement): void {
   const standalone = isStandalone();
   root.innerHTML = `
@@ -80,11 +155,13 @@ function render(root: HTMLElement): void {
       <main class="stage">
         ${state.view === "home" ? renderHome() : ""}
         ${state.view === "library" ? renderLibrary() : ""}
+        ${state.view === "account" ? renderAccount() : ""}
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
+        ${dockButton("account", "Account", accountIcon())}
         ${standalone ? "" : dockButton("install", "Install", installIcon())}
       </nav>
     </div>
@@ -111,6 +188,7 @@ function renderHome(): string {
       <h1>HorrorVerse</h1>
       <div class="rule"></div>
       <p class="tagline">Every scream, every shadow, every story — all connected.</p>
+      ${renderSignedInLine()}
     </header>
     ${renderStatus()}
     <section class="stats" aria-label="Library totals">
@@ -142,6 +220,15 @@ function renderHome(): string {
   `;
 }
 
+function renderSignedInLine(): string {
+  if (!state.user) {
+    return `<p class="session-line"><button type="button" data-action="view" data-view="account">Sign in</button> to keep your place in the vault.</p>`;
+  }
+
+  const role = state.user.isAdmin ? "Administrator" : "Member";
+  return `<p class="session-line">Signed in as <strong>${escapeHtml(state.user.displayName)}</strong> · ${role}</p>`;
+}
+
 function renderLibrary(): string {
   const visible = state.filter === "all" ? state.entries : state.entries.filter((entry) => entry.kind === state.filter);
   const heading = state.filter === "all" ? "The vault" : MEDIA_KINDS.find((kind) => kind.id === state.filter)?.label ?? "The vault";
@@ -161,6 +248,65 @@ function renderLibrary(): string {
         ? `<p class="empty">${emptyCopy()}</p>`
         : `<ul class="catalog">${visible.map(renderEntry).join("")}</ul>`
     }
+  `;
+}
+
+function renderAccount(): string {
+  if (state.user) {
+    return `
+      <header class="page-head">
+        <h1>Account</h1>
+        <p>${state.user.isAdmin ? "The vault answers to you." : "Your place in the HorrorVerse."}</p>
+      </header>
+      <section class="account-card">
+        <p class="account-name">${escapeHtml(state.user.displayName)}</p>
+        <p class="account-email">${escapeHtml(state.user.email)}</p>
+        <span class="role-badge${state.user.isAdmin ? " is-admin" : ""}">${state.user.isAdmin ? "Admin" : "Member"}</span>
+        ${
+          state.user.isAdmin
+            ? `<p class="account-note">You are the only administrator. Other people can register as members.</p>`
+            : `<p class="account-note">Members can sign in and follow the catalog. Admin tools come next.</p>`
+        }
+        <button class="primary-btn" type="button" data-action="logout" ${state.authBusy ? "disabled" : ""}>Sign out</button>
+      </section>
+    `;
+  }
+
+  const register = state.authMode === "register";
+  return `
+    <header class="page-head">
+      <h1>${register ? "Create account" : "Sign in"}</h1>
+      <p>${register ? "Join the HorrorVerse as a member." : "Welcome back to the vault."}</p>
+    </header>
+    <div class="auth-toggle" role="tablist" aria-label="Account mode">
+      <button class="chip${register ? "" : " is-active"}" type="button" data-action="auth-mode" data-mode="login">Sign in</button>
+      <button class="chip${register ? " is-active" : ""}" type="button" data-action="auth-mode" data-mode="register">Register</button>
+    </div>
+    ${state.authMessage ? `<p class="status is-error">${escapeHtml(state.authMessage)}</p>` : ""}
+    <form class="auth-form" data-auth-form="${register ? "register" : "login"}">
+      ${
+        register
+          ? `
+            <label>
+              Display name
+              <input name="displayName" type="text" maxlength="80" autocomplete="nickname" placeholder="How you appear in the vault" />
+            </label>
+          `
+          : ""
+      }
+      <label>
+        Email
+        <input name="email" type="email" required autocomplete="email" />
+      </label>
+      <label>
+        Password
+        <input name="password" type="password" required minlength="8" autocomplete="${register ? "new-password" : "current-password"}" />
+      </label>
+      ${register ? `<p class="fine-print">New accounts are members. Only the HorrorVerse owner is an administrator.</p>` : ""}
+      <button class="primary-btn" type="submit" ${state.authBusy ? "disabled" : ""}>${
+        state.authBusy ? "Opening the gate…" : register ? "Create account" : "Sign in"
+      }</button>
+    </form>
   `;
 }
 
@@ -269,6 +415,10 @@ function homeIcon(): string {
 
 function libraryIcon(): string {
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4v16H5zm5 2h9v3H10zm0 5h9v3H10zm0 5h9v4H10z"/></svg>`;
+}
+
+function accountIcon(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/></svg>`;
 }
 
 function installIcon(): string {

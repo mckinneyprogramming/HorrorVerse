@@ -1,3 +1,4 @@
+using HorrorTracker.Api.Auth;
 using HorrorTracker.Api.Catalog;
 using HorrorTracker.Api.Logging;
 using HorrorTracker.Data.PostgreHelpers;
@@ -21,6 +22,7 @@ builder.Services.AddScoped<MovieRepository>();
 builder.Services.AddScoped<MovieSeriesRepository>();
 builder.Services.AddScoped<DocumentaryRepository>();
 builder.Services.AddScoped<CatalogService>();
+builder.Services.AddScoped<AuthService>();
 
 var app = builder.Build();
 
@@ -54,6 +56,32 @@ if (hasSpa)
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/catalog", (CatalogService catalog) => catalog.GetAll());
 app.MapGet("/api/catalog/{kind}", (string kind, CatalogService catalog) => catalog.GetByKind(kind));
+app.MapGet("/api/auth", (HttpContext http, AuthService auth) =>
+{
+    return Results.Json(new { user = auth.GetCurrent(AuthCookies.Read(http.Request)) });
+});
+app.MapPost("/api/auth", (AuthRequest body, HttpContext http, AuthService auth) =>
+{
+    try
+    {
+        var action = body.Action?.Trim();
+        var session = string.Equals(action, "register", StringComparison.OrdinalIgnoreCase)
+            ? auth.Register(body)
+            : auth.Login(body);
+        AuthCookies.Set(http, session.Token);
+        return Results.Json(new { user = session.User });
+    }
+    catch (AuthException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: exception.StatusCode);
+    }
+});
+app.MapDelete("/api/auth", (HttpContext http, AuthService auth) =>
+{
+    auth.Logout(AuthCookies.Read(http.Request));
+    AuthCookies.Clear(http);
+    return Results.Json(new { user = (AuthUserDto?)null });
+});
 
 if (hasSpa)
 {

@@ -12,3 +12,8 @@ Accept: application/json
 
 GET {{HorrorTracker.Api_HostAddress}}/api/catalog/movie
 Accept: application/json
+
+###
+
+GET {{HorrorTracker.Api_HostAddress}}/api/auth
+Accept: application/json

@@ -17,6 +17,11 @@ Vite (`npm run dev`) proxies `/api` to `http://localhost:5116`.
 - `GET /api/health`
 - `GET /api/catalog`
 - `GET /api/catalog/{kind}` — `movie`, `series`, `show`, `documentary`, or `book`
+- `GET /api/auth` — current user, or `{ "user": null }`
+- `POST /api/auth` — `{ "action": "register" | "login", "email", "password", "displayName?" }`
+- `DELETE /api/auth` — sign out
+
+Set `ADMIN_EMAIL` to the one address that should be an administrator. Everyone else who registers is a member. Passwords stay on the server; the webpage only sends them over HTTPS to `/api/auth`.
 
 ## Production (one origin, phones can install)
 

@@ -312,6 +312,99 @@ code {
   font-size: 0.85em;
 }
 
+.session-line {
+  margin: 16px 0 0;
+  color: var(--text-secondary);
+}
+
+.session-line button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--crimson);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.auth-form,
+.account-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.auth-form label:first-child {
+  margin-top: 0;
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.auth-form .primary-btn,
+.account-card .primary-btn {
+  margin-top: 18px;
+}
+
+.account-name {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+}
+
+.account-email {
+  margin: 6px 0 14px;
+  color: var(--text-muted);
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.role-badge.is-admin {
+  border-color: var(--blood-bright);
+  color: var(--crimson);
+}
+
+.account-note {
+  margin: 16px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 .dock {
   position: fixed;
   left: 0;
