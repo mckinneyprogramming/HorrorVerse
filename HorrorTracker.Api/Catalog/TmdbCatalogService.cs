@@ -63,6 +63,15 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         var runtime = RuntimeOf(movie.Runtime);
         if (MovieExists(title, year))
         {
+            var existingId = FindMovieId(title, year);
+            var collectionNameForExisting = SeriesTitle(movie.BelongsToCollection?.Name);
+            var existingSeriesId = collectionNameForExisting is null ? null : FindSeriesId(collectionNameForExisting);
+            if (existingId is int mid && existingSeriesId is int sid)
+            {
+                AddMovieToListsContainingSeries(sid, mid);
+                return 1;
+            }
+
             throw new InvalidOperationException($"“{title}” is already in the vault.");
         }
 
@@ -73,9 +82,10 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
             seriesId = FindSeriesId(collectionName);
         }
 
-        InsertMovie(title, runtime, seriesId, year);
+        var movieId = InsertMovie(title, runtime, seriesId, year);
         if (seriesId is int id)
         {
+            AddMovieToListsContainingSeries(id, movieId);
             RefreshSeriesTotals(id);
         }
 
@@ -112,7 +122,8 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
                 continue;
             }
 
-            InsertMovie(title, RuntimeOf(film.Runtime), seriesId, year);
+            var addedMovieId = InsertMovie(title, RuntimeOf(film.Runtime), seriesId, year);
+            AddMovieToListsContainingSeries(seriesId.Value, addedMovieId);
             added++;
         }
 
@@ -235,20 +246,44 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         }
     }
 
-    private void InsertMovie(string title, decimal totalTime, int? seriesId, int? year)
+    private int InsertMovie(string title, decimal totalTime, int? seriesId, int? year)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO Movie (Title, TotalTime, PartOfSeries, SeriesId, ReleaseYear, Watched)
             VALUES (@title, @totalTime, @partOfSeries, @seriesId, @year, FALSE)
+            RETURNING Id
             """;
         command.Parameters.AddWithValue("title", title);
         command.Parameters.AddWithValue("totalTime", totalTime);
         command.Parameters.AddWithValue("partOfSeries", seriesId.HasValue);
         command.Parameters.AddWithValue("seriesId", seriesId.HasValue ? seriesId.Value : DBNull.Value);
         command.Parameters.AddWithValue("year", year ?? 0);
-        command.ExecuteNonQuery();
+        return Convert.ToInt32(command.ExecuteScalar());
+    }
+
+    private void AddMovieToListsContainingSeries(int seriesId, int movieId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO user_list_item (list_id, media_kind, media_id)
+                SELECT list_id, 'movie', @movieId
+                FROM user_list_item
+                WHERE media_kind = 'series' AND media_id = @seriesId
+                ON CONFLICT (list_id, media_kind, media_id) DO NOTHING
+                """;
+            command.Parameters.AddWithValue("movieId", movieId);
+            command.Parameters.AddWithValue("seriesId", seriesId);
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // Personal lists may not exist yet.
+        }
     }
 
     private int InsertSeries(string title, decimal totalTime, int totalMovies)

@@ -99,14 +99,24 @@ async function importMovie(connectionString: string, tmdbId: number): Promise<nu
   const title = requireTitle(movie.title);
   const year = yearFrom(movie.release_date);
   if (await movieExists(connectionString, title, year)) {
+    const existingId = await findMovieId(connectionString, title, year);
+    const collection = asRecord(movie.belongs_to_collection);
+    const seriesName = collection ? seriesTitle(String(collection.name ?? "")) : "";
+    const seriesId = seriesName ? await findSeriesId(connectionString, seriesName) : undefined;
+    if (existingId && seriesId) {
+      await addMovieToListsContainingSeries(connectionString, seriesId, existingId);
+      return 1;
+    }
+
     throw new TmdbError(`“${title}” is already in the vault.`, 400);
   }
 
   const collection = asRecord(movie.belongs_to_collection);
   const seriesName = collection ? seriesTitle(String(collection.name ?? "")) : "";
   const seriesId = seriesName ? await findSeriesId(connectionString, seriesName) : undefined;
-  await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
-  if (seriesId) {
+  const movieId = await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
+  if (seriesId && movieId) {
+    await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await refreshSeriesTotals(connectionString, seriesId);
   }
 
@@ -147,7 +157,10 @@ async function importSeries(connectionString: string, collectionId: number): Pro
       continue;
     }
 
-    await insertMovie(connectionString, filmTitle, runtimeOf(film.runtime), seriesId, year);
+    const movieId = await insertMovie(connectionString, filmTitle, runtimeOf(film.runtime), seriesId, year);
+    if (movieId) {
+      await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
+    }
     added += 1;
   }
 
@@ -248,12 +261,13 @@ async function insertMovie(
   totalTime: number,
   seriesId: number | undefined,
   year: number | undefined,
-): Promise<void> {
-  await execute(
+): Promise<number | undefined> {
+  const rows = await queryRows(
     connectionString,
-    "INSERT INTO movie (title, totaltime, partofseries, seriesid, releaseyear, watched) VALUES ($1, $2, $3, $4, $5, FALSE)",
+    "INSERT INTO movie (title, totaltime, partofseries, seriesid, releaseyear, watched) VALUES ($1, $2, $3, $4, $5, FALSE) RETURNING id",
     [title, totalTime, Boolean(seriesId), seriesId ?? null, year ?? 0],
   );
+  return asId(rows[0]);
 }
 
 async function insertSeries(connectionString: string, title: string): Promise<number> {
@@ -268,6 +282,22 @@ async function insertSeries(connectionString: string, title: string): Promise<nu
   }
 
   return id;
+}
+
+async function addMovieToListsContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {
+  try {
+    await execute(
+      connectionString,
+      `INSERT INTO user_list_item (list_id, media_kind, media_id)
+       SELECT list_id, 'movie', $1
+       FROM user_list_item
+       WHERE media_kind = 'series' AND media_id = $2
+       ON CONFLICT (list_id, media_kind, media_id) DO NOTHING`,
+      [movieId, seriesId],
+    );
+  } catch {
+    // Personal lists may not exist yet.
+  }
 }
 
 async function linkMovieToSeries(connectionString: string, movieId: number, seriesId: number): Promise<void> {

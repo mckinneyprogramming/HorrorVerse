@@ -568,6 +568,13 @@ async function saveCatalogChange(root: HTMLElement, work: () => Promise<unknown>
   try {
     await work();
     state.entries = await fetchCatalog();
+    if (state.user) {
+      try {
+        state.lists = await fetchLists();
+      } catch {
+        // Lists stay as last loaded if the request fails.
+      }
+    }
     state.status = "ready";
     state.sheet = null;
     state.tmdbResults = [];
