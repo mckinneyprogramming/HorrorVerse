@@ -27,6 +27,7 @@ import {
   renameList,
   type UserList,
 } from "./lists";
+import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "lists" | "account" | "install";
@@ -58,6 +59,9 @@ interface AppState {
   lists: UserList[];
   listPicker: CatalogEntry | null;
   listMessage: string;
+  sheetKind: MediaKind;
+  tmdbQuery: string;
+  tmdbResults: TmdbHit[];
 }
 
 const state: AppState = {
@@ -78,6 +82,9 @@ const state: AppState = {
   lists: [],
   listPicker: null,
   listMessage: "",
+  sheetKind: "movie",
+  tmdbQuery: "",
+  tmdbResults: [],
 };
 
 export function mountApp(root: HTMLElement): void {
@@ -181,6 +188,9 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "open-add" && state.user?.isAdmin) {
       state.sheet = { mode: "add" };
+      state.sheetKind = defaultSheetKind();
+      state.tmdbQuery = "";
+      state.tmdbResults = [];
       state.catalogMessage = "";
       render(root);
       return;
@@ -200,8 +210,19 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "close-sheet") {
       state.sheet = null;
+      state.tmdbResults = [];
       state.catalogMessage = "";
       render(root);
+      return;
+    }
+
+    if (action === "import-tmdb" && state.user?.isAdmin) {
+      const tmdbId = Number(target.dataset.tmdbId);
+      if (!state.sheet || state.sheet.mode !== "add" || state.catalogBusy || !Number.isInteger(tmdbId)) {
+        return;
+      }
+
+      await saveCatalogChange(root, () => importTmdb(state.sheetKind, tmdbId));
       return;
     }
 
@@ -363,7 +384,7 @@ export function mountApp(root: HTMLElement): void {
 
     const data = new FormData(catalogForm);
     const title = String(data.get("title") ?? "");
-    const kind = String(data.get("kind") ?? state.sheet.entry?.kind ?? "movie");
+    const kind = state.sheet.mode === "add" ? state.sheetKind : String(data.get("kind") ?? state.sheet.entry?.kind ?? "movie");
     const completed = data.get("completed") === "on";
     const releaseYear = Number(data.get("releaseYear") ?? 0);
 
@@ -406,6 +427,53 @@ export function mountApp(root: HTMLElement): void {
     await saveUserLibrary(root, async () => {
       state.lists = await createList(name);
     });
+  });
+
+  root.addEventListener("submit", async (event) => {
+    const tmdbForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-tmdb-form]");
+    if (!tmdbForm) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!state.user?.isAdmin || state.catalogBusy || state.sheet?.mode !== "add" || !usesTmdb(state.sheetKind)) {
+      return;
+    }
+
+    const data = new FormData(tmdbForm);
+    state.tmdbQuery = String(data.get("q") ?? "");
+    state.catalogBusy = true;
+    state.catalogMessage = "";
+    render(root);
+
+    try {
+      state.tmdbResults = await searchTmdb(state.sheetKind, state.tmdbQuery);
+      if (state.tmdbResults.length === 0) {
+        state.catalogMessage = "No TMDb matches for that search.";
+      }
+    } catch (error) {
+      state.tmdbResults = [];
+      state.catalogMessage = error instanceof Error ? error.message : "Could not search TMDb.";
+    }
+
+    state.catalogBusy = false;
+    render(root);
+  });
+
+  root.addEventListener("change", (event) => {
+    const select = (event.target as HTMLElement).closest<HTMLSelectElement>("[data-sheet-kind]");
+    if (!select || !state.sheet || state.sheet.mode !== "add") {
+      return;
+    }
+
+    if (!isMediaKind(select.value)) {
+      return;
+    }
+
+    state.sheetKind = select.value;
+    state.tmdbResults = [];
+    state.catalogMessage = "";
+    render(root);
   });
 
   root.addEventListener("input", (event) => {
@@ -502,6 +570,7 @@ async function saveCatalogChange(root: HTMLElement, work: () => Promise<unknown>
     state.entries = await fetchCatalog();
     state.status = "ready";
     state.sheet = null;
+    state.tmdbResults = [];
     state.catalogMessage = "";
   } catch (error) {
     state.catalogMessage = error instanceof Error ? error.message : "Could not change the catalog.";
@@ -1137,44 +1206,123 @@ function renderSheet(): string {
 
   const editing = state.sheet.mode === "edit";
   const entry = state.sheet.entry;
-  const selectedKind = entry?.kind ?? "movie";
+  const selectedKind = editing ? (entry?.kind ?? "movie") : state.sheetKind;
+  const tmdbEnabled = !editing && usesTmdb(selectedKind);
 
   return `
     <div class="sheet-backdrop" data-action="close-sheet"></div>
-    <form class="sheet" data-catalog-form="${state.sheet.mode}">
+    <div class="sheet">
       <h2>${editing ? "Edit title" : "Add a title"}</h2>
       ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
-      <label>
-        Title
-        <input name="title" type="text" required maxlength="200" value="${escapeHtml(entry?.title ?? "")}" />
-      </label>
-      <label>
-        Type
-        <select name="kind" ${editing ? "disabled" : ""}>
-          ${WRITABLE_KINDS.map((kind) => `<option value="${kind.id}" ${kind.id === selectedKind ? "selected" : ""}>${kind.label}</option>`).join("")}
-        </select>
-      </label>
       ${
         editing
           ? ""
           : `
             <label>
-              Release year
-              <input name="releaseYear" type="number" min="1888" max="3000" inputmode="numeric" placeholder="Optional" />
+              Type
+              <select data-sheet-kind ${state.catalogBusy ? "disabled" : ""}>
+                ${WRITABLE_KINDS.map((kind) => `<option value="${kind.id}" ${kind.id === selectedKind ? "selected" : ""}>${kind.label}</option>`).join("")}
+              </select>
             </label>
           `
       }
-      <label class="sheet-check">
-        <input name="completed" type="checkbox" ${entry?.completed ? "checked" : ""} />
-        Watched in catalog
-      </label>
-      <p class="fine-print">Used by the desktop apps. Your personal finished mark lives on the title in the library.</p>
-      <div class="sheet-actions">
-        <button class="ghost-btn" type="button" data-action="close-sheet">Cancel</button>
-        <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Saving…" : "Save"}</button>
-      </div>
-    </form>
+      ${
+        tmdbEnabled
+          ? `
+            <form data-tmdb-form>
+              <label>
+                Search TMDb
+                <input name="q" type="search" value="${escapeHtml(state.tmdbQuery)}" maxlength="120" placeholder="${tmdbPlaceholder(selectedKind)}" autocomplete="off" ${state.catalogBusy ? "disabled" : ""} />
+              </label>
+              <p class="fine-print">${tmdbHint(selectedKind)}</p>
+              <button class="primary-btn tmdb-search-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Working…" : "Search TMDb"}</button>
+            </form>
+            ${
+              state.tmdbResults.length > 0
+                ? `<ul class="tmdb-results">${state.tmdbResults
+                    .map(
+                      (hit) => `
+                        <li>
+                          <button class="tmdb-hit" type="button" data-action="import-tmdb" data-tmdb-id="${hit.tmdbId}" ${state.catalogBusy ? "disabled" : ""}>
+                            <strong>${escapeHtml(hit.title)}${hit.year ? ` (${hit.year})` : ""}</strong>
+                            ${hit.overview ? `<em>${escapeHtml(hit.overview)}</em>` : ""}
+                          </button>
+                        </li>
+                      `,
+                    )
+                    .join("")}</ul>`
+                : ""
+            }
+            <p class="tmdb-or">Or enter it yourself</p>
+          `
+          : ""
+      }
+      <form data-catalog-form="${state.sheet.mode}">
+        <label>
+          Title
+          <input name="title" type="text" required maxlength="200" value="${escapeHtml(entry?.title ?? "")}" />
+        </label>
+        ${
+          editing
+            ? `<input type="hidden" name="kind" value="${escapeHtml(selectedKind)}" />`
+            : ""
+        }
+        ${
+          editing
+            ? ""
+            : `
+              <label>
+                Release year
+                <input name="releaseYear" type="number" min="1888" max="3000" inputmode="numeric" placeholder="Optional" />
+              </label>
+            `
+        }
+        <label class="sheet-check">
+          <input name="completed" type="checkbox" ${entry?.completed ? "checked" : ""} />
+          Watched in catalog
+        </label>
+        <p class="fine-print">Used by the desktop apps. Your personal finished mark lives on the title in the library.</p>
+        <div class="sheet-actions">
+          <button class="ghost-btn" type="button" data-action="close-sheet">Cancel</button>
+          <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Saving…" : "Save"}</button>
+        </div>
+      </form>
+    </div>
   `;
+}
+
+function usesTmdb(kind: MediaKind): boolean {
+  return kind === "movie" || kind === "series" || kind === "documentary" || kind === "show";
+}
+
+function defaultSheetKind(): MediaKind {
+  return WRITABLE_KINDS.some((kind) => kind.id === state.filter) ? (state.filter as MediaKind) : "movie";
+}
+
+function tmdbPlaceholder(kind: MediaKind): string {
+  switch (kind) {
+    case "series":
+      return "Scream Collection";
+    case "show":
+      return "American Horror Story";
+    case "documentary":
+      return "The Autopsy of Jane Doe";
+    default:
+      return "Scream";
+  }
+}
+
+function tmdbHint(kind: MediaKind): string {
+  switch (kind) {
+    case "series":
+      return "Adds the collection and its movies, in release order.";
+    case "show":
+      return "Adds the TV show with season and episode counts from TMDb.";
+    case "documentary":
+      return "Searches TMDb movies and saves the pick as a documentary.";
+    default:
+      return "Adds the film with year and runtime. If you already have its series, it is linked.";
+  }
 }
 
 function renderInstall(standalone: boolean): string {
