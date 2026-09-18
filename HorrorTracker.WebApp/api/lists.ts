@@ -168,6 +168,9 @@ async function addListItem(connectionString: string, userId: number, body: ListW
      ON CONFLICT (list_id, media_kind, media_id) DO NOTHING`,
     [listId, kind, mediaId],
   );
+  if (kind === "series") {
+    await addSeriesMovies(connectionString, listId, mediaId);
+  }
 }
 
 async function removeListItem(
@@ -183,6 +186,40 @@ async function removeListItem(
     "DELETE FROM user_list_item WHERE list_id = $1 AND media_kind = $2 AND media_id = $3",
     [ownedListId, kind, mediaId],
   );
+  if (kind === "series") {
+    await removeSeriesMovies(connectionString, ownedListId, mediaId);
+  }
+}
+
+async function addSeriesMovies(connectionString: string, listId: number, seriesId: number): Promise<void> {
+  try {
+    await execute(
+      connectionString,
+      `INSERT INTO user_list_item (list_id, media_kind, media_id)
+       SELECT $1, 'movie', id
+       FROM movie
+       WHERE seriesid = $2
+       ON CONFLICT DO NOTHING`,
+      [listId, seriesId],
+    );
+  } catch {
+    // Movie table or series links may not be available.
+  }
+}
+
+async function removeSeriesMovies(connectionString: string, listId: number, seriesId: number): Promise<void> {
+  try {
+    await execute(
+      connectionString,
+      `DELETE FROM user_list_item
+       WHERE list_id = $1
+         AND media_kind = 'movie'
+         AND media_id IN (SELECT id FROM movie WHERE seriesid = $2)`,
+      [listId, seriesId],
+    );
+  } catch {
+    // Movie table or series links may not be available.
+  }
 }
 
 async function requireOwnedList(connectionString: string, userId: number, listId: number | undefined): Promise<number> {

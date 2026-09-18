@@ -892,38 +892,87 @@ function renderLists(): string {
 }
 
 function renderUserList(list: UserList): string {
-  const entries = list.items
-    .map((id) => state.entries.find((entry) => entry.id === id))
-    .filter((entry): entry is CatalogEntry => Boolean(entry));
+  const grouped = groupListEntries(list);
+  const empty = grouped.series.length === 0 && grouped.standalone.length === 0;
 
   return `
     <details class="user-list" open>
       <summary>
         <span class="user-list-name">${escapeHtml(list.name)}</span>
-        <span class="user-list-count">${entries.length}</span>
+        <span class="user-list-count">${grouped.total}</span>
       </summary>
       <div class="user-list-actions">
         <button type="button" data-action="rename-list" data-list-id="${list.id}" ${state.catalogBusy ? "disabled" : ""}>Rename</button>
         <button type="button" data-action="delete-list" data-list-id="${list.id}" ${state.catalogBusy ? "disabled" : ""}>Delete</button>
       </div>
       ${
-        entries.length === 0
+        empty
           ? `<p class="empty">Nothing in this list yet. Open the library and tap List.</p>`
-          : `<ul class="catalog">${entries.map((entry) => renderListItem(entry, list.id)).join("")}</ul>`
+          : `<div class="list-entries">${grouped.series.map((group) => renderListSeries(group, list.id)).join("")}${
+              grouped.standalone.length > 0
+                ? `<ul class="catalog">${grouped.standalone.map((entry) => renderListItem(entry, list.id)).join("")}</ul>`
+                : ""
+            }</div>`
       }
     </details>
   `;
 }
 
-function renderListItem(entry: CatalogEntry, listId: number): string {
-  const subtitle = movieDetailLine(entry) ?? MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
+function groupListEntries(list: UserList): {
+  series: { series: CatalogEntry; movies: CatalogEntry[] }[];
+  standalone: CatalogEntry[];
+  total: number;
+} {
+  const entries = list.items
+    .map((id) => state.entries.find((entry) => entry.id === id))
+    .filter((entry): entry is CatalogEntry => Boolean(entry));
+  const series = sortByTitle(entries.filter((entry) => entry.kind === "series"));
+  const nestedIds = new Set<string>();
+  const groups = series.map((item) => {
+    const movies = sortByTitle(
+      entries.filter((entry) => entry.kind === "movie" && entry.seriesId === item.mediaId),
+    );
+    for (const movie of movies) {
+      nestedIds.add(movie.id);
+    }
+
+    return { series: item, movies };
+  });
+  const standalone = sortByTitle(entries.filter((entry) => entry.kind !== "series" && !nestedIds.has(entry.id)));
+  return { series: groups, standalone, total: entries.length };
+}
+
+function renderListSeries(group: { series: CatalogEntry; movies: CatalogEntry[] }, listId: number): string {
   return `
-    <li class="entry${isFinished(entry) ? " is-done" : ""}">
+    <div class="list-series">
+      <ul class="catalog">${renderListItem(group.series, listId)}</ul>
+      ${
+        group.movies.length > 0
+          ? `
+            <details class="list-series-group" open>
+              <summary>
+                <span class="list-series-label">Movies</span>
+                <span class="list-series-count">${group.movies.length}</span>
+              </summary>
+              <ul class="catalog">${group.movies.map((movie) => renderListItem(movie, listId, true)).join("")}</ul>
+            </details>
+          `
+          : ""
+      }
+    </div>
+  `;
+}
+
+function renderListItem(entry: CatalogEntry, listId: number, nested = false): string {
+  const details = nested ? movieDetailLine({ ...entry, seriesTitle: undefined }) : movieDetailLine(entry);
+  const subtitle = details ?? (nested ? "" : MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind);
+  return `
+    <li class="entry${isFinished(entry) ? " is-done" : ""}${nested ? " is-nested" : ""}">
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
         <span class="mark" aria-hidden="true"></span>
         <span class="entry-copy">
           <strong>${escapeHtml(entry.title)}</strong>
-          <em>${escapeHtml(subtitle)}</em>
+          ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
         </span>
       </button>
       <button class="entry-remove" type="button" data-action="toggle-list-item" data-list-id="${listId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
@@ -941,7 +990,11 @@ function renderListPicker(): string {
     <div class="sheet-backdrop" data-action="close-lists"></div>
     <div class="sheet" role="dialog" aria-label="Add to a list">
       <h2>${escapeHtml(entry.title)}</h2>
-      <p class="fine-print">Choose the lists this title belongs on.</p>
+      <p class="fine-print">${
+        entry.kind === "series"
+          ? "Movies in this series are added with it, under a dropdown."
+          : "Choose the lists this title belongs on."
+      }</p>
       ${state.listMessage ? `<p class="status is-error">${escapeHtml(state.listMessage)}</p>` : ""}
       ${
         state.lists.length === 0

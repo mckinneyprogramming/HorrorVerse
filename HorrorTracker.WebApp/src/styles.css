@@ -799,6 +799,75 @@ code {
   cursor: pointer;
 }
 
+.list-entries {
+  display: grid;
+  gap: 10px;
+  padding: 0 8px;
+}
+
+.list-series {
+  display: grid;
+  gap: 8px;
+}
+
+.list-series > .entry {
+  margin: 0;
+}
+
+.list-series-group {
+  margin: 0 0 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.list-series-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 12px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.list-series-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.list-series-group > summary::before {
+  content: "";
+  width: 0.42em;
+  height: 0.42em;
+  border-right: 2px solid var(--crimson);
+  border-bottom: 2px solid var(--crimson);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.list-series-group[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.list-series-label {
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.list-series-count {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.list-series-group .catalog {
+  padding: 0 8px 8px;
+}
+
+.entry.is-nested {
+  background: var(--surface-alt);
+}
+
 .list-picker {
   list-style: none;
   margin: 16px 0 0;

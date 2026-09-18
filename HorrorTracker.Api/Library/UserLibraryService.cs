@@ -203,6 +203,11 @@ public sealed class UserLibraryService(IConfiguration configuration)
         command.Parameters.AddWithValue("kind", kind);
         command.Parameters.AddWithValue("mediaId", mediaId);
         command.ExecuteNonQuery();
+        if (kind == "series")
+        {
+            AddSeriesMovies(listId, mediaId);
+        }
+
         return GetLists(user);
     }
 
@@ -222,6 +227,11 @@ public sealed class UserLibraryService(IConfiguration configuration)
         command.Parameters.AddWithValue("kind", kind);
         command.Parameters.AddWithValue("mediaId", mediaId);
         command.ExecuteNonQuery();
+        if (kind == "series")
+        {
+            RemoveSeriesMovies(ownedListId, mediaId);
+        }
+
         return GetLists(user);
     }
 
@@ -370,6 +380,51 @@ public sealed class UserLibraryService(IConfiguration configuration)
         }
 
         return id;
+    }
+
+    private void AddSeriesMovies(int listId, int seriesId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO user_list_item (list_id, media_kind, media_id)
+                SELECT @listId, 'movie', id
+                FROM movie
+                WHERE seriesid = @seriesId
+                ON CONFLICT DO NOTHING
+                """;
+            command.Parameters.AddWithValue("listId", listId);
+            command.Parameters.AddWithValue("seriesId", seriesId);
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // Movie table or series links may not be available.
+        }
+    }
+
+    private void RemoveSeriesMovies(int listId, int seriesId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                DELETE FROM user_list_item
+                WHERE list_id = @listId
+                  AND media_kind = 'movie'
+                  AND media_id IN (SELECT id FROM movie WHERE seriesid = @seriesId)
+                """;
+            command.Parameters.AddWithValue("listId", listId);
+            command.Parameters.AddWithValue("seriesId", seriesId);
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // Movie table or series links may not be available.
+        }
     }
 
     private void EnsureListLimit(int userId)
