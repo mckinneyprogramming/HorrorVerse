@@ -190,6 +190,7 @@ h1 {
 .chip,
 .dock-btn,
 .entry-remove,
+.entry-list,
 .fab {
   font: inherit;
   color: inherit;
@@ -404,7 +405,8 @@ button.entry-toggle {
   line-height: 1;
 }
 
-.entry-edit {
+.entry-edit,
+.entry-list {
   flex: 0 0 auto;
   min-height: 36px;
   padding: 0 10px;
@@ -415,6 +417,11 @@ button.entry-toggle {
   font: inherit;
   font-size: 0.78rem;
   cursor: pointer;
+}
+
+.entry-list {
+  color: var(--crimson);
+  border-color: var(--blood-bright);
 }
 
 .sheet-check {
@@ -574,7 +581,7 @@ code {
   background: transparent;
   border: 0;
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
 }
 
 .dock-btn svg {
@@ -700,6 +707,124 @@ code {
 .sheet-actions .primary-btn,
 .sheet-actions .ghost-btn {
   margin-top: 18px;
+}
+
+.list-create {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.list-create label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.list-create input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.list-create .primary-btn {
+  margin-top: 0;
+}
+
+.list-create.is-compact {
+  margin: 16px 0 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.user-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  padding: 4px 8px 12px;
+}
+
+.user-list summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.user-list summary::-webkit-details-marker {
+  display: none;
+}
+
+.user-list-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.user-list-count {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.user-list-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 8px 10px;
+}
+
+.user-list-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.list-picker {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.list-pick {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-pick.is-on .mark {
+  background: var(--crimson);
 }
 
 @media (display-mode: standalone) {

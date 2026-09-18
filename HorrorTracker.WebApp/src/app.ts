@@ -17,9 +17,19 @@ import {
   registerAccount,
   type AuthUser,
 } from "./auth";
+import { fetchProgressIds, setProgress } from "./progress";
+import {
+  addListItem,
+  createList,
+  deleteList,
+  fetchLists,
+  removeListItem,
+  renameList,
+  type UserList,
+} from "./lists";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
-type View = "home" | "library" | "account" | "install";
+type View = "home" | "library" | "lists" | "account" | "install";
 type LibraryFilter = MediaKind | "all";
 type LoadStatus = "loading" | "ready" | "error";
 type AuthMode = "login" | "register";
@@ -44,6 +54,10 @@ interface AppState {
   catalogMessage: string;
   collapsedKinds: Set<MediaKind>;
   libraryQuery: string;
+  finishedIds: string[];
+  lists: UserList[];
+  listPicker: CatalogEntry | null;
+  listMessage: string;
 }
 
 const state: AppState = {
@@ -60,6 +74,10 @@ const state: AppState = {
   catalogMessage: "",
   collapsedKinds: new Set<MediaKind>(),
   libraryQuery: "",
+  finishedIds: [],
+  lists: [],
+  listPicker: null,
+  listMessage: "",
 };
 
 export function mountApp(root: HTMLElement): void {
@@ -82,6 +100,8 @@ export function mountApp(root: HTMLElement): void {
       }
       state.authMessage = "";
       state.sheet = null;
+      state.listPicker = null;
+      state.listMessage = "";
       render(root);
       return;
     }
@@ -133,6 +153,9 @@ export function mountApp(root: HTMLElement): void {
       render(root);
       await logoutAccount();
       state.user = null;
+      state.finishedIds = [];
+      state.lists = [];
+      state.listPicker = null;
       state.authBusy = false;
       state.authMessage = "";
       render(root);
@@ -182,15 +205,96 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
-    if (action === "toggle" && state.user?.isAdmin) {
+    if (action === "toggle") {
+      if (!state.user) {
+        state.view = "account";
+        render(root);
+        return;
+      }
+
       const entry = state.entries.find((item) => item.id === target.dataset.id);
       if (!entry || state.catalogBusy) {
         return;
       }
 
-      await saveCatalogChange(root, () =>
-        updateCatalogEntry({ id: entry.id, title: entry.title, completed: !entry.completed }),
-      );
+      const completed = !isFinished(entry);
+      await saveUserLibrary(root, async () => {
+        state.finishedIds = await setProgress(entry.id, completed);
+      });
+      return;
+    }
+
+    if (action === "open-lists") {
+      if (!state.user) {
+        state.view = "account";
+        render(root);
+        return;
+      }
+
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      if (!entry) {
+        return;
+      }
+
+      state.listPicker = entry;
+      state.listMessage = "";
+      render(root);
+      return;
+    }
+
+    if (action === "close-lists") {
+      state.listPicker = null;
+      state.listMessage = "";
+      render(root);
+      return;
+    }
+
+    if (action === "toggle-list-item") {
+      const listId = Number(target.dataset.listId);
+      const itemId = target.dataset.id;
+      const list = state.lists.find((item) => item.id === listId);
+      if (!state.user || !itemId || !list || state.catalogBusy) {
+        return;
+      }
+
+      await saveUserLibrary(root, async () => {
+        state.lists = list.items.includes(itemId)
+          ? await removeListItem(listId, itemId)
+          : await addListItem(listId, itemId);
+      });
+      return;
+    }
+
+    if (action === "rename-list") {
+      const list = state.lists.find((item) => item.id === Number(target.dataset.listId));
+      if (!list || state.catalogBusy) {
+        return;
+      }
+
+      const name = window.prompt("Rename list", list.name);
+      if (name === null) {
+        return;
+      }
+
+      await saveUserLibrary(root, async () => {
+        state.lists = await renameList(list.id, name);
+      });
+      return;
+    }
+
+    if (action === "delete-list") {
+      const list = state.lists.find((item) => item.id === Number(target.dataset.listId));
+      if (!list || state.catalogBusy) {
+        return;
+      }
+
+      if (!window.confirm(`Delete the list “${list.name}”?`)) {
+        return;
+      }
+
+      await saveUserLibrary(root, async () => {
+        state.lists = await deleteList(list.id);
+      });
       return;
     }
 
@@ -237,6 +341,7 @@ export function mountApp(root: HTMLElement): void {
           ? await registerAccount({ email, password, displayName })
           : await loginAccount({ email, password });
       state.authMessage = "";
+      await refreshUserLibrary(root);
     } catch (error) {
       state.authMessage = error instanceof Error ? error.message : "Could not sign in.";
     }
@@ -285,6 +390,24 @@ export function mountApp(root: HTMLElement): void {
     event.preventDefault();
   });
 
+  root.addEventListener("submit", async (event) => {
+    const listForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-list-form]");
+    if (!listForm) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!state.user || state.catalogBusy) {
+      return;
+    }
+
+    const data = new FormData(listForm);
+    const name = String(data.get("name") ?? "");
+    await saveUserLibrary(root, async () => {
+      state.lists = await createList(name);
+    });
+  });
+
   root.addEventListener("input", (event) => {
     const search = (event.target as HTMLElement).closest<HTMLInputElement>("[data-library-search]");
     if (!search) {
@@ -324,6 +447,48 @@ async function refreshCatalog(root: HTMLElement): Promise<void> {
 
 async function refreshUser(root: HTMLElement): Promise<void> {
   state.user = await fetchCurrentUser();
+  await refreshUserLibrary(root);
+}
+
+async function refreshUserLibrary(root: HTMLElement): Promise<void> {
+  if (!state.user) {
+    state.finishedIds = [];
+    state.lists = [];
+    state.listPicker = null;
+    render(root);
+    return;
+  }
+
+  try {
+    const [ids, lists] = await Promise.all([fetchProgressIds(), fetchLists()]);
+    state.finishedIds = ids;
+    state.lists = lists;
+  } catch {
+    state.finishedIds = [];
+    state.lists = [];
+  }
+
+  render(root);
+}
+
+async function saveUserLibrary(root: HTMLElement, work: () => Promise<void>): Promise<void> {
+  state.catalogBusy = true;
+  state.listMessage = "";
+  state.catalogMessage = "";
+  render(root);
+
+  try {
+    await work();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not update your library.";
+    if (state.view === "lists" || state.listPicker) {
+      state.listMessage = message;
+    } else {
+      state.catalogMessage = message;
+    }
+  }
+
+  state.catalogBusy = false;
   render(root);
 }
 
@@ -353,15 +518,18 @@ function render(root: HTMLElement): void {
       <main class="stage">
         ${state.view === "home" ? renderHome() : ""}
         ${state.view === "library" ? renderLibrary() : ""}
+        ${state.view === "lists" ? renderLists() : ""}
         ${state.view === "account" ? renderAccount() : ""}
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
       ${state.sheet && state.user?.isAdmin ? renderSheet() : ""}
-      ${!state.sheet && canPromptUpdate() ? renderUpdateBanner() : ""}
+      ${state.listPicker && state.user ? renderListPicker() : ""}
+      ${!state.sheet && !state.listPicker && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
+        ${dockButton("lists", "Lists", listsIcon())}
         ${dockButton("account", "Account", accountIcon())}
         ${standalone ? "" : dockButton("install", "Install", installIcon())}
       </nav>
@@ -393,7 +561,7 @@ function dockButton(view: View, label: string, icon: string): string {
 
 function renderHome(): string {
   const total = state.entries.length;
-  const completed = state.entries.filter((entry) => entry.completed).length;
+  const completed = state.user ? state.entries.filter((entry) => isFinished(entry)).length : 0;
 
   return `
     <header class="masthead">
@@ -413,12 +581,12 @@ function renderHome(): string {
       <article>
         <strong>${completed}</strong>
         <span>Finished</span>
-        <em>Marked as watched or read</em>
+        <em>${state.user ? "Marked as watched or read" : "Sign in to track what you've finished"}</em>
       </article>
       <article>
         <strong>${total - completed}</strong>
         <span>Still waiting</span>
-        <em>Left to watch or read</em>
+        <em>${state.user ? "Left to watch or read" : "Your remaining titles appear after sign-in"}</em>
       </article>
     </section>
     <section class="kinds">
@@ -452,7 +620,13 @@ function renderLibrary(): string {
   return `
     <header class="page-head">
       <h1>${escapeHtml(heading)}</h1>
-      <p>${state.user?.isAdmin ? "Add, edit, and mark titles in the vault." : "Live from the HorrorTracker catalog."}</p>
+      <p>${
+        state.user
+          ? state.user.isAdmin
+            ? "Tap a title to mark it finished. Edit and delete stay with you."
+            : "Tap a title to mark it finished, or add it to one of your lists."
+          : "Sign in to mark titles finished and keep your own lists."
+      }</p>
     </header>
     ${renderStatus()}
     ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
@@ -566,8 +740,8 @@ function renderAccount(): string {
         <span class="role-badge${state.user.isAdmin ? " is-admin" : ""}">${state.user.isAdmin ? "Admin" : "Member"}</span>
         ${
           state.user.isAdmin
-            ? `<p class="account-note">You can add, edit, and remove titles in the library. Other people who register are members.</p>`
-            : `<p class="account-note">Members can browse the catalog. Only the administrator can change it.</p>`
+            ? `<p class="account-note">You can add, edit, and remove titles in the library. Finished marks and lists are yours alone — other accounts keep their own.</p>`
+            : `<p class="account-note">Mark titles finished and keep named lists. Only the administrator can change the catalog itself.</p>`
         }
         <button class="primary-btn" type="button" data-action="logout" ${state.authBusy ? "disabled" : ""}>Sign out</button>
       </section>
@@ -654,6 +828,8 @@ function renderEntry(entry: CatalogEntry, showKind = true): string {
   const details = movieDetailLine(entry);
   const subtitle = details ?? (showKind ? kindLabel : "");
   const admin = Boolean(state.user?.isAdmin);
+  const signedIn = Boolean(state.user);
+  const done = isFinished(entry);
   const body = `
     <span class="mark" aria-hidden="true"></span>
     <span class="entry-copy">
@@ -663,11 +839,12 @@ function renderEntry(entry: CatalogEntry, showKind = true): string {
   `;
 
   return `
-    <li class="entry${entry.completed ? " is-done" : ""}">
+    <li class="entry${done ? " is-done" : ""}">
+      <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>
       ${
-        admin
-          ? `<button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>`
-          : `<div class="entry-toggle">${body}</div>`
+        signedIn
+          ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" aria-label="Add ${escapeHtml(entry.title)} to a list" ${state.catalogBusy ? "disabled" : ""}>List</button>`
+          : ""
       }
       ${
         admin
@@ -679,6 +856,126 @@ function renderEntry(entry: CatalogEntry, showKind = true): string {
       }
     </li>
   `;
+}
+
+function renderLists(): string {
+  if (!state.user) {
+    return `
+      <header class="page-head">
+        <h1>Lists</h1>
+        <p>Keep Watch Later, favorites, or an October marathon — yours alone.</p>
+      </header>
+      <p class="empty">Sign in to create lists.</p>
+      <button class="primary-btn" type="button" data-action="view" data-view="account">Sign in</button>
+    `;
+  }
+
+  return `
+    <header class="page-head">
+      <h1>Lists</h1>
+      <p>Named lists for this account. Other people cannot see them.</p>
+    </header>
+    ${state.listMessage ? `<p class="status is-error">${escapeHtml(state.listMessage)}</p>` : ""}
+    <form class="list-create" data-list-form>
+      <label>
+        New list
+        <input name="name" type="text" required maxlength="80" placeholder="Watch later, October 2026…" autocomplete="off" />
+      </label>
+      <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>Create</button>
+    </form>
+    ${
+      state.lists.length === 0
+        ? `<p class="empty">No lists yet. Create one, then add titles from the library.</p>`
+        : state.lists.map((list) => renderUserList(list)).join("")
+    }
+  `;
+}
+
+function renderUserList(list: UserList): string {
+  const entries = list.items
+    .map((id) => state.entries.find((entry) => entry.id === id))
+    .filter((entry): entry is CatalogEntry => Boolean(entry));
+
+  return `
+    <details class="user-list" open>
+      <summary>
+        <span class="user-list-name">${escapeHtml(list.name)}</span>
+        <span class="user-list-count">${entries.length}</span>
+      </summary>
+      <div class="user-list-actions">
+        <button type="button" data-action="rename-list" data-list-id="${list.id}" ${state.catalogBusy ? "disabled" : ""}>Rename</button>
+        <button type="button" data-action="delete-list" data-list-id="${list.id}" ${state.catalogBusy ? "disabled" : ""}>Delete</button>
+      </div>
+      ${
+        entries.length === 0
+          ? `<p class="empty">Nothing in this list yet. Open the library and tap List.</p>`
+          : `<ul class="catalog">${entries.map((entry) => renderListItem(entry, list.id)).join("")}</ul>`
+      }
+    </details>
+  `;
+}
+
+function renderListItem(entry: CatalogEntry, listId: number): string {
+  const subtitle = movieDetailLine(entry) ?? MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
+  return `
+    <li class="entry${isFinished(entry) ? " is-done" : ""}">
+      <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
+        <span class="mark" aria-hidden="true"></span>
+        <span class="entry-copy">
+          <strong>${escapeHtml(entry.title)}</strong>
+          <em>${escapeHtml(subtitle)}</em>
+        </span>
+      </button>
+      <button class="entry-remove" type="button" data-action="toggle-list-item" data-list-id="${listId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
+    </li>
+  `;
+}
+
+function renderListPicker(): string {
+  if (!state.listPicker) {
+    return "";
+  }
+
+  const entry = state.listPicker;
+  return `
+    <div class="sheet-backdrop" data-action="close-lists"></div>
+    <div class="sheet" role="dialog" aria-label="Add to a list">
+      <h2>${escapeHtml(entry.title)}</h2>
+      <p class="fine-print">Choose the lists this title belongs on.</p>
+      ${state.listMessage ? `<p class="status is-error">${escapeHtml(state.listMessage)}</p>` : ""}
+      ${
+        state.lists.length === 0
+          ? `<p class="empty">Create a list first.</p>`
+          : `<ul class="list-picker">${state.lists
+              .map((list) => {
+                const on = list.items.includes(entry.id);
+                return `
+                  <li>
+                    <button class="list-pick${on ? " is-on" : ""}" type="button" data-action="toggle-list-item" data-list-id="${list.id}" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
+                      <span class="mark" aria-hidden="true"></span>
+                      <span>${escapeHtml(list.name)}</span>
+                    </button>
+                  </li>
+                `;
+              })
+              .join("")}</ul>`
+      }
+      <form class="list-create is-compact" data-list-form>
+        <label>
+          New list
+          <input name="name" type="text" required maxlength="80" placeholder="Favorites" autocomplete="off" />
+        </label>
+        <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>Create</button>
+      </form>
+      <div class="sheet-actions">
+        <button class="ghost-btn" type="button" data-action="close-lists">Done</button>
+      </div>
+    </div>
+  `;
+}
+
+function isFinished(entry: CatalogEntry): boolean {
+  return state.finishedIds.includes(entry.id);
 }
 
 function renderSheet(): string {
@@ -717,8 +1014,9 @@ function renderSheet(): string {
       }
       <label class="sheet-check">
         <input name="completed" type="checkbox" ${entry?.completed ? "checked" : ""} />
-        Finished
+        Watched in catalog
       </label>
+      <p class="fine-print">Used by the desktop apps. Your personal finished mark lives on the title in the library.</p>
       <div class="sheet-actions">
         <button class="ghost-btn" type="button" data-action="close-sheet">Cancel</button>
         <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Saving…" : "Save"}</button>
@@ -789,6 +1087,10 @@ function libraryIcon(): string {
 
 function accountIcon(): string {
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/></svg>`;
+}
+
+function listsIcon(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14v2H5zm0 5h14v2H5zm0 5h10v2H5z"/></svg>`;
 }
 
 function installIcon(): string {

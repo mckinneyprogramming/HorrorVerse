@@ -59,6 +59,7 @@ export async function DELETE(request: Request) {
     const { kind, mediaId } = parseCatalogId(body.id ?? url.searchParams.get("id"));
     await ensureOptionalTables(connectionString, kind);
     await execute(connectionString, deleteSql(kind), [mediaId]);
+    await purgeUserMedia(connectionString, kind, mediaId);
     return Response.json({ ok: true });
   });
 }
@@ -126,6 +127,21 @@ async function queryRows(
 
 async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
   await neonRequest(connectionString, query, params);
+}
+
+async function purgeUserMedia(connectionString: string, kind: string, mediaId: number): Promise<void> {
+  try {
+    await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = $1 AND media_id = $2", [
+      kind,
+      mediaId,
+    ]);
+    await execute(connectionString, "DELETE FROM user_list_item WHERE media_kind = $1 AND media_id = $2", [
+      kind,
+      mediaId,
+    ]);
+  } catch {
+    // Progress tables are created on first signed-in use.
+  }
 }
 
 async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {

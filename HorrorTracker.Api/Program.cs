@@ -1,5 +1,6 @@
 using HorrorTracker.Api.Auth;
 using HorrorTracker.Api.Catalog;
+using HorrorTracker.Api.Library;
 using HorrorTracker.Api.Logging;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
@@ -23,6 +24,7 @@ builder.Services.AddScoped<MovieSeriesRepository>();
 builder.Services.AddScoped<DocumentaryRepository>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<UserLibraryService>();
 
 var app = builder.Build();
 
@@ -60,12 +62,37 @@ app.MapPost("/api/catalog", (CatalogWriteRequest body, HttpContext http, AuthSer
     WriteCatalog(http, auth, () => Results.Json(catalog.Create(body))));
 app.MapPatch("/api/catalog", (CatalogWriteRequest body, HttpContext http, AuthService auth, CatalogService catalog) =>
     WriteCatalog(http, auth, () => Results.Json(catalog.Update(body))));
-app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, CatalogService catalog) =>
+app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, CatalogService catalog, UserLibraryService library) =>
     WriteCatalog(http, auth, () =>
     {
         catalog.Delete(id);
+        library.PurgeMedia(id);
         return Results.Json(new { ok = true });
     }));
+app.MapGet("/api/progress", (HttpContext http, AuthService auth, UserLibraryService library) =>
+    WriteSignedIn(http, auth, user => Results.Json(new { ids = library.GetCompletedIds(user) })));
+app.MapPatch("/api/progress", (ProgressWriteRequest body, HttpContext http, AuthService auth, UserLibraryService library) =>
+    WriteSignedIn(http, auth, user => Results.Json(new { ids = library.SetCompleted(user, body) })));
+app.MapGet("/api/lists", (HttpContext http, AuthService auth, UserLibraryService library) =>
+    WriteSignedIn(http, auth, user => Results.Json(new { lists = library.GetLists(user) })));
+app.MapPost("/api/lists", (ListWriteRequest body, HttpContext http, AuthService auth, UserLibraryService library) =>
+    WriteSignedIn(http, auth, user =>
+        Results.Json(new
+        {
+            lists = string.IsNullOrWhiteSpace(body.ItemId)
+                ? library.CreateList(user, body)
+                : library.AddListItem(user, body)
+        })));
+app.MapPatch("/api/lists", (ListWriteRequest body, HttpContext http, AuthService auth, UserLibraryService library) =>
+    WriteSignedIn(http, auth, user => Results.Json(new { lists = library.RenameList(user, body) })));
+app.MapDelete("/api/lists", (int? id, int? listId, string? itemId, HttpContext http, AuthService auth, UserLibraryService library) =>
+    WriteSignedIn(http, auth, user =>
+        Results.Json(new
+        {
+            lists = string.IsNullOrWhiteSpace(itemId)
+                ? library.DeleteList(user, id)
+                : library.RemoveListItem(user, listId ?? id, itemId)
+        })));
 app.MapGet("/api/auth", (HttpContext http, AuthService auth) =>
 {
     return Results.Json(new { user = auth.GetCurrent(AuthCookies.Read(http.Request)) });
@@ -106,6 +133,22 @@ static IResult WriteCatalog(HttpContext http, AuthService auth, Func<IResult> wr
     {
         auth.RequireAdmin(AuthCookies.Read(http.Request));
         return write();
+    }
+    catch (AuthException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: exception.StatusCode);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: StatusCodes.Status400BadRequest);
+    }
+}
+
+static IResult WriteSignedIn(HttpContext http, AuthService auth, Func<AuthUserDto, IResult> write)
+{
+    try
+    {
+        return write(auth.RequireUser(AuthCookies.Read(http.Request)));
     }
     catch (AuthException exception)
     {

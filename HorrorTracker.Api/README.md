@@ -23,6 +23,13 @@ Vite (`npm run dev`) proxies `/api` to `http://localhost:5116`.
 - `GET /api/auth` — current user, or `{ "user": null }`
 - `POST /api/auth` — `{ "action": "register" | "login", "email", "password", "displayName?" }`
 - `DELETE /api/auth` — sign out
+- `GET /api/progress` — signed-in user's finished title ids
+- `PATCH /api/progress` — `{ "id": "movie:1", "completed": true }`
+- `GET /api/lists` — signed-in user's named lists
+- `POST /api/lists` — `{ "name" }` creates a list, or `{ "listId", "itemId" }` adds a title
+- `PATCH /api/lists` — `{ "id", "name" }` renames a list
+- `DELETE /api/lists?id=1` — deletes a list
+- `DELETE /api/lists?listId=1&itemId=movie:1` — removes a title from a list
 
 Set `ADMIN_EMAIL` to the one address that should be an administrator. Everyone else who registers is a member. Passwords stay on the server; the webpage only sends them over HTTPS to `/api/auth`.
 

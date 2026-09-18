@@ -91,7 +91,7 @@ public sealed class AuthService(IConfiguration configuration)
         return reader.Read() ? SyncAdmin(ReadUser(reader)) : null;
     }
 
-    public AuthUserDto RequireAdmin(string? token)
+    public AuthUserDto RequireUser(string? token)
     {
         var user = GetCurrent(token);
         if (user is null)
@@ -99,6 +99,12 @@ public sealed class AuthService(IConfiguration configuration)
             throw new AuthException("Sign in to continue.", StatusCodes.Status401Unauthorized);
         }
 
+        return user;
+    }
+
+    public AuthUserDto RequireAdmin(string? token)
+    {
+        var user = RequireUser(token);
         if (!user.IsAdmin)
         {
             throw new AuthException("Only the administrator can change the catalog.", StatusCodes.Status403Forbidden);
