@@ -43,6 +43,7 @@ interface AppState {
   catalogBusy: boolean;
   catalogMessage: string;
   collapsedKinds: Set<MediaKind>;
+  libraryQuery: string;
 }
 
 const state: AppState = {
@@ -58,6 +59,7 @@ const state: AppState = {
   catalogBusy: false,
   catalogMessage: "",
   collapsedKinds: new Set<MediaKind>(),
+  libraryQuery: "",
 };
 
 export function mountApp(root: HTMLElement): void {
@@ -87,6 +89,13 @@ export function mountApp(root: HTMLElement): void {
     if (action === "filter") {
       state.filter = target.dataset.filter as LibraryFilter;
       render(root);
+      return;
+    }
+
+    if (action === "clear-search") {
+      state.libraryQuery = "";
+      render(root);
+      root.querySelector<HTMLInputElement>("[data-library-search]")?.focus();
       return;
     }
 
@@ -255,6 +264,36 @@ export function mountApp(root: HTMLElement): void {
       });
     });
   });
+
+  root.addEventListener("submit", (event) => {
+    const searchForm = (event.target as HTMLElement).closest("[data-library-search-form]");
+    if (!searchForm) {
+      return;
+    }
+
+    event.preventDefault();
+  });
+
+  root.addEventListener("input", (event) => {
+    const search = (event.target as HTMLElement).closest<HTMLInputElement>("[data-library-search]");
+    if (!search) {
+      return;
+    }
+
+    state.libraryQuery = search.value;
+    const start = search.selectionStart;
+    const end = search.selectionEnd;
+    render(root);
+    const next = root.querySelector<HTMLInputElement>("[data-library-search]");
+    if (!next) {
+      return;
+    }
+
+    next.focus();
+    if (start !== null && end !== null) {
+      next.setSelectionRange(start, end);
+    }
+  });
 }
 
 async function refreshCatalog(root: HTMLElement): Promise<void> {
@@ -384,6 +423,7 @@ function renderSignedInLine(): string {
 
 function renderLibrary(): string {
   const heading = state.filter === "all" ? "The vault" : MEDIA_KINDS.find((kind) => kind.id === state.filter)?.label ?? "The vault";
+  const query = state.libraryQuery.trim();
 
   return `
     <header class="page-head">
@@ -392,6 +432,25 @@ function renderLibrary(): string {
     </header>
     ${renderStatus()}
     ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
+    <form class="library-search" data-library-search-form>
+      <label class="library-search-field">
+        <span class="library-search-label">Search</span>
+        <input
+          data-library-search
+          type="search"
+          value="${escapeHtml(state.libraryQuery)}"
+          placeholder="Title, series, or year"
+          autocomplete="off"
+          enterkeyhint="search"
+          aria-label="Search the vault"
+        />
+      </label>
+      ${
+        query
+          ? `<button class="library-search-clear" type="button" data-action="clear-search" aria-label="Clear search">Clear</button>`
+          : ""
+      }
+    </form>
     <div class="chips" role="tablist" aria-label="Filter by type">
       ${chip("all", "All")}
       ${MEDIA_KINDS.map((kind) => chip(kind.id, kind.label)).join("")}
@@ -401,7 +460,7 @@ function renderLibrary(): string {
 }
 
 function renderFlatCatalog(): string {
-  const visible = sortByTitle(state.entries.filter((entry) => entry.kind === state.filter));
+  const visible = sortByTitle(matchingEntries().filter((entry) => entry.kind === state.filter));
   if (visible.length === 0) {
     return `<p class="empty">${emptyCopy()}</p>`;
   }
@@ -410,9 +469,10 @@ function renderFlatCatalog(): string {
 }
 
 function renderGroupedCatalog(): string {
+  const searching = Boolean(normalizeQuery(state.libraryQuery));
   const groups = MEDIA_KINDS.map((kind) => ({
     kind,
-    entries: sortByTitle(state.entries.filter((entry) => entry.kind === kind.id)),
+    entries: sortByTitle(matchingEntries().filter((entry) => entry.kind === kind.id)),
   })).filter((group) => group.entries.length > 0);
 
   if (groups.length === 0) {
@@ -421,7 +481,7 @@ function renderGroupedCatalog(): string {
 
   return groups
     .map((group) => {
-      const open = !state.collapsedKinds.has(group.kind.id);
+      const open = searching || !state.collapsedKinds.has(group.kind.id);
       return `
         <details class="kind-group"${open ? " open" : ""}>
           <summary data-action="toggle-kind" data-kind="${group.kind.id}">
@@ -433,6 +493,33 @@ function renderGroupedCatalog(): string {
       `;
     })
     .join("");
+}
+
+function matchingEntries(): CatalogEntry[] {
+  const query = normalizeQuery(state.libraryQuery);
+  if (!query) {
+    return state.entries;
+  }
+
+  return state.entries.filter((entry) => matchesSearch(entry, query));
+}
+
+function matchesSearch(entry: CatalogEntry, query: string): boolean {
+  const haystack = [
+    entry.title,
+    entry.seriesTitle ?? "",
+    MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? "",
+    entry.releaseYear ? String(entry.releaseYear) : "",
+    movieDetailLine(entry) ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function normalizeQuery(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function sortByTitle(entries: CatalogEntry[]): CatalogEntry[] {
@@ -523,6 +610,11 @@ function emptyCopy(): string {
 
   if (state.status === "error") {
     return "The catalog is unreachable until the API is running.";
+  }
+
+  const query = state.libraryQuery.trim();
+  if (query) {
+    return `No titles match “${escapeHtml(query)}”.`;
   }
 
   return "Nothing in this part of the vault yet.";
