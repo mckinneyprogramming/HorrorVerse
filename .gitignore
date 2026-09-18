@@ -290,6 +290,9 @@ node_modules/
 **/.vite/
 **/dev-dist/
 HorrorTracker.Api/wwwroot/
+.env
+.env.local
+.env.*.local
 
 # Visual Studio 6 build log
 *.plg
