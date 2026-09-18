@@ -805,6 +805,14 @@ code {
   padding: 0 8px;
 }
 
+.kind-group > .list-entries {
+  padding: 0 10px 10px;
+}
+
+.list-entries > .list-series-group {
+  margin-left: 0;
+}
+
 .list-series {
   display: grid;
   gap: 8px;

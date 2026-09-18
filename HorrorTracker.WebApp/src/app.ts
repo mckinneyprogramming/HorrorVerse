@@ -658,19 +658,23 @@ function renderLibrary(): string {
 }
 
 function renderFlatCatalog(): string {
-  const visible = sortByTitle(matchingEntries().filter((entry) => entry.kind === state.filter));
+  const visible = matchingEntries().filter((entry) => entry.kind === state.filter);
   if (visible.length === 0) {
     return `<p class="empty">${emptyCopy()}</p>`;
   }
 
-  return `<ul class="catalog">${visible.map((entry) => renderEntry(entry)).join("")}</ul>`;
+  if (state.filter === "movie") {
+    return renderMoviesBySeries(visible, true);
+  }
+
+  return `<ul class="catalog">${sortByTitle(visible).map((entry) => renderEntry(entry)).join("")}</ul>`;
 }
 
 function renderGroupedCatalog(): string {
   const searching = Boolean(normalizeQuery(state.libraryQuery));
   const groups = MEDIA_KINDS.map((kind) => ({
     kind,
-    entries: sortByTitle(matchingEntries().filter((entry) => entry.kind === kind.id)),
+    entries: matchingEntries().filter((entry) => entry.kind === kind.id),
   })).filter((group) => group.entries.length > 0);
 
   if (groups.length === 0) {
@@ -680,17 +684,87 @@ function renderGroupedCatalog(): string {
   return groups
     .map((group) => {
       const open = searching || !state.collapsedKinds.has(group.kind.id);
+      const body =
+        group.kind.id === "movie"
+          ? renderMoviesBySeries(group.entries, false)
+          : `<ul class="catalog">${sortByTitle(group.entries).map((entry) => renderEntry(entry, false)).join("")}</ul>`;
       return `
         <details class="kind-group"${open ? " open" : ""}>
           <summary data-action="toggle-kind" data-kind="${group.kind.id}">
             <span class="kind-group-label">${escapeHtml(group.kind.label)}</span>
             <span class="kind-group-count">${group.entries.length}</span>
           </summary>
-          <ul class="catalog">${group.entries.map((entry) => renderEntry(entry, false)).join("")}</ul>
+          ${body}
         </details>
       `;
     })
     .join("");
+}
+
+function renderMoviesBySeries(movies: CatalogEntry[], showKind: boolean): string {
+  const grouped = groupMoviesBySeries(movies);
+  const seriesMarkup = grouped.series
+    .map(
+      (group) => `
+        <details class="list-series-group" open>
+          <summary>
+            <span class="list-series-label">${escapeHtml(group.title)}</span>
+            <span class="list-series-count">${group.movies.length}</span>
+          </summary>
+          <ul class="catalog">${group.movies.map((movie) => renderEntry(movie, false, true)).join("")}</ul>
+        </details>
+      `,
+    )
+    .join("");
+  const standaloneMarkup =
+    grouped.standalone.length > 0
+      ? `<ul class="catalog">${grouped.standalone.map((entry) => renderEntry(entry, showKind)).join("")}</ul>`
+      : "";
+
+  if (!seriesMarkup) {
+    return standaloneMarkup;
+  }
+
+  return `<div class="list-entries">${seriesMarkup}${standaloneMarkup}</div>`;
+}
+
+function groupMoviesBySeries(movies: CatalogEntry[]): {
+  series: { title: string; movies: CatalogEntry[] }[];
+  standalone: CatalogEntry[];
+} {
+  const groups = new Map<number, { title: string; movies: CatalogEntry[] }>();
+  const standalone: CatalogEntry[] = [];
+
+  for (const movie of movies) {
+    if (movie.seriesId === undefined) {
+      standalone.push(movie);
+      continue;
+    }
+
+    const existing = groups.get(movie.seriesId);
+    if (existing) {
+      existing.movies.push(movie);
+      continue;
+    }
+
+    groups.set(movie.seriesId, { title: seriesNameForMovie(movie), movies: [movie] });
+  }
+
+  return {
+    series: [...groups.values()]
+      .map((group) => ({ ...group, movies: sortByYear(group.movies) }))
+      .sort((left, right) => left.title.localeCompare(right.title, undefined, { sensitivity: "base", numeric: true })),
+    standalone: sortByTitle(standalone),
+  };
+}
+
+function seriesNameForMovie(movie: CatalogEntry): string {
+  if (movie.seriesTitle) {
+    return movie.seriesTitle;
+  }
+
+  const series = state.entries.find((entry) => entry.kind === "series" && entry.mediaId === movie.seriesId);
+  return series?.title ?? "Series";
 }
 
 function matchingEntries(): CatalogEntry[] {
@@ -727,14 +801,29 @@ function sortByTitle(entries: CatalogEntry[]): CatalogEntry[] {
       return byTitle;
     }
 
-    const leftYear = left.releaseYear ?? Number.MAX_SAFE_INTEGER;
-    const rightYear = right.releaseYear ?? Number.MAX_SAFE_INTEGER;
-    if (leftYear !== rightYear) {
-      return leftYear - rightYear;
+    return compareByYearThenId(left, right);
+  });
+}
+
+function sortByYear(entries: CatalogEntry[]): CatalogEntry[] {
+  return [...entries].sort((left, right) => {
+    const byYear = compareByYearThenId(left, right);
+    if (byYear !== 0) {
+      return byYear;
     }
 
-    return left.id.localeCompare(right.id);
+    return left.title.localeCompare(right.title, undefined, { sensitivity: "base", numeric: true });
   });
+}
+
+function compareByYearThenId(left: CatalogEntry, right: CatalogEntry): number {
+  const leftYear = left.releaseYear ?? Number.MAX_SAFE_INTEGER;
+  const rightYear = right.releaseYear ?? Number.MAX_SAFE_INTEGER;
+  if (leftYear !== rightYear) {
+    return leftYear - rightYear;
+  }
+
+  return left.id.localeCompare(right.id);
 }
 
 function renderAccount(): string {
@@ -833,9 +922,9 @@ function chip(filter: LibraryFilter, label: string): string {
   return `<button class="chip${active}" type="button" data-action="filter" data-filter="${filter}">${label}</button>`;
 }
 
-function renderEntry(entry: CatalogEntry, showKind = true): string {
+function renderEntry(entry: CatalogEntry, showKind = true, nested = false): string {
   const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
-  const details = movieDetailLine(entry);
+  const details = nested ? movieDetailLine({ ...entry, seriesTitle: undefined }) : movieDetailLine(entry);
   const subtitle = details ?? (showKind ? kindLabel : "");
   const admin = Boolean(state.user?.isAdmin);
   const signedIn = Boolean(state.user);
@@ -849,7 +938,7 @@ function renderEntry(entry: CatalogEntry, showKind = true): string {
   `;
 
   return `
-    <li class="entry${done ? " is-done" : ""}">
+    <li class="entry${done ? " is-done" : ""}${nested ? " is-nested" : ""}">
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>
       ${
         signedIn
@@ -939,7 +1028,7 @@ function groupListEntries(list: UserList): {
   const series = sortByTitle(entries.filter((entry) => entry.kind === "series"));
   const nestedIds = new Set<string>();
   const groups = series.map((item) => {
-    const movies = sortByTitle(
+    const movies = sortByYear(
       entries.filter((entry) => entry.kind === "movie" && entry.seriesId === item.mediaId),
     );
     for (const movie of movies) {
