@@ -4,6 +4,7 @@ import {
   fetchCatalog,
   isMediaKind,
   MEDIA_KINDS,
+  movieDetailLine,
   updateCatalogEntry,
   WRITABLE_KINDS,
   type CatalogEntry,
@@ -534,12 +535,14 @@ function chip(filter: LibraryFilter, label: string): string {
 
 function renderEntry(entry: CatalogEntry, showKind = true): string {
   const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
+  const details = movieDetailLine(entry);
+  const subtitle = details ?? (showKind ? kindLabel : "");
   const admin = Boolean(state.user?.isAdmin);
   const body = `
     <span class="mark" aria-hidden="true"></span>
     <span class="entry-copy">
       <strong>${escapeHtml(entry.title)}</strong>
-      ${showKind ? `<em>${kindLabel}</em>` : ""}
+      ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
     </span>
   `;
 

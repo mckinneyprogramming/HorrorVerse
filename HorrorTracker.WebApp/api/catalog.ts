@@ -7,6 +7,10 @@ interface CatalogItem {
   title: string;
   kind: string;
   completed: boolean;
+  totalTime?: number;
+  releaseYear?: number;
+  seriesId?: number;
+  seriesTitle?: string;
 }
 
 export async function GET() {
@@ -66,7 +70,19 @@ async function loadCatalog(): Promise<CatalogItem[]> {
   }
 
   return [
-    ...(await readTable(connectionString, "SELECT id, title, watched AS completed FROM movie", "movie")),
+    ...(await readTable(
+      connectionString,
+      `SELECT m.id,
+              m.title,
+              m.watched AS completed,
+              m.totaltime,
+              m.releaseyear,
+              m.seriesid,
+              s.title AS seriestitle
+       FROM movie m
+       LEFT JOIN movieseries s ON s.id = m.seriesid`,
+      "movie",
+    )),
     ...(await readTable(connectionString, "SELECT id, title, watched AS completed FROM movieseries", "series")),
     ...(await readTable(connectionString, "SELECT id, title, watched AS completed FROM documentary", "documentary")),
     ...(await readOptional(connectionString, "SELECT id, title, watched AS completed FROM show", "show")),
@@ -385,14 +401,50 @@ function isNeonRows(payload: unknown): payload is { rows: Record<string, unknown
 function mapRows(rows: Record<string, unknown>[], kind: string): CatalogItem[] {
   return rows.map((row) => {
     const mediaId = Number(row.id);
-    return {
+    const item: CatalogItem = {
       id: `${kind}:${mediaId}`,
       mediaId,
       title: String(row.title ?? ""),
       kind,
       completed: Boolean(row.completed),
     };
+
+    const totalTime = asFiniteNumber(row.totaltime ?? row.totalTime);
+    const releaseYear = asFiniteNumber(row.releaseyear ?? row.releaseYear);
+    const seriesId = asFiniteNumber(row.seriesid ?? row.seriesId);
+    const seriesTitle = asNonEmptyString(row.seriestitle ?? row.seriesTitle);
+    if (totalTime !== undefined && totalTime > 0) {
+      item.totalTime = totalTime;
+    }
+
+    if (releaseYear !== undefined && releaseYear > 0) {
+      item.releaseYear = releaseYear;
+    }
+
+    if (seriesId !== undefined && seriesId > 0) {
+      item.seriesId = seriesId;
+    }
+
+    if (seriesTitle) {
+      item.seriesTitle = seriesTitle;
+    }
+
+    return item;
   });
+}
+
+function asFiniteNumber(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() !== "" ? Number(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function asNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function resolveDatabaseUrl(): string | undefined {

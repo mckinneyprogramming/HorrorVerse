@@ -13,9 +13,12 @@ public sealed class CatalogService(
 {
     public IReadOnlyList<CatalogItemDto> GetAll()
     {
+        var seriesList = Read(() => series.GetAll(), "series").ToList();
+        var seriesTitles = seriesList.ToDictionary(item => item.Id, item => item.Title);
+
         var items = new List<CatalogItemDto>();
-        items.AddRange(Read(() => movies.GetAll().Select(MapMovie), "movies"));
-        items.AddRange(Read(() => series.GetAll().Select(MapSeries), "series"));
+        items.AddRange(Read(() => movies.GetAll().Select(movie => MapMovie(movie, seriesTitles)), "movies"));
+        items.AddRange(seriesList.Select(MapSeries));
         items.AddRange(Read(() => documentaries.GetAll().Select(MapDocumentary), "documentaries"));
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Watched FROM Show", "show"));
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Read FROM Book", "book"));
@@ -67,7 +70,7 @@ public sealed class CatalogService(
         }
     }
 
-    private IEnumerable<CatalogItemDto> Read(Func<IEnumerable<CatalogItemDto>> source, string name)
+    private IEnumerable<T> Read<T>(Func<IEnumerable<T>> source, string name)
     {
         try
         {
@@ -113,8 +116,25 @@ public sealed class CatalogService(
         }
     }
 
-    private static CatalogItemDto MapMovie(Movie movie) =>
-        new($"movie:{movie.Id}", movie.Id, movie.Title, "movie", movie.Watched);
+    private static CatalogItemDto MapMovie(Movie movie, IReadOnlyDictionary<int, string> seriesTitles)
+    {
+        string? seriesTitle = null;
+        if (movie.SeriesId is > 0 && seriesTitles.TryGetValue(movie.SeriesId.Value, out var name) && !string.IsNullOrWhiteSpace(name))
+        {
+            seriesTitle = name;
+        }
+
+        return new(
+            $"movie:{movie.Id}",
+            movie.Id,
+            movie.Title,
+            "movie",
+            movie.Watched,
+            movie.TotalTime > 0 ? movie.TotalTime : null,
+            movie.ReleaseYear > 0 ? movie.ReleaseYear : null,
+            movie.SeriesId is > 0 ? movie.SeriesId : null,
+            seriesTitle);
+    }
 
     private static CatalogItemDto MapSeries(MovieSeries movieSeries) =>
         new($"series:{movieSeries.Id}", movieSeries.Id, movieSeries.Title, "series", movieSeries.Watched);

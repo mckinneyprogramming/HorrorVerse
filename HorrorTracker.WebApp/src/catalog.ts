@@ -20,6 +20,10 @@ export interface CatalogEntry {
   title: string;
   kind: MediaKind;
   completed: boolean;
+  totalTime?: number;
+  releaseYear?: number;
+  seriesId?: number;
+  seriesTitle?: string;
 }
 
 export function isMediaKind(value: string): value is MediaKind {
@@ -37,7 +41,7 @@ export async function fetchCatalog(): Promise<CatalogEntry[]> {
     return [];
   }
 
-  return payload.filter(isCatalogEntry);
+  return payload.map(readCatalogEntry).filter((entry): entry is CatalogEntry => entry !== null);
 }
 
 export async function createCatalogEntry(input: {
@@ -81,11 +85,12 @@ async function writeCatalog(method: "POST" | "PATCH", body: Record<string, unkno
   }
 
   const payload: unknown = await response.json();
-  if (!isCatalogEntry(payload)) {
+  const entry = readCatalogEntry(payload);
+  if (!entry) {
     throw new Error("Catalog did not return a title.");
   }
 
-  return payload;
+  return entry;
 }
 
 async function readCatalogError(response: Response): Promise<string> {
@@ -97,18 +102,96 @@ async function readCatalogError(response: Response): Promise<string> {
   return `Catalog request failed (${response.status})`;
 }
 
-function isCatalogEntry(value: unknown): value is CatalogEntry {
+function readCatalogEntry(value: unknown): CatalogEntry | null {
   if (typeof value !== "object" || value === null) {
-    return false;
+    return null;
   }
 
   const entry = value as Partial<CatalogEntry>;
-  return (
-    typeof entry.id === "string" &&
-    typeof entry.mediaId === "number" &&
-    typeof entry.title === "string" &&
-    typeof entry.kind === "string" &&
-    isMediaKind(entry.kind) &&
-    typeof entry.completed === "boolean"
-  );
+  if (
+    typeof entry.id !== "string" ||
+    typeof entry.mediaId !== "number" ||
+    typeof entry.title !== "string" ||
+    typeof entry.kind !== "string" ||
+    !isMediaKind(entry.kind) ||
+    typeof entry.completed !== "boolean"
+  ) {
+    return null;
+  }
+
+  const totalTime = optionalPositiveNumber(entry.totalTime);
+  const releaseYear = optionalPositiveNumber(entry.releaseYear);
+  const seriesId = optionalPositiveNumber(entry.seriesId);
+  const seriesTitle = optionalText(entry.seriesTitle);
+
+  return {
+    id: entry.id,
+    mediaId: entry.mediaId,
+    title: entry.title,
+    kind: entry.kind,
+    completed: entry.completed,
+    ...(totalTime !== undefined ? { totalTime } : {}),
+    ...(releaseYear !== undefined ? { releaseYear } : {}),
+    ...(seriesId !== undefined ? { seriesId } : {}),
+    ...(seriesTitle !== undefined ? { seriesTitle } : {}),
+  };
+}
+
+function optionalPositiveNumber(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() !== "" ? Number(value) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function optionalText(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export function movieDetailLine(entry: CatalogEntry): string | undefined {
+  if (entry.kind !== "movie") {
+    return undefined;
+  }
+
+  const parts: string[] = [];
+  if (entry.seriesTitle) {
+    parts.push(entry.seriesTitle);
+  }
+
+  if (entry.releaseYear) {
+    parts.push(String(entry.releaseYear));
+  }
+
+  const runtime = formatRuntime(entry.totalTime);
+  if (runtime) {
+    parts.push(runtime);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
+function formatRuntime(totalMinutes: number | undefined): string | undefined {
+  if (totalMinutes === undefined) {
+    return undefined;
+  }
+
+  const minutes = Math.round(totalMinutes);
+  if (minutes < 1) {
+    return undefined;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours > 0 && rest > 0) {
+    return `${hours} hr ${rest} min`;
+  }
+
+  if (hours > 0) {
+    return hours === 1 ? "1 hr" : `${hours} hr`;
+  }
+
+  return `${rest} min`;
 }
