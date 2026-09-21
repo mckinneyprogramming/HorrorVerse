@@ -37,6 +37,7 @@ public sealed class CatalogService(
         var kind = NormalizeKind(request.Kind);
         var title = NormalizeTitle(request.Title);
         EnsureOptionalTables(kind);
+        EnsureUniqueTitle(kind, title, WriteYear(request));
         return ExecuteReturning(InsertSql(kind), kind, command =>
         {
             AddWriteParameters(command, kind, title, request);
@@ -48,6 +49,7 @@ public sealed class CatalogService(
         var (kind, mediaId) = ParseId(request.Id);
         var title = NormalizeTitle(request.Title);
         EnsureOptionalTables(kind);
+        EnsureUniqueTitle(kind, title, CurrentYear(kind, mediaId), mediaId);
         return ExecuteReturning(UpdateSql(kind), kind, command =>
         {
             command.Parameters.AddWithValue("title", title);
@@ -169,6 +171,97 @@ public sealed class CatalogService(
         var mediaId = reader.GetInt32(0);
         return new CatalogItemDto($"{kind}:{mediaId}", mediaId, reader.GetString(1), kind, reader.GetBoolean(2));
     }
+
+    private void EnsureUniqueTitle(string kind, string title, int year, int? excludeId = null)
+    {
+        if (FindExistingId(kind, title, year, excludeId) is not null)
+        {
+            throw new InvalidOperationException("That title is already in the catalog.");
+        }
+    }
+
+    private int? FindExistingId(string kind, string title, int year, int? excludeId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = kind switch
+        {
+            "movie" => """
+                SELECT Id FROM Movie
+                WHERE lower(Title) = lower(@title) AND ReleaseYear = @year
+                  AND (@excludeId = 0 OR Id <> @excludeId)
+                LIMIT 1
+                """,
+            "series" => """
+                SELECT Id FROM MovieSeries
+                WHERE lower(Title) = lower(@title)
+                  AND (@excludeId = 0 OR Id <> @excludeId)
+                LIMIT 1
+                """,
+            "documentary" => """
+                SELECT Id FROM Documentary
+                WHERE lower(Title) = lower(@title) AND ReleaseYear = @year
+                  AND (@excludeId = 0 OR Id <> @excludeId)
+                LIMIT 1
+                """,
+            "show" => """
+                SELECT Id FROM Show
+                WHERE lower(Title) = lower(@title)
+                  AND (@excludeId = 0 OR Id <> @excludeId)
+                LIMIT 1
+                """,
+            "book" => """
+                SELECT Id FROM Book
+                WHERE lower(Title) = lower(@title) AND ReleaseYear = @year
+                  AND (@excludeId = 0 OR Id <> @excludeId)
+                LIMIT 1
+                """,
+            _ => throw new InvalidOperationException("That type cannot be stored yet.")
+        };
+        command.Parameters.AddWithValue("title", title);
+        command.Parameters.AddWithValue("year", year);
+        command.Parameters.AddWithValue("excludeId", excludeId ?? 0);
+        try
+        {
+            var value = command.ExecuteScalar();
+            return value is null or DBNull ? null : Convert.ToInt32(value);
+        }
+        catch (PostgresException)
+        {
+            return null;
+        }
+    }
+
+    private int CurrentYear(string kind, int mediaId)
+    {
+        if (kind is "series" or "show")
+        {
+            return 0;
+        }
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = kind switch
+        {
+            "movie" => "SELECT ReleaseYear FROM Movie WHERE Id = @id",
+            "documentary" => "SELECT ReleaseYear FROM Documentary WHERE Id = @id",
+            "book" => "SELECT ReleaseYear FROM Book WHERE Id = @id",
+            _ => throw new InvalidOperationException("That type cannot be stored yet.")
+        };
+        command.Parameters.AddWithValue("id", mediaId);
+        try
+        {
+            var value = command.ExecuteScalar();
+            return value is null or DBNull ? 0 : Convert.ToInt32(value);
+        }
+        catch (PostgresException)
+        {
+            return 0;
+        }
+    }
+
+    private static int WriteYear(CatalogWriteRequest request) =>
+        request.ReleaseYear is > 0 and <= 3000 ? request.ReleaseYear.Value : DateTime.UtcNow.Year;
 
     private void EnsureOptionalTables(string kind)
     {

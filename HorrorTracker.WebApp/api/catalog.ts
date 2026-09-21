@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     const kind = normalizeKind(body.kind);
     const title = normalizeTitle(body.title);
     await ensureOptionalTables(connectionString, kind);
+    await ensureUniqueTitle(connectionString, kind, title, writeYear(body));
     const rows = await queryRows(connectionString, insertSql(kind), insertParams(kind, title, body));
     const item = mapRows(rows, kind)[0];
     if (!item) {
@@ -44,6 +45,7 @@ export async function PATCH(request: Request) {
     const { kind, mediaId } = parseCatalogId(body.id);
     const title = normalizeTitle(body.title);
     await ensureOptionalTables(connectionString, kind);
+    await ensureUniqueTitle(connectionString, kind, title, await currentYear(connectionString, kind, mediaId), mediaId);
     const rows = await queryRows(connectionString, updateSql(kind), [title, Boolean(body.completed), mediaId]);
     const item = mapRows(rows, kind)[0];
     if (!item) {
@@ -305,8 +307,102 @@ function insertSql(kind: string): string {
   }
 }
 
+function writeYear(body: CatalogWriteBody): number {
+  return Number.isInteger(body.releaseYear) && (body.releaseYear ?? 0) > 0
+    ? Number(body.releaseYear)
+    : new Date().getUTCFullYear();
+}
+
+async function ensureUniqueTitle(
+  connectionString: string,
+  kind: string,
+  title: string,
+  year: number,
+  excludeId?: number,
+): Promise<void> {
+  if (await findExistingId(connectionString, kind, title, year, excludeId)) {
+    throw new CatalogError("That title is already in the catalog.", 400);
+  }
+}
+
+async function findExistingId(
+  connectionString: string,
+  kind: string,
+  title: string,
+  year: number,
+  excludeId?: number,
+): Promise<number | undefined> {
+  const exclude = excludeId ?? 0;
+  const query = existingIdSql(kind);
+  try {
+    const rows = await queryRows(connectionString, query, [title, year, exclude]);
+    const id = Number(rows[0]?.id);
+    return Number.isInteger(id) && id > 0 ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function existingIdSql(kind: string): string {
+  switch (kind) {
+    case "movie":
+      return `SELECT id FROM movie
+              WHERE lower(title) = lower($1) AND releaseyear = $2
+                AND ($3 = 0 OR id <> $3)
+              LIMIT 1`;
+    case "series":
+      return `SELECT id FROM movieseries
+              WHERE lower(title) = lower($1)
+                AND ($3 = 0 OR id <> $3)
+              LIMIT 1`;
+    case "documentary":
+      return `SELECT id FROM documentary
+              WHERE lower(title) = lower($1) AND releaseyear = $2
+                AND ($3 = 0 OR id <> $3)
+              LIMIT 1`;
+    case "show":
+      return `SELECT id FROM show
+              WHERE lower(title) = lower($1)
+                AND ($3 = 0 OR id <> $3)
+              LIMIT 1`;
+    case "book":
+      return `SELECT id FROM book
+              WHERE lower(title) = lower($1) AND releaseyear = $2
+                AND ($3 = 0 OR id <> $3)
+              LIMIT 1`;
+    default:
+      throw new CatalogError("That type cannot be stored yet.", 400);
+  }
+}
+
+async function currentYear(connectionString: string, kind: string, mediaId: number): Promise<number> {
+  if (kind === "series" || kind === "show") {
+    return 0;
+  }
+
+  const query =
+    kind === "movie"
+      ? "SELECT releaseyear FROM movie WHERE id = $1"
+      : kind === "documentary"
+        ? "SELECT releaseyear FROM documentary WHERE id = $1"
+        : kind === "book"
+          ? "SELECT releaseyear FROM book WHERE id = $1"
+          : null;
+  if (!query) {
+    return 0;
+  }
+
+  try {
+    const rows = await queryRows(connectionString, query, [mediaId]);
+    const year = Number(rows[0]?.releaseyear);
+    return Number.isInteger(year) ? year : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function insertParams(kind: string, title: string, body: CatalogWriteBody): unknown[] {
-  const year = Number.isInteger(body.releaseYear) && (body.releaseYear ?? 0) > 0 ? Number(body.releaseYear) : new Date().getUTCFullYear();
+  const year = writeYear(body);
   const totalTime = typeof body.totalTime === "number" && body.totalTime >= 0 ? body.totalTime : 0;
   const completed = Boolean(body.completed);
 
