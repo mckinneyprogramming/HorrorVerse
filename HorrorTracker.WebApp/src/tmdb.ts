@@ -12,16 +12,23 @@ export async function searchTmdb(kind: string, query: string): Promise<TmdbHit[]
   return payload.results.map(readHit).filter((hit): hit is TmdbHit => hit !== null);
 }
 
-export async function importTmdb(kind: string, tmdbId: number): Promise<void> {
+export async function importTmdb(kind: string, tmdbId: number): Promise<string> {
   const response = await fetch("/api/tmdb", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ kind, tmdbId }),
   });
-  const payload = (await response.json().catch(() => ({}))) as { error?: string };
+  const payload = (await response.json().catch(() => ({}))) as { error?: string; id?: unknown };
   if (!response.ok) {
     throw new Error(payload.error ?? `TMDb import failed (${response.status})`);
   }
+
+  const id = String(payload.id ?? "").trim();
+  if (!id) {
+    throw new Error("TMDb import did not return a catalog title.");
+  }
+
+  return id;
 }
 
 export interface TmdbHit {

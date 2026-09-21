@@ -34,7 +34,7 @@ type View = "home" | "library" | "lists" | "account" | "install";
 type LibraryFilter = MediaKind | "all";
 type LoadStatus = "loading" | "ready" | "error";
 type AuthMode = "login" | "register";
-type SheetMode = "add" | "edit";
+type SheetMode = "add" | "edit" | "tmdb";
 
 interface CatalogSheet {
   mode: SheetMode;
@@ -196,6 +196,25 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
+    if (action === "open-tmdb") {
+      if (!state.user) {
+        state.view = "account";
+        render(root);
+        return;
+      }
+
+      state.sheet = { mode: "tmdb" };
+      state.sheetKind = defaultTmdbKind();
+      state.tmdbQuery = state.libraryQuery.trim();
+      state.tmdbResults = [];
+      state.catalogMessage = "";
+      render(root);
+      if (state.tmdbQuery.length >= 2) {
+        await runTmdbSearch(root);
+      }
+      return;
+    }
+
     if (action === "open-edit" && state.user?.isAdmin) {
       const entry = state.entries.find((item) => item.id === target.dataset.id);
       if (!entry) {
@@ -216,13 +235,15 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
-    if (action === "import-tmdb" && state.user?.isAdmin) {
+    if (action === "import-tmdb" && state.user) {
       const tmdbId = Number(target.dataset.tmdbId);
-      if (!state.sheet || state.sheet.mode !== "add" || state.catalogBusy || !Number.isInteger(tmdbId)) {
+      if (!canUseTmdbSheet() || state.catalogBusy || !Number.isInteger(tmdbId)) {
         return;
       }
 
-      await saveCatalogChange(root, () => importTmdb(state.sheetKind, tmdbId));
+      await saveCatalogChange(root, () => importTmdb(state.sheetKind, tmdbId), {
+        openListPicker: state.sheet?.mode === "tmdb",
+      });
       return;
     }
 
@@ -436,33 +457,18 @@ export function mountApp(root: HTMLElement): void {
     }
 
     event.preventDefault();
-    if (!state.user?.isAdmin || state.catalogBusy || state.sheet?.mode !== "add" || !usesTmdb(state.sheetKind)) {
+    if (!state.user || state.catalogBusy || !canUseTmdbSheet()) {
       return;
     }
 
     const data = new FormData(tmdbForm);
     state.tmdbQuery = String(data.get("q") ?? "");
-    state.catalogBusy = true;
-    state.catalogMessage = "";
-    render(root);
-
-    try {
-      state.tmdbResults = await searchTmdb(state.sheetKind, state.tmdbQuery);
-      if (state.tmdbResults.length === 0) {
-        state.catalogMessage = "No TMDb matches for that search.";
-      }
-    } catch (error) {
-      state.tmdbResults = [];
-      state.catalogMessage = error instanceof Error ? error.message : "Could not search TMDb.";
-    }
-
-    state.catalogBusy = false;
-    render(root);
+    await runTmdbSearch(root);
   });
 
   root.addEventListener("change", (event) => {
     const select = (event.target as HTMLElement).closest<HTMLSelectElement>("[data-sheet-kind]");
-    if (!select || !state.sheet || state.sheet.mode !== "add") {
+    if (!select || !state.sheet || (state.sheet.mode !== "add" && state.sheet.mode !== "tmdb")) {
       return;
     }
 
@@ -560,13 +566,17 @@ async function saveUserLibrary(root: HTMLElement, work: () => Promise<void>): Pr
   render(root);
 }
 
-async function saveCatalogChange(root: HTMLElement, work: () => Promise<unknown>): Promise<void> {
+async function saveCatalogChange(
+  root: HTMLElement,
+  work: () => Promise<unknown>,
+  options?: { openListPicker?: boolean },
+): Promise<void> {
   state.catalogBusy = true;
   state.catalogMessage = "";
   render(root);
 
   try {
-    await work();
+    const result = await work();
     state.entries = await fetchCatalog();
     if (state.user) {
       try {
@@ -579,8 +589,34 @@ async function saveCatalogChange(root: HTMLElement, work: () => Promise<unknown>
     state.sheet = null;
     state.tmdbResults = [];
     state.catalogMessage = "";
+    if (options?.openListPicker && typeof result === "string") {
+      const entry = state.entries.find((item) => item.id === result);
+      if (entry && state.user) {
+        state.listPicker = entry;
+        state.listMessage = "";
+      }
+    }
   } catch (error) {
     state.catalogMessage = error instanceof Error ? error.message : "Could not change the catalog.";
+  }
+
+  state.catalogBusy = false;
+  render(root);
+}
+
+async function runTmdbSearch(root: HTMLElement): Promise<void> {
+  state.catalogBusy = true;
+  state.catalogMessage = "";
+  render(root);
+
+  try {
+    state.tmdbResults = await searchTmdb(state.sheetKind, state.tmdbQuery);
+    if (state.tmdbResults.length === 0) {
+      state.catalogMessage = "No TMDb matches for that search.";
+    }
+  } catch (error) {
+    state.tmdbResults = [];
+    state.catalogMessage = error instanceof Error ? error.message : "Could not search TMDb.";
   }
 
   state.catalogBusy = false;
@@ -599,7 +635,7 @@ function render(root: HTMLElement): void {
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
-      ${state.sheet && state.user?.isAdmin ? renderSheet() : ""}
+      ${state.sheet && canRenderSheet() ? renderSheet() : ""}
       ${state.listPicker && state.user ? renderListPicker() : ""}
       ${!state.sheet && !state.listPicker && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
@@ -730,6 +766,7 @@ function renderLibrary(): string {
       ${MEDIA_KINDS.map((kind) => chip(kind.id, kind.label)).join("")}
     </div>
     ${state.filter === "all" ? renderGroupedCatalog() : renderFlatCatalog()}
+    ${state.status === "ready" ? renderTmdbCta() : ""}
   `;
 }
 
@@ -993,6 +1030,18 @@ function emptyCopy(): string {
   return "Nothing in this part of the vault yet.";
 }
 
+function renderTmdbCta(): string {
+  if (!state.user) {
+    if (!state.libraryQuery.trim()) {
+      return "";
+    }
+
+    return `<p class="tmdb-cta">Don't see your movie? <button type="button" data-action="open-tmdb">Sign in to add it</button></p>`;
+  }
+
+  return `<p class="tmdb-cta">Don't see your movie? <button type="button" data-action="open-tmdb">Add it</button></p>`;
+}
+
 function chip(filter: LibraryFilter, label: string): string {
   const active = state.filter === filter ? " is-active" : "";
   return `<button class="chip${active}" type="button" data-action="filter" data-filter="${filter}">${label}</button>`;
@@ -1211,6 +1260,10 @@ function renderSheet(): string {
     return "";
   }
 
+  if (state.sheet.mode === "tmdb") {
+    return renderTmdbSheet();
+  }
+
   const editing = state.sheet.mode === "edit";
   const entry = state.sheet.entry;
   const selectedKind = editing ? (entry?.kind ?? "movie") : state.sheetKind;
@@ -1233,37 +1286,7 @@ function renderSheet(): string {
             </label>
           `
       }
-      ${
-        tmdbEnabled
-          ? `
-            <form data-tmdb-form>
-              <label>
-                Search TMDb
-                <input name="q" type="search" value="${escapeHtml(state.tmdbQuery)}" maxlength="120" placeholder="${tmdbPlaceholder(selectedKind)}" autocomplete="off" ${state.catalogBusy ? "disabled" : ""} />
-              </label>
-              <p class="fine-print">${tmdbHint(selectedKind)}</p>
-              <button class="primary-btn tmdb-search-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Working…" : "Search TMDb"}</button>
-            </form>
-            ${
-              state.tmdbResults.length > 0
-                ? `<ul class="tmdb-results">${state.tmdbResults
-                    .map(
-                      (hit) => `
-                        <li>
-                          <button class="tmdb-hit" type="button" data-action="import-tmdb" data-tmdb-id="${hit.tmdbId}" ${state.catalogBusy ? "disabled" : ""}>
-                            <strong>${escapeHtml(hit.title)}${hit.year ? ` (${hit.year})` : ""}</strong>
-                            ${hit.overview ? `<em>${escapeHtml(hit.overview)}</em>` : ""}
-                          </button>
-                        </li>
-                      `,
-                    )
-                    .join("")}</ul>`
-                : ""
-            }
-            <p class="tmdb-or">Or enter it yourself</p>
-          `
-          : ""
-      }
+      ${tmdbEnabled ? `${renderTmdbSearch(selectedKind)}<p class="tmdb-or">Or enter it yourself</p>` : ""}
       <form data-catalog-form="${state.sheet.mode}">
         <label>
           Title
@@ -1298,12 +1321,89 @@ function renderSheet(): string {
   `;
 }
 
+function renderTmdbSheet(): string {
+  const selectedKind = usesTmdb(state.sheetKind) ? state.sheetKind : "movie";
+  return `
+    <div class="sheet-backdrop" data-action="close-sheet"></div>
+    <div class="sheet">
+      <h2>Add a missing title</h2>
+      <p class="fine-print">Search TMDb. We'll add it to the shared vault, then you can put it on your lists.</p>
+      ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
+      <label>
+        Type
+        <select data-sheet-kind ${state.catalogBusy ? "disabled" : ""}>
+          ${WRITABLE_KINDS.filter((kind) => usesTmdb(kind.id))
+            .map((kind) => `<option value="${kind.id}" ${kind.id === selectedKind ? "selected" : ""}>${kind.label}</option>`)
+            .join("")}
+        </select>
+      </label>
+      ${renderTmdbSearch(selectedKind)}
+      <div class="sheet-actions">
+        <button class="ghost-btn" type="button" data-action="close-sheet">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTmdbSearch(selectedKind: MediaKind): string {
+  return `
+    <form data-tmdb-form>
+      <label>
+        Search TMDb
+        <input name="q" type="search" value="${escapeHtml(state.tmdbQuery)}" maxlength="120" placeholder="${tmdbPlaceholder(selectedKind)}" autocomplete="off" ${state.catalogBusy ? "disabled" : ""} />
+      </label>
+      <p class="fine-print">${tmdbHint(selectedKind)}</p>
+      <button class="primary-btn tmdb-search-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Working…" : "Search TMDb"}</button>
+    </form>
+    ${
+      state.tmdbResults.length > 0
+        ? `<ul class="tmdb-results">${state.tmdbResults
+            .map(
+              (hit) => `
+                <li>
+                  <button class="tmdb-hit" type="button" data-action="import-tmdb" data-tmdb-id="${hit.tmdbId}" ${state.catalogBusy ? "disabled" : ""}>
+                    <strong>${escapeHtml(hit.title)}${hit.year ? ` (${hit.year})` : ""}</strong>
+                    ${hit.overview ? `<em>${escapeHtml(hit.overview)}</em>` : ""}
+                  </button>
+                </li>
+              `,
+            )
+            .join("")}</ul>`
+        : ""
+    }
+  `;
+}
+
 function usesTmdb(kind: MediaKind): boolean {
   return kind === "movie" || kind === "series" || kind === "documentary" || kind === "show";
 }
 
+function canUseTmdbSheet(): boolean {
+  if (!state.sheet || !usesTmdb(state.sheetKind)) {
+    return false;
+  }
+
+  if (state.sheet.mode === "tmdb") {
+    return Boolean(state.user);
+  }
+
+  return state.sheet.mode === "add" && Boolean(state.user?.isAdmin);
+}
+
+function canRenderSheet(): boolean {
+  if (!state.sheet || !state.user) {
+    return false;
+  }
+
+  return state.sheet.mode === "tmdb" || Boolean(state.user.isAdmin);
+}
+
 function defaultSheetKind(): MediaKind {
   return WRITABLE_KINDS.some((kind) => kind.id === state.filter) ? (state.filter as MediaKind) : "movie";
+}
+
+function defaultTmdbKind(): MediaKind {
+  return isMediaKind(state.filter) && usesTmdb(state.filter) ? state.filter : "movie";
 }
 
 function tmdbPlaceholder(kind: MediaKind): string {

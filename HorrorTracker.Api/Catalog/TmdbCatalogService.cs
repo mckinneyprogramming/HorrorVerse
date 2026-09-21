@@ -39,7 +39,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         }
 
         var tmdb = CreateClient();
-        var added = kind switch
+        var imported = kind switch
         {
             "series" => await ImportSeriesAsync(tmdb, request.TmdbId),
             "show" => await ImportShowAsync(tmdb, request.TmdbId),
@@ -47,39 +47,25 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
             _ => await ImportMovieAsync(tmdb, request.TmdbId),
         };
 
-        if (added < 1)
-        {
-            throw new InvalidOperationException("Those titles are already in the vault.");
-        }
-
-        return new { added };
+        return new { added = imported.Added, id = imported.Id };
     }
 
-    private async Task<int> ImportMovieAsync(MovieDatabaseService tmdb, int tmdbId)
+    private async Task<TmdbImportResult> ImportMovieAsync(MovieDatabaseService tmdb, int tmdbId)
     {
         var movie = await tmdb.GetMovie(tmdbId);
         var title = RequireTitle(movie.Title);
         var year = YearOf(movie.ReleaseDate);
         var runtime = RuntimeOf(movie.Runtime);
-        if (MovieExists(title, year))
+        var collectionName = SeriesTitle(movie.BelongsToCollection?.Name);
+        var seriesId = collectionName is null ? null : FindSeriesId(collectionName);
+        if (FindMovieId(title, year) is int existingId)
         {
-            var existingId = FindMovieId(title, year);
-            var collectionNameForExisting = SeriesTitle(movie.BelongsToCollection?.Name);
-            var existingSeriesId = collectionNameForExisting is null ? null : FindSeriesId(collectionNameForExisting);
-            if (existingId is int mid && existingSeriesId is int sid)
+            if (seriesId is int existingSeriesId)
             {
-                AddMovieToListsContainingSeries(sid, mid);
-                return 1;
+                AddMovieToListsContainingSeries(existingSeriesId, existingId);
             }
 
-            throw new InvalidOperationException($"“{title}” is already in the vault.");
-        }
-
-        int? seriesId = null;
-        var collectionName = SeriesTitle(movie.BelongsToCollection?.Name);
-        if (collectionName is not null)
-        {
-            seriesId = FindSeriesId(collectionName);
+            return new TmdbImportResult($"movie:{existingId}", 0);
         }
 
         var movieId = InsertMovie(title, runtime, seriesId, year);
@@ -89,10 +75,10 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
             RefreshSeriesTotals(id);
         }
 
-        return 1;
+        return new TmdbImportResult($"movie:{movieId}", 1);
     }
 
-    private async Task<int> ImportSeriesAsync(MovieDatabaseService tmdb, int collectionId)
+    private async Task<TmdbImportResult> ImportSeriesAsync(MovieDatabaseService tmdb, int collectionId)
     {
         var collection = await tmdb.GetCollection(collectionId);
         var seriesTitle = SeriesTitle(collection.Name) ?? RequireTitle(collection.Name);
@@ -128,39 +114,39 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         }
 
         RefreshSeriesTotals(seriesId.Value);
-        return added;
+        return new TmdbImportResult($"series:{seriesId.Value}", added);
     }
 
-    private async Task<int> ImportDocumentaryAsync(MovieDatabaseService tmdb, int tmdbId)
+    private async Task<TmdbImportResult> ImportDocumentaryAsync(MovieDatabaseService tmdb, int tmdbId)
     {
         var movie = await tmdb.GetMovie(tmdbId);
         var title = RequireTitle(movie.Title);
         var year = YearOf(movie.ReleaseDate) ?? DateTime.UtcNow.Year;
-        if (DocumentaryExists(title, year))
+        if (FindDocumentaryId(title, year) is int existingId)
         {
-            throw new InvalidOperationException($"“{title}” is already in the vault.");
+            return new TmdbImportResult($"documentary:{existingId}", 0);
         }
 
-        InsertDocumentary(title, RuntimeOf(movie.Runtime), year);
-        return 1;
+        var documentaryId = InsertDocumentary(title, RuntimeOf(movie.Runtime), year);
+        return new TmdbImportResult($"documentary:{documentaryId}", 1);
     }
 
-    private async Task<int> ImportShowAsync(MovieDatabaseService tmdb, int tmdbId)
+    private async Task<TmdbImportResult> ImportShowAsync(MovieDatabaseService tmdb, int tmdbId)
     {
         EnsureShowTable();
         var show = await tmdb.GetTvShow(tmdbId);
         var title = RequireTitle(show.Name);
-        if (ShowExists(title))
+        if (FindShowId(title) is int existingId)
         {
-            throw new InvalidOperationException($"“{title}” is already in the vault.");
+            return new TmdbImportResult($"show:{existingId}", 0);
         }
 
         var episodes = Math.Max(show.NumberOfEpisodes, 0);
         var seasons = Math.Max(show.NumberOfSeasons, 0);
         var episodeMinutes = show.EpisodeRunTime?.FirstOrDefault() ?? 0;
         var totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
-        InsertShow(title, totalTime, episodes, seasons);
-        return 1;
+        var showId = InsertShow(title, totalTime, episodes, seasons);
+        return new TmdbImportResult($"show:{showId}", 1);
     }
 
     private static IReadOnlyList<TmdbHit> MapMovies(TMDbLib.Objects.General.SearchContainer<SearchMovie> container)
@@ -199,8 +185,6 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
             .ToList();
     }
 
-    private bool MovieExists(string title, int? year) => FindMovieId(title, year) is not null;
-
     private int? FindMovieId(string title, int? year)
     {
         using var connection = OpenConnection();
@@ -220,17 +204,17 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         return ToInt(command.ExecuteScalar());
     }
 
-    private bool DocumentaryExists(string title, int year)
+    private int? FindDocumentaryId(string title, int year)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT Id FROM Documentary WHERE lower(Title) = lower(@title) AND ReleaseYear = @year LIMIT 1";
         command.Parameters.AddWithValue("title", title);
         command.Parameters.AddWithValue("year", year);
-        return ToInt(command.ExecuteScalar()) is not null;
+        return ToInt(command.ExecuteScalar());
     }
 
-    private bool ShowExists(string title)
+    private int? FindShowId(string title)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
@@ -238,11 +222,11 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         command.Parameters.AddWithValue("title", title);
         try
         {
-            return ToInt(command.ExecuteScalar()) is not null;
+            return ToInt(command.ExecuteScalar());
         }
         catch (PostgresException)
         {
-            return false;
+            return null;
         }
     }
 
@@ -301,33 +285,35 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         return Convert.ToInt32(command.ExecuteScalar());
     }
 
-    private void InsertDocumentary(string title, decimal totalTime, int year)
+    private int InsertDocumentary(string title, decimal totalTime, int year)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO Documentary (Title, TotalTime, ReleaseYear, Watched)
             VALUES (@title, @totalTime, @year, FALSE)
+            RETURNING Id
             """;
         command.Parameters.AddWithValue("title", title);
         command.Parameters.AddWithValue("totalTime", totalTime);
         command.Parameters.AddWithValue("year", year);
-        command.ExecuteNonQuery();
+        return Convert.ToInt32(command.ExecuteScalar());
     }
 
-    private void InsertShow(string title, decimal totalTime, int episodes, int seasons)
+    private int InsertShow(string title, decimal totalTime, int episodes, int seasons)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO Show (Title, TotalTime, TotalEpisodes, NumberOfSeasons, Watched)
             VALUES (@title, @totalTime, @episodes, @seasons, FALSE)
+            RETURNING Id
             """;
         command.Parameters.AddWithValue("title", title);
         command.Parameters.AddWithValue("totalTime", totalTime);
         command.Parameters.AddWithValue("episodes", episodes);
         command.Parameters.AddWithValue("seasons", seasons);
-        command.ExecuteNonQuery();
+        return Convert.ToInt32(command.ExecuteScalar());
     }
 
     private void LinkMovieToSeries(int movieId, int seriesId)
@@ -450,4 +436,6 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
     private static int? ToInt(object? value) => value is null or DBNull ? null : Convert.ToInt32(value);
 
     private sealed record TmdbHit(int TmdbId, string Title, int? Year, string? Overview);
+
+    private sealed record TmdbImportResult(string Id, int Added);
 }

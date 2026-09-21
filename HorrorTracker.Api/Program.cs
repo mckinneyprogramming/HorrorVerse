@@ -71,9 +71,9 @@ app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, C
         return Results.Json(new { ok = true });
     }));
 app.MapGet("/api/tmdb", async (string? kind, string? q, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
-    await WriteCatalogAsync(http, auth, async () => Results.Json(await tmdb.SearchAsync(kind, q, http.RequestAborted))));
+    await WriteSignedInAsync(http, auth, async () => Results.Json(await tmdb.SearchAsync(kind, q, http.RequestAborted))));
 app.MapPost("/api/tmdb", async (TmdbImportRequest body, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
-    await WriteCatalogAsync(http, auth, async () => Results.Json(await tmdb.ImportAsync(body, http.RequestAborted))));
+    await WriteSignedInAsync(http, auth, async () => Results.Json(await tmdb.ImportAsync(body, http.RequestAborted))));
 app.MapGet("/api/progress", (HttpContext http, AuthService auth, UserLibraryService library) =>
     WriteSignedIn(http, auth, user => Results.Json(new { ids = library.GetCompletedIds(user) })));
 app.MapPatch("/api/progress", (ProgressWriteRequest body, HttpContext http, AuthService auth, UserLibraryService library) =>
@@ -149,12 +149,11 @@ static IResult WriteCatalog(HttpContext http, AuthService auth, Func<IResult> wr
     }
 }
 
-static async Task<IResult> WriteCatalogAsync(HttpContext http, AuthService auth, Func<Task<IResult>> write)
+static IResult WriteSignedIn(HttpContext http, AuthService auth, Func<AuthUserDto, IResult> write)
 {
     try
     {
-        auth.RequireAdmin(AuthCookies.Read(http.Request));
-        return await write();
+        return write(auth.RequireUser(AuthCookies.Read(http.Request)));
     }
     catch (AuthException exception)
     {
@@ -166,11 +165,12 @@ static async Task<IResult> WriteCatalogAsync(HttpContext http, AuthService auth,
     }
 }
 
-static IResult WriteSignedIn(HttpContext http, AuthService auth, Func<AuthUserDto, IResult> write)
+static async Task<IResult> WriteSignedInAsync(HttpContext http, AuthService auth, Func<Task<IResult>> write)
 {
     try
     {
-        return write(auth.RequireUser(AuthCookies.Read(http.Request)));
+        auth.RequireUser(AuthCookies.Read(http.Request));
+        return await write();
     }
     catch (AuthException exception)
     {

@@ -7,7 +7,7 @@ const MAX_RESULTS = 8;
 export async function GET(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
-    await requireAdmin(request, connectionString);
+    await requireUser(request, connectionString);
     const url = new URL(request.url);
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
-    await requireAdmin(request, connectionString);
+    await requireUser(request, connectionString);
     const body = (await request.json().catch(() => ({}))) as { kind?: string; tmdbId?: number };
     const kind = normalizeTmdbKind(body.kind ?? "movie");
     const tmdbId = Number(body.tmdbId);
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       throw new TmdbError("Choose a TMDb title to add.", 400);
     }
 
-    const added =
+    const imported =
       kind === "series"
         ? await importSeries(connectionString, tmdbId)
         : kind === "show"
@@ -46,11 +46,8 @@ export async function POST(request: Request) {
           : kind === "documentary"
             ? await importDocumentary(connectionString, tmdbId)
             : await importMovie(connectionString, tmdbId);
-    if (added < 1) {
-      throw new TmdbError("Those titles are already in the vault.", 400);
-    }
 
-    return Response.json({ added });
+    return Response.json(imported);
   } catch (error) {
     return jsonError(error);
   }
@@ -94,36 +91,36 @@ async function searchShows(query: string): Promise<TmdbHit[]> {
     .filter((item) => item.tmdbId > 0 && item.title.length > 0);
 }
 
-async function importMovie(connectionString: string, tmdbId: number): Promise<number> {
+async function importMovie(connectionString: string, tmdbId: number): Promise<TmdbImportResult> {
   const movie = await tmdbJson(`/movie/${tmdbId}`);
   const title = requireTitle(movie.title);
   const year = yearFrom(movie.release_date);
-  if (await movieExists(connectionString, title, year)) {
-    const existingId = await findMovieId(connectionString, title, year);
-    const collection = asRecord(movie.belongs_to_collection);
-    const seriesName = collection ? seriesTitle(String(collection.name ?? "")) : "";
-    const seriesId = seriesName ? await findSeriesId(connectionString, seriesName) : undefined;
-    if (existingId && seriesId) {
-      await addMovieToListsContainingSeries(connectionString, seriesId, existingId);
-      return 1;
-    }
-
-    throw new TmdbError(`“${title}” is already in the vault.`, 400);
-  }
-
   const collection = asRecord(movie.belongs_to_collection);
   const seriesName = collection ? seriesTitle(String(collection.name ?? "")) : "";
   const seriesId = seriesName ? await findSeriesId(connectionString, seriesName) : undefined;
+  const existingId = await findMovieId(connectionString, title, year);
+  if (existingId) {
+    if (seriesId) {
+      await addMovieToListsContainingSeries(connectionString, seriesId, existingId);
+    }
+
+    return { added: 0, id: `movie:${existingId}` };
+  }
+
   const movieId = await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
-  if (seriesId && movieId) {
+  if (!movieId) {
+    throw new TmdbError("Could not save that movie.", 500);
+  }
+
+  if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await refreshSeriesTotals(connectionString, seriesId);
   }
 
-  return 1;
+  return { added: 1, id: `movie:${movieId}` };
 }
 
-async function importSeries(connectionString: string, collectionId: number): Promise<number> {
+async function importSeries(connectionString: string, collectionId: number): Promise<TmdbImportResult> {
   const collection = await tmdbJson(`/collection/${collectionId}`);
   const title = seriesTitle(String(collection.name ?? ""));
   if (!title) {
@@ -165,26 +162,23 @@ async function importSeries(connectionString: string, collectionId: number): Pro
   }
 
   await refreshSeriesTotals(connectionString, seriesId);
-  return added;
+  return { added, id: `series:${seriesId}` };
 }
 
-async function importDocumentary(connectionString: string, tmdbId: number): Promise<number> {
+async function importDocumentary(connectionString: string, tmdbId: number): Promise<TmdbImportResult> {
   const movie = await tmdbJson(`/movie/${tmdbId}`);
   const title = requireTitle(movie.title);
   const year = yearFrom(movie.release_date) ?? new Date().getUTCFullYear();
-  if (await documentaryExists(connectionString, title, year)) {
-    throw new TmdbError(`“${title}” is already in the vault.`, 400);
+  const existingId = await findDocumentaryId(connectionString, title, year);
+  if (existingId) {
+    return { added: 0, id: `documentary:${existingId}` };
   }
 
-  await execute(
-    connectionString,
-    "INSERT INTO documentary (title, totaltime, releaseyear, watched) VALUES ($1, $2, $3, FALSE)",
-    [title, runtimeOf(movie.runtime), year],
-  );
-  return 1;
+  const documentaryId = await insertDocumentary(connectionString, title, runtimeOf(movie.runtime), year);
+  return { added: 1, id: `documentary:${documentaryId}` };
 }
 
-async function importShow(connectionString: string, tmdbId: number): Promise<number> {
+async function importShow(connectionString: string, tmdbId: number): Promise<TmdbImportResult> {
   await execute(
     connectionString,
     `CREATE TABLE IF NOT EXISTS show (
@@ -198,8 +192,9 @@ async function importShow(connectionString: string, tmdbId: number): Promise<num
   );
   const show = await tmdbJson(`/tv/${tmdbId}`);
   const title = requireTitle(show.name);
-  if (await showExists(connectionString, title)) {
-    throw new TmdbError(`“${title}” is already in the vault.`, 400);
+  const existingId = await findShowId(connectionString, title);
+  if (existingId) {
+    return { added: 0, id: `show:${existingId}` };
   }
 
   const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
@@ -207,16 +202,8 @@ async function importShow(connectionString: string, tmdbId: number): Promise<num
   const runtimes = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number) : [];
   const episodeMinutes = runtimes.find((value) => value > 0) ?? 0;
   const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
-  await execute(
-    connectionString,
-    "INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched) VALUES ($1, $2, $3, $4, FALSE)",
-    [title, totalTime, episodes, seasons],
-  );
-  return 1;
-}
-
-async function movieExists(connectionString: string, title: string, year: number | undefined): Promise<boolean> {
-  return Boolean(await findMovieId(connectionString, title, year));
+  const showId = await insertShow(connectionString, title, totalTime, episodes, seasons);
+  return { added: 1, id: `show:${showId}` };
 }
 
 async function findMovieId(connectionString: string, title: string, year: number | undefined): Promise<number | undefined> {
@@ -237,21 +224,21 @@ async function findSeriesId(connectionString: string, title: string): Promise<nu
   return asId(rows[0]);
 }
 
-async function documentaryExists(connectionString: string, title: string, year: number): Promise<boolean> {
+async function findDocumentaryId(connectionString: string, title: string, year: number): Promise<number | undefined> {
   const rows = await queryRows(
     connectionString,
     "SELECT id FROM documentary WHERE lower(title) = lower($1) AND releaseyear = $2 LIMIT 1",
     [title, year],
   );
-  return Boolean(asId(rows[0]));
+  return asId(rows[0]);
 }
 
-async function showExists(connectionString: string, title: string): Promise<boolean> {
+async function findShowId(connectionString: string, title: string): Promise<number | undefined> {
   try {
     const rows = await queryRows(connectionString, "SELECT id FROM show WHERE lower(title) = lower($1) LIMIT 1", [title]);
-    return Boolean(asId(rows[0]));
+    return asId(rows[0]);
   } catch {
-    return false;
+    return undefined;
   }
 }
 
@@ -279,6 +266,40 @@ async function insertSeries(connectionString: string, title: string): Promise<nu
   const id = asId(rows[0]);
   if (!id) {
     throw new TmdbError("Could not save that series.", 500);
+  }
+
+  return id;
+}
+
+async function insertDocumentary(connectionString: string, title: string, totalTime: number, year: number): Promise<number> {
+  const rows = await queryRows(
+    connectionString,
+    "INSERT INTO documentary (title, totaltime, releaseyear, watched) VALUES ($1, $2, $3, FALSE) RETURNING id",
+    [title, totalTime, year],
+  );
+  const id = asId(rows[0]);
+  if (!id) {
+    throw new TmdbError("Could not save that documentary.", 500);
+  }
+
+  return id;
+}
+
+async function insertShow(
+  connectionString: string,
+  title: string,
+  totalTime: number,
+  episodes: number,
+  seasons: number,
+): Promise<number> {
+  const rows = await queryRows(
+    connectionString,
+    "INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched) VALUES ($1, $2, $3, $4, FALSE) RETURNING id",
+    [title, totalTime, episodes, seasons],
+  );
+  const id = asId(rows[0]);
+  if (!id) {
+    throw new TmdbError("Could not save that show.", 500);
   }
 
   return id;
@@ -391,7 +412,7 @@ function normalizeTmdbKind(kind: string): string {
   throw new TmdbError("TMDb can add movies, series, documentaries, and TV shows.", 400);
 }
 
-async function requireAdmin(request: Request, connectionString: string): Promise<void> {
+async function requireUser(request: Request, connectionString: string): Promise<void> {
   const token = readSessionToken(request);
   if (!token) {
     throw new TmdbError("Sign in to continue.", 401);
@@ -399,22 +420,14 @@ async function requireAdmin(request: Request, connectionString: string): Promise
 
   const rows = await queryRows(
     connectionString,
-    `SELECT u.email, u.is_admin
+    `SELECT u.id
      FROM app_session s
      JOIN app_user u ON u.id = s.user_id
      WHERE s.token = $1 AND s.expires_at > NOW()`,
     [token],
   );
-  const row = rows[0];
-  if (!row) {
+  if (!rows[0]) {
     throw new TmdbError("Sign in to continue.", 401);
-  }
-
-  const email = String(row.email ?? "").toLowerCase();
-  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const isAdmin = Boolean(row.is_admin ?? row.isAdmin) || Boolean(adminEmail && email === adminEmail);
-  if (!isAdmin) {
-    throw new TmdbError("Only the administrator can change the catalog.", 403);
   }
 }
 
@@ -569,4 +582,9 @@ interface TmdbHit {
   title: string;
   year?: number;
   overview?: string;
+}
+
+interface TmdbImportResult {
+  added: number;
+  id: string;
 }
