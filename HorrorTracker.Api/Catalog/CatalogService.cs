@@ -142,7 +142,14 @@ public sealed class CatalogService(
         new($"series:{movieSeries.Id}", movieSeries.Id, movieSeries.Title, "series", movieSeries.Watched);
 
     private static CatalogItemDto MapDocumentary(Documentary documentary) =>
-        new($"documentary:{documentary.Id}", documentary.Id, documentary.Title, "documentary", documentary.Watched);
+        new(
+            $"documentary:{documentary.Id}",
+            documentary.Id,
+            documentary.Title,
+            "documentary",
+            documentary.Watched,
+            documentary.TotalTime > 0 ? documentary.TotalTime : null,
+            documentary.ReleaseYear > 0 ? documentary.ReleaseYear : null);
 
     internal static string? ResolveConnectionString(IConfiguration configuration)
     {

@@ -1504,7 +1504,7 @@ function tmdbPlaceholder(kind: MediaKind): string {
     case "show":
       return "American Horror Story";
     case "documentary":
-      return "The Autopsy of Jane Doe";
+      return "Living with Chucky";
     default:
       return "Scream";
   }
@@ -1515,11 +1515,11 @@ function tmdbHint(kind: MediaKind): string {
     case "series":
       return "Horror, thriller, and mystery collections, with their movies in release order.";
     case "show":
-      return "Horror, thriller, and mystery TV shows, with season and episode counts from TMDb.";
+      return "Horror, thriller, and mystery TV shows — not films that share the same title.";
     case "documentary":
-      return "Searches TMDb movies tagged horror, thriller, or mystery, then saves the pick as a documentary.";
+      return "Titles TMDb tags as documentary, such as Living with Chucky. Those do not appear under Movies.";
     default:
-      return "Horror, thriller, and mystery films, with year and runtime. If you already have its series, it is linked.";
+      return "Horror, thriller, and mystery feature films. Documentaries and TV shows stay on those radios.";
   }
 }
 

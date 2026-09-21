@@ -152,7 +152,7 @@ function optionalText(value: unknown): string | undefined {
 }
 
 export function movieDetailLine(entry: CatalogEntry): string | undefined {
-  if (entry.kind !== "movie") {
+  if (entry.kind !== "movie" && entry.kind !== "documentary") {
     return undefined;
   }
 

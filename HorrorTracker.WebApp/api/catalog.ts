@@ -87,7 +87,11 @@ async function loadCatalog(): Promise<CatalogItem[]> {
       "movie",
     )),
     ...(await readTable(connectionString, "SELECT id, title, watched AS completed FROM movieseries", "series")),
-    ...(await readTable(connectionString, "SELECT id, title, watched AS completed FROM documentary", "documentary")),
+    ...(await readTable(
+      connectionString,
+      "SELECT id, title, watched AS completed, totaltime, releaseyear FROM documentary",
+      "documentary",
+    )),
     ...(await readOptional(connectionString, "SELECT id, title, watched AS completed FROM show", "show")),
     ...(await readOptional(connectionString, "SELECT id, title, read AS completed FROM book", "book")),
   ];

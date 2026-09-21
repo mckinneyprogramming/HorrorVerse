@@ -5,6 +5,7 @@ const TMDB_BASE = "https://api.themoviedb.org/3";
 const MAX_RESULTS = 8;
 const MAX_COLLECTION_CANDIDATES = 16;
 const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648]);
+const DOCUMENTARY_GENRE = 99;
 
 export async function GET(request: Request) {
   try {
@@ -22,7 +23,9 @@ export async function GET(request: Request) {
         ? await searchCollections(query)
         : kind === "show"
           ? await searchShows(query)
-          : await searchMovies(query);
+          : kind === "documentary"
+            ? await searchDocumentaries(query)
+            : await searchMovies(query);
     return Response.json({ results });
   } catch (error) {
     return jsonError(error);
@@ -58,7 +61,21 @@ export async function POST(request: Request) {
 async function searchMovies(query: string): Promise<TmdbHit[]> {
   const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
   return asResults(payload)
-    .filter((item) => isHorrorAdjacent(item.genre_ids))
+    .filter((item) => isHorrorAdjacent(item.genre_ids) && !isDocumentary(item.genre_ids))
+    .slice(0, MAX_RESULTS)
+    .map((item) => ({
+      tmdbId: Number(item.id),
+      title: String(item.title ?? "").trim(),
+      year: yearFrom(item.release_date),
+      overview: trimOverview(item.overview),
+    }))
+    .filter((item) => item.tmdbId > 0 && item.title.length > 0);
+}
+
+async function searchDocumentaries(query: string): Promise<TmdbHit[]> {
+  const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
+  return asResults(payload)
+    .filter((item) => isDocumentary(item.genre_ids))
     .slice(0, MAX_RESULTS)
     .map((item) => ({
       tmdbId: Number(item.id),
@@ -127,6 +144,14 @@ function isHorrorAdjacent(value: unknown): boolean {
   }
 
   return value.some((id) => HORROR_ADJACENT_GENRES.has(Number(id)));
+}
+
+function isDocumentary(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.some((id) => Number(id) === DOCUMENTARY_GENRE);
 }
 
 async function importMovie(connectionString: string, tmdbId: number): Promise<TmdbImportResult> {

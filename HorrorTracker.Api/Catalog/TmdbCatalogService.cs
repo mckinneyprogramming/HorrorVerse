@@ -8,6 +8,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
 {
     private const int MaxResults = 8;
     private const int MaxCollectionCandidates = 16;
+    private const int DocumentaryGenre = 99;
     private static readonly HashSet<int> HorrorAdjacentGenres = [27, 53, 9648];
 
     public async Task<object> SearchAsync(string? kind, string? query, CancellationToken cancellationToken)
@@ -25,6 +26,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         {
             "series" => await MapCollectionsAsync(tmdb, await tmdb.SearchCollection(q)),
             "show" => MapShows(await tmdb.SearchTvShow(q)),
+            "documentary" => MapDocumentaries(await tmdb.SearchMovie(q)),
             _ => MapMovies(await tmdb.SearchMovie(q)),
         };
 
@@ -154,7 +156,20 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
     private static IReadOnlyList<TmdbHit> MapMovies(TMDbLib.Objects.General.SearchContainer<SearchMovie> container)
     {
         return (container.Results ?? [])
-            .Where(item => IsHorrorAdjacent(item.GenreIds))
+            .Where(item => IsHorrorAdjacent(item.GenreIds) && !IsDocumentary(item.GenreIds))
+            .Take(MaxResults)
+            .Select(item => new TmdbHit(
+                item.Id,
+                item.Title,
+                YearOf(item.ReleaseDate),
+                TrimOverview(item.Overview)))
+            .ToList();
+    }
+
+    private static IReadOnlyList<TmdbHit> MapDocumentaries(TMDbLib.Objects.General.SearchContainer<SearchMovie> container)
+    {
+        return (container.Results ?? [])
+            .Where(item => IsDocumentary(item.GenreIds))
             .Take(MaxResults)
             .Select(item => new TmdbHit(
                 item.Id,
@@ -219,6 +234,9 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
 
     private static bool IsHorrorAdjacent(IEnumerable<int>? genreIds) =>
         genreIds is not null && genreIds.Any(HorrorAdjacentGenres.Contains);
+
+    private static bool IsDocumentary(IEnumerable<int>? genreIds) =>
+        genreIds is not null && genreIds.Contains(DocumentaryGenre);
 
     private int? FindMovieId(string title, int? year)
     {
