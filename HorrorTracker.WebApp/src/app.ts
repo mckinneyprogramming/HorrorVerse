@@ -29,6 +29,7 @@ import {
   type UserList,
 } from "./lists";
 import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
+import { fetchWatch, type WatchOffer } from "./watch";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
 import { syncVault } from "./sync";
@@ -67,6 +68,10 @@ interface AppState {
   lists: UserList[];
   listPicker: CatalogEntry | null;
   listMessage: string;
+  watchSheet: CatalogEntry | null;
+  watchById: Record<string, WatchOffer>;
+  watchBusy: boolean;
+  watchMessage: string;
   sheetKind: MediaKind;
   tmdbQuery: string;
   tmdbResults: TmdbHit[];
@@ -96,6 +101,10 @@ const state: AppState = {
   lists: [],
   listPicker: null,
   listMessage: "",
+  watchSheet: null,
+  watchById: {},
+  watchBusy: false,
+  watchMessage: "",
   sheetKind: "movie",
   tmdbQuery: "",
   tmdbResults: [],
@@ -356,6 +365,7 @@ export function mountApp(root: HTMLElement): void {
       state.tmdbQuery = "";
       state.tmdbResults = [];
       state.catalogMessage = "";
+      state.watchSheet = null;
       render(root);
       return;
     }
@@ -372,6 +382,7 @@ export function mountApp(root: HTMLElement): void {
       state.tmdbQuery = state.libraryQuery.trim();
       state.tmdbResults = [];
       state.catalogMessage = "";
+      state.watchSheet = null;
       render(root);
       if (state.tmdbQuery.length >= 2) {
         await runTmdbSearch(root);
@@ -387,6 +398,7 @@ export function mountApp(root: HTMLElement): void {
 
       state.sheet = { mode: "edit", entry };
       state.catalogMessage = "";
+      state.watchSheet = null;
       render(root);
       return;
     }
@@ -451,6 +463,7 @@ export function mountApp(root: HTMLElement): void {
 
       state.listPicker = entry;
       state.listMessage = "";
+      state.watchSheet = null;
       render(root);
       return;
     }
@@ -458,6 +471,36 @@ export function mountApp(root: HTMLElement): void {
     if (action === "close-lists") {
       state.listPicker = null;
       state.listMessage = "";
+      render(root);
+      return;
+    }
+
+    if (action === "open-watch") {
+      if (!state.user) {
+        state.view = "account";
+        render(root);
+        return;
+      }
+
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      if (!entry || !canWatchKind(entry.kind)) {
+        return;
+      }
+
+      state.watchSheet = entry;
+      state.watchMessage = "";
+      state.listPicker = null;
+      state.sheet = null;
+      render(root);
+      if (!state.watchById[entry.id]) {
+        await loadWatchOffer(root, entry.id);
+      }
+      return;
+    }
+
+    if (action === "close-watch") {
+      state.watchSheet = null;
+      state.watchMessage = "";
       render(root);
       return;
     }
@@ -876,7 +919,8 @@ function render(root: HTMLElement): void {
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
       ${state.sheet && canRenderSheet() ? renderSheet() : ""}
       ${state.listPicker && state.user ? renderListPicker() : ""}
-      ${!state.sheet && !state.listPicker && canPromptUpdate() ? renderUpdateBanner() : ""}
+      ${state.watchSheet && state.user ? renderWatchSheet() : ""}
+      ${!state.sheet && !state.listPicker && !state.watchSheet && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
@@ -1473,6 +1517,7 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
       </summary>
       <div class="show-toolbar">
         <button class="ghost-btn" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${done ? "Unmark show" : "Mark show"}</button>
+        ${renderWatchButton(entry)}
         ${
           options.listId === undefined
             ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -1583,6 +1628,7 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false): stri
   return `
     <li class="entry${done ? " is-done" : ""}${nested ? " is-nested" : ""}">
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>
+      ${renderWatchButton(entry)}
       ${
         signedIn
           ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" aria-label="Add ${escapeHtml(entry.title)} to a list" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -1724,6 +1770,7 @@ function renderListItem(entry: CatalogEntry, listId: number, nested = false): st
           ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
         </span>
       </button>
+      ${renderWatchButton(entry)}
       <button class="entry-remove" type="button" data-action="toggle-list-item" data-list-id="${listId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
     </li>
   `;
@@ -1899,6 +1946,102 @@ function renderTmdbSearch(selectedKind: MediaKind): string {
 
 function usesTmdb(kind: MediaKind): boolean {
   return kind === "movie" || kind === "series" || kind === "documentary" || kind === "show";
+}
+
+function canWatchKind(kind: MediaKind): boolean {
+  return kind === "movie" || kind === "documentary" || kind === "show";
+}
+
+function renderWatchButton(entry: CatalogEntry): string {
+  if (!state.user || !canWatchKind(entry.kind)) {
+    return "";
+  }
+
+  return `<button class="entry-watch" type="button" data-action="open-watch" data-id="${escapeHtml(entry.id)}" aria-label="Where to watch ${escapeHtml(entry.title)}" ${state.catalogBusy || state.watchBusy ? "disabled" : ""}>Watch</button>`;
+}
+
+async function loadWatchOffer(root: HTMLElement, id: string): Promise<void> {
+  state.watchBusy = true;
+  state.watchMessage = "";
+  render(root);
+  try {
+    state.watchById[id] = await fetchWatch(id);
+  } catch (error) {
+    state.watchMessage = error instanceof Error ? error.message : "Could not look up where to watch.";
+  }
+
+  state.watchBusy = false;
+  render(root);
+}
+
+function renderWatchSheet(): string {
+  const entry = state.watchSheet;
+  if (!entry) {
+    return "";
+  }
+
+  const offer = state.watchById[entry.id];
+  const year = entry.releaseYear ? ` (${entry.releaseYear})` : "";
+  return `
+    <div class="sheet-backdrop" data-action="close-watch"></div>
+    <div class="sheet" role="dialog" aria-label="Where to watch">
+      <h2>Where to watch</h2>
+      <p class="fine-print">${escapeHtml(entry.title)}${escapeHtml(year)} · United States</p>
+      ${state.watchMessage ? `<p class="status is-error">${escapeHtml(state.watchMessage)}</p>` : ""}
+      ${state.watchBusy && !offer ? `<p class="empty">Checking streaming…</p>` : ""}
+      ${offer ? renderWatchOffer(offer) : ""}
+      <div class="sheet-actions">
+        <button class="ghost-btn" type="button" data-action="close-watch">Done</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderWatchOffer(offer: WatchOffer): string {
+  const groups = [
+    { label: "Streaming", providers: offer.streaming },
+    { label: "Free", providers: offer.free },
+    { label: "Rent", providers: offer.rent },
+    { label: "Buy", providers: offer.buy },
+  ].filter((group) => group.providers.length > 0);
+
+  if (groups.length === 0) {
+    return `
+      <p class="empty">Nothing listed for the United States right now.</p>
+      ${offer.link ? `<p class="fine-print"><a class="watch-link" href="${escapeHtml(offer.link)}" target="_blank" rel="noopener noreferrer">Check TMDb</a></p>` : ""}
+      <p class="fine-print">Stream data by ${escapeHtml(offer.attribution)}</p>
+    `;
+  }
+
+  return `
+    ${groups
+      .map(
+        (group) => `
+          <section class="watch-group">
+            <h3>${escapeHtml(group.label)}</h3>
+            <ul class="watch-providers">
+              ${group.providers
+                .map(
+                  (provider) => `
+                    <li>
+                      ${provider.logo ? `<img src="${escapeHtml(provider.logo)}" alt="" width="45" height="45" />` : ""}
+                      <span>${escapeHtml(provider.name)}</span>
+                    </li>
+                  `,
+                )
+                .join("")}
+            </ul>
+          </section>
+        `,
+      )
+      .join("")}
+    ${
+      offer.link
+        ? `<a class="primary-btn watch-link-btn" href="${escapeHtml(offer.link)}" target="_blank" rel="noopener noreferrer">See options on TMDb</a>`
+        : ""
+    }
+    <p class="fine-print">Stream data by ${escapeHtml(offer.attribution)}</p>
+  `;
 }
 
 function canUseTmdbSheet(): boolean {

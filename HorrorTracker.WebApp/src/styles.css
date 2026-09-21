@@ -308,6 +308,7 @@ button.fun-stat:focus-visible {
 .dock-btn,
 .entry-remove,
 .entry-list,
+.entry-watch,
 .fab {
   font: inherit;
   color: inherit;
@@ -580,7 +581,8 @@ button.entry-toggle {
 }
 
 .entry-edit,
-.entry-list {
+.entry-list,
+.entry-watch {
   flex: 0 0 auto;
   min-height: 36px;
   padding: 0 10px;
@@ -1136,6 +1138,60 @@ code {
 
 .entry.is-nested {
   background: var(--surface-alt);
+}
+
+.watch-group {
+  margin-top: 14px;
+}
+
+.watch-group h3 {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.watch-providers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.watch-providers li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.watch-providers img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface);
+}
+
+.watch-link,
+.watch-link-btn {
+  display: inline-block;
+  color: var(--crimson);
+}
+
+.watch-link-btn {
+  margin-top: 16px;
+  text-align: center;
+  text-decoration: none;
 }
 
 .list-picker {

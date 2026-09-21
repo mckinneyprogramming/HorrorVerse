@@ -25,6 +25,7 @@ builder.Services.AddScoped<DocumentaryRepository>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<ShowGuideService>();
 builder.Services.AddScoped<KeywordCatalogService>();
+builder.Services.AddScoped<WatchCatalogService>();
 builder.Services.AddScoped<TmdbCatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserLibraryService>();
@@ -77,6 +78,8 @@ app.MapGet("/api/shows", async (string? id, int? season, HttpContext http, AuthS
     await WriteSignedInUserAsync(http, auth, user => shows.GetGuideAsync(user, id, season, http.RequestAborted)));
 app.MapPatch("/api/shows", async (ShowProgressRequest body, HttpContext http, AuthService auth, ShowGuideService shows) =>
     await WriteSignedInUserAsync(http, auth, user => shows.SetProgressAsync(user, body, http.RequestAborted)));
+app.MapGet("/api/watch", async (string? id, HttpContext http, AuthService auth, WatchCatalogService watch) =>
+    await WriteSignedInAsync(http, auth, async () => Results.Json(await watch.GetAsync(id, http.RequestAborted))));
 app.MapGet("/api/tmdb", async (string? kind, string? q, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
     await WriteSignedInAsync(http, auth, async () => Results.Json(await tmdb.SearchAsync(kind, q, http.RequestAborted))));
 app.MapPost("/api/tmdb", async (TmdbImportRequest body, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
