@@ -68,6 +68,15 @@ public sealed class UserLibraryService(IConfiguration configuration)
         command.Parameters.AddWithValue("kind", kind);
         command.Parameters.AddWithValue("mediaId", mediaId);
         command.ExecuteNonQuery();
+        if (kind == "series")
+        {
+            CascadeSeriesMovies(user.Id, mediaId, request.Completed);
+        }
+        else if (kind == "movie")
+        {
+            SyncSeriesForMovie(user.Id, mediaId);
+        }
+
         return GetCompletedIds(user);
     }
 
@@ -380,6 +389,97 @@ public sealed class UserLibraryService(IConfiguration configuration)
         }
 
         return id;
+    }
+
+    private void CascadeSeriesMovies(int userId, int seriesId, bool completed)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = completed
+                ? """
+                    INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+                    SELECT @userId, 'movie', id, NOW()
+                    FROM movie
+                    WHERE seriesid = @seriesId
+                    ON CONFLICT (user_id, media_kind, media_id)
+                    DO UPDATE SET completed_at = EXCLUDED.completed_at
+                    """
+                : """
+                    DELETE FROM user_media_progress
+                    WHERE user_id = @userId
+                      AND media_kind = 'movie'
+                      AND media_id IN (SELECT id FROM movie WHERE seriesid = @seriesId)
+                    """;
+            command.Parameters.AddWithValue("userId", userId);
+            command.Parameters.AddWithValue("seriesId", seriesId);
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // Movie table or series links may not be available.
+        }
+    }
+
+    private void SyncSeriesForMovie(int userId, int movieId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            int? seriesId;
+            using (var lookup = connection.CreateCommand())
+            {
+                lookup.CommandText = "SELECT seriesid FROM movie WHERE id = @movieId";
+                lookup.Parameters.AddWithValue("movieId", movieId);
+                var value = lookup.ExecuteScalar();
+                seriesId = value is null or DBNull ? null : Convert.ToInt32(value) is int id && id > 0 ? id : null;
+            }
+
+            if (seriesId is not int resolved)
+            {
+                return;
+            }
+
+            using var totals = connection.CreateCommand();
+            totals.CommandText = """
+                SELECT
+                    (SELECT COUNT(*) FROM movie WHERE seriesid = @seriesId) AS total,
+                    (SELECT COUNT(*) FROM user_media_progress p
+                     JOIN movie m ON m.id = p.media_id
+                     WHERE p.user_id = @userId AND p.media_kind = 'movie' AND m.seriesid = @seriesId) AS finished
+                """;
+            totals.Parameters.AddWithValue("seriesId", resolved);
+            totals.Parameters.AddWithValue("userId", userId);
+            using var reader = totals.ExecuteReader();
+            if (!reader.Read())
+            {
+                return;
+            }
+
+            var total = Convert.ToInt32(reader.GetInt64(0));
+            var finished = Convert.ToInt32(reader.GetInt64(1));
+            reader.Close();
+            using var progress = connection.CreateCommand();
+            progress.CommandText = total > 0 && finished >= total
+                ? """
+                    INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+                    VALUES (@userId, 'series', @seriesId, NOW())
+                    ON CONFLICT (user_id, media_kind, media_id)
+                    DO UPDATE SET completed_at = EXCLUDED.completed_at
+                    """
+                : """
+                    DELETE FROM user_media_progress
+                    WHERE user_id = @userId AND media_kind = 'series' AND media_id = @seriesId
+                    """;
+            progress.Parameters.AddWithValue("userId", userId);
+            progress.Parameters.AddWithValue("seriesId", resolved);
+            progress.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // Movie table or series links may not be available.
+        }
     }
 
     private void AddSeriesMovies(int listId, int seriesId)

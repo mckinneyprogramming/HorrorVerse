@@ -30,7 +30,7 @@ import {
 } from "./lists";
 import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
-import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, type ShowGuide } from "./shows";
+import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "lists" | "account" | "install";
@@ -406,6 +406,13 @@ export function mountApp(root: HTMLElement): void {
 
       const completed = !isFinished(entry);
       await saveUserLibrary(root, async () => {
+        if (entry.kind === "show") {
+          const guide = await setShowProgress(entry.mediaId, completed);
+          state.showGuides[guide.showId] = guide;
+          state.finishedIds = await fetchProgressIds();
+          return;
+        }
+
         state.finishedIds = await setProgress(entry.id, completed);
       });
       return;

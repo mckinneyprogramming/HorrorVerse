@@ -28,29 +28,35 @@ public sealed class ShowGuideService(IConfiguration configuration)
     public async Task<object> SetProgressAsync(AuthUserDto user, ShowProgressRequest request, CancellationToken cancellationToken)
     {
         EnsureSchema();
+        int showId;
         if (request.EpisodeId is int episodeId)
         {
             SetEpisodeCompleted(user.Id, episodeId, request.Completed);
+            showId = GetEpisodeShowId(episodeId);
         }
         else if (request.SeasonId is int seasonId)
         {
             var season = GetSeasonRef(seasonId);
-            var tmdbId = await EnsureTmdbIdAsync(season.ShowId, cancellationToken);
+            showId = season.ShowId;
+            var tmdbId = await EnsureTmdbIdAsync(showId, cancellationToken);
             if (tmdbId is int resolved)
             {
-                await EnsureEpisodesAsync(season.ShowId, resolved, season.SeasonNumber, cancellationToken);
+                await EnsureEpisodesAsync(showId, resolved, season.SeasonNumber, cancellationToken);
             }
 
             SetSeasonCompleted(user.Id, seasonId, request.Completed);
         }
+        else if (!string.IsNullOrWhiteSpace(request.Id))
+        {
+            showId = ParseShowId(request.Id);
+            await SetShowCompletedAsync(user.Id, showId, request.Completed, cancellationToken);
+            return LoadGuide(user.Id, showId);
+        }
         else
         {
-            throw new InvalidOperationException("Choose a season or episode to mark.");
+            throw new InvalidOperationException("Choose a show, season, or episode to mark.");
         }
 
-        var showId = request.EpisodeId is int markedEpisode
-            ? GetEpisodeShowId(markedEpisode)
-            : GetSeasonRef(request.SeasonId!.Value).ShowId;
         SyncShowProgress(user.Id, showId);
         return LoadGuide(user.Id, showId);
     }
@@ -221,6 +227,64 @@ public sealed class ShowGuideService(IConfiguration configuration)
         command.Parameters.AddWithValue("userId", userId);
         command.Parameters.AddWithValue("seasonId", seasonId);
         command.ExecuteNonQuery();
+    }
+
+    private async Task SetShowCompletedAsync(int userId, int showId, bool completed, CancellationToken cancellationToken)
+    {
+        EnsureShowExists(showId);
+        if (completed)
+        {
+            var tmdbId = await EnsureTmdbIdAsync(showId, cancellationToken);
+            if (tmdbId is int resolved)
+            {
+                await EnsureSeasonsAsync(showId, resolved, cancellationToken);
+                foreach (var seasonNumber in ListSeasonNumbers(showId))
+                {
+                    await EnsureEpisodesAsync(showId, resolved, seasonNumber, cancellationToken);
+                }
+            }
+        }
+
+        SetAllShowEpisodes(userId, showId, completed);
+        SyncShowProgress(userId, showId);
+    }
+
+    private void SetAllShowEpisodes(int userId, int showId, bool completed)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = completed
+            ? """
+                INSERT INTO user_episode_progress (user_id, episode_id, completed_at)
+                SELECT @userId, id, NOW()
+                FROM show_episode
+                WHERE show_id = @showId
+                ON CONFLICT (user_id, episode_id) DO NOTHING
+                """
+            : """
+                DELETE FROM user_episode_progress
+                WHERE user_id = @userId
+                  AND episode_id IN (SELECT id FROM show_episode WHERE show_id = @showId)
+                """;
+        command.Parameters.AddWithValue("userId", userId);
+        command.Parameters.AddWithValue("showId", showId);
+        command.ExecuteNonQuery();
+    }
+
+    private IReadOnlyList<int> ListSeasonNumbers(int showId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT season_number FROM show_season WHERE show_id = @showId ORDER BY season_number";
+        command.Parameters.AddWithValue("showId", showId);
+        using var reader = command.ExecuteReader();
+        var numbers = new List<int>();
+        while (reader.Read())
+        {
+            numbers.Add(reader.GetInt32(0));
+        }
+
+        return numbers;
     }
 
     private void SyncShowProgress(int userId, int showId)

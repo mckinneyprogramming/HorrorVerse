@@ -31,7 +31,12 @@ export async function PATCH(request: Request) {
     const connectionString = requireDatabaseUrl();
     const userId = await requireUserId(request, connectionString);
     await ensureSchema(connectionString);
-    const body = (await request.json().catch(() => ({}))) as { episodeId?: number; seasonId?: number; completed?: boolean };
+    const body = (await request.json().catch(() => ({}))) as {
+      id?: string;
+      episodeId?: number;
+      seasonId?: number;
+      completed?: boolean;
+    };
     const completed = Boolean(body.completed);
     let showId: number;
     if (Number.isInteger(body.episodeId) && (body.episodeId ?? 0) > 0) {
@@ -46,8 +51,11 @@ export async function PATCH(request: Request) {
       }
 
       await setSeasonCompleted(connectionString, userId, Number(body.seasonId), completed);
+    } else if (body.id) {
+      showId = parseShowId(body.id);
+      await setShowCompleted(connectionString, userId, showId, completed);
     } else {
-      throw new ShowError("Choose a season or episode to mark.", 400);
+      throw new ShowError("Choose a show, season, or episode to mark.", 400);
     }
 
     await syncShowProgress(connectionString, userId, showId);
@@ -266,6 +274,48 @@ async function ensureEpisodes(connectionString: string, showId: number, tmdbId: 
       [showId, seasonId, number, title, Number.isFinite(runtime) && runtime > 0 ? runtime : 0, record.air_date ?? null],
     );
   }
+}
+
+async function setShowCompleted(connectionString: string, userId: number, showId: number, completed: boolean): Promise<void> {
+  await ensureShowExists(connectionString, showId);
+  if (completed) {
+    const tmdbId = await ensureTmdbId(connectionString, showId);
+    if (tmdbId) {
+      await ensureSeasons(connectionString, showId, tmdbId);
+      const seasons = await queryRows(
+        connectionString,
+        "SELECT season_number FROM show_season WHERE show_id = $1 ORDER BY season_number",
+        [showId],
+      );
+      for (const row of seasons) {
+        const seasonNumber = Number(row.season_number);
+        if (Number.isInteger(seasonNumber)) {
+          await ensureEpisodes(connectionString, showId, tmdbId, seasonNumber);
+        }
+      }
+    }
+  }
+
+  if (completed) {
+    await execute(
+      connectionString,
+      `INSERT INTO user_episode_progress (user_id, episode_id, completed_at)
+       SELECT $1, id, NOW()
+       FROM show_episode
+       WHERE show_id = $2
+       ON CONFLICT (user_id, episode_id) DO NOTHING`,
+      [userId, showId],
+    );
+    return;
+  }
+
+  await execute(
+    connectionString,
+    `DELETE FROM user_episode_progress
+     WHERE user_id = $1
+       AND episode_id IN (SELECT id FROM show_episode WHERE show_id = $2)`,
+    [userId, showId],
+  );
 }
 
 async function setEpisodeCompleted(connectionString: string, userId: number, episodeId: number, completed: boolean): Promise<void> {

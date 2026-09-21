@@ -43,10 +43,90 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (kind === "series") {
+      await cascadeSeriesMovies(connectionString, user.id, mediaId, Boolean(body.completed));
+    } else if (kind === "movie") {
+      await syncSeriesForMovie(connectionString, user.id, mediaId);
+    }
+
     return Response.json({ ids: await loadCompletedIds(connectionString, user) });
   } catch (error) {
     return jsonError(error);
   }
+}
+
+async function cascadeSeriesMovies(connectionString: string, userId: number, seriesId: number, completed: boolean): Promise<void> {
+  try {
+    if (completed) {
+      await execute(
+        connectionString,
+        `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+         SELECT $1, 'movie', id, NOW()
+         FROM movie
+         WHERE seriesid = $2
+         ON CONFLICT (user_id, media_kind, media_id)
+         DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+        [userId, seriesId],
+      );
+      return;
+    }
+
+    await execute(
+      connectionString,
+      `DELETE FROM user_media_progress
+       WHERE user_id = $1
+         AND media_kind = 'movie'
+         AND media_id IN (SELECT id FROM movie WHERE seriesid = $2)`,
+      [userId, seriesId],
+    );
+  } catch {
+    // Movie table or series links may not be available.
+  }
+}
+
+async function syncSeriesForMovie(connectionString: string, userId: number, movieId: number): Promise<void> {
+  try {
+    const seriesId = asId((await queryRows(connectionString, "SELECT seriesid FROM movie WHERE id = $1", [movieId]))[0], "seriesid");
+    if (!seriesId) {
+      return;
+    }
+
+    const rows = await queryRows(
+      connectionString,
+      `SELECT
+         (SELECT COUNT(*)::int FROM movie WHERE seriesid = $2) AS total,
+         (SELECT COUNT(*)::int FROM user_media_progress p
+          JOIN movie m ON m.id = p.media_id
+          WHERE p.user_id = $1 AND p.media_kind = 'movie' AND m.seriesid = $2) AS finished`,
+      [userId, seriesId],
+    );
+    const total = Number(rows[0]?.total) || 0;
+    const finished = Number(rows[0]?.finished) || 0;
+    if (total > 0 && finished >= total) {
+      await execute(
+        connectionString,
+        `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+         VALUES ($1, 'series', $2, NOW())
+         ON CONFLICT (user_id, media_kind, media_id)
+         DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+        [userId, seriesId],
+      );
+      return;
+    }
+
+    await execute(
+      connectionString,
+      "DELETE FROM user_media_progress WHERE user_id = $1 AND media_kind = 'series' AND media_id = $2",
+      [userId, seriesId],
+    );
+  } catch {
+    // Movie table or series links may not be available.
+  }
+}
+
+function asId(row: Record<string, unknown> | undefined, key: string): number | undefined {
+  const id = Number(row?.[key]);
+  return Number.isInteger(id) && id > 0 ? id : undefined;
 }
 
 async function loadCompletedIds(connectionString: string, user: SessionUser): Promise<string[]> {
