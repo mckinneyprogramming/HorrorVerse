@@ -3,6 +3,8 @@ export const maxDuration = 60;
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const MAX_RESULTS = 8;
+const MAX_COLLECTION_CANDIDATES = 16;
+const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648]);
 
 export async function GET(request: Request) {
   try {
@@ -56,6 +58,7 @@ export async function POST(request: Request) {
 async function searchMovies(query: string): Promise<TmdbHit[]> {
   const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
   return asResults(payload)
+    .filter((item) => isHorrorAdjacent(item.genre_ids))
     .slice(0, MAX_RESULTS)
     .map((item) => ({
       tmdbId: Number(item.id),
@@ -68,19 +71,36 @@ async function searchMovies(query: string): Promise<TmdbHit[]> {
 
 async function searchCollections(query: string): Promise<TmdbHit[]> {
   const payload = await tmdbJson(`/search/collection?query=${encodeURIComponent(query)}`);
-  return asResults(payload)
-    .slice(0, MAX_RESULTS)
-    .map((item) => ({
-      tmdbId: Number(item.id),
-      title: seriesTitle(String(item.name ?? "")),
+  const hits: TmdbHit[] = [];
+  for (const item of asResults(payload).slice(0, MAX_COLLECTION_CANDIDATES)) {
+    if (hits.length >= MAX_RESULTS) {
+      break;
+    }
+
+    const tmdbId = Number(item.id);
+    const title = seriesTitle(String(item.name ?? ""));
+    if (!Number.isInteger(tmdbId) || tmdbId < 1 || title.length < 1) {
+      continue;
+    }
+
+    if (!(await collectionIsHorrorAdjacent(tmdbId))) {
+      continue;
+    }
+
+    hits.push({
+      tmdbId,
+      title,
       overview: trimOverview(item.overview),
-    }))
-    .filter((item) => item.tmdbId > 0 && item.title.length > 0);
+    });
+  }
+
+  return hits;
 }
 
 async function searchShows(query: string): Promise<TmdbHit[]> {
   const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(query)}&include_adult=false`);
   return asResults(payload)
+    .filter((item) => isHorrorAdjacent(item.genre_ids))
     .slice(0, MAX_RESULTS)
     .map((item) => ({
       tmdbId: Number(item.id),
@@ -89,6 +109,24 @@ async function searchShows(query: string): Promise<TmdbHit[]> {
       overview: trimOverview(item.overview),
     }))
     .filter((item) => item.tmdbId > 0 && item.title.length > 0);
+}
+
+async function collectionIsHorrorAdjacent(collectionId: number): Promise<boolean> {
+  try {
+    const collection = await tmdbJson(`/collection/${collectionId}`);
+    const parts = Array.isArray(collection.parts) ? collection.parts : [];
+    return parts.some((part) => isHorrorAdjacent(asRecord(part)?.genre_ids));
+  } catch {
+    return false;
+  }
+}
+
+function isHorrorAdjacent(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.some((id) => HORROR_ADJACENT_GENRES.has(Number(id)));
 }
 
 async function importMovie(connectionString: string, tmdbId: number): Promise<TmdbImportResult> {

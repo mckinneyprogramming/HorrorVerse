@@ -263,6 +263,39 @@ h1 {
   cursor: pointer;
 }
 
+.search-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+
+.search-kinds legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.search-kinds label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.search-kinds input {
+  margin: 0;
+  accent-color: var(--blood-bright);
+}
+
 .tmdb-cta {
   margin: 16px 0 0;
   color: var(--text-muted);

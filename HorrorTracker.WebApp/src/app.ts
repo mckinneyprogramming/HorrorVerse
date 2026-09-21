@@ -504,20 +504,33 @@ export function mountApp(root: HTMLElement): void {
     await runTmdbSearch(root);
   });
 
-  root.addEventListener("change", (event) => {
-    const select = (event.target as HTMLElement).closest<HTMLSelectElement>("[data-sheet-kind]");
-    if (!select || !state.sheet || (state.sheet.mode !== "add" && state.sheet.mode !== "tmdb")) {
+  root.addEventListener("change", async (event) => {
+    const libraryKind = (event.target as HTMLElement).closest<HTMLInputElement>("[data-library-kind]");
+    if (libraryKind) {
+      const value = libraryKind.value;
+      if (value === "all" || isMediaKind(value)) {
+        state.filter = value;
+        render(root);
+      }
       return;
     }
 
-    if (!isMediaKind(select.value)) {
+    const kindInput = (event.target as HTMLElement).closest<HTMLInputElement | HTMLSelectElement>("[data-sheet-kind]");
+    if (!kindInput || !state.sheet || (state.sheet.mode !== "add" && state.sheet.mode !== "tmdb")) {
       return;
     }
 
-    state.sheetKind = select.value;
+    if (!isMediaKind(kindInput.value)) {
+      return;
+    }
+
+    state.sheetKind = kindInput.value;
     state.tmdbResults = [];
     state.catalogMessage = "";
     render(root);
+    if (state.tmdbQuery.trim().length >= 2 && canUseTmdbSheet()) {
+      await runTmdbSearch(root);
+    }
   });
 
   root.addEventListener("input", (event) => {
@@ -650,7 +663,7 @@ async function runTmdbSearch(root: HTMLElement): Promise<void> {
   try {
     state.tmdbResults = await searchTmdb(state.sheetKind, state.tmdbQuery);
     if (state.tmdbResults.length === 0) {
-      state.catalogMessage = "No TMDb matches for that search.";
+      state.catalogMessage = "No horror, thriller, or mystery matches for that search.";
     }
   } catch (error) {
     state.tmdbResults = [];
@@ -799,9 +812,13 @@ function renderLibrary(): string {
           : ""
       }
     </form>
+    ${renderSearchKindRadios({
+      name: "library-kind",
+      selected: usesTmdb(state.filter as MediaKind) || state.filter === "all" ? state.filter : "",
+      includeAll: true,
+    })}
     <div class="chips" role="tablist" aria-label="Filter by type">
-      ${chip("all", "All")}
-      ${MEDIA_KINDS.map((kind) => chip(kind.id, kind.label)).join("")}
+      ${MEDIA_KINDS.filter((kind) => !usesTmdb(kind.id)).map((kind) => chip(kind.id, kind.label)).join("")}
     </div>
     ${state.filter === "all" ? renderGroupedCatalog() : renderFlatCatalog()}
     ${state.status === "ready" ? renderTmdbCta() : ""}
@@ -1085,6 +1102,35 @@ function renderTmdbCta(): string {
 function chip(filter: LibraryFilter, label: string): string {
   const active = state.filter === filter ? " is-active" : "";
   return `<button class="chip${active}" type="button" data-action="filter" data-filter="${filter}">${label}</button>`;
+}
+
+function renderSearchKindRadios(options: {
+  name: string;
+  selected: string;
+  includeAll?: boolean;
+  disabled?: boolean;
+  sheetKind?: boolean;
+}): string {
+  const kinds = [
+    ...(options.includeAll ? [{ id: "all", label: "All" }] : []),
+    ...MEDIA_KINDS.filter((kind) => usesTmdb(kind.id)),
+  ];
+  return `
+    <fieldset class="search-kinds">
+      <legend>${options.sheetKind ? "Looking for" : "Search in"}</legend>
+      ${kinds
+        .map((kind) => {
+          const attrs = options.sheetKind ? "data-sheet-kind" : "data-library-kind";
+          return `
+            <label>
+              <input type="radio" name="${escapeHtml(options.name)}" value="${escapeHtml(kind.id)}" ${attrs} ${kind.id === options.selected ? "checked" : ""} ${options.disabled ? "disabled" : ""} />
+              ${escapeHtml(kind.label)}
+            </label>
+          `;
+        })
+        .join("")}
+    </fieldset>
+  `;
 }
 
 function renderEntry(entry: CatalogEntry, showKind = true, nested = false): string {
@@ -1376,14 +1422,6 @@ function renderTmdbSheet(): string {
       <h2>Add a missing title</h2>
       <p class="fine-print">Search TMDb. We'll add it to the shared vault, then you can put it on your lists.</p>
       ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
-      <label>
-        Type
-        <select data-sheet-kind ${state.catalogBusy ? "disabled" : ""}>
-          ${WRITABLE_KINDS.filter((kind) => usesTmdb(kind.id))
-            .map((kind) => `<option value="${kind.id}" ${kind.id === selectedKind ? "selected" : ""}>${kind.label}</option>`)
-            .join("")}
-        </select>
-      </label>
       ${renderTmdbSearch(selectedKind)}
       <div class="sheet-actions">
         <button class="ghost-btn" type="button" data-action="close-sheet">Cancel</button>
@@ -1395,6 +1433,12 @@ function renderTmdbSheet(): string {
 function renderTmdbSearch(selectedKind: MediaKind): string {
   return `
     <form data-tmdb-form>
+      ${renderSearchKindRadios({
+        name: "tmdb-kind",
+        selected: selectedKind,
+        disabled: state.catalogBusy,
+        sheetKind: true,
+      })}
       <label>
         Search TMDb
         <input name="q" type="search" value="${escapeHtml(state.tmdbQuery)}" maxlength="120" placeholder="${tmdbPlaceholder(selectedKind)}" autocomplete="off" ${state.catalogBusy ? "disabled" : ""} />
@@ -1469,13 +1513,13 @@ function tmdbPlaceholder(kind: MediaKind): string {
 function tmdbHint(kind: MediaKind): string {
   switch (kind) {
     case "series":
-      return "Adds the collection and its movies, in release order.";
+      return "Horror, thriller, and mystery collections, with their movies in release order.";
     case "show":
-      return "Adds the TV show with season and episode counts from TMDb.";
+      return "Horror, thriller, and mystery TV shows, with season and episode counts from TMDb.";
     case "documentary":
-      return "Searches TMDb movies and saves the pick as a documentary.";
+      return "Searches TMDb movies tagged horror, thriller, or mystery, then saves the pick as a documentary.";
     default:
-      return "Adds the film with year and runtime. If you already have its series, it is linked.";
+      return "Horror, thriller, and mystery films, with year and runtime. If you already have its series, it is linked.";
   }
 }
 

@@ -7,6 +7,8 @@ namespace HorrorTracker.Api.Catalog;
 public sealed class TmdbCatalogService(IConfiguration configuration)
 {
     private const int MaxResults = 8;
+    private const int MaxCollectionCandidates = 16;
+    private static readonly HashSet<int> HorrorAdjacentGenres = [27, 53, 9648];
 
     public async Task<object> SearchAsync(string? kind, string? query, CancellationToken cancellationToken)
     {
@@ -21,7 +23,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         var tmdb = CreateClient();
         IReadOnlyList<TmdbHit> results = normalizedKind switch
         {
-            "series" => MapCollections(await tmdb.SearchCollection(q)),
+            "series" => await MapCollectionsAsync(tmdb, await tmdb.SearchCollection(q)),
             "show" => MapShows(await tmdb.SearchTvShow(q)),
             _ => MapMovies(await tmdb.SearchMovie(q)),
         };
@@ -152,6 +154,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
     private static IReadOnlyList<TmdbHit> MapMovies(TMDbLib.Objects.General.SearchContainer<SearchMovie> container)
     {
         return (container.Results ?? [])
+            .Where(item => IsHorrorAdjacent(item.GenreIds))
             .Take(MaxResults)
             .Select(item => new TmdbHit(
                 item.Id,
@@ -161,21 +164,37 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
             .ToList();
     }
 
-    private static IReadOnlyList<TmdbHit> MapCollections(TMDbLib.Objects.General.SearchContainer<SearchCollection> container)
+    private static async Task<IReadOnlyList<TmdbHit>> MapCollectionsAsync(
+        MovieDatabaseService tmdb,
+        TMDbLib.Objects.General.SearchContainer<SearchCollection> container)
     {
-        return (container.Results ?? [])
-            .Take(MaxResults)
-            .Select(item => new TmdbHit(
+        var hits = new List<TmdbHit>();
+        foreach (var item in (container.Results ?? []).Take(MaxCollectionCandidates))
+        {
+            if (hits.Count >= MaxResults)
+            {
+                break;
+            }
+
+            if (!await CollectionIsHorrorAdjacentAsync(tmdb, item.Id))
+            {
+                continue;
+            }
+
+            hits.Add(new TmdbHit(
                 item.Id,
                 SeriesTitle(item.Name) ?? item.Name,
                 null,
-                TrimOverview(item.Overview)))
-            .ToList();
+                TrimOverview(item.Overview)));
+        }
+
+        return hits;
     }
 
     private static IReadOnlyList<TmdbHit> MapShows(TMDbLib.Objects.General.SearchContainer<SearchTv> container)
     {
         return (container.Results ?? [])
+            .Where(item => IsHorrorAdjacent(item.GenreIds))
             .Take(MaxResults)
             .Select(item => new TmdbHit(
                 item.Id,
@@ -184,6 +203,22 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
                 TrimOverview(item.Overview)))
             .ToList();
     }
+
+    private static async Task<bool> CollectionIsHorrorAdjacentAsync(MovieDatabaseService tmdb, int collectionId)
+    {
+        try
+        {
+            var collection = await tmdb.GetCollection(collectionId);
+            return collection.Parts?.Any(part => IsHorrorAdjacent(part.GenreIds)) == true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsHorrorAdjacent(IEnumerable<int>? genreIds) =>
+        genreIds is not null && genreIds.Any(HorrorAdjacentGenres.Contains);
 
     private int? FindMovieId(string title, int? year)
     {
