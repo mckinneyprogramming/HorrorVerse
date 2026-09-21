@@ -80,6 +80,8 @@ app.MapGet("/api/tmdb", async (string? kind, string? q, HttpContext http, AuthSe
     await WriteSignedInAsync(http, auth, async () => Results.Json(await tmdb.SearchAsync(kind, q, http.RequestAborted))));
 app.MapPost("/api/tmdb", async (TmdbImportRequest body, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
     await WriteSignedInAsync(http, auth, async () => Results.Json(await tmdb.ImportAsync(body, http.RequestAborted))));
+app.MapGet("/api/sync", async (string? id, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
+    await WriteCatalogSyncAsync(http, auth, (force) => tmdb.SyncAsync(id, force, http.RequestAborted)));
 app.MapGet("/api/progress", (HttpContext http, AuthService auth, UserLibraryService library) =>
     WriteSignedIn(http, auth, user => Results.Json(new { ids = library.GetCompletedIds(user) })));
 app.MapPatch("/api/progress", (ProgressWriteRequest body, HttpContext http, AuthService auth, UserLibraryService library) =>
@@ -186,6 +188,41 @@ static async Task<IResult> WriteSignedInAsync(HttpContext http, AuthService auth
     {
         return Results.Json(new { error = exception.Message }, statusCode: StatusCodes.Status400BadRequest);
     }
+}
+
+static async Task<IResult> WriteCatalogSyncAsync(HttpContext http, AuthService auth, Func<bool, Task<object>> write)
+{
+    try
+    {
+        var cron = IsTrustedCron(http);
+        AuthUserDto? user = null;
+        if (!cron)
+        {
+            user = auth.RequireUser(AuthCookies.Read(http.Request));
+        }
+
+        return Results.Json(await write(cron || user?.IsAdmin == true));
+    }
+    catch (AuthException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: exception.StatusCode);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: StatusCodes.Status400BadRequest);
+    }
+}
+
+static bool IsTrustedCron(HttpContext http)
+{
+    var secret = Environment.GetEnvironmentVariable("CRON_SECRET");
+    var authorization = http.Request.Headers.Authorization.ToString();
+    if (!string.IsNullOrWhiteSpace(secret))
+    {
+        return string.Equals(authorization, $"Bearer {secret}", StringComparison.Ordinal);
+    }
+
+    return string.Equals(http.Request.Headers["x-vercel-cron"].ToString(), "1", StringComparison.Ordinal);
 }
 
 static async Task<IResult> WriteSignedInUserAsync(HttpContext http, AuthService auth, Func<AuthUserDto, Task<object>> write)

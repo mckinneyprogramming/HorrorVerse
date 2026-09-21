@@ -15,7 +15,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
         var tmdbId = await EnsureTmdbIdAsync(showId, cancellationToken);
         if (tmdbId is int resolved)
         {
-            await EnsureSeasonsAsync(showId, resolved, cancellationToken);
+            await RefreshSeasonsAsync(showId, resolved, cancellationToken);
             if (season is int seasonNumber)
             {
                 await EnsureEpisodesAsync(showId, resolved, seasonNumber, cancellationToken);
@@ -41,6 +41,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
             var tmdbId = await EnsureTmdbIdAsync(showId, cancellationToken);
             if (tmdbId is int resolved)
             {
+                await RefreshSeasonsAsync(showId, resolved, cancellationToken);
                 await EnsureEpisodesAsync(showId, resolved, season.SeasonNumber, cancellationToken);
             }
 
@@ -67,7 +68,18 @@ public sealed class ShowGuideService(IConfiguration configuration)
         EnsureSchema();
         SaveTmdbId(showId, tmdbId);
         InsertSeasons(showId, show);
+        UpdateShowTotals(showId, show);
         await Task.CompletedTask;
+    }
+
+    public async Task<int> RefreshFromTmdbAsync(int showId, CancellationToken cancellationToken)
+    {
+        EnsureSchema();
+        EnsureShowExists(showId);
+        var tmdbId = await EnsureTmdbIdAsync(showId, cancellationToken);
+        return tmdbId is int resolved
+            ? await RefreshSeasonsAsync(showId, resolved, cancellationToken)
+            : 0;
     }
 
     public void PurgeShow(string? id)
@@ -237,7 +249,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
             var tmdbId = await EnsureTmdbIdAsync(showId, cancellationToken);
             if (tmdbId is int resolved)
             {
-                await EnsureSeasonsAsync(showId, resolved, cancellationToken);
+                await RefreshSeasonsAsync(showId, resolved, cancellationToken);
                 foreach (var seasonNumber in ListSeasonNumbers(showId))
                 {
                     await EnsureEpisodesAsync(showId, resolved, seasonNumber, cancellationToken);
@@ -361,16 +373,20 @@ public sealed class ShowGuideService(IConfiguration configuration)
         return match.Id;
     }
 
-    private async Task EnsureSeasonsAsync(int showId, int tmdbId, CancellationToken cancellationToken)
+    private async Task<int> RefreshSeasonsAsync(int showId, int tmdbId, CancellationToken cancellationToken)
     {
-        if (SeasonCount(showId) > 0)
+        _ = cancellationToken;
+        var before = ListSeasonNumbers(showId);
+        var show = await CreateClient().GetTvShow(tmdbId);
+        InsertSeasons(showId, show);
+        UpdateShowTotals(showId, show);
+        var added = ListSeasonNumbers(showId).Except(before).Count();
+        if (added > 0)
         {
-            return;
+            InvalidateShowCompletion(showId);
         }
 
-        var show = await CreateClient().GetTvShow(tmdbId);
-        _ = cancellationToken;
-        InsertSeasons(showId, show);
+        return added;
     }
 
     private async Task EnsureEpisodesAsync(int showId, int tmdbId, int seasonNumber, CancellationToken cancellationToken)
@@ -378,17 +394,61 @@ public sealed class ShowGuideService(IConfiguration configuration)
         var seasonId = FindSeasonId(showId, seasonNumber);
         if (seasonId is null)
         {
-            await EnsureSeasonsAsync(showId, tmdbId, cancellationToken);
+            await RefreshSeasonsAsync(showId, tmdbId, cancellationToken);
             seasonId = FindSeasonId(showId, seasonNumber);
         }
 
-        if (seasonId is null || EpisodeCount(seasonId.Value) > 0)
+        if (seasonId is null)
         {
             return;
         }
 
+        var before = EpisodeCount(seasonId.Value);
         var season = await CreateClient().GetTvSeason(tmdbId, seasonNumber);
         InsertEpisodes(showId, seasonId.Value, season);
+        if (EpisodeCount(seasonId.Value) > before)
+        {
+            InvalidateShowCompletion(showId);
+        }
+    }
+
+    private void UpdateShowTotals(int showId, TvShow show)
+    {
+        var episodes = Math.Max(show.NumberOfEpisodes, 0);
+        var seasons = Math.Max(show.NumberOfSeasons, 0);
+        var episodeMinutes = show.EpisodeRunTime?.FirstOrDefault() ?? 0;
+        var totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE Show
+            SET TotalEpisodes = @episodes, NumberOfSeasons = @seasons, TotalTime = @totalTime
+            WHERE Id = @id
+            """;
+        command.Parameters.AddWithValue("episodes", episodes);
+        command.Parameters.AddWithValue("seasons", seasons);
+        command.Parameters.AddWithValue("totalTime", totalTime);
+        command.Parameters.AddWithValue("id", showId);
+        command.ExecuteNonQuery();
+    }
+
+    private void InvalidateShowCompletion(int showId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                DELETE FROM user_media_progress
+                WHERE media_kind = 'show' AND media_id = @showId
+                """;
+            command.Parameters.AddWithValue("showId", showId);
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // Progress table is created on first signed-in use.
+        }
     }
 
     private void InsertSeasons(int showId, TvShow show)
@@ -519,15 +579,6 @@ public sealed class ShowGuideService(IConfiguration configuration)
         command.Parameters.AddWithValue("tmdbId", tmdbId);
         command.Parameters.AddWithValue("id", showId);
         command.ExecuteNonQuery();
-    }
-
-    private int SeasonCount(int showId)
-    {
-        using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM show_season WHERE show_id = @showId";
-        command.Parameters.AddWithValue("showId", showId);
-        return Convert.ToInt32(command.ExecuteScalar());
     }
 
     private int EpisodeCount(int seasonId)

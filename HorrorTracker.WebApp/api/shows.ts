@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     await ensureShowExists(connectionString, showId);
     const tmdbId = await ensureTmdbId(connectionString, showId);
     if (tmdbId) {
-      await ensureSeasons(connectionString, showId, tmdbId);
+      await refreshSeasons(connectionString, showId, tmdbId);
       if (season !== undefined) {
         await ensureEpisodes(connectionString, showId, tmdbId, season);
       }
@@ -47,6 +47,7 @@ export async function PATCH(request: Request) {
       showId = season.showId;
       const tmdbId = await ensureTmdbId(connectionString, showId);
       if (tmdbId) {
+        await refreshSeasons(connectionString, showId, tmdbId);
         await ensureEpisodes(connectionString, showId, tmdbId, season.seasonNumber);
       }
 
@@ -206,12 +207,12 @@ async function ensureTmdbId(connectionString: string, showId: number): Promise<n
   return tmdbId;
 }
 
-async function ensureSeasons(connectionString: string, showId: number, tmdbId: number): Promise<void> {
-  const count = Number((await queryRows(connectionString, "SELECT COUNT(*)::int AS count FROM show_season WHERE show_id = $1", [showId]))[0]?.count);
-  if (count > 0) {
-    return;
-  }
-
+async function refreshSeasons(connectionString: string, showId: number, tmdbId: number): Promise<void> {
+  const before = new Set(
+    (await queryRows(connectionString, "SELECT season_number FROM show_season WHERE show_id = $1", [showId])).map((row) =>
+      Number(row.season_number),
+    ),
+  );
   const show = await tmdbJson(`/tv/${tmdbId}`);
   const seasons = Array.isArray(show.seasons) ? show.seasons : [];
   for (const season of seasons) {
@@ -234,10 +235,27 @@ async function ensureSeasons(connectionString: string, showId: number, tmdbId: n
       [showId, number, title],
     );
   }
+
+  const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
+  const seasonCount = Math.max(Number(show.number_of_seasons) || 0, 0);
+  const runtimes = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number) : [];
+  const episodeMinutes = runtimes.find((value) => value > 0) ?? 0;
+  const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+  await execute(
+    connectionString,
+    "UPDATE show SET totalepisodes = $1, numberofseasons = $2, totaltime = $3 WHERE id = $4",
+    [episodes, seasonCount, totalTime, showId],
+  );
+  const after = (await queryRows(connectionString, "SELECT season_number FROM show_season WHERE show_id = $1", [showId])).map(
+    (row) => Number(row.season_number),
+  );
+  if (after.some((number) => Number.isInteger(number) && !before.has(number))) {
+    await invalidateShowCompletion(connectionString, showId);
+  }
 }
 
 async function ensureEpisodes(connectionString: string, showId: number, tmdbId: number, seasonNumber: number): Promise<void> {
-  await ensureSeasons(connectionString, showId, tmdbId);
+  await refreshSeasons(connectionString, showId, tmdbId);
   const seasonId = asId(
     (await queryRows(connectionString, "SELECT id FROM show_season WHERE show_id = $1 AND season_number = $2", [showId, seasonNumber]))[0],
   );
@@ -245,11 +263,7 @@ async function ensureEpisodes(connectionString: string, showId: number, tmdbId: 
     return;
   }
 
-  const count = Number((await queryRows(connectionString, "SELECT COUNT(*)::int AS count FROM show_episode WHERE season_id = $1", [seasonId]))[0]?.count);
-  if (count > 0) {
-    return;
-  }
-
+  const before = Number((await queryRows(connectionString, "SELECT COUNT(*)::int AS count FROM show_episode WHERE season_id = $1", [seasonId]))[0]?.count);
   const season = await tmdbJson(`/tv/${tmdbId}/season/${seasonNumber}`);
   const episodes = Array.isArray(season.episodes) ? season.episodes : [];
   for (const episode of episodes) {
@@ -274,6 +288,19 @@ async function ensureEpisodes(connectionString: string, showId: number, tmdbId: 
       [showId, seasonId, number, title, Number.isFinite(runtime) && runtime > 0 ? runtime : 0, record.air_date ?? null],
     );
   }
+
+  const after = Number((await queryRows(connectionString, "SELECT COUNT(*)::int AS count FROM show_episode WHERE season_id = $1", [seasonId]))[0]?.count);
+  if (after > before) {
+    await invalidateShowCompletion(connectionString, showId);
+  }
+}
+
+async function invalidateShowCompletion(connectionString: string, showId: number): Promise<void> {
+  try {
+    await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'show' AND media_id = $1", [showId]);
+  } catch {
+    // Progress table is created on first signed-in use.
+  }
 }
 
 async function setShowCompleted(connectionString: string, userId: number, showId: number, completed: boolean): Promise<void> {
@@ -281,7 +308,7 @@ async function setShowCompleted(connectionString: string, userId: number, showId
   if (completed) {
     const tmdbId = await ensureTmdbId(connectionString, showId);
     if (tmdbId) {
-      await ensureSeasons(connectionString, showId, tmdbId);
+      await refreshSeasons(connectionString, showId, tmdbId);
       const seasons = await queryRows(
         connectionString,
         "SELECT season_number FROM show_season WHERE show_id = $1 ORDER BY season_number",

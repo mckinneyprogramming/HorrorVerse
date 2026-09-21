@@ -177,6 +177,7 @@ async function importMovie(connectionString: string, tmdbId: number): Promise<Tm
 
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
+    await invalidateSeriesCompletion(connectionString, seriesId);
     await refreshSeriesTotals(connectionString, seriesId);
   }
 
@@ -195,6 +196,13 @@ async function importSeries(connectionString: string, collectionId: number): Pro
   if (!seriesId) {
     seriesId = await insertSeries(connectionString, title);
     added += 1;
+  }
+
+  try {
+    await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+    await execute(connectionString, "UPDATE movieseries SET tmdbid = $1 WHERE id = $2", [collectionId, seriesId]);
+  } catch {
+    // Older catalogs can still match series by title.
   }
 
   const parts = Array.isArray(collection.parts) ? collection.parts : [];
@@ -220,6 +228,7 @@ async function importSeries(connectionString: string, collectionId: number): Pro
     const movieId = await insertMovie(connectionString, filmTitle, runtimeOf(film.runtime), seriesId, year);
     if (movieId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
+      await invalidateSeriesCompletion(connectionString, seriesId);
     }
     added += 1;
   }
@@ -412,6 +421,14 @@ async function insertShow(
   }
 
   return id;
+}
+
+async function invalidateSeriesCompletion(connectionString: string, seriesId: number): Promise<void> {
+  try {
+    await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
+  } catch {
+    // Progress table is created on first signed-in use.
+  }
 }
 
 async function addMovieToListsContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {

@@ -31,6 +31,7 @@ import {
 import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
+import { syncVault } from "./sync";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "lists" | "account" | "install";
@@ -104,7 +105,12 @@ export function mountApp(root: HTMLElement): void {
   render(root);
   onInstallAvailabilityChange(() => render(root));
   void refreshCatalog(root);
-  void refreshUser(root);
+  void (async () => {
+    await refreshUser(root);
+    if (state.user) {
+      await applyVaultRefresh(root);
+    }
+  })();
 
   root.addEventListener("click", async (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>("[data-action]");
@@ -176,11 +182,13 @@ export function mountApp(root: HTMLElement): void {
 
       if (state.expandedSeriesIds.has(seriesId)) {
         state.expandedSeriesIds.delete(seriesId);
-      } else {
-        state.expandedSeriesIds.add(seriesId);
+        render(root);
+        return;
       }
 
+      state.expandedSeriesIds.add(seriesId);
       render(root);
+      await applyVaultRefresh(root, `series:${seriesId}`);
       return;
     }
 
@@ -199,9 +207,7 @@ export function mountApp(root: HTMLElement): void {
 
       state.expandedShowIds.add(showId);
       render(root);
-      if (!state.showGuides[showId]) {
-        await loadShowGuide(root, showId);
-      }
+      await loadShowGuide(root, showId);
       return;
     }
 
@@ -222,10 +228,7 @@ export function mountApp(root: HTMLElement): void {
 
       state.expandedShowSeasons.add(key);
       render(root);
-      const season = state.showGuides[showId]?.seasons.find((item) => item.seasonNumber === seasonNumber);
-      if (season && !season.loaded) {
-        await loadShowGuide(root, showId, seasonNumber);
-      }
+      await loadShowGuide(root, showId, seasonNumber);
       return;
     }
 
@@ -274,17 +277,22 @@ export function mountApp(root: HTMLElement): void {
     if (action === "toggle-list-series") {
       event.preventDefault();
       const key = listSeriesKey(target.dataset.listId, target.dataset.seriesId);
+      const seriesId = Number(target.dataset.seriesId);
       if (!key) {
         return;
       }
 
       if (state.expandedListSeries.has(key)) {
         state.expandedListSeries.delete(key);
-      } else {
-        state.expandedListSeries.add(key);
+        render(root);
+        return;
       }
 
+      state.expandedListSeries.add(key);
       render(root);
+      if (Number.isInteger(seriesId)) {
+        await applyVaultRefresh(root, `series:${seriesId}`);
+      }
       return;
     }
 
@@ -667,6 +675,32 @@ export function mountApp(root: HTMLElement): void {
       next.setSelectionRange(start, end);
     }
   });
+}
+
+async function applyVaultRefresh(root: HTMLElement, id?: string): Promise<void> {
+  if (!state.user) {
+    return;
+  }
+
+  try {
+    const added = await syncVault(id);
+    if (added < 1) {
+      return;
+    }
+
+    state.entries = await fetchCatalog();
+    try {
+      const [ids, lists] = await Promise.all([fetchProgressIds(), fetchLists()]);
+      state.finishedIds = ids;
+      state.lists = lists;
+    } catch {
+      // Keep last library state if a refresh request fails.
+    }
+
+    render(root);
+  } catch {
+    // Daily TMDb sync will catch up if this request fails.
+  }
 }
 
 async function refreshCatalog(root: HTMLElement): Promise<void> {

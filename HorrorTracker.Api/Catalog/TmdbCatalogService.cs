@@ -1,5 +1,6 @@
 using HorrorTracker.Data.TMDB;
 using Npgsql;
+using TMDbLib.Objects.Collections;
 using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.Api.Catalog;
@@ -54,6 +55,50 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         return new { added = imported.Added, id = imported.Id };
     }
 
+    public async Task<object> SyncAsync(string? id, bool force, CancellationToken cancellationToken)
+    {
+        EnsureSeriesSchema();
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            return new { added = await SyncOneAsync(id, cancellationToken) };
+        }
+
+        if (!force && !IsVaultStale())
+        {
+            return new { added = 0, seriesAdded = 0, showsAdded = 0, skipped = true };
+        }
+
+        var tmdb = CreateClient();
+        var seriesAdded = 0;
+        foreach (var seriesId in ListSeriesIds())
+        {
+            try
+            {
+                seriesAdded += await RefreshSeriesAsync(tmdb, seriesId, cancellationToken);
+            }
+            catch
+            {
+                // Keep refreshing the rest of the vault if one series cannot be matched.
+            }
+        }
+
+        var showsAdded = 0;
+        foreach (var showId in ListShowIds())
+        {
+            try
+            {
+                showsAdded += await shows.RefreshFromTmdbAsync(showId, cancellationToken);
+            }
+            catch
+            {
+                // Keep refreshing the rest of the vault if one show cannot be matched.
+            }
+        }
+
+        MarkVaultSynced();
+        return new { added = seriesAdded + showsAdded, seriesAdded, showsAdded };
+    }
+
     private async Task<TmdbImportResult> ImportMovieAsync(MovieDatabaseService tmdb, int tmdbId)
     {
         var movie = await tmdb.GetMovie(tmdbId);
@@ -76,6 +121,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         if (seriesId is int id)
         {
             AddMovieToListsContainingSeries(id, movieId);
+            InvalidateSeriesCompletion(id);
             RefreshSeriesTotals(id);
         }
 
@@ -94,31 +140,11 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             createdSeries = true;
         }
 
-        var added = createdSeries ? 1 : 0;
-        foreach (var part in collection.Parts.Where(part => part.ReleaseDate is not null))
-        {
-            var film = await tmdb.GetMovie(part.Id);
-            var title = (film.Title ?? part.Title ?? string.Empty).Trim();
-            if (title.Length < 1)
-            {
-                continue;
-            }
-
-            var year = YearOf(film.ReleaseDate) ?? YearOf(part.ReleaseDate);
-            var existingId = FindMovieId(title, year);
-            if (existingId is int movieId)
-            {
-                LinkMovieToSeries(movieId, seriesId.Value);
-                continue;
-            }
-
-            var addedMovieId = InsertMovie(title, RuntimeOf(film.Runtime), seriesId, year);
-            AddMovieToListsContainingSeries(seriesId.Value, addedMovieId);
-            added++;
-        }
-
+        EnsureSeriesSchema();
+        SaveSeriesTmdbId(seriesId.Value, collectionId);
+        var moviesAdded = await ImportCollectionPartsAsync(tmdb, seriesId.Value, collection);
         RefreshSeriesTotals(seriesId.Value);
-        return new TmdbImportResult($"series:{seriesId.Value}", added);
+        return new TmdbImportResult($"series:{seriesId.Value}", (createdSeries ? 1 : 0) + moviesAdded);
     }
 
     private async Task<TmdbImportResult> ImportDocumentaryAsync(MovieDatabaseService tmdb, int tmdbId)
@@ -227,6 +253,107 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         {
             return false;
         }
+    }
+
+    private async Task<int> SyncOneAsync(string id, CancellationToken cancellationToken)
+    {
+        var parts = id.Split(':', 2, StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || !int.TryParse(parts[1], out var mediaId) || mediaId < 1)
+        {
+            throw new InvalidOperationException("Choose a series or show to refresh.");
+        }
+
+        if (string.Equals(parts[0], "series", StringComparison.OrdinalIgnoreCase))
+        {
+            return await RefreshSeriesAsync(CreateClient(), mediaId, cancellationToken);
+        }
+
+        if (string.Equals(parts[0], "show", StringComparison.OrdinalIgnoreCase))
+        {
+            return await shows.RefreshFromTmdbAsync(mediaId, cancellationToken);
+        }
+
+        throw new InvalidOperationException("HorrorVerse can refresh series and TV shows from TMDb.");
+    }
+
+    private async Task<int> RefreshSeriesAsync(MovieDatabaseService tmdb, int seriesId, CancellationToken cancellationToken)
+    {
+        _ = cancellationToken;
+        EnsureSeriesSchema();
+        if (!SeriesExists(seriesId))
+        {
+            throw new InvalidOperationException("That series was not found.");
+        }
+
+        var collectionId = ReadSeriesTmdbId(seriesId) ?? await ResolveSeriesTmdbIdAsync(tmdb, seriesId);
+        if (collectionId is null)
+        {
+            return 0;
+        }
+
+        SaveSeriesTmdbId(seriesId, collectionId.Value);
+        var collection = await tmdb.GetCollection(collectionId.Value);
+        var added = await ImportCollectionPartsAsync(tmdb, seriesId, collection);
+        RefreshSeriesTotals(seriesId);
+        return added;
+    }
+
+    private async Task<int> ImportCollectionPartsAsync(MovieDatabaseService tmdb, int seriesId, Collection collection)
+    {
+        var added = 0;
+        foreach (var part in collection.Parts?.Where(part => part.ReleaseDate is not null) ?? [])
+        {
+            var film = await tmdb.GetMovie(part.Id);
+            var title = (film.Title ?? part.Title ?? string.Empty).Trim();
+            if (title.Length < 1)
+            {
+                continue;
+            }
+
+            var year = YearOf(film.ReleaseDate) ?? YearOf(part.ReleaseDate);
+            var existingId = FindMovieId(title, year);
+            if (existingId is int movieId)
+            {
+                LinkMovieToSeries(movieId, seriesId);
+                continue;
+            }
+
+            var addedMovieId = InsertMovie(title, RuntimeOf(film.Runtime), seriesId, year);
+            AddMovieToListsContainingSeries(seriesId, addedMovieId);
+            InvalidateSeriesCompletion(seriesId);
+            added++;
+        }
+
+        return added;
+    }
+
+    private async Task<int?> ResolveSeriesTmdbIdAsync(MovieDatabaseService tmdb, int seriesId)
+    {
+        var title = ReadSeriesTitle(seriesId);
+        if (title.Length < 2)
+        {
+            return null;
+        }
+
+        foreach (var query in new[] { title, $"{title} Collection" })
+        {
+            var results = await tmdb.SearchCollection(query);
+            foreach (var item in results.Results ?? [])
+            {
+                var name = SeriesTitle(item.Name) ?? item.Name;
+                if (!string.Equals(name, title, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (await CollectionIsHorrorAdjacentAsync(tmdb, item.Id))
+                {
+                    return item.Id;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static bool IsHorrorAdjacent(IEnumerable<int>? genreIds) =>
@@ -380,6 +507,25 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         command.ExecuteNonQuery();
     }
 
+    private void InvalidateSeriesCompletion(int seriesId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                DELETE FROM user_media_progress
+                WHERE media_kind = 'series' AND media_id = @seriesId
+                """;
+            command.Parameters.AddWithValue("seriesId", seriesId);
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // Progress table is created on first signed-in use.
+        }
+    }
+
     private void RefreshSeriesTotals(int seriesId)
     {
         using var connection = OpenConnection();
@@ -390,6 +536,126 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
                 TotalTime = COALESCE((SELECT SUM(TotalTime) FROM Movie WHERE SeriesId = @id), 0)
             WHERE Id = @id
             """;
+        command.Parameters.AddWithValue("id", seriesId);
+        command.ExecuteNonQuery();
+    }
+
+    private void EnsureSeriesSchema()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            ALTER TABLE MovieSeries ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
+            CREATE TABLE IF NOT EXISTS catalog_sync (
+                id INTEGER PRIMARY KEY,
+                last_synced_at TIMESTAMPTZ NOT NULL);
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private bool IsVaultStale()
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT last_synced_at FROM catalog_sync WHERE id = 1";
+            var value = command.ExecuteScalar();
+            return value switch
+            {
+                DateTime synced => DateTime.UtcNow - synced.ToUniversalTime() > TimeSpan.FromHours(6),
+                DateTimeOffset synced => DateTimeOffset.UtcNow - synced.ToUniversalTime() > TimeSpan.FromHours(6),
+                _ => true,
+            };
+        }
+        catch (PostgresException)
+        {
+            return true;
+        }
+    }
+
+    private void MarkVaultSynced()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO catalog_sync (id, last_synced_at)
+            VALUES (1, NOW())
+            ON CONFLICT (id) DO UPDATE SET last_synced_at = EXCLUDED.last_synced_at
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private IReadOnlyList<int> ListSeriesIds()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Id FROM MovieSeries ORDER BY Id";
+        using var reader = command.ExecuteReader();
+        var ids = new List<int>();
+        while (reader.Read())
+        {
+            ids.Add(reader.GetInt32(0));
+        }
+
+        return ids;
+    }
+
+    private IReadOnlyList<int> ListShowIds()
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Id FROM Show ORDER BY Id";
+            using var reader = command.ExecuteReader();
+            var ids = new List<int>();
+            while (reader.Read())
+            {
+                ids.Add(reader.GetInt32(0));
+            }
+
+            return ids;
+        }
+        catch (PostgresException)
+        {
+            return [];
+        }
+    }
+
+    private bool SeriesExists(int seriesId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM MovieSeries WHERE Id = @id";
+        command.Parameters.AddWithValue("id", seriesId);
+        return command.ExecuteScalar() is not null;
+    }
+
+    private int? ReadSeriesTmdbId(int seriesId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT TmdbId FROM MovieSeries WHERE Id = @id";
+        command.Parameters.AddWithValue("id", seriesId);
+        return ToInt(command.ExecuteScalar());
+    }
+
+    private string ReadSeriesTitle(int seriesId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Title FROM MovieSeries WHERE Id = @id";
+        command.Parameters.AddWithValue("id", seriesId);
+        return Convert.ToString(command.ExecuteScalar()) ?? string.Empty;
+    }
+
+    private void SaveSeriesTmdbId(int seriesId, int tmdbId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE MovieSeries SET TmdbId = @tmdbId WHERE Id = @id";
+        command.Parameters.AddWithValue("tmdbId", tmdbId);
         command.Parameters.AddWithValue("id", seriesId);
         command.ExecuteNonQuery();
     }
