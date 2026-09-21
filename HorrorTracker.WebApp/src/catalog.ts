@@ -26,6 +26,7 @@ export interface CatalogEntry {
   seriesTitle?: string;
   totalEpisodes?: number;
   numberOfSeasons?: number;
+  keywords?: string[];
 }
 
 export function isMediaKind(value: string): value is MediaKind {
@@ -127,6 +128,7 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
   const seriesTitle = optionalText(entry.seriesTitle);
   const totalEpisodes = optionalPositiveNumber(entry.totalEpisodes);
   const numberOfSeasons = optionalPositiveNumber(entry.numberOfSeasons);
+  const keywords = readKeywords(value);
 
   return {
     id: entry.id,
@@ -140,12 +142,35 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
     ...(seriesTitle !== undefined ? { seriesTitle } : {}),
     ...(totalEpisodes !== undefined ? { totalEpisodes } : {}),
     ...(numberOfSeasons !== undefined ? { numberOfSeasons } : {}),
+    ...(keywords.length > 0 ? { keywords } : {}),
   };
 }
 
 function optionalPositiveNumber(value: unknown): number | undefined {
   const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() !== "" ? Number(value) : Number.NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function readKeywords(value: unknown): string[] {
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const record = value as Record<string, unknown>;
+  const raw = record.keywords ?? record.Keywords;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const names: string[] = [];
+  for (const item of raw) {
+    const name = String(item ?? "").trim();
+    if (name && !names.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
+      names.push(name);
+    }
+  }
+
+  return names;
 }
 
 function optionalText(value: unknown): string | undefined {

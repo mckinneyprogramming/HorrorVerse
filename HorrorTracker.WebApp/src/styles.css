@@ -338,6 +338,11 @@ button.fun-stat:focus-visible {
   -webkit-overflow-scrolling: touch;
 }
 
+.library-tags {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
 .library-search {
   display: flex;
   align-items: end;

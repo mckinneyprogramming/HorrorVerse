@@ -167,6 +167,7 @@ async function importMovie(connectionString: string, tmdbId: number): Promise<Tm
       await addMovieToListsContainingSeries(connectionString, seriesId, existingId);
     }
 
+    await saveMovieKeywords(connectionString, existingId, tmdbId);
     return { added: 0, id: `movie:${existingId}` };
   }
 
@@ -175,10 +176,12 @@ async function importMovie(connectionString: string, tmdbId: number): Promise<Tm
     throw new TmdbError("Could not save that movie.", 500);
   }
 
+  await saveMovieKeywords(connectionString, movieId, tmdbId);
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await invalidateSeriesCompletion(connectionString, seriesId);
     await refreshSeriesTotals(connectionString, seriesId);
+    await replaceSeriesKeywords(connectionString, seriesId);
   }
 
   return { added: 1, id: `movie:${movieId}` };
@@ -222,6 +225,7 @@ async function importSeries(connectionString: string, collectionId: number): Pro
     const existingId = await findMovieId(connectionString, filmTitle, year);
     if (existingId) {
       await linkMovieToSeries(connectionString, existingId, seriesId);
+      await saveMovieKeywords(connectionString, existingId, Number(record.id), true);
       continue;
     }
 
@@ -229,11 +233,13 @@ async function importSeries(connectionString: string, collectionId: number): Pro
     if (movieId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
+      await saveMovieKeywords(connectionString, movieId, Number(record.id));
     }
     added += 1;
   }
 
   await refreshSeriesTotals(connectionString, seriesId);
+  await replaceSeriesKeywords(connectionString, seriesId);
   return { added, id: `series:${seriesId}` };
 }
 
@@ -243,10 +249,12 @@ async function importDocumentary(connectionString: string, tmdbId: number): Prom
   const year = yearFrom(movie.release_date) ?? new Date().getUTCFullYear();
   const existingId = await findDocumentaryId(connectionString, title, year);
   if (existingId) {
+    await saveDocumentaryKeywords(connectionString, existingId, tmdbId);
     return { added: 0, id: `documentary:${existingId}` };
   }
 
   const documentaryId = await insertDocumentary(connectionString, title, runtimeOf(movie.runtime), year);
+  await saveDocumentaryKeywords(connectionString, documentaryId, tmdbId);
   return { added: 1, id: `documentary:${documentaryId}` };
 }
 
@@ -276,6 +284,7 @@ async function importShow(connectionString: string, tmdbId: number): Promise<Tmd
   }
 
   await attachShowSeasons(connectionString, showId, tmdbId, show);
+  await saveShowKeywords(connectionString, showId, tmdbId);
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
 }
 
@@ -429,6 +438,123 @@ async function invalidateSeriesCompletion(connectionString: string, seriesId: nu
   } catch {
     // Progress table is created on first signed-in use.
   }
+}
+
+async function saveMovieKeywords(
+  connectionString: string,
+  movieId: number,
+  tmdbId: number,
+  skipIfPresent = false,
+): Promise<void> {
+  await saveKeywords(connectionString, "movie", movieId, tmdbId, "movie", skipIfPresent);
+}
+
+async function saveDocumentaryKeywords(
+  connectionString: string,
+  documentaryId: number,
+  tmdbId: number,
+  skipIfPresent = false,
+): Promise<void> {
+  await saveKeywords(connectionString, "documentary", documentaryId, tmdbId, "movie", skipIfPresent);
+}
+
+async function saveShowKeywords(
+  connectionString: string,
+  showId: number,
+  tmdbId: number,
+  skipIfPresent = false,
+): Promise<void> {
+  await saveKeywords(connectionString, "show", showId, tmdbId, "tv", skipIfPresent);
+}
+
+async function saveKeywords(
+  connectionString: string,
+  kind: string,
+  mediaId: number,
+  tmdbId: number,
+  tmdbKind: "movie" | "tv",
+  skipIfPresent: boolean,
+): Promise<void> {
+  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+    return;
+  }
+
+  try {
+    await ensureKeywordSchema(connectionString);
+    if (kind === "movie") {
+      await execute(connectionString, "UPDATE movie SET tmdbid = $1 WHERE id = $2", [tmdbId, mediaId]);
+    } else if (kind === "documentary") {
+      await execute(connectionString, "UPDATE documentary SET tmdbid = $1 WHERE id = $2", [tmdbId, mediaId]);
+    }
+
+    if (skipIfPresent) {
+      const existing = await queryRows(
+        connectionString,
+        "SELECT 1 AS present FROM media_keyword WHERE media_kind = $1 AND media_id = $2 LIMIT 1",
+        [kind, mediaId],
+      );
+      if (existing[0]) {
+        return;
+      }
+    }
+
+    const payload = await tmdbJson(`/${tmdbKind}/${tmdbId}/keywords`);
+    const raw = Array.isArray(payload.keywords) ? payload.keywords : Array.isArray(payload.results) ? payload.results : [];
+    await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = $1 AND media_id = $2", [kind, mediaId]);
+    for (const item of raw) {
+      const record = asRecord(item);
+      const keywordId = Number(record?.id);
+      const name = String(record?.name ?? "").trim();
+      if (!Number.isInteger(keywordId) || keywordId < 1 || name.length < 1 || name.length > 80) {
+        continue;
+      }
+
+      await execute(
+        connectionString,
+        `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO UPDATE SET name = EXCLUDED.name`,
+        [kind, mediaId, keywordId, name],
+      );
+    }
+  } catch {
+    // Tags are best-effort and will backfill on vault sync.
+  }
+}
+
+async function replaceSeriesKeywords(connectionString: string, seriesId: number): Promise<void> {
+  try {
+    await ensureKeywordSchema(connectionString);
+    await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
+    await execute(
+      connectionString,
+      `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
+       SELECT DISTINCT ON (k.tmdb_keyword_id) 'series', $1, k.tmdb_keyword_id, k.name
+       FROM media_keyword k
+       JOIN movie m ON m.id = k.media_id
+       WHERE k.media_kind = 'movie' AND m.seriesid = $1
+       ORDER BY k.tmdb_keyword_id, k.name
+       ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO NOTHING`,
+      [seriesId],
+    );
+  } catch {
+    // Series tags are rebuilt after movie tags land.
+  }
+}
+
+async function ensureKeywordSchema(connectionString: string): Promise<void> {
+  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS media_keyword (
+      media_kind TEXT NOT NULL,
+      media_id INTEGER NOT NULL,
+      tmdb_keyword_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      PRIMARY KEY (media_kind, media_id, tmdb_keyword_id)
+    )`,
+  );
 }
 
 async function addMovieToListsContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {

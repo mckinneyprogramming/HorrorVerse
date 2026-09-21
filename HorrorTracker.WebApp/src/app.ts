@@ -32,6 +32,7 @@ import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
 import { syncVault } from "./sync";
+import { isLibraryTagId, keywordsMatchTag, presentLibraryTags } from "./tags";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "lists" | "account" | "install";
@@ -61,6 +62,7 @@ interface AppState {
   expandedSeriesIds: Set<number>;
   expandedListSeries: Set<string>;
   libraryQuery: string;
+  libraryTag: string;
   finishedIds: string[];
   lists: UserList[];
   listPicker: CatalogEntry | null;
@@ -89,6 +91,7 @@ const state: AppState = {
   expandedSeriesIds: new Set<number>(),
   expandedListSeries: new Set<string>(),
   libraryQuery: "",
+  libraryTag: "",
   finishedIds: [],
   lists: [],
   listPicker: null,
@@ -137,6 +140,7 @@ export function mountApp(root: HTMLElement): void {
       state.view = "library";
       state.filter = filter === "all" || (filter && isMediaKind(filter)) ? filter : "all";
       state.libraryQuery = target.dataset.query ?? "";
+      state.libraryTag = "";
       state.sheet = null;
       state.listPicker = null;
       render(root);
@@ -145,6 +149,13 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "filter") {
       state.filter = target.dataset.filter as LibraryFilter;
+      render(root);
+      return;
+    }
+
+    if (action === "filter-tag") {
+      const tag = target.dataset.tag ?? "";
+      state.libraryTag = tag && isLibraryTagId(tag) ? tag : "";
       render(root);
       return;
     }
@@ -1037,7 +1048,7 @@ function renderLibrary(): string {
           data-library-search
           type="search"
           value="${escapeHtml(state.libraryQuery)}"
-          placeholder="Title, series, or year"
+          placeholder="Title, series, year, or tag"
           autocomplete="off"
           enterkeyhint="search"
           aria-label="Search the vault"
@@ -1057,6 +1068,7 @@ function renderLibrary(): string {
     <div class="chips" role="tablist" aria-label="Filter by type">
       ${MEDIA_KINDS.filter((kind) => !usesTmdb(kind.id)).map((kind) => chip(kind.id, kind.label)).join("")}
     </div>
+    ${renderLibraryTags()}
     ${state.filter === "all" ? renderGroupedCatalog() : renderFlatCatalog()}
     ${state.status === "ready" ? renderTmdbCta() : ""}
   `;
@@ -1076,7 +1088,7 @@ function renderFlatCatalog(): string {
 }
 
 function renderGroupedCatalog(): string {
-  const searching = Boolean(normalizeQuery(state.libraryQuery));
+  const searching = Boolean(normalizeQuery(state.libraryQuery) || state.libraryTag);
   const groups = MEDIA_KINDS.map((kind) => ({
     kind,
     entries: matchingEntries().filter((entry) => entry.kind === kind.id),
@@ -1108,7 +1120,7 @@ function renderGroupedCatalog(): string {
 
 function renderMoviesBySeries(movies: CatalogEntry[], showKind: boolean): string {
   const grouped = groupMoviesBySeries(movies);
-  const searching = Boolean(normalizeQuery(state.libraryQuery));
+  const searching = Boolean(normalizeQuery(state.libraryQuery) || state.libraryTag);
   const seriesMarkup = grouped.series
     .map((group) => {
       const open = searching || state.expandedSeriesIds.has(group.seriesId);
@@ -1175,12 +1187,30 @@ function seriesNameForMovie(movie: CatalogEntry): string {
 }
 
 function matchingEntries(): CatalogEntry[] {
-  const query = normalizeQuery(state.libraryQuery);
-  if (!query) {
-    return state.entries;
+  return state.entries.filter((entry) => matchesLibrary(entry));
+}
+
+function matchesLibrary(entry: CatalogEntry): boolean {
+  if (state.libraryTag && !entryMatchesTag(entry, state.libraryTag)) {
+    return false;
   }
 
-  return state.entries.filter((entry) => matchesSearch(entry, query));
+  const query = normalizeQuery(state.libraryQuery);
+  return !query || matchesSearch(entry, query);
+}
+
+function entryMatchesTag(entry: CatalogEntry, tagId: string): boolean {
+  if (keywordsMatchTag(entry.keywords, tagId)) {
+    return true;
+  }
+
+  if (entry.kind === "series") {
+    return state.entries.some(
+      (item) => item.kind === "movie" && item.seriesId === entry.mediaId && keywordsMatchTag(item.keywords, tagId),
+    );
+  }
+
+  return false;
 }
 
 function matchesSearch(entry: CatalogEntry, query: string): boolean {
@@ -1190,11 +1220,32 @@ function matchesSearch(entry: CatalogEntry, query: string): boolean {
     MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? "",
     entry.releaseYear ? String(entry.releaseYear) : "",
     movieDetailLine(entry) ?? "",
+    ...(entry.keywords ?? []),
   ]
     .join(" ")
     .toLowerCase();
 
   return haystack.includes(query);
+}
+
+function renderLibraryTags(): string {
+  const tags = presentLibraryTags(state.entries);
+  if (tags.length === 0) {
+    return "";
+  }
+
+  const allActive = !state.libraryTag ? " is-active" : "";
+  return `
+    <div class="chips library-tags" role="tablist" aria-label="Filter by tag">
+      <button class="chip${allActive}" type="button" data-action="filter-tag" data-tag="">All tags</button>
+      ${tags
+        .map((tag) => {
+          const active = state.libraryTag === tag.id ? " is-active" : "";
+          return `<button class="chip${active}" type="button" data-action="filter-tag" data-tag="${tag.id}">${escapeHtml(tag.label)}</button>`;
+        })
+        .join("")}
+    </div>
+  `;
 }
 
 function normalizeQuery(value: string): string {
@@ -1317,8 +1368,16 @@ function emptyCopy(): string {
   }
 
   const query = state.libraryQuery.trim();
+  if (query && state.libraryTag) {
+    return `No titles match “${escapeHtml(query)}” with that tag.`;
+  }
+
   if (query) {
     return `No titles match “${escapeHtml(query)}”.`;
+  }
+
+  if (state.libraryTag) {
+    return "No titles in the vault have that tag yet.";
   }
 
   return "Nothing in this part of the vault yet.";

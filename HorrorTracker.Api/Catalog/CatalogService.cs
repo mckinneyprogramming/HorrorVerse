@@ -8,6 +8,7 @@ public sealed class CatalogService(
     MovieRepository movies,
     MovieSeriesRepository series,
     DocumentaryRepository documentaries,
+    KeywordCatalogService keywords,
     IConfiguration configuration,
     ILogger<CatalogService> logger)
 {
@@ -22,7 +23,7 @@ public sealed class CatalogService(
         items.AddRange(Read(() => documentaries.GetAll().Select(MapDocumentary), "documentaries"));
         items.AddRange(ReadShows());
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Read FROM Book", "book"));
-        return items;
+        return AttachKeywords(items);
     }
 
     public IReadOnlyList<CatalogItemDto> GetByKind(string kind)
@@ -70,6 +71,26 @@ public sealed class CatalogService(
         {
             throw new InvalidOperationException("That title was not found.");
         }
+
+        keywords.DeleteFor(kind, mediaId);
+    }
+
+    private IReadOnlyList<CatalogItemDto> AttachKeywords(List<CatalogItemDto> items)
+    {
+        IReadOnlyDictionary<string, IReadOnlyList<string>> tags;
+        try
+        {
+            tags = keywords.LoadAll();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not load catalog keywords from PostgreSQL.");
+            return items;
+        }
+
+        return items
+            .Select(item => tags.TryGetValue(item.Id, out var names) ? item with { Keywords = names } : item)
+            .ToList();
     }
 
     private IEnumerable<T> Read<T>(Func<IEnumerable<T>> source, string name)

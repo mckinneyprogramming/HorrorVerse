@@ -5,7 +5,7 @@ using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.Api.Catalog;
 
-public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideService shows)
+public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideService shows, KeywordCatalogService keywords)
 {
     private const int MaxResults = 8;
     private const int MaxCollectionCandidates = 16;
@@ -36,7 +36,6 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
 
     public async Task<object> ImportAsync(TmdbImportRequest request, CancellationToken cancellationToken)
     {
-        _ = cancellationToken;
         var kind = NormalizeTmdbKind(request.Kind);
         if (request.TmdbId < 1)
         {
@@ -46,10 +45,10 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         var tmdb = CreateClient();
         var imported = kind switch
         {
-            "series" => await ImportSeriesAsync(tmdb, request.TmdbId),
+            "series" => await ImportSeriesAsync(tmdb, request.TmdbId, cancellationToken),
             "show" => await ImportShowAsync(tmdb, request.TmdbId, cancellationToken),
-            "documentary" => await ImportDocumentaryAsync(tmdb, request.TmdbId),
-            _ => await ImportMovieAsync(tmdb, request.TmdbId),
+            "documentary" => await ImportDocumentaryAsync(tmdb, request.TmdbId, cancellationToken),
+            _ => await ImportMovieAsync(tmdb, request.TmdbId, cancellationToken),
         };
 
         return new { added = imported.Added, id = imported.Id };
@@ -58,14 +57,18 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
     public async Task<object> SyncAsync(string? id, bool force, CancellationToken cancellationToken)
     {
         EnsureSeriesSchema();
+        keywords.EnsureSchema();
         if (!string.IsNullOrWhiteSpace(id))
         {
-            return new { added = await SyncOneAsync(id, cancellationToken) };
+            var added = await SyncOneAsync(id, cancellationToken);
+            await RefreshKeywordsForIdAsync(id, cancellationToken);
+            return new { added };
         }
 
+        var tagged = await RefreshMissingKeywordsAsync(cancellationToken);
         if (!force && !IsVaultStale())
         {
-            return new { added = 0, seriesAdded = 0, showsAdded = 0, skipped = true };
+            return new { added = tagged, seriesAdded = 0, showsAdded = 0, keywordsAdded = tagged, skipped = tagged == 0 };
         }
 
         var tmdb = CreateClient();
@@ -95,11 +98,12 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             }
         }
 
+        tagged += await RefreshMissingKeywordsAsync(cancellationToken);
         MarkVaultSynced();
-        return new { added = seriesAdded + showsAdded, seriesAdded, showsAdded };
+        return new { added = seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded = tagged };
     }
 
-    private async Task<TmdbImportResult> ImportMovieAsync(MovieDatabaseService tmdb, int tmdbId)
+    private async Task<TmdbImportResult> ImportMovieAsync(MovieDatabaseService tmdb, int tmdbId, CancellationToken cancellationToken)
     {
         var movie = await tmdb.GetMovie(tmdbId);
         var title = RequireTitle(movie.Title);
@@ -114,21 +118,24 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
                 AddMovieToListsContainingSeries(existingSeriesId, existingId);
             }
 
+            await keywords.SaveMovieAsync(existingId, tmdbId, cancellationToken: cancellationToken);
             return new TmdbImportResult($"movie:{existingId}", 0);
         }
 
         var movieId = InsertMovie(title, runtime, seriesId, year);
+        await keywords.SaveMovieAsync(movieId, tmdbId, cancellationToken: cancellationToken);
         if (seriesId is int id)
         {
             AddMovieToListsContainingSeries(id, movieId);
             InvalidateSeriesCompletion(id);
             RefreshSeriesTotals(id);
+            keywords.ReplaceSeriesFromMovies(id);
         }
 
         return new TmdbImportResult($"movie:{movieId}", 1);
     }
 
-    private async Task<TmdbImportResult> ImportSeriesAsync(MovieDatabaseService tmdb, int collectionId)
+    private async Task<TmdbImportResult> ImportSeriesAsync(MovieDatabaseService tmdb, int collectionId, CancellationToken cancellationToken)
     {
         var collection = await tmdb.GetCollection(collectionId);
         var seriesTitle = SeriesTitle(collection.Name) ?? RequireTitle(collection.Name);
@@ -142,22 +149,25 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
 
         EnsureSeriesSchema();
         SaveSeriesTmdbId(seriesId.Value, collectionId);
-        var moviesAdded = await ImportCollectionPartsAsync(tmdb, seriesId.Value, collection);
+        var moviesAdded = await ImportCollectionPartsAsync(tmdb, seriesId.Value, collection, cancellationToken);
         RefreshSeriesTotals(seriesId.Value);
+        keywords.ReplaceSeriesFromMovies(seriesId.Value);
         return new TmdbImportResult($"series:{seriesId.Value}", (createdSeries ? 1 : 0) + moviesAdded);
     }
 
-    private async Task<TmdbImportResult> ImportDocumentaryAsync(MovieDatabaseService tmdb, int tmdbId)
+    private async Task<TmdbImportResult> ImportDocumentaryAsync(MovieDatabaseService tmdb, int tmdbId, CancellationToken cancellationToken)
     {
         var movie = await tmdb.GetMovie(tmdbId);
         var title = RequireTitle(movie.Title);
         var year = YearOf(movie.ReleaseDate) ?? DateTime.UtcNow.Year;
         if (FindDocumentaryId(title, year) is int existingId)
         {
+            await keywords.SaveDocumentaryAsync(existingId, tmdbId, cancellationToken: cancellationToken);
             return new TmdbImportResult($"documentary:{existingId}", 0);
         }
 
         var documentaryId = InsertDocumentary(title, RuntimeOf(movie.Runtime), year);
+        await keywords.SaveDocumentaryAsync(documentaryId, tmdbId, cancellationToken: cancellationToken);
         return new TmdbImportResult($"documentary:{documentaryId}", 1);
     }
 
@@ -173,6 +183,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         var totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
         var showId = existingId ?? InsertShow(title, totalTime, episodes, seasons);
         await shows.AttachImportedShowAsync(tmdb, showId, tmdbId, show, cancellationToken);
+        await keywords.SaveShowAsync(showId, tmdbId, cancellationToken: cancellationToken);
         return new TmdbImportResult($"show:{showId}", existingId is null ? 1 : 0);
     }
 
@@ -276,6 +287,147 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         throw new InvalidOperationException("HorrorVerse can refresh series and TV shows from TMDb.");
     }
 
+    private async Task RefreshKeywordsForIdAsync(string id, CancellationToken cancellationToken)
+    {
+        var parts = id.Split(':', 2, StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || !int.TryParse(parts[1], out var mediaId) || mediaId < 1)
+        {
+            return;
+        }
+
+        if (string.Equals(parts[0], "series", StringComparison.OrdinalIgnoreCase))
+        {
+            await RefreshMissingKeywordsAsync(cancellationToken, "movie");
+            keywords.ReplaceSeriesFromMovies(mediaId);
+            return;
+        }
+
+        if (string.Equals(parts[0], "show", StringComparison.OrdinalIgnoreCase))
+        {
+            await RefreshMissingKeywordsAsync(cancellationToken, "show", mediaId);
+        }
+    }
+
+    private async Task<int> RefreshMissingKeywordsAsync(CancellationToken cancellationToken, string? onlyKind = null, int? onlyId = null)
+    {
+        keywords.EnsureSchema();
+        var tmdb = CreateClient();
+        var added = 0;
+        if (onlyKind is null or "movie")
+        {
+            foreach (var movie in keywords.ListMovies().Where(item => onlyId is null || item.Id == onlyId.Value))
+            {
+                try
+                {
+                    if (keywords.HasAny("movie", movie.Id))
+                    {
+                        continue;
+                    }
+
+                    var tmdbId = movie.TmdbId ?? await ResolveMovieTmdbIdAsync(tmdb, movie.Title, movie.Year);
+                    if (tmdbId is not int resolved)
+                    {
+                        continue;
+                    }
+
+                    await keywords.SaveMovieAsync(movie.Id, resolved, cancellationToken: cancellationToken);
+                    added++;
+                }
+                catch
+                {
+                    // Keep tagging the rest of the vault if one title cannot be matched.
+                }
+            }
+        }
+
+        if (onlyKind is null or "documentary")
+        {
+            foreach (var documentary in keywords.ListDocumentaries().Where(item => onlyId is null || item.Id == onlyId.Value))
+            {
+                try
+                {
+                    if (keywords.HasAny("documentary", documentary.Id))
+                    {
+                        continue;
+                    }
+
+                    var tmdbId = documentary.TmdbId ?? await ResolveMovieTmdbIdAsync(tmdb, documentary.Title, documentary.Year);
+                    if (tmdbId is not int resolved)
+                    {
+                        continue;
+                    }
+
+                    await keywords.SaveDocumentaryAsync(documentary.Id, resolved, cancellationToken: cancellationToken);
+                    added++;
+                }
+                catch
+                {
+                    // Keep tagging the rest of the vault if one title cannot be matched.
+                }
+            }
+        }
+
+        if (onlyKind is null or "show")
+        {
+            foreach (var show in keywords.ListShows().Where(item => onlyId is null || item.Id == onlyId.Value))
+            {
+                try
+                {
+                    if (keywords.HasAny("show", show.Id))
+                    {
+                        continue;
+                    }
+
+                    if (show.TmdbId is not int resolved)
+                    {
+                        continue;
+                    }
+
+                    await keywords.SaveShowAsync(show.Id, resolved, cancellationToken: cancellationToken);
+                    added++;
+                }
+                catch
+                {
+                    // Keep tagging the rest of the vault if one title cannot be matched.
+                }
+            }
+        }
+
+        if (onlyKind is null or "movie" or "series")
+        {
+            foreach (var seriesId in keywords.ListSeriesIds())
+            {
+                try
+                {
+                    keywords.ReplaceSeriesFromMovies(seriesId);
+                }
+                catch
+                {
+                    // Series tags can be rebuilt on the next sync.
+                }
+            }
+        }
+
+        return added;
+    }
+
+    private async Task<int?> ResolveMovieTmdbIdAsync(MovieDatabaseService tmdb, string title, int? year)
+    {
+        if (title.Length < 2)
+        {
+            return null;
+        }
+
+        var results = await tmdb.SearchMovie(title);
+        var matches = (results.Results ?? [])
+            .Where(item => string.Equals(item.Title?.Trim(), title, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var match = year is int releaseYear
+            ? matches.FirstOrDefault(item => YearOf(item.ReleaseDate) == releaseYear) ?? matches.FirstOrDefault()
+            : matches.FirstOrDefault();
+        return match?.Id;
+    }
+
     private async Task<int> RefreshSeriesAsync(MovieDatabaseService tmdb, int seriesId, CancellationToken cancellationToken)
     {
         _ = cancellationToken;
@@ -293,12 +445,13 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
 
         SaveSeriesTmdbId(seriesId, collectionId.Value);
         var collection = await tmdb.GetCollection(collectionId.Value);
-        var added = await ImportCollectionPartsAsync(tmdb, seriesId, collection);
+        var added = await ImportCollectionPartsAsync(tmdb, seriesId, collection, cancellationToken);
         RefreshSeriesTotals(seriesId);
+        keywords.ReplaceSeriesFromMovies(seriesId);
         return added;
     }
 
-    private async Task<int> ImportCollectionPartsAsync(MovieDatabaseService tmdb, int seriesId, Collection collection)
+    private async Task<int> ImportCollectionPartsAsync(MovieDatabaseService tmdb, int seriesId, Collection collection, CancellationToken cancellationToken)
     {
         var added = 0;
         foreach (var part in collection.Parts?.Where(part => part.ReleaseDate is not null) ?? [])
@@ -315,12 +468,14 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             if (existingId is int movieId)
             {
                 LinkMovieToSeries(movieId, seriesId);
+                await keywords.SaveMovieAsync(movieId, part.Id, skipIfPresent: true, cancellationToken);
                 continue;
             }
 
             var addedMovieId = InsertMovie(title, RuntimeOf(film.Runtime), seriesId, year);
             AddMovieToListsContainingSeries(seriesId, addedMovieId);
             InvalidateSeriesCompletion(seriesId);
+            await keywords.SaveMovieAsync(addedMovieId, part.Id, cancellationToken: cancellationToken);
             added++;
         }
 

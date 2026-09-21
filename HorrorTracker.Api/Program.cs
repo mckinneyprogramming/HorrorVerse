@@ -24,6 +24,7 @@ builder.Services.AddScoped<MovieSeriesRepository>();
 builder.Services.AddScoped<DocumentaryRepository>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<ShowGuideService>();
+builder.Services.AddScoped<KeywordCatalogService>();
 builder.Services.AddScoped<TmdbCatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserLibraryService>();

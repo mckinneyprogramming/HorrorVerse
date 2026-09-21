@@ -13,19 +13,24 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const id = (url.searchParams.get("id") ?? "").trim();
     await ensureSeriesSchema(connectionString);
+    await ensureKeywordSchema(connectionString);
     if (id) {
-      return Response.json({ added: await syncOne(connectionString, id) });
+      const added = await syncOne(connectionString, id);
+      await refreshMissingKeywords(connectionString, id);
+      return Response.json({ added });
     }
 
     const force = cron || Boolean(user?.isAdmin);
+    let tagged = await refreshMissingKeywords(connectionString);
     if (!force && !(await isVaultStale(connectionString))) {
-      return Response.json({ added: 0, seriesAdded: 0, showsAdded: 0, skipped: true });
+      return Response.json({ added: tagged, seriesAdded: 0, showsAdded: 0, keywordsAdded: tagged, skipped: tagged === 0 });
     }
 
     const seriesAdded = await syncAllSeries(connectionString);
     const showsAdded = await syncAllShows(connectionString);
+    tagged += await refreshMissingKeywords(connectionString);
     await markVaultSynced(connectionString);
-    return Response.json({ added: seriesAdded + showsAdded, seriesAdded, showsAdded });
+    return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged });
   } catch (error) {
     return jsonError(error);
   }
@@ -129,6 +134,7 @@ async function syncSeries(connectionString: string, seriesId: number): Promise<n
         "UPDATE movie SET partofseries = TRUE, seriesid = $1 WHERE id = $2 AND (seriesid IS NULL OR seriesid = 0)",
         [seriesId, existingId],
       );
+      await saveMovieKeywords(connectionString, existingId, Number(record.id), true);
       continue;
     }
 
@@ -144,6 +150,7 @@ async function syncSeries(connectionString: string, seriesId: number): Promise<n
     if (movieId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
+      await saveMovieKeywords(connectionString, movieId, Number(record.id));
       added += 1;
     }
   }
@@ -156,6 +163,7 @@ async function syncSeries(connectionString: string, seriesId: number): Promise<n
      WHERE id = $1`,
     [seriesId],
   );
+  await replaceSeriesKeywords(connectionString, seriesId);
   return added;
 }
 
@@ -214,6 +222,7 @@ async function refreshShowSeasons(connectionString: string, showId: number, tmdb
     await invalidateShowCompletion(connectionString, showId);
   }
 
+  await saveShowKeywords(connectionString, showId, tmdbId, true);
   return added;
 }
 
@@ -358,6 +367,226 @@ async function invalidateSeriesCompletion(connectionString: string, seriesId: nu
   } catch {
     // Progress table is created on first signed-in use.
   }
+}
+
+async function refreshMissingKeywords(connectionString: string, id?: string): Promise<number> {
+  await ensureKeywordSchema(connectionString);
+  const parts = (id ?? "").split(":");
+  const onlyKind = parts[0] || undefined;
+  const onlyId = Number(parts[1]);
+  const scopedId = Number.isInteger(onlyId) && onlyId > 0 ? onlyId : undefined;
+  let added = 0;
+
+  if (!onlyKind || onlyKind === "movie" || onlyKind === "series") {
+    const movies = await queryRows(connectionString, "SELECT id, title, releaseyear, tmdbid FROM movie ORDER BY id");
+    for (const row of movies) {
+      const movieId = asId(row);
+      if (!movieId || (scopedId && onlyKind === "movie" && movieId !== scopedId)) {
+        continue;
+      }
+
+      try {
+        if (await hasKeywords(connectionString, "movie", movieId)) {
+          continue;
+        }
+
+        const tmdbId = asId(row, "tmdbid") ?? (await resolveMovieTmdbId(String(row.title ?? ""), yearFrom(row.releaseyear)));
+        if (!tmdbId) {
+          continue;
+        }
+
+        await saveMovieKeywords(connectionString, movieId, tmdbId);
+        added += 1;
+      } catch {
+        // Keep tagging the rest of the vault if one title cannot be matched.
+      }
+    }
+  }
+
+  if (!onlyKind || onlyKind === "documentary") {
+    const docs = await queryRows(connectionString, "SELECT id, title, releaseyear, tmdbid FROM documentary ORDER BY id");
+    for (const row of docs) {
+      const documentaryId = asId(row);
+      if (!documentaryId || (scopedId && documentaryId !== scopedId)) {
+        continue;
+      }
+
+      try {
+        if (await hasKeywords(connectionString, "documentary", documentaryId)) {
+          continue;
+        }
+
+        const tmdbId = asId(row, "tmdbid") ?? (await resolveMovieTmdbId(String(row.title ?? ""), yearFrom(row.releaseyear)));
+        if (!tmdbId) {
+          continue;
+        }
+
+        await saveDocumentaryKeywords(connectionString, documentaryId, tmdbId);
+        added += 1;
+      } catch {
+        // Keep tagging the rest of the vault if one title cannot be matched.
+      }
+    }
+  }
+
+  if (!onlyKind || onlyKind === "show") {
+    const shows = await queryRows(connectionString, "SELECT id, tmdbid FROM show ORDER BY id");
+    for (const row of shows) {
+      const showId = asId(row);
+      if (!showId || (scopedId && showId !== scopedId)) {
+        continue;
+      }
+
+      try {
+        if (await hasKeywords(connectionString, "show", showId)) {
+          continue;
+        }
+
+        const tmdbId = asId(row, "tmdbid");
+        if (!tmdbId) {
+          continue;
+        }
+
+        await saveShowKeywords(connectionString, showId, tmdbId);
+        added += 1;
+      } catch {
+        // Keep tagging the rest of the vault if one title cannot be matched.
+      }
+    }
+  }
+
+  const seriesRows = await queryRows(connectionString, "SELECT id FROM movieseries ORDER BY id");
+  for (const row of seriesRows) {
+    const seriesId = asId(row);
+    if (seriesId) {
+      await replaceSeriesKeywords(connectionString, seriesId);
+    }
+  }
+
+  return added;
+}
+
+async function resolveMovieTmdbId(title: string, year: number | undefined): Promise<number | undefined> {
+  if (title.length < 2) {
+    return undefined;
+  }
+
+  const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(title)}&include_adult=false`);
+  const matches = asResults(payload).filter(
+    (item) => String(item.title ?? "").trim().toLowerCase() === title.toLowerCase(),
+  );
+  const match =
+    year !== undefined
+      ? matches.find((item) => yearFrom(item.release_date) === year) ?? matches[0]
+      : matches[0];
+  const tmdbId = Number(match?.id);
+  return Number.isInteger(tmdbId) && tmdbId > 0 ? tmdbId : undefined;
+}
+
+async function hasKeywords(connectionString: string, kind: string, mediaId: number): Promise<boolean> {
+  const rows = await queryRows(
+    connectionString,
+    "SELECT 1 AS present FROM media_keyword WHERE media_kind = $1 AND media_id = $2 LIMIT 1",
+    [kind, mediaId],
+  );
+  return Boolean(rows[0]);
+}
+
+async function saveMovieKeywords(
+  connectionString: string,
+  movieId: number,
+  tmdbId: number,
+  skipIfPresent = false,
+): Promise<void> {
+  await saveKeywords(connectionString, "movie", movieId, tmdbId, "movie", skipIfPresent);
+}
+
+async function saveDocumentaryKeywords(connectionString: string, documentaryId: number, tmdbId: number): Promise<void> {
+  await saveKeywords(connectionString, "documentary", documentaryId, tmdbId, "movie", false);
+}
+
+async function saveShowKeywords(
+  connectionString: string,
+  showId: number,
+  tmdbId: number,
+  skipIfPresent = false,
+): Promise<void> {
+  await saveKeywords(connectionString, "show", showId, tmdbId, "tv", skipIfPresent);
+}
+
+async function saveKeywords(
+  connectionString: string,
+  kind: string,
+  mediaId: number,
+  tmdbId: number,
+  tmdbKind: "movie" | "tv",
+  skipIfPresent: boolean,
+): Promise<void> {
+  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+    return;
+  }
+
+  await ensureKeywordSchema(connectionString);
+  if (kind === "movie") {
+    await execute(connectionString, "UPDATE movie SET tmdbid = $1 WHERE id = $2", [tmdbId, mediaId]);
+  } else if (kind === "documentary") {
+    await execute(connectionString, "UPDATE documentary SET tmdbid = $1 WHERE id = $2", [tmdbId, mediaId]);
+  }
+
+  if (skipIfPresent && (await hasKeywords(connectionString, kind, mediaId))) {
+    return;
+  }
+
+  const payload = await tmdbJson(`/${tmdbKind}/${tmdbId}/keywords`);
+  const raw = Array.isArray(payload.keywords) ? payload.keywords : Array.isArray(payload.results) ? payload.results : [];
+  await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = $1 AND media_id = $2", [kind, mediaId]);
+  for (const item of raw) {
+    const record = asRecord(item);
+    const keywordId = Number(record?.id);
+    const name = String(record?.name ?? "").trim();
+    if (!Number.isInteger(keywordId) || keywordId < 1 || name.length < 1 || name.length > 80) {
+      continue;
+    }
+
+    await execute(
+      connectionString,
+      `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO UPDATE SET name = EXCLUDED.name`,
+      [kind, mediaId, keywordId, name],
+    );
+  }
+}
+
+async function replaceSeriesKeywords(connectionString: string, seriesId: number): Promise<void> {
+  await ensureKeywordSchema(connectionString);
+  await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
+  await execute(
+    connectionString,
+      `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
+       SELECT DISTINCT ON (k.tmdb_keyword_id) 'series', $1, k.tmdb_keyword_id, k.name
+       FROM media_keyword k
+       JOIN movie m ON m.id = k.media_id
+       WHERE k.media_kind = 'movie' AND m.seriesid = $1
+       ORDER BY k.tmdb_keyword_id, k.name
+       ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO NOTHING`,
+    [seriesId],
+  );
+}
+
+async function ensureKeywordSchema(connectionString: string): Promise<void> {
+  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS media_keyword (
+      media_kind TEXT NOT NULL,
+      media_id INTEGER NOT NULL,
+      tmdb_keyword_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      PRIMARY KEY (media_kind, media_id, tmdb_keyword_id)
+    )`,
+  );
 }
 
 async function invalidateShowCompletion(connectionString: string, showId: number): Promise<void> {

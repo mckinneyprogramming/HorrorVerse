@@ -13,6 +13,7 @@ interface CatalogItem {
   seriesTitle?: string;
   totalEpisodes?: number;
   numberOfSeasons?: number;
+  keywords?: string[];
 }
 
 export async function GET() {
@@ -64,6 +65,7 @@ export async function DELETE(request: Request) {
     await ensureOptionalTables(connectionString, kind);
     await execute(connectionString, deleteSql(kind), [mediaId]);
     await purgeUserMedia(connectionString, kind, mediaId);
+    await deleteKeywords(connectionString, kind, mediaId);
     return Response.json({ ok: true });
   });
 }
@@ -74,7 +76,7 @@ async function loadCatalog(): Promise<CatalogItem[]> {
     throw new Error("DATABASE_URL is not configured.");
   }
 
-  return [
+  const items = [
     ...(await readTable(
       connectionString,
       `SELECT m.id,
@@ -101,6 +103,7 @@ async function loadCatalog(): Promise<CatalogItem[]> {
     )),
     ...(await readOptional(connectionString, "SELECT id, title, read AS completed FROM book", "book")),
   ];
+  return attachKeywords(connectionString, items);
 }
 
 async function readTable(
@@ -139,6 +142,56 @@ async function queryRows(
 
 async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
   await neonRequest(connectionString, query, params);
+}
+
+async function attachKeywords(connectionString: string, items: CatalogItem[]): Promise<CatalogItem[]> {
+  try {
+    await execute(
+      connectionString,
+      `CREATE TABLE IF NOT EXISTS media_keyword (
+        media_kind TEXT NOT NULL,
+        media_id INTEGER NOT NULL,
+        tmdb_keyword_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        PRIMARY KEY (media_kind, media_id, tmdb_keyword_id)
+      )`,
+    );
+    const rows = await queryRows(
+      connectionString,
+      "SELECT media_kind, media_id, name FROM media_keyword ORDER BY lower(name)",
+    );
+    const grouped = new Map<string, string[]>();
+    for (const row of rows) {
+      const kind = String(row.media_kind ?? "");
+      const mediaId = Number(row.media_id);
+      const name = String(row.name ?? "").trim();
+      if (!kind || !Number.isInteger(mediaId) || mediaId < 1 || !name) {
+        continue;
+      }
+
+      const key = `${kind}:${mediaId}`;
+      const names = grouped.get(key) ?? [];
+      if (!names.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
+        names.push(name);
+        grouped.set(key, names);
+      }
+    }
+
+    return items.map((item) => {
+      const names = grouped.get(item.id);
+      return names?.length ? { ...item, keywords: names } : item;
+    });
+  } catch {
+    return items;
+  }
+}
+
+async function deleteKeywords(connectionString: string, kind: string, mediaId: number): Promise<void> {
+  try {
+    await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = $1 AND media_id = $2", [kind, mediaId]);
+  } catch {
+    // Keyword table is created on first catalog read or TMDb import.
+  }
 }
 
 async function purgeUserMedia(connectionString: string, kind: string, mediaId: number): Promise<void> {
