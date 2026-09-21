@@ -54,6 +54,8 @@ interface AppState {
   catalogBusy: boolean;
   catalogMessage: string;
   collapsedKinds: Set<MediaKind>;
+  expandedSeriesIds: Set<number>;
+  expandedListSeries: Set<string>;
   libraryQuery: string;
   finishedIds: string[];
   lists: UserList[];
@@ -77,6 +79,8 @@ const state: AppState = {
   catalogBusy: false,
   catalogMessage: "",
   collapsedKinds: new Set<MediaKind>(),
+  expandedSeriesIds: new Set<number>(),
+  expandedListSeries: new Set<string>(),
   libraryQuery: "",
   finishedIds: [],
   lists: [],
@@ -137,6 +141,40 @@ export function mountApp(root: HTMLElement): void {
         state.collapsedKinds.delete(kind);
       } else {
         state.collapsedKinds.add(kind);
+      }
+
+      render(root);
+      return;
+    }
+
+    if (action === "toggle-series") {
+      event.preventDefault();
+      const seriesId = Number(target.dataset.seriesId);
+      if (!Number.isInteger(seriesId)) {
+        return;
+      }
+
+      if (state.expandedSeriesIds.has(seriesId)) {
+        state.expandedSeriesIds.delete(seriesId);
+      } else {
+        state.expandedSeriesIds.add(seriesId);
+      }
+
+      render(root);
+      return;
+    }
+
+    if (action === "toggle-list-series") {
+      event.preventDefault();
+      const key = listSeriesKey(target.dataset.listId, target.dataset.seriesId);
+      if (!key) {
+        return;
+      }
+
+      if (state.expandedListSeries.has(key)) {
+        state.expandedListSeries.delete(key);
+      } else {
+        state.expandedListSeries.add(key);
       }
 
       render(root);
@@ -816,18 +854,20 @@ function renderGroupedCatalog(): string {
 
 function renderMoviesBySeries(movies: CatalogEntry[], showKind: boolean): string {
   const grouped = groupMoviesBySeries(movies);
+  const searching = Boolean(normalizeQuery(state.libraryQuery));
   const seriesMarkup = grouped.series
-    .map(
-      (group) => `
-        <details class="list-series-group" open>
-          <summary>
+    .map((group) => {
+      const open = searching || state.expandedSeriesIds.has(group.seriesId);
+      return `
+        <details class="list-series-group"${open ? " open" : ""}>
+          <summary data-action="toggle-series" data-series-id="${group.seriesId}">
             <span class="list-series-label">${escapeHtml(group.title)}</span>
             <span class="list-series-count">${group.movies.length}</span>
           </summary>
           <ul class="catalog">${group.movies.map((movie) => renderEntry(movie, false, true)).join("")}</ul>
         </details>
-      `,
-    )
+      `;
+    })
     .join("");
   const standaloneMarkup =
     grouped.standalone.length > 0
@@ -842,10 +882,10 @@ function renderMoviesBySeries(movies: CatalogEntry[], showKind: boolean): string
 }
 
 function groupMoviesBySeries(movies: CatalogEntry[]): {
-  series: { title: string; movies: CatalogEntry[] }[];
+  series: { seriesId: number; title: string; movies: CatalogEntry[] }[];
   standalone: CatalogEntry[];
 } {
-  const groups = new Map<number, { title: string; movies: CatalogEntry[] }>();
+  const groups = new Map<number, { seriesId: number; title: string; movies: CatalogEntry[] }>();
   const standalone: CatalogEntry[] = [];
 
   for (const movie of movies) {
@@ -860,7 +900,7 @@ function groupMoviesBySeries(movies: CatalogEntry[]): {
       continue;
     }
 
-    groups.set(movie.seriesId, { title: seriesNameForMovie(movie), movies: [movie] });
+    groups.set(movie.seriesId, { seriesId: movie.seriesId, title: seriesNameForMovie(movie), movies: [movie] });
   }
 
   return {
@@ -1167,14 +1207,15 @@ function groupListEntries(list: UserList): {
 }
 
 function renderListSeries(group: { series: CatalogEntry; movies: CatalogEntry[] }, listId: number): string {
+  const expanded = state.expandedListSeries.has(listSeriesKey(listId, group.series.mediaId));
   return `
     <div class="list-series">
       <ul class="catalog">${renderListItem(group.series, listId)}</ul>
       ${
         group.movies.length > 0
           ? `
-            <details class="list-series-group" open>
-              <summary>
+            <details class="list-series-group"${expanded ? " open" : ""}>
+              <summary data-action="toggle-list-series" data-list-id="${listId}" data-series-id="${group.series.mediaId}">
                 <span class="list-series-label">Movies</span>
                 <span class="list-series-count">${group.movies.length}</span>
               </summary>
@@ -1185,6 +1226,12 @@ function renderListSeries(group: { series: CatalogEntry; movies: CatalogEntry[] 
       }
     </div>
   `;
+}
+
+function listSeriesKey(listId: number | string | undefined, seriesId: number | string | undefined): string {
+  const list = Number(listId);
+  const series = Number(seriesId);
+  return Number.isInteger(list) && Number.isInteger(series) ? `${list}:${series}` : "";
 }
 
 function renderListItem(entry: CatalogEntry, listId: number, nested = false): string {
