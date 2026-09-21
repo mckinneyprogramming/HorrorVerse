@@ -162,13 +162,47 @@ h1 {
   line-height: 1.45;
 }
 
+.fun-stats-note {
+  margin: 0 0 16px;
+}
+
+.fun-stats-note button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--crimson);
+  font: inherit;
+  cursor: pointer;
+}
+
+.fun-stats-group + .fun-stats-group {
+  margin-top: 18px;
+}
+
+.fun-stats-group h3 {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fun-stats-group > p {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .fun-stats-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
 }
 
-.fun-stats-grid.is-curiosities {
+.fun-stats-grid.is-curiosities,
+.fun-stats-grid.is-kinds {
   margin-top: 10px;
   grid-template-columns: 1fr 1fr;
 }
@@ -221,7 +255,8 @@ button.fun-stat:focus-visible {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .fun-stats-grid.is-curiosities {
+  .fun-stats-grid.is-curiosities,
+  .fun-stats-grid.is-kinds {
     grid-template-columns: repeat(4, 1fr);
   }
 }

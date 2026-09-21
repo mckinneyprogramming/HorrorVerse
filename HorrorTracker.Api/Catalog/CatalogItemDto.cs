@@ -9,4 +9,6 @@ public sealed record CatalogItemDto(
     decimal? TotalTime = null,
     int? ReleaseYear = null,
     int? SeriesId = null,
-    string? SeriesTitle = null);
+    string? SeriesTitle = null,
+    int? TotalEpisodes = null,
+    int? NumberOfSeasons = null);

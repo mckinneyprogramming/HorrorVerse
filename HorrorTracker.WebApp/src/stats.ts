@@ -1,7 +1,6 @@
 import { formatRuntime, type CatalogEntry, type MediaKind } from "./catalog";
 
 const TIMED_KINDS = new Set<MediaKind>(["movie", "documentary", "show"]);
-const FEATURE_KINDS = new Set<MediaKind>(["movie", "documentary"]);
 
 export interface FunStat {
   value: string;
@@ -11,46 +10,106 @@ export interface FunStat {
   query?: string;
 }
 
-export interface HorrorStats {
+export interface StatGroup {
   time: FunStat[];
   extras: FunStat[];
+  kinds: FunStat[];
 }
 
-export function buildHorrorStats(
-  entries: CatalogEntry[],
-  finishedIds: readonly string[],
-  signedIn: boolean,
-): HorrorStats {
+export interface HorrorStats {
+  yours?: StatGroup;
+  vault: StatGroup;
+}
+
+export function buildHorrorStats(entries: CatalogEntry[], finishedIds: readonly string[], signedIn: boolean): HorrorStats {
   const finished = new Set(finishedIds);
   const timed = entries.filter((entry) => isTimed(entry));
-  const features = entries.filter((entry) => FEATURE_KINDS.has(entry.kind) && minutesOf(entry) > 0);
+  const movies = entries.filter((entry) => entry.kind === "movie");
+  const documentaries = entries.filter((entry) => entry.kind === "documentary");
+  const shows = entries.filter((entry) => entry.kind === "show");
   const dated = entries.filter((entry) => (entry.releaseYear ?? 0) > 0);
   const vaultMinutes = sumMinutes(timed);
-  const finishedTimed = signedIn ? timed.filter((entry) => finished.has(entry.id)) : [];
-  const waitingTimed = signedIn ? timed.filter((entry) => !finished.has(entry.id)) : [];
-  const finishedMinutes = sumMinutes(finishedTimed);
-  const waitingMinutes = sumMinutes(waitingTimed);
-  const longestVault = pickLongest(features);
+  const averageMovie = averageMinutes(movies.filter((entry) => minutesOf(entry) > 0));
+  const longestVault = pickLongest(movies.filter((entry) => minutesOf(entry) > 0));
   const oldestVault = pickOldest(dated);
   const biggestSeries = pickBiggestSeries(entries);
   const vaultDecade = pickDecade(dated);
-  const finishedFeatures = signedIn ? features.filter((entry) => finished.has(entry.id)) : [];
-  const finishedDated = signedIn ? dated.filter((entry) => finished.has(entry.id)) : [];
-  const longestYours = pickLongest(finishedFeatures);
+
+  const vault: StatGroup = {
+    time: [
+      {
+        value: formatHours(vaultMinutes),
+        label: "In the vault",
+        hint: "Movies, documentaries, and shows — series time is already in the films.",
+      },
+      {
+        value: formatHours(averageMovie),
+        label: "Average film",
+        hint: averageMovie > 0 ? "Mean runtime of movies with a listed length." : "Movie runtimes appear as titles are added.",
+        filter: "movie",
+      },
+      nightsStat(vaultMinutes, "Nights in the vault", "If you sat through the whole catalog, eight hours at a time."),
+    ],
+    extras: [],
+    kinds: kindStats(documentaries, shows),
+  };
+
+  if (longestVault) {
+    vault.extras.push({
+      value: longestVault.title,
+      label: "Longest film",
+      hint: formatRuntime(minutesOf(longestVault)) ?? "Runtime unknown",
+      filter: longestVault.kind,
+      query: longestVault.title,
+    });
+  }
+
+  if (oldestVault?.releaseYear) {
+    vault.extras.push({
+      value: String(oldestVault.releaseYear),
+      label: "Oldest title",
+      hint: oldestVault.title,
+      filter: oldestVault.kind,
+      query: oldestVault.title,
+    });
+  }
+
+  if (biggestSeries) {
+    vault.extras.push({
+      value: String(biggestSeries.count),
+      label: "Biggest series",
+      hint: `${biggestSeries.title} · ${biggestSeries.count === 1 ? "1 film" : `${biggestSeries.count} films`}`,
+      filter: "series",
+      query: biggestSeries.title,
+    });
+  }
+
+  if (vaultDecade) {
+    vault.extras.push({
+      value: `${vaultDecade.year}s`,
+      label: "Busiest decade",
+      hint: `${vaultDecade.count === 1 ? "1 title" : `${vaultDecade.count} titles`} from ${vaultDecade.year}–${vaultDecade.year + 9}.`,
+      filter: "all",
+      query: String(vaultDecade.year).slice(0, 3),
+    });
+  }
+
+  if (!signedIn) {
+    return { vault };
+  }
+
+  const finishedTimed = timed.filter((entry) => finished.has(entry.id));
+  const waitingTimed = timed.filter((entry) => !finished.has(entry.id));
+  const finishedMinutes = sumMinutes(finishedTimed);
+  const waitingMinutes = sumMinutes(waitingTimed);
+  const finishedMovies = movies.filter((entry) => finished.has(entry.id) && minutesOf(entry) > 0);
+  const finishedDated = dated.filter((entry) => finished.has(entry.id));
+  const longestYours = pickLongest(finishedMovies);
   const oldestYours = pickOldest(finishedDated);
   const yourDecade = pickDecade(finishedDated);
-  const averageMovie = averageMinutes(entries.filter((entry) => entry.kind === "movie" && minutesOf(entry) > 0));
 
-  const time: FunStat[] = [
-    {
-      value: formatHours(vaultMinutes),
-      label: "In the vault",
-      hint: "Movies, documentaries, and shows — series time is already in the films.",
-    },
-  ];
-
-  if (signedIn) {
-    time.push(
+  const yours: StatGroup = {
+    time: [
       {
         value: formatHours(finishedMinutes),
         label: "Hours survived",
@@ -61,68 +120,173 @@ export function buildHorrorStats(
         label: "Still in the dark",
         hint: waitingMinutes > 0 ? "Unwatched runtime left in the vault." : "Nothing timed is left unmarked.",
       },
-    );
-  } else {
-    time.push(
-      {
-        value: formatHours(averageMovie),
-        label: "Average film",
-        hint: averageMovie > 0 ? "Mean runtime of movies with a listed length." : "Movie runtimes appear as titles are added.",
-        filter: "movie",
-      },
-      nightsStat(vaultMinutes, "Nights in the vault", "If you sat through the whole catalog, eight hours at a time."),
-    );
-  }
+    ],
+    extras: [],
+    kinds: personalKindStats(documentaries, shows, finished),
+  };
 
-  const extras: FunStat[] = [];
-  const longest = longestYours ?? longestVault;
-  if (longest) {
-    extras.push({
-      value: longest.title,
-      label: longestYours ? "Your longest night" : "Longest film",
-      hint: formatRuntime(minutesOf(longest)) ?? "Runtime unknown",
-      filter: longest.kind,
-      query: longest.title,
+  if (longestYours) {
+    yours.extras.push({
+      value: longestYours.title,
+      label: "Your longest night",
+      hint: formatRuntime(minutesOf(longestYours)) ?? "Runtime unknown",
+      filter: longestYours.kind,
+      query: longestYours.title,
     });
   }
 
-  const oldest = oldestYours ?? oldestVault;
-  if (oldest?.releaseYear) {
-    extras.push({
-      value: String(oldest.releaseYear),
-      label: oldestYours ? "Oldest you've survived" : "Oldest title",
-      hint: oldest.title,
-      filter: oldest.kind,
-      query: oldest.title,
+  if (oldestYours?.releaseYear) {
+    yours.extras.push({
+      value: String(oldestYours.releaseYear),
+      label: "Oldest you've survived",
+      hint: oldestYours.title,
+      filter: oldestYours.kind,
+      query: oldestYours.title,
     });
   }
 
-  if (biggestSeries) {
-    extras.push({
-      value: String(biggestSeries.count),
-      label: "Biggest series",
-      hint: `${biggestSeries.title} · ${biggestSeries.count === 1 ? "1 film" : `${biggestSeries.count} films`}`,
-      filter: "series",
-      query: biggestSeries.title,
-    });
-  }
-
-  const decade = yourDecade ?? vaultDecade;
-  if (decade) {
-    extras.push({
-      value: `${decade.year}s`,
-      label: yourDecade ? "Your decade" : "Busiest decade",
-      hint: `${decade.count === 1 ? "1 title" : `${decade.count} titles`} from ${decade.year}–${decade.year + 9}.`,
+  if (yourDecade) {
+    yours.extras.push({
+      value: `${yourDecade.year}s`,
+      label: "Your decade",
+      hint: `${yourDecade.count === 1 ? "1 title" : `${yourDecade.count} titles`} from ${yourDecade.year}–${yourDecade.year + 9}.`,
       filter: "all",
-      query: String(decade.year).slice(0, 3),
+      query: String(yourDecade.year).slice(0, 3),
     });
   }
 
-  if (signedIn && finishedMinutes >= 60) {
-    extras.push(nightsStat(finishedMinutes, "All-nighters survived", "Finished runtime, counted as eight-hour nights."));
+  if (finishedMinutes >= 60) {
+    yours.extras.push(nightsStat(finishedMinutes, "All-nighters survived", "Finished runtime, counted as eight-hour nights."));
   }
 
-  return { time, extras };
+  return { yours, vault };
+}
+
+function kindStats(documentaries: CatalogEntry[], shows: CatalogEntry[]): FunStat[] {
+  const stats: FunStat[] = [];
+  if (documentaries.length > 0) {
+    const minutes = sumMinutes(documentaries);
+    stats.push({
+      value: formatHours(minutes),
+      label: "Documentary hours",
+      hint: documentaries.length === 1 ? "1 true story in the vault." : `${documentaries.length} true stories in the vault.`,
+      filter: "documentary",
+    });
+    const longest = pickLongest(documentaries.filter((entry) => minutesOf(entry) > 0));
+    if (longest) {
+      stats.push({
+        value: longest.title,
+        label: "Longest documentary",
+        hint: formatRuntime(minutesOf(longest)) ?? "Runtime unknown",
+        filter: "documentary",
+        query: longest.title,
+      });
+    }
+  }
+
+  if (shows.length > 0) {
+    const minutes = sumMinutes(shows);
+    const episodes = shows.reduce((total, show) => total + (show.totalEpisodes ?? 0), 0);
+    stats.push({
+      value: minutes > 0 ? formatHours(minutes) : episodes > 0 ? String(episodes) : String(shows.length),
+      label: minutes > 0 ? "Show hours" : episodes > 0 ? "Episodes in the vault" : "TV shows",
+      hint:
+        shows.length === 1
+          ? minutes > 0
+            ? "1 TV show in the vault."
+            : "Episode count for the show in the vault."
+          : minutes > 0
+            ? `${shows.length} TV shows in the vault.`
+            : `${shows.length} TV shows · ${episodes} episodes.`,
+      filter: "show",
+    });
+    const biggest = pickMostEpisodes(shows) ?? pickLongest(shows.filter((entry) => minutesOf(entry) > 0));
+    if (biggest) {
+      stats.push({
+        value: biggest.title,
+        label: biggest.totalEpisodes ? "Most episodes" : "Longest show",
+        hint: showSizeHint(biggest),
+        filter: "show",
+        query: biggest.title,
+      });
+    }
+  }
+
+  return stats;
+}
+
+function personalKindStats(documentaries: CatalogEntry[], shows: CatalogEntry[], finished: Set<string>): FunStat[] {
+  const stats: FunStat[] = [];
+  if (documentaries.length > 0) {
+    const done = documentaries.filter((entry) => finished.has(entry.id));
+    stats.push({
+      value: `${done.length} of ${documentaries.length}`,
+      label: "Documentaries survived",
+      hint: done.length > 0 ? `${formatHours(sumMinutes(done))} marked finished.` : "Tap a documentary to start this count.",
+      filter: "documentary",
+    });
+    const longest = pickLongest(done.filter((entry) => minutesOf(entry) > 0));
+    if (longest) {
+      stats.push({
+        value: longest.title,
+        label: "Your longest documentary",
+        hint: formatRuntime(minutesOf(longest)) ?? "Runtime unknown",
+        filter: "documentary",
+        query: longest.title,
+      });
+    }
+  }
+
+  if (shows.length > 0) {
+    const done = shows.filter((entry) => finished.has(entry.id));
+    stats.push({
+      value: `${done.length} of ${shows.length}`,
+      label: "Shows survived",
+      hint: done.length > 0 ? `${formatHours(sumMinutes(done))} marked finished.` : "Mark episodes or a show to count it here.",
+      filter: "show",
+    });
+    const longest = pickMostEpisodes(done) ?? pickLongest(done.filter((entry) => minutesOf(entry) > 0));
+    if (longest) {
+      stats.push({
+        value: longest.title,
+        label: "A show you finished",
+        hint: showSizeHint(longest),
+        filter: "show",
+        query: longest.title,
+      });
+    }
+  }
+
+  return stats;
+}
+
+function pickMostEpisodes(shows: CatalogEntry[]): CatalogEntry | undefined {
+  return [...shows]
+    .filter((entry) => (entry.totalEpisodes ?? 0) > 0)
+    .sort(
+      (left, right) =>
+        (right.totalEpisodes ?? 0) - (left.totalEpisodes ?? 0) ||
+        (right.numberOfSeasons ?? 0) - (left.numberOfSeasons ?? 0) ||
+        left.title.localeCompare(right.title),
+    )[0];
+}
+
+function showSizeHint(show: CatalogEntry): string {
+  const parts: string[] = [];
+  if (show.numberOfSeasons) {
+    parts.push(show.numberOfSeasons === 1 ? "1 season" : `${show.numberOfSeasons} seasons`);
+  }
+
+  if (show.totalEpisodes) {
+    parts.push(show.totalEpisodes === 1 ? "1 episode" : `${show.totalEpisodes} episodes`);
+  }
+
+  const runtime = formatRuntime(minutesOf(show));
+  if (runtime) {
+    parts.push(runtime);
+  }
+
+  return parts.join(" · ") || "No episode count yet.";
 }
 
 function nightsStat(minutes: number, label: string, hint: string): FunStat {

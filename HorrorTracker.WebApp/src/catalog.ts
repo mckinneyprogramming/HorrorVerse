@@ -24,6 +24,8 @@ export interface CatalogEntry {
   releaseYear?: number;
   seriesId?: number;
   seriesTitle?: string;
+  totalEpisodes?: number;
+  numberOfSeasons?: number;
 }
 
 export function isMediaKind(value: string): value is MediaKind {
@@ -123,6 +125,8 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
   const releaseYear = optionalPositiveNumber(entry.releaseYear);
   const seriesId = optionalPositiveNumber(entry.seriesId);
   const seriesTitle = optionalText(entry.seriesTitle);
+  const totalEpisodes = optionalPositiveNumber(entry.totalEpisodes);
+  const numberOfSeasons = optionalPositiveNumber(entry.numberOfSeasons);
 
   return {
     id: entry.id,
@@ -134,6 +138,8 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
     ...(releaseYear !== undefined ? { releaseYear } : {}),
     ...(seriesId !== undefined ? { seriesId } : {}),
     ...(seriesTitle !== undefined ? { seriesTitle } : {}),
+    ...(totalEpisodes !== undefined ? { totalEpisodes } : {}),
+    ...(numberOfSeasons !== undefined ? { numberOfSeasons } : {}),
   };
 }
 

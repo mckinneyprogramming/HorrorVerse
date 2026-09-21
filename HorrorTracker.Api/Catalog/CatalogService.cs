@@ -20,7 +20,7 @@ public sealed class CatalogService(
         items.AddRange(Read(() => movies.GetAll().Select(movie => MapMovie(movie, seriesTitles)), "movies"));
         items.AddRange(seriesList.Select(MapSeries));
         items.AddRange(Read(() => documentaries.GetAll().Select(MapDocumentary), "documentaries"));
-        items.AddRange(ReadOptionalTable("SELECT Id, Title, Watched FROM Show", "show"));
+        items.AddRange(ReadShows());
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Read FROM Book", "book"));
         return items;
     }
@@ -81,6 +81,51 @@ public sealed class CatalogService(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Could not load {CatalogName} from PostgreSQL.", name);
+            return [];
+        }
+    }
+
+    private IEnumerable<CatalogItemDto> ReadShows()
+    {
+        var connectionString = ResolveConnectionString(configuration);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var connection = new NpgsqlConnection(connectionString);
+            connection.Open();
+            using var command = new NpgsqlCommand(
+                "SELECT Id, Title, Watched, TotalTime, TotalEpisodes, NumberOfSeasons FROM Show",
+                connection);
+            using var reader = command.ExecuteReader();
+            var items = new List<CatalogItemDto>();
+            while (reader.Read())
+            {
+                var totalTime = reader.IsDBNull(3) ? 0m : reader.GetDecimal(3);
+                var episodes = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
+                var seasons = reader.IsDBNull(5) ? 0 : reader.GetInt32(5);
+                items.Add(new CatalogItemDto(
+                    $"show:{reader.GetInt32(0)}",
+                    reader.GetInt32(0),
+                    reader.GetString(1),
+                    "show",
+                    !reader.IsDBNull(2) && reader.GetBoolean(2),
+                    totalTime > 0 ? totalTime : null,
+                    null,
+                    null,
+                    null,
+                    episodes > 0 ? episodes : null,
+                    seasons > 0 ? seasons : null));
+            }
+
+            return items;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Optional catalog table for {Kind} is unavailable.", "show");
             return [];
         }
     }

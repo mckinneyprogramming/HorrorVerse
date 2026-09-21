@@ -11,6 +11,8 @@ interface CatalogItem {
   releaseYear?: number;
   seriesId?: number;
   seriesTitle?: string;
+  totalEpisodes?: number;
+  numberOfSeasons?: number;
 }
 
 export async function GET() {
@@ -92,7 +94,11 @@ async function loadCatalog(): Promise<CatalogItem[]> {
       "SELECT id, title, watched AS completed, totaltime, releaseyear FROM documentary",
       "documentary",
     )),
-    ...(await readOptional(connectionString, "SELECT id, title, watched AS completed FROM show", "show")),
+    ...(await readOptional(
+      connectionString,
+      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons FROM show",
+      "show",
+    )),
     ...(await readOptional(connectionString, "SELECT id, title, read AS completed FROM book", "book")),
   ];
 }
@@ -552,6 +558,16 @@ function mapRows(rows: Record<string, unknown>[], kind: string): CatalogItem[] {
 
     if (seriesTitle) {
       item.seriesTitle = seriesTitle;
+    }
+
+    const totalEpisodes = asFiniteNumber(row.totalepisodes ?? row.totalEpisodes);
+    const numberOfSeasons = asFiniteNumber(row.numberofseasons ?? row.numberOfSeasons);
+    if (totalEpisodes !== undefined && totalEpisodes > 0) {
+      item.totalEpisodes = totalEpisodes;
+    }
+
+    if (numberOfSeasons !== undefined && numberOfSeasons > 0) {
+      item.numberOfSeasons = numberOfSeasons;
     }
 
     return item;

@@ -29,7 +29,7 @@ import {
   type UserList,
 } from "./lists";
 import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
-import { buildHorrorStats, type FunStat } from "./stats";
+import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, type ShowGuide } from "./shows";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
@@ -915,16 +915,36 @@ function renderFunStats(): string {
       <h2>The numbers</h2>
       <p>${
         state.user
-          ? "Hours you've survived, time still waiting, and a few curiosities from the vault."
-          : "How long the vault runs, plus the longest nights and oldest shadows in the catalog."
+          ? "Your hours first, then the whole HorrorVerse — longest films, oldest titles, and nights in the vault."
+          : "The whole HorrorVerse: how long the vault runs, plus the longest nights and oldest shadows."
       }</p>
-      <div class="fun-stats-grid">${stats.time.map((stat) => renderFunStat(stat)).join("")}</div>
       ${
-        stats.extras.length > 0
-          ? `<div class="fun-stats-grid is-curiosities">${stats.extras.map((stat) => renderFunStat(stat)).join("")}</div>`
+        stats.yours
+          ? renderStatGroup("Yours", "Runtime you've marked finished and the nights that were yours.", stats.yours)
+          : `<p class="fun-stats-note"><button type="button" data-action="view" data-view="account">Sign in</button> to see your own hours and curiosities.</p>`
+      }
+      ${renderStatGroup("HorrorVerse", "Every title in the shared vault.", stats.vault)}
+    </section>
+  `;
+}
+
+function renderStatGroup(title: string, hint: string, group: StatGroup): string {
+  return `
+    <div class="fun-stats-group">
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(hint)}</p>
+      <div class="fun-stats-grid">${group.time.map((stat) => renderFunStat(stat)).join("")}</div>
+      ${
+        group.extras.length > 0
+          ? `<div class="fun-stats-grid is-curiosities">${group.extras.map((stat) => renderFunStat(stat)).join("")}</div>`
           : ""
       }
-    </section>
+      ${
+        group.kinds.length > 0
+          ? `<div class="fun-stats-grid is-kinds">${group.kinds.map((stat) => renderFunStat(stat)).join("")}</div>`
+          : ""
+      }
+    </div>
   `;
 }
 
