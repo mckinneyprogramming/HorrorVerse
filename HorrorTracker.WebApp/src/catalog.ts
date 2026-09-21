@@ -1,7 +1,7 @@
 export const MEDIA_KINDS = [
   { id: "movie", label: "Movies", hint: "Films that linger after the credits." },
   { id: "series", label: "Series", hint: "Sagas told across multiple movies." },
-  { id: "show", label: "TV Shows", hint: "Episodic dread, week after week." },
+  { id: "show", label: "TV Shows", hint: "Episodic dread, week after week — including miniseries." },
   { id: "documentary", label: "Documentaries", hint: "True stories from the dark." },
   { id: "book", label: "Books", hint: "Horror you can hold in your hands." },
   { id: "podcast", label: "Podcasts", hint: "Voices in the dark." },

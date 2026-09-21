@@ -117,7 +117,7 @@ async function searchCollections(query: string): Promise<TmdbHit[]> {
 async function searchShows(query: string): Promise<TmdbHit[]> {
   const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(query)}&include_adult=false`);
   return asResults(payload)
-    .filter((item) => isHorrorAdjacent(item.genre_ids))
+    .filter((item) => isHorrorAdjacent(item.genre_ids) || isDocumentary(item.genre_ids))
     .slice(0, MAX_RESULTS)
     .map((item) => ({
       tmdbId: Number(item.id),

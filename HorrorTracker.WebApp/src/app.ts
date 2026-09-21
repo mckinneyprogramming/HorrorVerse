@@ -1888,9 +1888,9 @@ function tmdbHint(kind: MediaKind): string {
     case "series":
       return "Horror, thriller, and mystery collections, with their movies in release order.";
     case "show":
-      return "Horror, thriller, and mystery TV shows — not films that share the same title.";
+      return "Horror, thriller, mystery, and documentary TV — including miniseries. Films with the same title stay on Movies or Documentaries.";
     case "documentary":
-      return "Titles TMDb tags as documentary, such as Living with Chucky. Those do not appear under Movies.";
+      return "Film documentaries TMDb tags as documentary, such as Living with Chucky. TV documentary miniseries are under TV Shows.";
     default:
       return "Horror, thriller, and mystery feature films. Documentaries and TV shows stay on those radios.";
   }

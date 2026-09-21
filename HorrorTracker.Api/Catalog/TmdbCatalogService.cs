@@ -232,7 +232,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
     private static IReadOnlyList<TmdbHit> MapShows(TMDbLib.Objects.General.SearchContainer<SearchTv> container)
     {
         return (container.Results ?? [])
-            .Where(item => IsHorrorAdjacent(item.GenreIds))
+            .Where(item => IsHorrorAdjacent(item.GenreIds) || IsDocumentary(item.GenreIds))
             .Take(MaxResults)
             .Select(item => new TmdbHit(
                 item.Id,
