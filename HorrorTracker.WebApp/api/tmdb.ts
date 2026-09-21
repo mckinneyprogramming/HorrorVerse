@@ -256,17 +256,18 @@ async function importShow(connectionString: string, tmdbId: number): Promise<Tmd
   const show = await tmdbJson(`/tv/${tmdbId}`);
   const title = requireTitle(show.name);
   const existingId = await findShowId(connectionString, title);
-  if (existingId) {
-    return { added: 0, id: `show:${existingId}` };
-  }
-
   const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
   const seasons = Math.max(Number(show.number_of_seasons) || 0, 0);
   const runtimes = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number) : [];
   const episodeMinutes = runtimes.find((value) => value > 0) ?? 0;
   const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
-  const showId = await insertShow(connectionString, title, totalTime, episodes, seasons);
-  return { added: 1, id: `show:${showId}` };
+  const showId = existingId ?? (await insertShow(connectionString, title, totalTime, episodes, seasons));
+  if (!showId) {
+    throw new TmdbError("Could not save that show.", 500);
+  }
+
+  await attachShowSeasons(connectionString, showId, tmdbId, show);
+  return { added: existingId ? 0 : 1, id: `show:${showId}` };
 }
 
 async function findMovieId(connectionString: string, title: string, year: number | undefined): Promise<number | undefined> {
@@ -346,6 +347,51 @@ async function insertDocumentary(connectionString: string, title: string, totalT
   }
 
   return id;
+}
+
+async function attachShowSeasons(
+  connectionString: string,
+  showId: number,
+  tmdbId: number,
+  show: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS tmdbid INTEGER", []);
+    await execute(connectionString, "UPDATE show SET tmdbid = $1 WHERE id = $2", [tmdbId, showId]);
+    await execute(
+      connectionString,
+      `CREATE TABLE IF NOT EXISTS show_season (
+        id SERIAL PRIMARY KEY,
+        show_id INTEGER NOT NULL,
+        season_number INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        UNIQUE (show_id, season_number)
+      )`,
+    );
+    const seasons = Array.isArray(show.seasons) ? show.seasons : [];
+    for (const season of seasons) {
+      const record = asRecord(season);
+      if (!record) {
+        continue;
+      }
+
+      const number = Number(record.season_number);
+      if (!Number.isInteger(number) || number < 0) {
+        continue;
+      }
+
+      const title = String(record.name ?? "").trim() || (number === 0 ? "Specials" : `Season ${number}`);
+      await execute(
+        connectionString,
+        `INSERT INTO show_season (show_id, season_number, title)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (show_id, season_number) DO UPDATE SET title = EXCLUDED.title`,
+        [showId, number, title],
+      );
+    }
+  } catch {
+    // Season tables are created on first signed-in use of a show.
+  }
 }
 
 async function insertShow(

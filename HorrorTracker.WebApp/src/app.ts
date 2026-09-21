@@ -4,6 +4,7 @@ import {
   fetchCatalog,
   isMediaKind,
   MEDIA_KINDS,
+  formatRuntime,
   movieDetailLine,
   updateCatalogEntry,
   WRITABLE_KINDS,
@@ -29,6 +30,7 @@ import {
 } from "./lists";
 import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
 import { buildHorrorStats, type FunStat } from "./stats";
+import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, type ShowGuide } from "./shows";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "lists" | "account" | "install";
@@ -65,6 +67,9 @@ interface AppState {
   sheetKind: MediaKind;
   tmdbQuery: string;
   tmdbResults: TmdbHit[];
+  showGuides: Record<number, ShowGuide>;
+  expandedShowIds: Set<number>;
+  expandedShowSeasons: Set<string>;
 }
 
 const state: AppState = {
@@ -90,6 +95,9 @@ const state: AppState = {
   sheetKind: "movie",
   tmdbQuery: "",
   tmdbResults: [],
+  showGuides: {},
+  expandedShowIds: new Set<number>(),
+  expandedShowSeasons: new Set<string>(),
 };
 
 export function mountApp(root: HTMLElement): void {
@@ -173,6 +181,93 @@ export function mountApp(root: HTMLElement): void {
       }
 
       render(root);
+      return;
+    }
+
+    if (action === "toggle-show") {
+      event.preventDefault();
+      const showId = Number(target.dataset.showId);
+      if (!Number.isInteger(showId) || !state.user) {
+        return;
+      }
+
+      if (state.expandedShowIds.has(showId)) {
+        state.expandedShowIds.delete(showId);
+        render(root);
+        return;
+      }
+
+      state.expandedShowIds.add(showId);
+      render(root);
+      if (!state.showGuides[showId]) {
+        await loadShowGuide(root, showId);
+      }
+      return;
+    }
+
+    if (action === "toggle-show-season") {
+      event.preventDefault();
+      const showId = Number(target.dataset.showId);
+      const seasonNumber = Number(target.dataset.seasonNumber);
+      const key = showSeasonKey(showId, seasonNumber);
+      if (!key || !state.user) {
+        return;
+      }
+
+      if (state.expandedShowSeasons.has(key)) {
+        state.expandedShowSeasons.delete(key);
+        render(root);
+        return;
+      }
+
+      state.expandedShowSeasons.add(key);
+      render(root);
+      const season = state.showGuides[showId]?.seasons.find((item) => item.seasonNumber === seasonNumber);
+      if (season && !season.loaded) {
+        await loadShowGuide(root, showId, seasonNumber);
+      }
+      return;
+    }
+
+    if (action === "toggle-episode") {
+      if (!state.user) {
+        state.view = "account";
+        render(root);
+        return;
+      }
+
+      const episodeId = Number(target.dataset.episodeId);
+      const completed = target.dataset.completed !== "true";
+      if (!Number.isInteger(episodeId) || state.catalogBusy) {
+        return;
+      }
+
+      await saveUserLibrary(root, async () => {
+        const guide = await setEpisodeProgress(episodeId, completed);
+        state.showGuides[guide.showId] = guide;
+        state.finishedIds = await fetchProgressIds();
+      });
+      return;
+    }
+
+    if (action === "toggle-season") {
+      if (!state.user) {
+        state.view = "account";
+        render(root);
+        return;
+      }
+
+      const seasonId = Number(target.dataset.seasonId);
+      const completed = target.dataset.completed !== "true";
+      if (!Number.isInteger(seasonId) || state.catalogBusy) {
+        return;
+      }
+
+      await saveUserLibrary(root, async () => {
+        const guide = await setSeasonProgress(seasonId, completed);
+        state.showGuides[guide.showId] = guide;
+        state.finishedIds = await fetchProgressIds();
+      });
       return;
     }
 
@@ -608,6 +703,27 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
   render(root);
 }
 
+async function loadShowGuide(root: HTMLElement, showId: number, season?: number): Promise<void> {
+  try {
+    state.showGuides[showId] = await fetchShowGuide(showId, season);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not load seasons for that show.";
+    if (state.view === "lists") {
+      state.listMessage = message;
+    } else {
+      state.catalogMessage = message;
+    }
+  }
+
+  render(root);
+}
+
+function showSeasonKey(showId: number | string | undefined, seasonNumber: number | string | undefined): string {
+  const show = Number(showId);
+  const season = Number(seasonNumber);
+  return Number.isInteger(show) && Number.isInteger(season) ? `${show}:${season}` : "";
+}
+
 async function saveUserLibrary(root: HTMLElement, work: () => Promise<void>): Promise<void> {
   state.catalogBusy = true;
   state.listMessage = "";
@@ -657,6 +773,14 @@ async function saveCatalogChange(
       if (entry && state.user) {
         state.listPicker = entry;
         state.listMessage = "";
+        if (entry.kind === "show") {
+          state.expandedShowIds.add(entry.mediaId);
+          try {
+            state.showGuides[entry.mediaId] = await fetchShowGuide(entry.mediaId);
+          } catch {
+            // Guide loads when the show is opened.
+          }
+        }
       }
     }
   } catch (error) {
@@ -887,7 +1011,7 @@ function renderFlatCatalog(): string {
     return renderMoviesBySeries(visible, true);
   }
 
-  return `<ul class="catalog">${sortByTitle(visible).map((entry) => renderEntry(entry)).join("")}</ul>`;
+  return renderKindEntries(visible, true);
 }
 
 function renderGroupedCatalog(): string {
@@ -907,7 +1031,7 @@ function renderGroupedCatalog(): string {
       const body =
         group.kind.id === "movie"
           ? renderMoviesBySeries(group.entries, false)
-          : `<ul class="catalog">${sortByTitle(group.entries).map((entry) => renderEntry(entry, false)).join("")}</ul>`;
+          : renderKindEntries(group.entries, false);
       return `
         <details class="kind-group"${open ? " open" : ""}>
           <summary data-action="toggle-kind" data-kind="${group.kind.id}">
@@ -1185,6 +1309,142 @@ function renderSearchKindRadios(options: {
   `;
 }
 
+function renderKindEntries(entries: CatalogEntry[], showKind: boolean): string {
+  if (state.user && entries.some((entry) => entry.kind === "show")) {
+    return `<div class="list-entries">${sortByTitle(entries).map((entry) => renderCatalogRow(entry, showKind)).join("")}</div>`;
+  }
+
+  return `<ul class="catalog">${sortByTitle(entries).map((entry) => renderEntry(entry, showKind)).join("")}</ul>`;
+}
+
+function renderCatalogRow(entry: CatalogEntry, showKind = true, nested = false): string {
+  if (entry.kind === "show" && state.user) {
+    return renderShowGuide(entry, { showKind });
+  }
+
+  return renderEntry(entry, showKind, nested);
+}
+
+function renderListStandalone(entries: CatalogEntry[], listId: number): string {
+  if (entries.some((entry) => entry.kind === "show")) {
+    return `<div class="list-entries">${entries.map((entry) => (entry.kind === "show" ? renderShowGuide(entry, { listId }) : `<ul class="catalog">${renderListItem(entry, listId)}</ul>`)).join("")}</div>`;
+  }
+
+  return `<ul class="catalog">${entries.map((entry) => renderListItem(entry, listId)).join("")}</ul>`;
+}
+
+function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; listId?: number }): string {
+  const showId = entry.mediaId;
+  const guide = state.showGuides[showId];
+  const open = state.expandedShowIds.has(showId);
+  const done = isFinished(entry);
+  const details = movieDetailLine(entry);
+  const subtitle = [details ?? (options.showKind === false ? "" : "TV Show"), showProgressLabel(guide)].filter(Boolean).join(" · ");
+  const admin = Boolean(state.user?.isAdmin);
+  return `
+    <details class="list-series-group show-guide${done ? " is-done" : ""}"${open ? " open" : ""}>
+      <summary data-action="toggle-show" data-show-id="${showId}">
+        <span class="mark" aria-hidden="true"></span>
+        <span class="list-series-label">
+          <strong>${escapeHtml(entry.title)}</strong>
+          ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
+        </span>
+        <span class="list-series-count">${guide ? `${guide.seasons.length} season${guide.seasons.length === 1 ? "" : "s"}` : "Seasons"}</span>
+      </summary>
+      <div class="show-toolbar">
+        <button class="ghost-btn" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${done ? "Unmark show" : "Mark show"}</button>
+        ${
+          options.listId === undefined
+            ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>List</button>`
+            : `<button class="entry-remove" type="button" data-action="toggle-list-item" data-list-id="${options.listId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>`
+        }
+        ${
+          admin && options.listId === undefined
+            ? `
+              <button class="entry-edit" type="button" data-action="open-edit" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>Edit</button>
+              <button class="entry-remove" type="button" data-action="delete" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
+            `
+            : ""
+        }
+      </div>
+      ${open ? renderShowSeasons(showId, guide) : ""}
+    </details>
+  `;
+}
+
+function renderShowSeasons(showId: number, guide: ShowGuide | undefined): string {
+  if (!guide) {
+    return `<p class="empty">Loading seasons…</p>`;
+  }
+
+  if (guide.seasons.length === 0) {
+    return `<p class="empty">No seasons found for this show yet.</p>`;
+  }
+
+  return guide.seasons
+    .map((season) => {
+      const open = state.expandedShowSeasons.has(showSeasonKey(showId, season.seasonNumber));
+      const seasonDone = season.loaded && season.episodeCount > 0 && season.finishedCount >= season.episodeCount;
+      const count = season.episodeCount > 0 ? `${season.finishedCount}/${season.episodeCount}` : "…";
+      return `
+        <details class="list-series-group show-season"${open ? " open" : ""}>
+          <summary data-action="toggle-show-season" data-show-id="${showId}" data-season-number="${season.seasonNumber}">
+            <span class="list-series-label">${escapeHtml(season.title)}</span>
+            <span class="list-series-count">${escapeHtml(count)}</span>
+          </summary>
+          <div class="show-toolbar">
+            <button class="ghost-btn" type="button" data-action="toggle-season" data-season-id="${season.id}" data-completed="${seasonDone ? "true" : "false"}" ${state.catalogBusy ? "disabled" : ""}>${
+              seasonDone ? "Clear season" : "Mark season"
+            }</button>
+          </div>
+          ${open ? renderShowEpisodes(season.loaded, season.episodes) : ""}
+        </details>
+      `;
+    })
+    .join("");
+}
+
+function renderShowEpisodes(loaded: boolean, episodes: ShowGuide["seasons"][number]["episodes"]): string {
+  if (!loaded) {
+    return `<p class="empty">Loading episodes…</p>`;
+  }
+
+  if (episodes.length === 0) {
+    return `<p class="empty">No episodes in this season.</p>`;
+  }
+
+  return `<ul class="catalog">${episodes
+    .map((episode) => {
+      const details = [episode.year ? String(episode.year) : "", formatRuntime(episode.runtime) ?? ""].filter(Boolean).join(" · ");
+      return `
+        <li class="entry${episode.completed ? " is-done" : ""} is-nested">
+          <button class="entry-toggle" type="button" data-action="toggle-episode" data-episode-id="${episode.id}" data-completed="${episode.completed ? "true" : "false"}" ${state.catalogBusy ? "disabled" : ""}>
+            <span class="mark" aria-hidden="true"></span>
+            <span class="entry-copy">
+              <strong>${episode.episodeNumber}. ${escapeHtml(episode.title)}</strong>
+              ${details ? `<em>${escapeHtml(details)}</em>` : ""}
+            </span>
+          </button>
+        </li>
+      `;
+    })
+    .join("")}</ul>`;
+}
+
+function showProgressLabel(guide: ShowGuide | undefined): string {
+  if (!guide) {
+    return "";
+  }
+
+  const episodes = guide.seasons.reduce((total, season) => total + season.episodeCount, 0);
+  const finished = guide.seasons.reduce((total, season) => total + season.finishedCount, 0);
+  if (episodes === 0) {
+    return "";
+  }
+
+  return `${finished} of ${episodes} episodes`;
+}
+
 function renderEntry(entry: CatalogEntry, showKind = true, nested = false): string {
   const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
   const details = nested ? movieDetailLine({ ...entry, seriesTitle: undefined }) : movieDetailLine(entry);
@@ -1272,7 +1532,7 @@ function renderUserList(list: UserList): string {
           ? `<p class="empty">Nothing in this list yet. Open the library and tap List.</p>`
           : `<div class="list-entries">${grouped.series.map((group) => renderListSeries(group, list.id)).join("")}${
               grouped.standalone.length > 0
-                ? `<ul class="catalog">${grouped.standalone.map((entry) => renderListItem(entry, list.id)).join("")}</ul>`
+                ? renderListStandalone(grouped.standalone, list.id)
                 : ""
             }</div>`
       }

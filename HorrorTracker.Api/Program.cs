@@ -23,6 +23,7 @@ builder.Services.AddScoped<MovieRepository>();
 builder.Services.AddScoped<MovieSeriesRepository>();
 builder.Services.AddScoped<DocumentaryRepository>();
 builder.Services.AddScoped<CatalogService>();
+builder.Services.AddScoped<ShowGuideService>();
 builder.Services.AddScoped<TmdbCatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserLibraryService>();
@@ -63,13 +64,18 @@ app.MapPost("/api/catalog", (CatalogWriteRequest body, HttpContext http, AuthSer
     WriteCatalog(http, auth, () => Results.Json(catalog.Create(body))));
 app.MapPatch("/api/catalog", (CatalogWriteRequest body, HttpContext http, AuthService auth, CatalogService catalog) =>
     WriteCatalog(http, auth, () => Results.Json(catalog.Update(body))));
-app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, CatalogService catalog, UserLibraryService library) =>
+app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, CatalogService catalog, UserLibraryService library, ShowGuideService shows) =>
     WriteCatalog(http, auth, () =>
     {
+        shows.PurgeShow(id);
         catalog.Delete(id);
         library.PurgeMedia(id);
         return Results.Json(new { ok = true });
     }));
+app.MapGet("/api/shows", async (string? id, int? season, HttpContext http, AuthService auth, ShowGuideService shows) =>
+    await WriteSignedInUserAsync(http, auth, user => shows.GetGuideAsync(user, id, season, http.RequestAborted)));
+app.MapPatch("/api/shows", async (ShowProgressRequest body, HttpContext http, AuthService auth, ShowGuideService shows) =>
+    await WriteSignedInUserAsync(http, auth, user => shows.SetProgressAsync(user, body, http.RequestAborted)));
 app.MapGet("/api/tmdb", async (string? kind, string? q, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
     await WriteSignedInAsync(http, auth, async () => Results.Json(await tmdb.SearchAsync(kind, q, http.RequestAborted))));
 app.MapPost("/api/tmdb", async (TmdbImportRequest body, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
@@ -171,6 +177,23 @@ static async Task<IResult> WriteSignedInAsync(HttpContext http, AuthService auth
     {
         auth.RequireUser(AuthCookies.Read(http.Request));
         return await write();
+    }
+    catch (AuthException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: exception.StatusCode);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: StatusCodes.Status400BadRequest);
+    }
+}
+
+static async Task<IResult> WriteSignedInUserAsync(HttpContext http, AuthService auth, Func<AuthUserDto, Task<object>> write)
+{
+    try
+    {
+        var user = auth.RequireUser(AuthCookies.Read(http.Request));
+        return Results.Json(await write(user));
     }
     catch (AuthException exception)
     {

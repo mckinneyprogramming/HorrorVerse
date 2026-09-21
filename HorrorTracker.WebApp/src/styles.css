@@ -1054,6 +1054,46 @@ code {
   padding: 0 8px 8px;
 }
 
+.show-guide {
+  margin-left: 0;
+}
+
+.show-guide > summary .mark {
+  margin-left: 2px;
+}
+
+.show-guide.is-done > summary .mark {
+  background: var(--crimson);
+}
+
+.show-guide.is-done > summary strong {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.show-guide .list-series-label {
+  display: grid;
+  gap: 2px;
+}
+
+.show-guide .list-series-label em {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.show-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 10px;
+}
+
+.show-season {
+  margin: 0 8px 8px;
+}
+
 .entry.is-nested {
   background: var(--surface-alt);
 }

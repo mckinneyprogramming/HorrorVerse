@@ -145,6 +145,15 @@ async function purgeUserMedia(connectionString: string, kind: string, mediaId: n
       kind,
       mediaId,
     ]);
+    if (kind === "show") {
+      await execute(
+        connectionString,
+        "DELETE FROM user_episode_progress WHERE episode_id IN (SELECT id FROM show_episode WHERE show_id = $1)",
+        [mediaId],
+      );
+      await execute(connectionString, "DELETE FROM show_episode WHERE show_id = $1", [mediaId]);
+      await execute(connectionString, "DELETE FROM show_season WHERE show_id = $1", [mediaId]);
+    }
   } catch {
     // Progress tables are created on first signed-in use.
   }

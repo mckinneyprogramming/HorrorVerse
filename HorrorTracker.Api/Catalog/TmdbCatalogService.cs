@@ -4,7 +4,7 @@ using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.Api.Catalog;
 
-public sealed class TmdbCatalogService(IConfiguration configuration)
+public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideService shows)
 {
     private const int MaxResults = 8;
     private const int MaxCollectionCandidates = 16;
@@ -46,7 +46,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         var imported = kind switch
         {
             "series" => await ImportSeriesAsync(tmdb, request.TmdbId),
-            "show" => await ImportShowAsync(tmdb, request.TmdbId),
+            "show" => await ImportShowAsync(tmdb, request.TmdbId, cancellationToken),
             "documentary" => await ImportDocumentaryAsync(tmdb, request.TmdbId),
             _ => await ImportMovieAsync(tmdb, request.TmdbId),
         };
@@ -135,22 +135,19 @@ public sealed class TmdbCatalogService(IConfiguration configuration)
         return new TmdbImportResult($"documentary:{documentaryId}", 1);
     }
 
-    private async Task<TmdbImportResult> ImportShowAsync(MovieDatabaseService tmdb, int tmdbId)
+    private async Task<TmdbImportResult> ImportShowAsync(MovieDatabaseService tmdb, int tmdbId, CancellationToken cancellationToken)
     {
         EnsureShowTable();
         var show = await tmdb.GetTvShow(tmdbId);
         var title = RequireTitle(show.Name);
-        if (FindShowId(title) is int existingId)
-        {
-            return new TmdbImportResult($"show:{existingId}", 0);
-        }
-
+        var existingId = FindShowId(title);
         var episodes = Math.Max(show.NumberOfEpisodes, 0);
         var seasons = Math.Max(show.NumberOfSeasons, 0);
         var episodeMinutes = show.EpisodeRunTime?.FirstOrDefault() ?? 0;
         var totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
-        var showId = InsertShow(title, totalTime, episodes, seasons);
-        return new TmdbImportResult($"show:{showId}", 1);
+        var showId = existingId ?? InsertShow(title, totalTime, episodes, seasons);
+        await shows.AttachImportedShowAsync(tmdb, showId, tmdbId, show, cancellationToken);
+        return new TmdbImportResult($"show:{showId}", existingId is null ? 1 : 0);
     }
 
     private static IReadOnlyList<TmdbHit> MapMovies(TMDbLib.Objects.General.SearchContainer<SearchMovie> container)
