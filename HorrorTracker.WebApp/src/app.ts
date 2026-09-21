@@ -28,6 +28,7 @@ import {
   type UserList,
 } from "./lists";
 import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
+import { buildHorrorStats, type FunStat } from "./stats";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "lists" | "account" | "install";
@@ -113,6 +114,17 @@ export function mountApp(root: HTMLElement): void {
       state.sheet = null;
       state.listPicker = null;
       state.listMessage = "";
+      render(root);
+      return;
+    }
+
+    if (action === "stat-open") {
+      const filter = target.dataset.filter;
+      state.view = "library";
+      state.filter = filter === "all" || (filter && isMediaKind(filter)) ? filter : "all";
+      state.libraryQuery = target.dataset.query ?? "";
+      state.sheet = null;
+      state.listPicker = null;
       render(root);
       return;
     }
@@ -752,6 +764,7 @@ function renderHome(): string {
         <em>${state.user ? "Left to watch or read" : "Your remaining titles appear after sign-in"}</em>
       </article>
     </section>
+    ${renderFunStats()}
     <section class="kinds">
       ${MEDIA_KINDS.map((kind) => {
         const count = state.entries.filter((entry) => entry.kind === kind.id).length;
@@ -764,6 +777,45 @@ function renderHome(): string {
         `;
       }).join("")}
     </section>
+  `;
+}
+
+function renderFunStats(): string {
+  if (state.entries.length < 1) {
+    return "";
+  }
+
+  const stats = buildHorrorStats(state.entries, state.finishedIds, Boolean(state.user));
+  return `
+    <section class="fun-stats" aria-label="Time and vault stats">
+      <h2>The numbers</h2>
+      <p>${
+        state.user
+          ? "Hours you've survived, time still waiting, and a few curiosities from the vault."
+          : "How long the vault runs, plus the longest nights and oldest shadows in the catalog."
+      }</p>
+      <div class="fun-stats-grid">${stats.time.map((stat) => renderFunStat(stat)).join("")}</div>
+      ${
+        stats.extras.length > 0
+          ? `<div class="fun-stats-grid is-curiosities">${stats.extras.map((stat) => renderFunStat(stat)).join("")}</div>`
+          : ""
+      }
+    </section>
+  `;
+}
+
+function renderFunStat(stat: FunStat): string {
+  const canOpen = Boolean(stat.filter || stat.query);
+  const attrs = canOpen
+    ? `data-action="stat-open" data-filter="${escapeHtml(stat.filter ?? "all")}" data-query="${escapeHtml(stat.query ?? "")}"`
+    : "";
+  const tag = canOpen ? "button" : "article";
+  return `
+    <${tag} class="fun-stat"${canOpen ? ` type="button" ${attrs}` : ""}>
+      <strong>${escapeHtml(stat.value)}</strong>
+      <span>${escapeHtml(stat.label)}</span>
+      <em>${escapeHtml(stat.hint)}</em>
+    </${tag}>
   `;
 }
 

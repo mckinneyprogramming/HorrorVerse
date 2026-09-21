@@ -173,7 +173,7 @@ export function movieDetailLine(entry: CatalogEntry): string | undefined {
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
-function formatRuntime(totalMinutes: number | undefined): string | undefined {
+export function formatRuntime(totalMinutes: number | undefined): string | undefined {
   if (totalMinutes === undefined) {
     return undefined;
   }
