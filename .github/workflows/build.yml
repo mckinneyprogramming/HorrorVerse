@@ -57,7 +57,6 @@ jobs:
           & .\.sonar\scanner\dotnet-sonarscanner.exe begin `
             /k:"mckinneyprogramming_HorrorTracker" `
             /o:"mckinneyprogramming" `
-            /d:sonar.organization="mckinneyprogramming" `
             /d:sonar.token="$env:SONAR_TOKEN" `
             /d:sonar.host.url="https://sonarcloud.io" `
             /d:sonar.scanner.scanAll=true `
