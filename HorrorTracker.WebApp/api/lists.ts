@@ -1,9 +1,6 @@
-import * as progress from "../lib/progress";
-import { namedRoute } from "../lib/route";
-import * as shows from "../lib/shows";
-
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 30;
+void "restore-standalone-lists";
 
 const MEDIA_KINDS = ["movie", "series", "documentary", "show", "book", "podcast", "game"] as const;
 
@@ -17,15 +14,6 @@ interface ListWriteBody {
 }
 
 export async function GET(request: Request) {
-  const route = namedRoute(request, ["progress", "shows"]);
-  if (route === "progress") {
-    return progress.GET(request);
-  }
-
-  if (route === "shows") {
-    return shows.GET(request);
-  }
-
   try {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
@@ -55,15 +43,6 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const route = namedRoute(request, ["progress", "shows"]);
-  if (route === "progress") {
-    return progress.PATCH(request);
-  }
-
-  if (route === "shows") {
-    return shows.PATCH(request);
-  }
-
   try {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
