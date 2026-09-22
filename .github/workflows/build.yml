@@ -49,9 +49,15 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
+          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
+            Write-Error "SONAR_TOKEN is missing. Add a SonarCloud token as the SONAR_TOKEN GitHub Actions secret (Settings > Secrets and variables > Actions)."
+            exit 1
+          }
+
           & .\.sonar\scanner\dotnet-sonarscanner.exe begin `
             /k:"mckinneyprogramming_HorrorTracker" `
             /o:"mckinneyprogramming" `
+            /d:sonar.organization="mckinneyprogramming" `
             /d:sonar.token="$env:SONAR_TOKEN" `
             /d:sonar.host.url="https://sonarcloud.io" `
             /d:sonar.scanner.scanAll=true `
