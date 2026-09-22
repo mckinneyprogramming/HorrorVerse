@@ -6,10 +6,15 @@ using HorrorTracker.Api.Logging;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
 using HorrorTracker.Data.Repositories;
+using HorrorTracker.Utilities.Logging;
 using HorrorTracker.Utilities.Logging.Interfaces;
 using Microsoft.AspNetCore.HttpOverrides;
+using Serilog;
+
+Log.Logger = SerilogConfigurator.ConfigureLogger("horrorverse-api");
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 
 var connectionString = CatalogService.ResolveConnectionString(builder.Configuration);
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -200,7 +205,14 @@ if (hasSpa)
     app.MapFallbackToFile("index.html");
 }
 
-app.Run();
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 static IResult WriteCatalog(HttpContext http, AuthService auth, Func<IResult> write)
 {

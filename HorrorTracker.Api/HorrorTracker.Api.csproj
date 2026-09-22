@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\HorrorTracker.Data\HorrorTracker.Data.csproj" />
     <ProjectReference Include="..\HorrorTracker.Utilities\HorrorTracker.Utilities.csproj" />
   </ItemGroup>

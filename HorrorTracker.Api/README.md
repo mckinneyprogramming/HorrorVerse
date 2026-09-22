@@ -14,6 +14,8 @@ dotnet run --launch-profile http
 
 Vite (`npm run dev`) proxies `/api` to `http://localhost:5116`.
 
+Serilog writes the console, a rolling file under `logs/`, and Seq when `LoggerUrl` is set (for example `http://localhost:5341`). Leave `LoggerUrl` unset if Seq is not running. Do not log connection strings, emails, or session cookies.
+
 - `GET /api/health`
 - `GET /api/catalog`
 - `GET /api/catalog/{kind}` — `movie`, `series`, `show`, `documentary`, or `book`

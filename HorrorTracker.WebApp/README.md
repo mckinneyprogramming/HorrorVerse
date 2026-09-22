@@ -35,6 +35,14 @@ Do not install from Vite/`localhost` if you want the home-screen icon to keep wo
 
 Details are in `HorrorTracker.Api/README.md`.
 
+Live production uses these Vercel functions (`HorrorTracker.WebApp/api/*.ts`), not the C# API. Failures are logged with `console.error` in each function file. Read them with:
+
+```bash
+npx vercel logs --project horrorverse --scope mc-kinney-programming --environment production
+```
+
+Do not add a shared `api/_lib` logger. Importing other local modules into a Vercel function has already caused `FUNCTION_INVOCATION_FAILED`.
+
 ## Add to Home Screen
 
 **iPhone / iPad (Safari)**
