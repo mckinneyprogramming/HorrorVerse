@@ -22,6 +22,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: HorrorTracker.WebApp/package-lock.json
+
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
@@ -60,7 +67,10 @@ jobs:
             /d:sonar.token="$env:SONAR_TOKEN" `
             /d:sonar.host.url="https://sonarcloud.io" `
             /d:sonar.scanner.scanAll=true `
-            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,HorrorTracker.Api/wwwroot/**"
+            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,HorrorTracker.Api/wwwroot/**" `
+            /d:sonar.coverage.exclusions="**/*Tests*/**,**/*.test.ts,**/vitest.config.ts" `
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" `
+            /d:sonar.javascript.lcov.reportPaths="HorrorTracker.WebApp/coverage/lcov.info"
 
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Sonar begin command failed with exit code $LASTEXITCODE"
@@ -72,6 +82,22 @@ jobs:
             exit 1
           }
 
-          dotnet build HorrorTracker.sln --no-incremental
+          dotnet test HorrorTracker.sln --collect:"XPlat Code Coverage" --results-directory TestResults --settings coverlet.runsettings
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "dotnet test failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+          Push-Location HorrorTracker.WebApp
+          try {
+            npm ci
+            npm run test:coverage
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Web unit tests failed with exit code $LASTEXITCODE"
+              exit $LASTEXITCODE
+            }
+          } finally {
+            Pop-Location
+          }
 
           & .\.sonar\scanner\dotnet-sonarscanner.exe end /d:sonar.token="$env:SONAR_TOKEN"
