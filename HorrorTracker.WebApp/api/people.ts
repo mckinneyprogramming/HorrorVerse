@@ -1,0 +1,327 @@
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
+interface PersonCard {
+  id: number;
+  displayName: string;
+  aboutMe?: string;
+  avatar?: string;
+  friendCount: number;
+  followerCount: number;
+  followingCount: number;
+  relation: string;
+  following: boolean;
+  followedBy: boolean;
+  lists?: { id: number; name: string; items: string[]; visibility: string }[];
+  finishedIds?: string[];
+}
+
+export async function GET(request: Request) {
+  try {
+    const connectionString = requireDatabaseUrl();
+    await ensureSocialSchema(connectionString);
+    const viewer = await requireUser(request, connectionString);
+    const url = new URL(request.url);
+    const id = Number(url.searchParams.get("id"));
+    if (Number.isInteger(id) && id > 0) {
+      const person = await loadProfile(connectionString, viewer.id, id);
+      if (!person) {
+        throw new SocialError("That member was not found.", 400);
+      }
+
+      return Response.json({ person });
+    }
+
+    return Response.json({ people: await searchPeople(connectionString, viewer.id, url.searchParams.get("q")) });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+async function searchPeople(connectionString: string, viewerId: number, query: string | null): Promise<PersonCard[]> {
+  const q = (query ?? "").trim();
+  if (q.length < 2) {
+    throw new SocialError("Enter at least two letters to find someone.", 400);
+  }
+
+  const rows = await queryRows(
+    connectionString,
+    `SELECT id, display_name, about_me, avatar
+     FROM app_user
+     WHERE id <> $1 AND display_name ILIKE $2
+     ORDER BY lower(display_name), id
+     LIMIT 20`,
+    [viewerId, `%${q.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`],
+  );
+  return Promise.all(rows.map((row) => toCard(connectionString, viewerId, row, false)));
+}
+
+async function loadProfile(connectionString: string, viewerId: number, userId: number): Promise<PersonCard | null> {
+  const rows = await queryRows(
+    connectionString,
+    "SELECT id, display_name, about_me, avatar FROM app_user WHERE id = $1",
+    [userId],
+  );
+  if (!rows[0]) {
+    return null;
+  }
+
+  return toCard(connectionString, viewerId, rows[0], true);
+}
+
+async function toCard(
+  connectionString: string,
+  viewerId: number,
+  row: Record<string, unknown>,
+  includeActivity: boolean,
+): Promise<PersonCard> {
+  const id = Number(row.id);
+  const relation = await relationOf(connectionString, viewerId, id);
+  const following = await isFollowing(connectionString, viewerId, id);
+  const canSee = viewerId === id || relation === "friends" || following;
+  const aboutMe = String(row.about_me ?? row.aboutMe ?? "").trim();
+  const avatar = String(row.avatar ?? "").trim();
+  return {
+    id,
+    displayName: String(row.display_name ?? row.displayName ?? ""),
+    ...(aboutMe ? { aboutMe } : {}),
+    ...(avatar ? { avatar } : {}),
+    friendCount: await countRows(connectionString, "SELECT COUNT(*)::int AS count FROM user_friendship WHERE user_id = $1", [id]),
+    followerCount: await countRows(connectionString, "SELECT COUNT(*)::int AS count FROM user_follow WHERE following_id = $1", [id]),
+    followingCount: await countRows(connectionString, "SELECT COUNT(*)::int AS count FROM user_follow WHERE follower_id = $1", [id]),
+    relation,
+    following,
+    followedBy: await isFollowing(connectionString, id, viewerId),
+    ...(includeActivity && canSee ? { lists: await loadVisibleLists(connectionString, id, viewerId === id) } : {}),
+    ...(includeActivity && canSee ? { finishedIds: await loadFinishedIds(connectionString, id) } : {}),
+  };
+}
+
+async function relationOf(connectionString: string, viewerId: number, otherId: number): Promise<string> {
+  if (viewerId === otherId) {
+    return "self";
+  }
+
+  if (await exists(connectionString, "SELECT 1 FROM user_friendship WHERE user_id = $1 AND friend_id = $2", [viewerId, otherId])) {
+    return "friends";
+  }
+
+  if (await exists(connectionString, "SELECT 1 FROM user_friend_request WHERE requester_id = $1 AND addressee_id = $2", [viewerId, otherId])) {
+    return "outgoing";
+  }
+
+  if (await exists(connectionString, "SELECT 1 FROM user_friend_request WHERE requester_id = $1 AND addressee_id = $2", [otherId, viewerId])) {
+    return "incoming";
+  }
+
+  return "none";
+}
+
+async function isFollowing(connectionString: string, followerId: number, followingId: number): Promise<boolean> {
+  if (followerId === followingId) {
+    return false;
+  }
+
+  return exists(connectionString, "SELECT 1 FROM user_follow WHERE follower_id = $1 AND following_id = $2", [followerId, followingId]);
+}
+
+async function loadVisibleLists(connectionString: string, ownerId: number, includePrivate: boolean) {
+  const rows = await queryRows(
+    connectionString,
+    includePrivate
+      ? `SELECT l.id, l.name, l.visibility, i.media_kind, i.media_id
+         FROM user_list l
+         LEFT JOIN user_list_item i ON i.list_id = l.id
+         WHERE l.user_id = $1
+         ORDER BY lower(l.name), l.id, i.added_at, i.media_kind, i.media_id`
+      : `SELECT l.id, l.name, l.visibility, i.media_kind, i.media_id
+         FROM user_list l
+         LEFT JOIN user_list_item i ON i.list_id = l.id
+         WHERE l.user_id = $1 AND l.visibility = 'public'
+         ORDER BY lower(l.name), l.id, i.added_at, i.media_kind, i.media_id`,
+    [ownerId],
+  );
+  const lists: { id: number; name: string; items: string[]; visibility: string }[] = [];
+  const indexById = new Map<number, number>();
+  for (const row of rows) {
+    const id = Number(row.id);
+    let index = indexById.get(id);
+    if (index === undefined) {
+      index = lists.length;
+      indexById.set(id, index);
+      lists.push({
+        id,
+        name: String(row.name ?? ""),
+        items: [],
+        visibility: String(row.visibility ?? "").trim().toLowerCase() === "public" ? "public" : "private",
+      });
+    }
+
+    if (row.media_kind == null || row.media_id == null) {
+      continue;
+    }
+
+    lists[index].items.push(`${String(row.media_kind)}:${Number(row.media_id)}`);
+  }
+
+  return lists;
+}
+
+async function loadFinishedIds(connectionString: string, userId: number): Promise<string[]> {
+  const rows = await queryRows(
+    connectionString,
+    "SELECT media_kind, media_id FROM user_media_progress WHERE user_id = $1",
+    [userId],
+  );
+  return rows.map((row) => `${String(row.media_kind)}:${Number(row.media_id)}`);
+}
+
+async function exists(connectionString: string, query: string, params: unknown[]): Promise<boolean> {
+  const rows = await queryRows(connectionString, query, params);
+  return rows.length > 0;
+}
+
+async function countRows(connectionString: string, query: string, params: unknown[]): Promise<number> {
+  const rows = await queryRows(connectionString, query, params);
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function ensureSocialSchema(connectionString: string): Promise<void> {
+  await execute(connectionString, "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS about_me TEXT");
+  await execute(connectionString, "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS avatar TEXT");
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS user_friend_request (
+      requester_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+      addressee_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (requester_id, addressee_id),
+      CHECK (requester_id <> addressee_id)
+    )`,
+  );
+  try {
+    await execute(
+      connectionString,
+      `CREATE UNIQUE INDEX IF NOT EXISTS user_friend_request_pair_idx
+       ON user_friend_request (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id))`,
+    );
+  } catch {
+    // Pair uniqueness is still enforced when accepting or sending.
+  }
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS user_friendship (
+      user_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+      friend_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, friend_id),
+      CHECK (user_id <> friend_id)
+    )`,
+  );
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS user_follow (
+      follower_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+      following_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (follower_id, following_id),
+      CHECK (follower_id <> following_id)
+    )`,
+  );
+  await execute(connectionString, "ALTER TABLE user_list ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private'");
+}
+
+async function requireUser(request: Request, connectionString: string): Promise<{ id: number }> {
+  const token = readSessionToken(request);
+  if (!token) {
+    throw new SocialError("Sign in to continue.", 401);
+  }
+
+  const rows = await queryRows(
+    connectionString,
+    `SELECT u.id FROM app_session s JOIN app_user u ON u.id = s.user_id WHERE s.token = $1 AND s.expires_at > NOW()`,
+    [token],
+  );
+  const id = Number(rows[0]?.id);
+  if (!Number.isInteger(id) || id < 1) {
+    throw new SocialError("Sign in to continue.", 401);
+  }
+
+  return { id };
+}
+
+function readSessionToken(request: Request): string | undefined {
+  const cookie = request.headers.get("cookie") ?? "";
+  for (const part of cookie.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 1) {
+      continue;
+    }
+
+    if (part.slice(0, separator).trim() === "hv_session") {
+      return decodeURIComponent(part.slice(separator + 1).trim());
+    }
+  }
+
+  return undefined;
+}
+
+function requireDatabaseUrl(): string {
+  const connectionString = process.env.DATABASE_URL?.trim();
+  if (!connectionString) {
+    throw new SocialError("DATABASE_URL is not configured.", 503);
+  }
+
+  return connectionString;
+}
+
+async function queryRows(connectionString: string, query: string, params: unknown[]): Promise<Record<string, unknown>[]> {
+  const payload = await neonRequest(connectionString, query, params);
+  if (!payload || typeof payload !== "object" || !("rows" in payload) || !Array.isArray((payload as { rows: unknown }).rows)) {
+    throw new Error("Neon HTTP response did not include rows.");
+  }
+
+  return (payload as { rows: Record<string, unknown>[] }).rows;
+}
+
+async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
+  await neonRequest(connectionString, query, params);
+}
+
+async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {
+  const url = new URL(connectionString);
+  const response = await fetch(`https://${url.hostname}/sql`, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "neon-connection-string": connectionString,
+    },
+    body: JSON.stringify({ query, params }),
+  });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    throw new Error(payload && typeof payload === "object" && "message" in payload ? String((payload as { message: unknown }).message) : `Neon HTTP ${response.status}`);
+  }
+
+  return payload;
+}
+
+function jsonError(error: unknown): Response {
+  if (error instanceof SocialError) {
+    return Response.json({ error: error.message }, { status: error.status });
+  }
+
+  const message = error instanceof Error ? error.message : "";
+  const status = message.includes("not configured") ? 503 : 500;
+  return Response.json({ error: message || "Could not load people." }, { status });
+}
+
+class SocialError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}

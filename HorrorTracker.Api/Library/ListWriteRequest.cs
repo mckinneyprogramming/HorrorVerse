@@ -7,4 +7,5 @@ public sealed class ListWriteRequest
     public string? Name { get; set; }
     public string? ItemId { get; set; }
     public int? FranchiseId { get; set; }
+    public string? Visibility { get; set; }
 }

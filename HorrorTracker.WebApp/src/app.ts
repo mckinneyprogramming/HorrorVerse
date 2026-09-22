@@ -16,6 +16,7 @@ import {
   loginAccount,
   logoutAccount,
   registerAccount,
+  updateProfile,
   type AuthUser,
 } from "./auth";
 import { fetchProgressIds, setProgress } from "./progress";
@@ -28,10 +29,23 @@ import {
   removeFranchiseFromList,
   removeListItem,
   renameList,
+  setListVisibility,
   type UserList,
 } from "./lists";
 import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
 import { fetchUpcoming, type UpcomingTitle } from "./upcoming";
+import {
+  fetchFriends,
+  fetchPerson,
+  followPerson,
+  respondFriend,
+  searchPeople,
+  sendFriendRequest,
+  unfollowPerson,
+  unfriend,
+  type FriendInbox,
+  type PersonCard,
+} from "./people";
 import { fetchWatch, type WatchOffer } from "./watch";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
@@ -51,7 +65,7 @@ import {
 } from "./franchises";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
-type View = "home" | "library" | "upcoming" | "lists" | "account" | "install";
+type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install";
 type UpcomingPane = "films" | "shows";
 type LibraryFilter = MediaKind | "all";
 type LoadStatus = "loading" | "ready" | "error";
@@ -111,6 +125,12 @@ interface AppState {
   upcomingMessage: string;
   upcomingPane: UpcomingPane;
   expandedUpcomingMonths: Set<string>;
+  profilePerson: PersonCard | null;
+  peopleQuery: string;
+  peopleResults: PersonCard[];
+  friendInbox: FriendInbox;
+  socialMessage: string;
+  socialBusy: boolean;
 }
 
 const state: AppState = {
@@ -161,9 +181,16 @@ const state: AppState = {
   upcomingMessage: "",
   upcomingPane: "films",
   expandedUpcomingMonths: new Set<string>(),
+  profilePerson: null,
+  peopleQuery: "",
+  peopleResults: [],
+  friendInbox: { friends: [], incoming: [], outgoing: [], following: [] },
+  socialMessage: "",
+  socialBusy: false,
 };
 
 const LIBRARY_PAGE_SIZE = 20;
+let pendingAvatar: string | null | undefined;
 
 export function mountApp(root: HTMLElement): void {
   render(root);
@@ -186,6 +213,12 @@ export function mountApp(root: HTMLElement): void {
     const action = target.dataset.action;
     if (action === "view") {
       state.view = target.dataset.view as View;
+      if (state.view === "account") {
+        state.profilePerson = null;
+        if (state.user) {
+          void refreshSocial();
+        }
+      }
       if (target.dataset.filter) {
         state.filter = target.dataset.filter as LibraryFilter;
         resetLibraryPages();
@@ -265,6 +298,108 @@ export function mountApp(root: HTMLElement): void {
       event.preventDefault();
       state.franchisesCollapsed = !state.franchisesCollapsed;
       render(root);
+      return;
+    }
+
+    if (action === "open-person") {
+      const userId = Number(target.dataset.userId);
+      if (!state.user || !Number.isInteger(userId) || userId < 1) {
+        return;
+      }
+
+      if (userId === state.user.id) {
+        state.view = "account";
+        state.profilePerson = null;
+        render(root);
+        return;
+      }
+
+      await openPerson(root, userId);
+      return;
+    }
+
+    if (action === "friend-request") {
+      const userId = Number(target.dataset.userId);
+      if (!state.user || state.socialBusy || !Number.isInteger(userId)) {
+        return;
+      }
+
+      await runSocial(root, async () => {
+        state.friendInbox = await sendFriendRequest(userId);
+        await refreshOpenPerson(userId);
+      });
+      return;
+    }
+
+    if (action === "friend-respond") {
+      const userId = Number(target.dataset.userId);
+      const respond = target.dataset.respond === "decline" ? "decline" : target.dataset.respond === "cancel" ? "cancel" : "accept";
+      if (!state.user || state.socialBusy || !Number.isInteger(userId)) {
+        return;
+      }
+
+      await runSocial(root, async () => {
+        state.friendInbox = await respondFriend(userId, respond);
+        await refreshOpenPerson(userId);
+      });
+      return;
+    }
+
+    if (action === "unfriend") {
+      const userId = Number(target.dataset.userId);
+      if (!state.user || state.socialBusy || !Number.isInteger(userId)) {
+        return;
+      }
+
+      if (!window.confirm("Remove this friend?")) {
+        return;
+      }
+
+      await runSocial(root, async () => {
+        state.friendInbox = await unfriend(userId);
+        await refreshOpenPerson(userId);
+      });
+      return;
+    }
+
+    if (action === "follow-person") {
+      const userId = Number(target.dataset.userId);
+      if (!state.user || state.socialBusy || !Number.isInteger(userId)) {
+        return;
+      }
+
+      await runSocial(root, async () => {
+        const person = await followPerson(userId);
+        applyPersonUpdate(person);
+        state.friendInbox = await fetchFriends();
+      });
+      return;
+    }
+
+    if (action === "unfollow-person") {
+      const userId = Number(target.dataset.userId);
+      if (!state.user || state.socialBusy || !Number.isInteger(userId)) {
+        return;
+      }
+
+      await runSocial(root, async () => {
+        const person = await unfollowPerson(userId);
+        applyPersonUpdate(person);
+        state.friendInbox = await fetchFriends();
+      });
+      return;
+    }
+
+    if (action === "list-visibility") {
+      const list = state.lists.find((item) => item.id === Number(target.dataset.listId));
+      if (!list || state.catalogBusy) {
+        return;
+      }
+
+      const visibility = list.visibility === "public" ? "private" : "public";
+      await saveUserLibrary(root, async () => {
+        state.lists = await setListVisibility(list.id, visibility);
+      });
       return;
     }
 
@@ -952,6 +1087,70 @@ export function mountApp(root: HTMLElement): void {
     event.preventDefault();
   });
 
+  root.addEventListener("change", async (event) => {
+    const input = (event.target as HTMLElement).closest<HTMLInputElement>("[data-avatar-input]");
+    if (!input || !input.files?.[0]) {
+      return;
+    }
+
+    try {
+      pendingAvatar = await resizeAvatar(input.files[0]);
+      state.authMessage = "";
+    } catch (error) {
+      pendingAvatar = undefined;
+      state.authMessage = error instanceof Error ? error.message : "Could not read that photo.";
+      render(root);
+    }
+  });
+
+  root.addEventListener("submit", async (event) => {
+    const profileForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-profile-form]");
+    if (!profileForm) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!state.user || state.authBusy) {
+      return;
+    }
+
+    const data = new FormData(profileForm);
+    state.authBusy = true;
+    state.authMessage = "";
+    render(root);
+    try {
+      state.user = await updateProfile({
+        displayName: String(data.get("displayName") ?? ""),
+        aboutMe: String(data.get("aboutMe") ?? ""),
+        ...(pendingAvatar !== undefined ? { avatar: pendingAvatar } : {}),
+      });
+      pendingAvatar = undefined;
+    } catch (error) {
+      state.authMessage = error instanceof Error ? error.message : "Could not save the profile.";
+    }
+
+    state.authBusy = false;
+    render(root);
+  });
+
+  root.addEventListener("submit", async (event) => {
+    const peopleForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-people-search]");
+    if (!peopleForm) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!state.user || state.socialBusy) {
+      return;
+    }
+
+    const query = String(new FormData(peopleForm).get("query") ?? "");
+    state.peopleQuery = query;
+    await runSocial(root, async () => {
+      state.peopleResults = await searchPeople(query);
+    });
+  });
+
   root.addEventListener("submit", async (event) => {
     const listForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-list-form]");
     if (!listForm) {
@@ -1170,20 +1369,80 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.lists = [];
     state.listPicker = null;
     state.franchiseListPicker = null;
+    state.profilePerson = null;
+    state.peopleResults = [];
+    state.friendInbox = { friends: [], incoming: [], outgoing: [], following: [] };
     render(root);
     return;
   }
 
-  try {
-    const [ids, lists] = await Promise.all([fetchProgressIds(), fetchLists()]);
-    state.finishedIds = ids;
-    state.lists = lists;
-  } catch {
-    state.finishedIds = [];
-    state.lists = [];
+    try {
+      const [ids, lists] = await Promise.all([fetchProgressIds(), fetchLists()]);
+      state.finishedIds = ids;
+      state.lists = lists;
+    } catch {
+      state.finishedIds = [];
+      state.lists = [];
+    }
+
+    await refreshSocial();
+    render(root);
+}
+
+async function refreshSocial(): Promise<void> {
+  if (!state.user) {
+    return;
   }
 
+  try {
+    state.friendInbox = await fetchFriends();
+    state.socialMessage = "";
+  } catch (error) {
+    state.socialMessage = error instanceof Error ? error.message : "Could not load friends.";
+  }
+}
+
+async function openPerson(root: HTMLElement, userId: number): Promise<void> {
+  state.socialBusy = true;
+  state.socialMessage = "";
   render(root);
+  try {
+    state.profilePerson = await fetchPerson(userId);
+    state.view = "profile";
+  } catch (error) {
+    state.socialMessage = error instanceof Error ? error.message : "Could not open that profile.";
+  }
+
+  state.socialBusy = false;
+  render(root);
+}
+
+async function runSocial(root: HTMLElement, work: () => Promise<void>): Promise<void> {
+  state.socialBusy = true;
+  state.socialMessage = "";
+  render(root);
+  try {
+    await work();
+  } catch (error) {
+    state.socialMessage = error instanceof Error ? error.message : "Could not update that connection.";
+  }
+
+  state.socialBusy = false;
+  render(root);
+}
+
+async function refreshOpenPerson(userId: number): Promise<void> {
+  if (state.peopleResults.some((person) => person.id === userId) || state.profilePerson?.id === userId) {
+    applyPersonUpdate(await fetchPerson(userId));
+  }
+}
+
+function applyPersonUpdate(person: PersonCard): void {
+  if (state.profilePerson?.id === person.id) {
+    state.profilePerson = person;
+  }
+
+  state.peopleResults = state.peopleResults.map((item) => (item.id === person.id ? person : item));
 }
 
 async function loadShowGuide(root: HTMLElement, showId: number, season?: number): Promise<void> {
@@ -1348,6 +1607,7 @@ function render(root: HTMLElement): void {
         ${state.view === "upcoming" ? renderUpcomingPage() : ""}
         ${state.view === "lists" ? renderLists() : ""}
         ${state.view === "account" ? renderAccount() : ""}
+        ${state.view === "profile" ? renderPersonProfile() : ""}
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
@@ -1383,7 +1643,7 @@ function renderUpdateBanner(): string {
 }
 
 function dockButton(view: View, label: string, icon: string): string {
-  const active = state.view === view ? " is-active" : "";
+  const active = state.view === view || (view === "account" && state.view === "profile") ? " is-active" : "";
   return `
     <button class="dock-btn${active}" type="button" data-action="view" data-view="${view}">
       ${icon}
@@ -2218,22 +2478,43 @@ function compareByYearThenId(left: CatalogEntry, right: CatalogEntry): number {
 
 function renderAccount(): string {
   if (state.user) {
+    const stats = buildHorrorStats(state.entries, state.finishedIds, true, state.franchises);
     return `
       <header class="page-head">
         <h1>Account</h1>
         <p>${state.user.isAdmin ? "The vault answers to you." : "Your place in the HorrorVerse."}</p>
       </header>
+      ${state.authMessage ? `<p class="status is-error">${escapeHtml(state.authMessage)}</p>` : ""}
       <section class="account-card">
+        ${renderAvatar(state.user.avatar, state.user.displayName, "is-large")}
         <p class="account-name">${escapeHtml(state.user.displayName)}</p>
         <p class="account-email">${escapeHtml(state.user.email)}</p>
         <span class="role-badge${state.user.isAdmin ? " is-admin" : ""}">${state.user.isAdmin ? "Admin" : "Member"}</span>
+        ${state.user.aboutMe ? `<p class="account-about">${escapeHtml(state.user.aboutMe)}</p>` : ""}
         ${
           state.user.isAdmin
-            ? `<p class="account-note">You can add, edit, and remove titles in the library. Finished marks and lists are yours alone — other accounts keep their own.</p>`
-            : `<p class="account-note">Mark titles finished and keep named lists. Only the administrator can change the catalog itself.</p>`
+            ? `<p class="account-note">You can add, edit, and remove titles in the library. Finished marks stay yours; public lists can be shared with friends and followers.</p>`
+            : `<p class="account-note">Mark titles finished and keep lists. Make a list public if you want friends and followers to see it.</p>`
         }
-        <button class="primary-btn" type="button" data-action="logout" ${state.authBusy ? "disabled" : ""}>Sign out</button>
+        <form class="profile-form" data-profile-form>
+          <label>
+            Display name
+            <input name="displayName" type="text" maxlength="80" value="${escapeHtml(state.user.displayName)}" required />
+          </label>
+          <label>
+            About me
+            <textarea name="aboutMe" maxlength="500" rows="3" placeholder="What you watch, what you survive…">${escapeHtml(state.user.aboutMe ?? "")}</textarea>
+          </label>
+          <label class="profile-photo-field">
+            Profile photo
+            <input data-avatar-input type="file" accept="image/jpeg,image/png,image/webp" />
+          </label>
+          <button class="primary-btn" type="submit" ${state.authBusy ? "disabled" : ""}>Save profile</button>
+        </form>
+        <button class="ghost-btn" type="button" data-action="logout" ${state.authBusy ? "disabled" : ""}>Sign out</button>
       </section>
+      ${stats.yours ? renderStatGroup("Your nights", "Hours you've marked finished, plus the titles that linger.", stats.yours) : ""}
+      ${renderPeopleSection()}
     `;
   }
 
@@ -2273,6 +2554,165 @@ function renderAccount(): string {
       }</button>
     </form>
   `;
+}
+
+function renderPeopleSection(): string {
+  const inbox = state.friendInbox;
+  return `
+    <section class="people-panel">
+      <header class="upcoming-head">
+        <h2>People</h2>
+        <p>Find members, accept friends, or follow someone to see their public lists.</p>
+      </header>
+      ${state.socialMessage ? `<p class="status is-error">${escapeHtml(state.socialMessage)}</p>` : ""}
+      <form class="people-search" data-people-search>
+        <label>
+          Find someone
+          <input name="query" type="search" minlength="2" value="${escapeHtml(state.peopleQuery)}" placeholder="Display name" autocomplete="off" />
+        </label>
+        <button class="primary-btn" type="submit" ${state.socialBusy ? "disabled" : ""}>Search</button>
+      </form>
+      ${
+        state.peopleResults.length > 0
+          ? `<ul class="people-list">${state.peopleResults.map((person) => renderPersonRow(person, "search")).join("")}</ul>`
+          : ""
+      }
+      ${renderPersonGroup("Friend requests", inbox.incoming, "incoming")}
+      ${renderPersonGroup("Friends", inbox.friends, "friends")}
+      ${renderPersonGroup("Following", inbox.following, "following")}
+      ${inbox.outgoing.length > 0 ? renderPersonGroup("Sent requests", inbox.outgoing, "outgoing") : ""}
+    </section>
+  `;
+}
+
+function renderPersonGroup(title: string, people: PersonCard[], tone: string): string {
+  if (people.length < 1) {
+    return title === "Friends" ? `<p class="empty">No friends yet. Search a display name to send a request.</p>` : "";
+  }
+
+  return `
+    <div class="people-group">
+      <h3>${escapeHtml(title)}</h3>
+      <ul class="people-list">${people.map((person) => renderPersonRow(person, tone)).join("")}</ul>
+    </div>
+  `;
+}
+
+function renderPersonRow(person: PersonCard, tone: string): string {
+  return `
+    <li class="people-row">
+      <button class="people-open" type="button" data-action="open-person" data-user-id="${person.id}">
+        ${renderAvatar(person.avatar, person.displayName)}
+        <span>
+          <strong>${escapeHtml(person.displayName)}</strong>
+          ${person.aboutMe ? `<em>${escapeHtml(person.aboutMe)}</em>` : ""}
+        </span>
+      </button>
+      ${renderPersonActions(person, tone)}
+    </li>
+  `;
+}
+
+function renderPersonActions(person: PersonCard, tone: string): string {
+  if (!state.user || person.id === state.user.id || person.relation === "self") {
+    return "";
+  }
+
+  const busy = state.socialBusy ? "disabled" : "";
+  if (tone === "incoming" || person.relation === "incoming") {
+    return `
+      <button class="entry-list" type="button" data-action="friend-respond" data-respond="accept" data-user-id="${person.id}" ${busy}>Accept</button>
+      <button class="ghost-btn" type="button" data-action="friend-respond" data-respond="decline" data-user-id="${person.id}" ${busy}>Decline</button>
+    `;
+  }
+
+  if (person.relation === "outgoing" || tone === "outgoing") {
+    return `<button class="ghost-btn" type="button" data-action="friend-respond" data-respond="cancel" data-user-id="${person.id}" ${busy}>Cancel</button>`;
+  }
+
+  if (person.relation === "friends" || tone === "friends") {
+    return `<button class="ghost-btn" type="button" data-action="unfriend" data-user-id="${person.id}" ${busy}>Unfriend</button>`;
+  }
+
+  return `
+    <button class="entry-list" type="button" data-action="friend-request" data-user-id="${person.id}" ${busy}>Add friend</button>
+    ${
+      person.following
+        ? `<button class="ghost-btn" type="button" data-action="unfollow-person" data-user-id="${person.id}" ${busy}>Unfollow</button>`
+        : `<button class="ghost-btn" type="button" data-action="follow-person" data-user-id="${person.id}" ${busy}>Follow</button>`
+    }
+  `;
+}
+
+function renderPersonProfile(): string {
+  const person = state.profilePerson;
+  if (!person) {
+    return `<p class="empty">That profile is not open.</p>`;
+  }
+
+  const connected = person.relation === "friends" || person.following || person.relation === "self";
+  const stats =
+    connected && person.finishedIds
+      ? buildHorrorStats(state.entries, person.finishedIds, true, state.franchises).yours
+      : undefined;
+  return `
+    <header class="page-head">
+      <h1>${escapeHtml(person.displayName)}</h1>
+      <p>${person.friendCount} friends · ${person.followerCount} followers · ${person.followingCount} following</p>
+    </header>
+    <section class="account-card">
+      ${renderAvatar(person.avatar, person.displayName, "is-large")}
+      ${person.aboutMe ? `<p class="account-about">${escapeHtml(person.aboutMe)}</p>` : `<p class="account-note">No About Me yet.</p>`}
+      ${person.followedBy ? `<p class="account-note">They follow you.</p>` : ""}
+      <div class="profile-actions">${renderPersonActions(person, person.relation)}</div>
+    </section>
+    ${state.socialMessage ? `<p class="status is-error">${escapeHtml(state.socialMessage)}</p>` : ""}
+    ${
+      !connected
+        ? `<p class="empty">Become friends or follow them to see public lists and watching stats.</p>`
+        : `
+          ${stats ? renderStatGroup("Their nights", "What they've marked finished in the vault.", stats) : ""}
+          ${renderSharedLists(person.lists ?? [])}
+        `
+    }
+    <button class="ghost-btn" type="button" data-action="view" data-view="account">Back to Account</button>
+  `;
+}
+
+function renderSharedLists(lists: UserList[]): string {
+  if (lists.length < 1) {
+    return `<p class="empty">No public lists to show.</p>`;
+  }
+
+  return lists
+    .map((list) => {
+      const grouped = groupListEntries(list);
+      return `
+        <details class="user-list" open>
+          <summary>
+            <span class="user-list-name">${escapeHtml(list.name)}</span>
+            <span class="user-list-count">${grouped.total}</span>
+          </summary>
+          ${
+            grouped.total < 1
+              ? `<p class="empty">This list is empty.</p>`
+              : `<div class="list-entries">${grouped.standalone.map((entry) => `<p class="list-plain">${escapeHtml(entry.title)}</p>`).join("")}${grouped.series
+                  .map((group) => `<p class="list-plain">${escapeHtml(group.series.title)}</p>`)
+                  .join("")}</div>`
+          }
+        </details>
+      `;
+    })
+    .join("");
+}
+
+function renderAvatar(avatar: string | undefined, name: string, extra = ""): string {
+  if (avatar) {
+    return `<img class="avatar ${extra}" src="${escapeHtml(avatar)}" alt="" />`;
+  }
+
+  const initial = (name.trim()[0] ?? "?").toUpperCase();
+  return `<span class="avatar avatar-fallback ${extra}" aria-hidden="true">${escapeHtml(initial)}</span>`;
 }
 
 function renderStatus(): string {
@@ -2688,7 +3128,7 @@ function renderLists(): string {
   return `
     <header class="page-head">
       <h1>Lists</h1>
-      <p>Named lists for this account. Other people cannot see them.</p>
+      <p>Lists start private. Make one public if friends and followers should see it on your profile.</p>
     </header>
     ${state.listMessage ? `<p class="status is-error">${escapeHtml(state.listMessage)}</p>` : ""}
     <form class="list-create" data-list-form>
@@ -2717,6 +3157,9 @@ function renderUserList(list: UserList): string {
         <span class="user-list-count">${grouped.total}</span>
       </summary>
       <div class="user-list-actions">
+        <button type="button" data-action="list-visibility" data-list-id="${list.id}" ${state.catalogBusy ? "disabled" : ""}>${
+          list.visibility === "public" ? "Public" : "Private"
+        }</button>
         <button type="button" data-action="rename-list" data-list-id="${list.id}" ${state.catalogBusy ? "disabled" : ""}>Rename</button>
         <button type="button" data-action="delete-list" data-list-id="${list.id}" ${state.catalogBusy ? "disabled" : ""}>Delete</button>
       </div>
@@ -3258,6 +3701,33 @@ function renderPagedCatalog<T>(items: T[], renderItem: (item: T) => string, page
   return `<div class="library-page" data-page-anchor="${escapeHtml(pageKey)}"><ul class="catalog">${page
     .map((item) => renderItem(item))
     .join("")}</ul>${renderPager(pageKey, items.length)}</div>`;
+}
+
+async function resizeAvatar(file: File): Promise<string> {
+  if (file.size > 8 * 1024 * 1024) {
+    throw new Error("Choose a photo smaller than 8 MB.");
+  }
+
+  const bitmap = await createImageBitmap(file);
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Could not prepare that photo.");
+  }
+
+  const scale = Math.max(size / bitmap.width, size / bitmap.height);
+  const width = bitmap.width * scale;
+  const height = bitmap.height * scale;
+  context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height);
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+  if (dataUrl.length > 120_000) {
+    throw new Error("Choose a simpler photo — that one is still too large.");
+  }
+
+  return dataUrl;
 }
 
 function escapeHtml(value: string): string {

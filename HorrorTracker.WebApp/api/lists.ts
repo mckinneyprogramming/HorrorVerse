@@ -9,6 +9,7 @@ interface ListWriteBody {
   name?: string;
   itemId?: string;
   franchiseId?: number;
+  visibility?: string;
 }
 
 export async function GET(request: Request) {
@@ -45,7 +46,7 @@ export async function PATCH(request: Request) {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
     const body = (await request.json().catch(() => ({}))) as ListWriteBody;
-    await renameList(connectionString, user.id, body.id ?? body.listId, body.name);
+    await updateList(connectionString, user.id, body);
     return Response.json({ lists: await loadLists(connectionString, user.id) });
   } catch (error) {
     return jsonError(error);
@@ -79,7 +80,7 @@ export async function DELETE(request: Request) {
 async function loadLists(connectionString: string, userId: number) {
   const rows = await queryRows(
     connectionString,
-    `SELECT l.id, l.name, i.media_kind, i.media_id
+    `SELECT l.id, l.name, l.visibility, i.media_kind, i.media_id
      FROM user_list l
      LEFT JOIN user_list_item i ON i.list_id = l.id
      WHERE l.user_id = $1
@@ -87,7 +88,7 @@ async function loadLists(connectionString: string, userId: number) {
     [userId],
   );
 
-  const lists: { id: number; name: string; items: string[] }[] = [];
+  const lists: { id: number; name: string; items: string[]; visibility: string }[] = [];
   const indexById = new Map<number, number>();
   for (const row of rows) {
     const id = Number(row.id);
@@ -95,7 +96,7 @@ async function loadLists(connectionString: string, userId: number) {
     if (index === undefined) {
       index = lists.length;
       indexById.set(id, index);
-      lists.push({ id, name: String(row.name ?? ""), items: [] });
+      lists.push({ id, name: String(row.name ?? ""), items: [], visibility: readVisibility(row.visibility) });
     }
 
     const kind = row.media_kind;
@@ -126,19 +127,30 @@ async function createList(connectionString: string, userId: number, name: string
   }
 }
 
-async function renameList(
-  connectionString: string,
-  userId: number,
-  listId: number | undefined,
-  name: string | undefined,
-): Promise<void> {
-  const id = requireListId(listId);
-  const trimmed = normalizeListName(name);
+async function updateList(connectionString: string, userId: number, body: ListWriteBody): Promise<void> {
+  const id = requireListId(body.id ?? body.listId);
+  const visibility = normalizeVisibility(body.visibility);
+  if (!body.name && visibility) {
+    const rows = await queryRows(
+      connectionString,
+      "UPDATE user_list SET visibility = $1 WHERE id = $2 AND user_id = $3 RETURNING id",
+      [visibility, id, userId],
+    );
+    if (rows.length < 1) {
+      throw new LibraryError("That list was not found.", 400);
+    }
+
+    return;
+  }
+
+  const trimmed = normalizeListName(body.name);
   try {
     const rows = await queryRows(
       connectionString,
-      "UPDATE user_list SET name = $1 WHERE id = $2 AND user_id = $3 RETURNING id",
-      [trimmed, id, userId],
+      visibility
+        ? "UPDATE user_list SET name = $1, visibility = $2 WHERE id = $3 AND user_id = $4 RETURNING id"
+        : "UPDATE user_list SET name = $1 WHERE id = $2 AND user_id = $3 RETURNING id",
+      visibility ? [trimmed, visibility, id, userId] : [trimmed, id, userId],
     );
     if (rows.length < 1) {
       throw new LibraryError("That list was not found.", 400);
@@ -432,6 +444,24 @@ async function ensureUserLibrarySchema(connectionString: string): Promise<void> 
         seeded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`,
   );
+  await execute(connectionString, "ALTER TABLE user_list ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private'");
+}
+
+function readVisibility(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase() === "public" ? "public" : "private";
+}
+
+function normalizeVisibility(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const visibility = value.trim().toLowerCase();
+  if (visibility !== "private" && visibility !== "public") {
+    throw new LibraryError("A list is either private or public.", 400);
+  }
+
+  return visibility;
 }
 
 function parseCatalogId(id: string | null | undefined): { kind: string; mediaId: number } {

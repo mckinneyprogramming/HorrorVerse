@@ -3,6 +3,8 @@ export interface AuthUser {
   email: string;
   displayName: string;
   isAdmin: boolean;
+  aboutMe?: string;
+  avatar?: string;
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
@@ -32,6 +34,25 @@ export async function loginAccount(input: { email: string; password: string }): 
 
 export async function logoutAccount(): Promise<void> {
   await fetch("/api/auth", { method: "DELETE" });
+}
+
+export async function updateProfile(input: { displayName?: string; aboutMe?: string; avatar?: string | null }): Promise<AuthUser> {
+  const response = await fetch("/api/auth", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    throw new Error(readError(payload, response.status));
+  }
+
+  const user = readUserPayload(payload);
+  if (!user) {
+    throw new Error("Could not save the profile.");
+  }
+
+  return user;
 }
 
 async function mutateAuth(body: Record<string, string>): Promise<AuthUser> {
@@ -74,11 +95,15 @@ function readUserPayload(payload: unknown): AuthUser | null {
     return null;
   }
 
+  const aboutMe = typeof record.aboutMe === "string" ? record.aboutMe.trim() : "";
+  const avatar = typeof record.avatar === "string" ? record.avatar.trim() : "";
   return {
     id: record.id,
     email: record.email,
     displayName: record.displayName,
     isAdmin: record.isAdmin,
+    ...(aboutMe ? { aboutMe } : {}),
+    ...(avatar ? { avatar } : {}),
   };
 }
 

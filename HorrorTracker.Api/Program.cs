@@ -1,6 +1,7 @@
 using HorrorTracker.Api.Auth;
 using HorrorTracker.Api.Catalog;
 using HorrorTracker.Api.Library;
+using HorrorTracker.Api.Social;
 using HorrorTracker.Api.Logging;
 using HorrorTracker.Data.PostgreHelpers;
 using HorrorTracker.Data.PostgreHelpers.Interfaces;
@@ -31,6 +32,7 @@ builder.Services.AddScoped<UpcomingCatalogService>();
 builder.Services.AddScoped<TmdbCatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserLibraryService>();
+builder.Services.AddScoped<SocialService>();
 
 var app = builder.Build();
 
@@ -147,10 +149,29 @@ app.MapDelete("/api/lists", (int? id, int? listId, int? franchiseId, string? ite
                     ? library.DeleteList(user, id)
                     : library.RemoveListItem(user, listId ?? id, itemId)
         })));
+app.MapGet("/api/people", (string? q, int? id, HttpContext http, AuthService auth, SocialService social) =>
+    WriteSignedIn(http, auth, user =>
+        id is > 0
+            ? Results.Json(new { person = social.GetProfile(user, id) })
+            : Results.Json(new { people = social.Search(user, q) })));
+app.MapGet("/api/friends", (HttpContext http, AuthService auth, SocialService social) =>
+    WriteSignedIn(http, auth, user => Results.Json(social.GetInbox(user))));
+app.MapPost("/api/friends", (SocialWriteRequest body, HttpContext http, AuthService auth, SocialService social) =>
+    WriteSignedIn(http, auth, user => Results.Json(social.SendRequest(user, body.UserId))));
+app.MapPatch("/api/friends", (SocialWriteRequest body, HttpContext http, AuthService auth, SocialService social) =>
+    WriteSignedIn(http, auth, user => Results.Json(social.Respond(user, body))));
+app.MapDelete("/api/friends", (int? id, HttpContext http, AuthService auth, SocialService social) =>
+    WriteSignedIn(http, auth, user => Results.Json(social.Unfriend(user, id))));
+app.MapPost("/api/follows", (SocialWriteRequest body, HttpContext http, AuthService auth, SocialService social) =>
+    WriteSignedIn(http, auth, user => Results.Json(new { person = social.Follow(user, body.UserId) })));
+app.MapDelete("/api/follows", (int? id, HttpContext http, AuthService auth, SocialService social) =>
+    WriteSignedIn(http, auth, user => Results.Json(new { person = social.Unfollow(user, id) })));
 app.MapGet("/api/auth", (HttpContext http, AuthService auth) =>
 {
     return Results.Json(new { user = auth.GetCurrent(AuthCookies.Read(http.Request)) });
 });
+app.MapPatch("/api/auth", (ProfileWriteRequest body, HttpContext http, AuthService auth) =>
+    WriteSignedIn(http, auth, user => Results.Json(new { user = auth.UpdateProfile(user, body) })));
 app.MapPost("/api/auth", (AuthRequest body, HttpContext http, AuthService auth) =>
 {
     try

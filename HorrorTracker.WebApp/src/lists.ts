@@ -2,6 +2,7 @@ export interface UserList {
   id: number;
   name: string;
   items: string[];
+  visibility: "private" | "public";
 }
 
 export async function fetchLists(): Promise<UserList[]> {
@@ -23,6 +24,10 @@ export async function createList(name: string): Promise<UserList[]> {
 
 export async function renameList(id: number, name: string): Promise<UserList[]> {
   return writeLists("PATCH", "/api/lists", { id, name });
+}
+
+export async function setListVisibility(id: number, visibility: "private" | "public"): Promise<UserList[]> {
+  return writeLists("PATCH", "/api/lists", { id, visibility });
 }
 
 export async function deleteList(id: number): Promise<UserList[]> {
@@ -91,7 +96,7 @@ function readLists(payload: unknown): UserList[] {
         return null;
       }
 
-      const list = value as Partial<UserList>;
+      const list = value as Partial<UserList> & { Visibility?: string };
       if (typeof list.id !== "number" || typeof list.name !== "string" || !Array.isArray(list.items)) {
         return null;
       }
@@ -100,6 +105,7 @@ function readLists(payload: unknown): UserList[] {
         id: list.id,
         name: list.name,
         items: list.items.filter((item): item is string => typeof item === "string"),
+        visibility: String(list.visibility ?? list.Visibility ?? "private").toLowerCase() === "public" ? "public" : "private",
       };
     })
     .filter((list): list is UserList => list !== null);

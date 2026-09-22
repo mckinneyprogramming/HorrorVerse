@@ -763,6 +763,121 @@ code {
   padding: 18px;
 }
 
+.profile-form label,
+.people-search label {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.profile-form textarea,
+.people-search input,
+.profile-form input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.account-about {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.avatar.is-large {
+  width: 88px;
+  height: 88px;
+}
+
+.avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--crimson);
+  font-family: var(--font-display);
+}
+
+.people-panel,
+.people-group {
+  margin: 22px 0 0;
+}
+
+.people-search {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.people-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.people-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.people-open {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px;
+  text-align: left;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.people-open span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.people-open em {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.list-plain {
+  margin: 0 0 6px;
+  padding: 0 12px;
+}
+
 .auth-form label {
   display: grid;
   gap: 6px;

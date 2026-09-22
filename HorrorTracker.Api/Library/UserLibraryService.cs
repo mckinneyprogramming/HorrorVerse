@@ -21,7 +21,12 @@ public sealed class UserLibraryService(IConfiguration configuration)
     {
         EnsureSchema();
         SeedAdminProgressIfEmpty(user);
+        return GetCompletedIds(user.Id);
+    }
 
+    public IReadOnlyList<string> GetCompletedIds(int userId)
+    {
+        EnsureSchema();
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
@@ -29,7 +34,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
             FROM user_media_progress
             WHERE user_id = @userId
             """;
-        command.Parameters.AddWithValue("userId", user.Id);
+        command.Parameters.AddWithValue("userId", userId);
         using var reader = command.ExecuteReader();
         var ids = new List<string>();
         while (reader.Read())
@@ -86,7 +91,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT l.id, l.name, i.media_kind, i.media_id
+            SELECT l.id, l.name, l.visibility, i.media_kind, i.media_id
             FROM user_list l
             LEFT JOIN user_list_item i ON i.list_id = l.id
             WHERE l.user_id = @userId
@@ -104,16 +109,63 @@ public sealed class UserLibraryService(IConfiguration configuration)
             {
                 index = lists.Count;
                 indexById[id] = index;
-                lists.Add(new UserListDto(id, reader.GetString(1), []));
+                lists.Add(new UserListDto(id, reader.GetString(1), [], ReadVisibility(reader, 2)));
             }
 
-            if (reader.IsDBNull(2) || reader.IsDBNull(3))
+            if (reader.IsDBNull(3) || reader.IsDBNull(4))
             {
                 continue;
             }
 
             var items = lists[index].Items.ToList();
-            items.Add($"{reader.GetString(2)}:{reader.GetInt32(3)}");
+            items.Add($"{reader.GetString(3)}:{reader.GetInt32(4)}");
+            lists[index] = lists[index] with { Items = items };
+        }
+
+        return lists;
+    }
+
+    public IReadOnlyList<UserListDto> GetPublicLists(int ownerId, bool includePrivate)
+    {
+        EnsureSchema();
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = includePrivate
+            ? """
+                SELECT l.id, l.name, l.visibility, i.media_kind, i.media_id
+                FROM user_list l
+                LEFT JOIN user_list_item i ON i.list_id = l.id
+                WHERE l.user_id = @userId
+                ORDER BY lower(l.name), l.id, i.added_at, i.media_kind, i.media_id
+                """
+            : """
+                SELECT l.id, l.name, l.visibility, i.media_kind, i.media_id
+                FROM user_list l
+                LEFT JOIN user_list_item i ON i.list_id = l.id
+                WHERE l.user_id = @userId AND l.visibility = 'public'
+                ORDER BY lower(l.name), l.id, i.added_at, i.media_kind, i.media_id
+                """;
+        command.Parameters.AddWithValue("userId", ownerId);
+        var lists = new List<UserListDto>();
+        var indexById = new Dictionary<int, int>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var id = reader.GetInt32(0);
+            if (!indexById.TryGetValue(id, out var index))
+            {
+                index = lists.Count;
+                indexById[id] = index;
+                lists.Add(new UserListDto(id, reader.GetString(1), [], ReadVisibility(reader, 2)));
+            }
+
+            if (reader.IsDBNull(3) || reader.IsDBNull(4))
+            {
+                continue;
+            }
+
+            var items = lists[index].Items.ToList();
+            items.Add($"{reader.GetString(3)}:{reader.GetInt32(4)}");
             lists[index] = lists[index] with { Items = items };
         }
 
@@ -150,20 +202,52 @@ public sealed class UserLibraryService(IConfiguration configuration)
     {
         EnsureSchema();
         var listId = RequireListId(request.Id ?? request.ListId);
+        var visibility = NormalizeVisibility(request.Visibility);
+        if (string.IsNullOrWhiteSpace(request.Name) && visibility is not null)
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                UPDATE user_list
+                SET visibility = @visibility
+                WHERE id = @id AND user_id = @userId
+                """;
+            command.Parameters.AddWithValue("visibility", visibility);
+            command.Parameters.AddWithValue("id", listId);
+            command.Parameters.AddWithValue("userId", user.Id);
+            if (command.ExecuteNonQuery() < 1)
+            {
+                throw new InvalidOperationException("That list was not found.");
+            }
+
+            return GetLists(user);
+        }
+
         var name = NormalizeListName(request.Name);
 
         try
         {
             using var connection = OpenConnection();
             using var command = connection.CreateCommand();
-            command.CommandText = """
-                UPDATE user_list
-                SET name = @name
-                WHERE id = @id AND user_id = @userId
-                """;
+            command.CommandText = visibility is null
+                ? """
+                    UPDATE user_list
+                    SET name = @name
+                    WHERE id = @id AND user_id = @userId
+                    """
+                : """
+                    UPDATE user_list
+                    SET name = @name, visibility = @visibility
+                    WHERE id = @id AND user_id = @userId
+                    """;
             command.Parameters.AddWithValue("name", name);
             command.Parameters.AddWithValue("id", listId);
             command.Parameters.AddWithValue("userId", user.Id);
+            if (visibility is not null)
+            {
+                command.Parameters.AddWithValue("visibility", visibility);
+            }
+
             if (command.ExecuteNonQuery() < 1)
             {
                 throw new InvalidOperationException("That list was not found.");
@@ -438,6 +522,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
                 user_id INTEGER PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
                 seeded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+            ALTER TABLE user_list ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private';
             """;
         command.ExecuteNonQuery();
     }
@@ -720,5 +805,32 @@ public sealed class UserLibraryService(IConfiguration configuration)
         }
 
         return value;
+    }
+
+    private static string? NormalizeVisibility(string? visibility)
+    {
+        if (string.IsNullOrWhiteSpace(visibility))
+        {
+            return null;
+        }
+
+        var value = visibility.Trim().ToLowerInvariant();
+        if (value is not ("private" or "public"))
+        {
+            throw new InvalidOperationException("A list is either private or public.");
+        }
+
+        return value;
+    }
+
+    private static string ReadVisibility(NpgsqlDataReader reader, int ordinal)
+    {
+        if (reader.IsDBNull(ordinal))
+        {
+            return "private";
+        }
+
+        var value = reader.GetString(ordinal).Trim().ToLowerInvariant();
+        return value == "public" ? "public" : "private";
     }
 }

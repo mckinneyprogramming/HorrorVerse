@@ -10,6 +10,8 @@ interface AuthUser {
   email: string;
   displayName: string;
   isAdmin: boolean;
+  aboutMe?: string;
+  avatar?: string;
 }
 
 interface AuthRequestBody {
@@ -17,6 +19,8 @@ interface AuthRequestBody {
   email?: string;
   password?: string;
   displayName?: string;
+  aboutMe?: string;
+  avatar?: string;
 }
 
 export async function GET(request: Request) {
@@ -44,6 +48,42 @@ export async function POST(request: Request) {
       { user: session.user },
       { headers: { "set-cookie": createSessionCookie(session.token, request, SESSION_DAYS) } },
     );
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const connectionString = requireDatabaseUrl();
+    await ensureSchema(connectionString);
+    const user = await readSessionUser(connectionString, readSessionToken(request));
+    if (!user) {
+      throw new AuthError("Sign in to continue.", 401);
+    }
+
+    const body = (await request.json().catch(() => ({}))) as AuthRequestBody;
+    const displayName = body.displayName === undefined ? user.displayName : normalizeDisplayName(body.displayName, user.email);
+    if (!displayName) {
+      throw new AuthError("Enter a display name.", 400);
+    }
+
+    const aboutMe = body.aboutMe === undefined ? user.aboutMe ?? null : normalizeAboutMe(body.aboutMe);
+    const avatar = body.avatar === undefined ? user.avatar ?? null : normalizeAvatar(body.avatar);
+    const rows = await queryRows(
+      connectionString,
+      `UPDATE app_user
+       SET display_name = $1, about_me = $2, avatar = $3
+       WHERE id = $4
+       RETURNING id, email, display_name, is_admin, about_me, avatar`,
+      [displayName, aboutMe, avatar, user.id],
+    );
+    const next = mapUser(rows[0]);
+    if (!next) {
+      throw new AuthError("Could not save the profile.", 500);
+    }
+
+    return Response.json({ user: next });
   } catch (error) {
     return jsonError(error);
   }
@@ -81,7 +121,7 @@ async function registerUser(
       connectionString,
       `INSERT INTO app_user (email, display_name, password_hash, is_admin)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, email, display_name, is_admin`,
+       RETURNING id, email, display_name, is_admin, about_me, avatar`,
       [email, displayName, await hashPassword(password), isAdminEmail(email)],
     );
     const user = mapUser(rows[0]);
@@ -114,7 +154,7 @@ async function loginUser(
 
   const rows = await queryRows(
     connectionString,
-    "SELECT id, email, display_name, is_admin, password_hash FROM app_user WHERE email = $1",
+    "SELECT id, email, display_name, is_admin, about_me, avatar, password_hash FROM app_user WHERE email = $1",
     [email],
   );
   const row = rows[0];
@@ -137,7 +177,7 @@ async function readSessionUser(connectionString: string, token: string | undefin
 
   const rows = await queryRows(
     connectionString,
-    `SELECT u.id, u.email, u.display_name, u.is_admin
+    `SELECT u.id, u.email, u.display_name, u.is_admin, u.about_me, u.avatar
      FROM app_session s
      JOIN app_user u ON u.id = s.user_id
      WHERE s.token = $1 AND s.expires_at > NOW()`,
@@ -201,6 +241,8 @@ async function ensureSchema(connectionString: string): Promise<void> {
     connectionString,
     "CREATE INDEX IF NOT EXISTS app_session_expires_at_idx ON app_session (expires_at)",
   );
+  await execute(connectionString, "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS about_me TEXT");
+  await execute(connectionString, "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS avatar TEXT");
 }
 
 async function hashPassword(password: string): Promise<string> {
@@ -265,12 +307,46 @@ function mapUser(row: Record<string, unknown> | undefined): AuthUser | null {
     return null;
   }
 
+  const aboutMe = String(row.about_me ?? row.aboutMe ?? "").trim();
+  const avatar = String(row.avatar ?? "").trim();
   return {
     id: Number(row.id),
     email: String(row.email ?? ""),
     displayName: String(row.display_name ?? row.displayName ?? ""),
     isAdmin: Boolean(row.is_admin ?? row.isAdmin),
+    ...(aboutMe ? { aboutMe } : {}),
+    ...(avatar ? { avatar } : {}),
   };
+}
+
+function normalizeAboutMe(aboutMe: string | undefined): string | null {
+  const trimmed = (aboutMe ?? "").trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.slice(0, 500);
+}
+
+function normalizeAvatar(avatar: string | undefined): string | null {
+  const trimmed = (avatar ?? "").trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.length > 120_000) {
+    throw new AuthError("Choose a smaller profile photo.", 400);
+  }
+
+  if (
+    !trimmed.startsWith("data:image/jpeg;base64,") &&
+    !trimmed.startsWith("data:image/png;base64,") &&
+    !trimmed.startsWith("data:image/webp;base64,")
+  ) {
+    throw new AuthError("Use a JPEG, PNG, or WebP photo.", 400);
+  }
+
+  return trimmed;
 }
 
 function normalizeEmail(email: string | undefined): string {
