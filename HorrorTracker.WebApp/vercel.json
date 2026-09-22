@@ -3,6 +3,13 @@
   "rewrites": [
     { "source": "/api/friends", "destination": "/api/people?route=friends" },
     { "source": "/api/follows", "destination": "/api/people?route=follows" },
+    { "source": "/api/progress", "destination": "/api/lists?route=progress" },
+    { "source": "/api/shows", "destination": "/api/lists?route=shows" },
+    { "source": "/api/franchises", "destination": "/api/catalog?route=franchises" },
+    { "source": "/api/health", "destination": "/api/catalog?route=health" },
+    { "source": "/api/watch", "destination": "/api/tmdb?route=watch" },
+    { "source": "/api/upcoming", "destination": "/api/tmdb?route=upcoming" },
+    { "source": "/api/sync", "destination": "/api/tmdb?route=sync" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "crons": [

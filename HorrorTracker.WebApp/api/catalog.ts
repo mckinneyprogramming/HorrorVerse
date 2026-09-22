@@ -1,3 +1,7 @@
+import * as franchises from "./_lib/franchises";
+import * as health from "./_lib/health";
+import { namedRoute } from "./_lib/route";
+
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
@@ -16,7 +20,16 @@ interface CatalogItem {
   keywords?: string[];
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const route = namedRoute(request, ["franchises", "health"]);
+  if (route === "franchises") {
+    return franchises.GET();
+  }
+
+  if (route === "health") {
+    return health.GET();
+  }
+
   try {
     return Response.json(await loadCatalog());
   } catch (error) {
@@ -28,6 +41,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (namedRoute(request, ["franchises"]) === "franchises") {
+    return franchises.POST(request);
+  }
+
   return writeCatalog(request, async (connectionString, body) => {
     const kind = normalizeKind(body.kind);
     const title = normalizeTitle(body.title);
@@ -44,6 +61,10 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  if (namedRoute(request, ["franchises"]) === "franchises") {
+    return franchises.PATCH(request);
+  }
+
   return writeCatalog(request, async (connectionString, body) => {
     const { kind, mediaId } = parseCatalogId(body.id);
     const title = normalizeTitle(body.title);
@@ -60,6 +81,10 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  if (namedRoute(request, ["franchises"]) === "franchises") {
+    return franchises.DELETE(request);
+  }
+
   return writeCatalog(request, async (connectionString, body, url) => {
     const { kind, mediaId } = parseCatalogId(body.id ?? url.searchParams.get("id"));
     await ensureOptionalTables(connectionString, kind);

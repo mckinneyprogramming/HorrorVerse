@@ -1,5 +1,9 @@
+import * as progress from "./_lib/progress";
+import { namedRoute } from "./_lib/route";
+import * as shows from "./_lib/shows";
+
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const MEDIA_KINDS = ["movie", "series", "documentary", "show", "book", "podcast", "game"] as const;
 
@@ -13,6 +17,15 @@ interface ListWriteBody {
 }
 
 export async function GET(request: Request) {
+  const route = namedRoute(request, ["progress", "shows"]);
+  if (route === "progress") {
+    return progress.GET(request);
+  }
+
+  if (route === "shows") {
+    return shows.GET(request);
+  }
+
   try {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
@@ -42,6 +55,15 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const route = namedRoute(request, ["progress", "shows"]);
+  if (route === "progress") {
+    return progress.PATCH(request);
+  }
+
+  if (route === "shows") {
+    return shows.PATCH(request);
+  }
+
   try {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);

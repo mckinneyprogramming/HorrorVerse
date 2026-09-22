@@ -1,3 +1,8 @@
+import { namedRoute } from "./_lib/route";
+import * as sync from "./_lib/sync";
+import * as upcoming from "./_lib/upcoming";
+import * as watch from "./_lib/watch";
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -8,6 +13,19 @@ const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648, 878, 14, 10765]);
 const DOCUMENTARY_GENRE = 99;
 
 export async function GET(request: Request) {
+  const route = namedRoute(request, ["watch", "upcoming", "sync"]);
+  if (route === "watch") {
+    return watch.GET(request);
+  }
+
+  if (route === "upcoming") {
+    return upcoming.GET();
+  }
+
+  if (route === "sync") {
+    return sync.GET(request);
+  }
+
   try {
     const connectionString = requireDatabaseUrl();
     await requireUser(request, connectionString);
