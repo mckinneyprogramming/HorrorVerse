@@ -490,8 +490,19 @@ button.fun-stat:focus-visible {
   transform: rotate(45deg);
 }
 
+.kind-group,
+.user-list,
+.list-series,
+.list-entries,
+.library-page,
+.catalog {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .kind-group-label {
   flex: 1;
+  min-width: 0;
   font-family: var(--font-display);
   letter-spacing: 0.04em;
 }
@@ -516,7 +527,10 @@ button.fun-stat:focus-visible {
 .entry {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -529,7 +543,8 @@ button.fun-stat:focus-visible {
 }
 
 .entry-toggle {
-  flex: 1;
+  flex: 1 1 10rem;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -562,6 +577,12 @@ button.entry-toggle {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+}
+
+.entry-copy strong,
+.entry-copy em {
+  overflow-wrap: anywhere;
 }
 
 .entry-copy em {
@@ -1091,20 +1112,30 @@ code {
 }
 
 .list-entries > .list-series-group {
+  width: 100%;
   margin-left: 0;
+  margin-right: 0;
 }
 
 .list-series {
   display: grid;
+  justify-items: center;
   gap: 8px;
 }
 
+.list-series > .catalog {
+  width: 100%;
+}
+
 .list-series > .entry {
+  width: 100%;
   margin: 0;
 }
 
 .list-series-group {
-  margin: 0 0 0 18px;
+  width: calc(100% - 20px);
+  max-width: 100%;
+  margin: 0 auto 10px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--bg);
@@ -1140,8 +1171,10 @@ code {
 
 .list-series-label {
   flex: 1;
+  min-width: 0;
   color: var(--text-secondary);
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
 .list-series-count {
@@ -1154,7 +1187,9 @@ code {
 }
 
 .show-guide {
+  width: 100%;
   margin-left: 0;
+  margin-right: 0;
 }
 
 .show-guide > summary .mark {
@@ -1190,7 +1225,8 @@ code {
 }
 
 .show-season {
-  margin: 0 8px 8px;
+  width: calc(100% - 20px);
+  margin: 0 auto 8px;
 }
 
 .entry.is-nested {
