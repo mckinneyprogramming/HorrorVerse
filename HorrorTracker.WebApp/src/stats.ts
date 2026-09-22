@@ -1,4 +1,5 @@
 import { formatRuntime, type CatalogEntry, type MediaKind } from "./catalog";
+import type { Franchise } from "./franchises";
 
 const TIMED_KINDS = new Set<MediaKind>(["movie", "documentary", "show"]);
 
@@ -8,6 +9,7 @@ export interface FunStat {
   hint: string;
   filter?: MediaKind | "all";
   query?: string;
+  openFranchises?: boolean;
 }
 
 export interface StatGroup {
@@ -21,7 +23,12 @@ export interface HorrorStats {
   vault: StatGroup;
 }
 
-export function buildHorrorStats(entries: CatalogEntry[], finishedIds: readonly string[], signedIn: boolean): HorrorStats {
+export function buildHorrorStats(
+  entries: CatalogEntry[],
+  finishedIds: readonly string[],
+  signedIn: boolean,
+  franchises: readonly Franchise[] = [],
+): HorrorStats {
   const finished = new Set(finishedIds);
   const timed = entries.filter((entry) => isTimed(entry));
   const movies = entries.filter((entry) => entry.kind === "movie");
@@ -94,6 +101,8 @@ export function buildHorrorStats(entries: CatalogEntry[], finishedIds: readonly 
     });
   }
 
+  vault.kinds.push(...franchiseStats(franchises, entries));
+
   if (!signedIn) {
     return { vault };
   }
@@ -158,6 +167,8 @@ export function buildHorrorStats(entries: CatalogEntry[], finishedIds: readonly 
   if (finishedMinutes >= 60) {
     yours.extras.push(nightsStat(finishedMinutes, "All-nighters survived", "Finished runtime, counted as eight-hour nights."));
   }
+
+  yours.kinds.push(...personalFranchiseStats(franchises, entries, finished));
 
   return { yours, vault };
 }
@@ -258,6 +269,95 @@ function personalKindStats(documentaries: CatalogEntry[], shows: CatalogEntry[],
   }
 
   return stats;
+}
+
+function franchiseStats(franchises: readonly Franchise[], entries: CatalogEntry[]): FunStat[] {
+  if (franchises.length < 1) {
+    return [];
+  }
+
+  const stats: FunStat[] = [
+    {
+      value: String(franchises.length),
+      label: "Franchises",
+      hint: franchises.length === 1 ? "1 shared saga in the vault." : `${franchises.length} shared sagas in the vault.`,
+      openFranchises: true,
+    },
+  ];
+  const biggest = pickBiggestFranchise(franchises, entries);
+  if (biggest) {
+    stats.push({
+      value: biggest.name,
+      label: "Biggest franchise",
+      hint: biggest.count === 1 ? "1 title grouped together." : `${biggest.count} titles grouped together.`,
+      query: biggest.name,
+      openFranchises: true,
+    });
+  }
+
+  return stats;
+}
+
+function personalFranchiseStats(franchises: readonly Franchise[], entries: CatalogEntry[], finished: Set<string>): FunStat[] {
+  if (franchises.length < 1) {
+    return [];
+  }
+
+  const started = franchises.filter((franchise) => franchiseCatalog(franchise, entries).some((entry) => finished.has(entry.id)));
+  const stats: FunStat[] = [
+    {
+      value: `${started.length} of ${franchises.length}`,
+      label: "Franchises started",
+      hint: started.length > 0 ? "Franchises where you've marked at least one title." : "Mark a title in a franchise to start this count.",
+      openFranchises: true,
+    },
+  ];
+  const finishedFranchise = started
+    .map((franchise) => {
+      const catalog = franchiseCatalog(franchise, entries);
+      const done = catalog.filter((entry) => finished.has(entry.id)).length;
+      return { franchise, catalog, done };
+    })
+    .filter((item) => item.catalog.length > 0 && item.done === item.catalog.length)
+    .sort((left, right) => right.catalog.length - left.catalog.length || left.franchise.name.localeCompare(right.franchise.name))[0];
+  if (finishedFranchise) {
+    stats.push({
+      value: finishedFranchise.franchise.name,
+      label: "A franchise you finished",
+      hint:
+        finishedFranchise.catalog.length === 1
+          ? "Every title in it is marked finished."
+          : `All ${finishedFranchise.catalog.length} titles marked finished.`,
+      query: finishedFranchise.franchise.name,
+      openFranchises: true,
+    });
+  }
+
+  return stats;
+}
+
+function pickBiggestFranchise(
+  franchises: readonly Franchise[],
+  entries: CatalogEntry[],
+): { name: string; count: number } | undefined {
+  let best: { name: string; count: number } | undefined;
+  for (const franchise of franchises) {
+    const count = franchiseCatalog(franchise, entries).length;
+    if (count < 1) {
+      continue;
+    }
+
+    if (!best || count > best.count || (count === best.count && franchise.name.localeCompare(best.name) < 0)) {
+      best = { name: franchise.name, count };
+    }
+  }
+
+  return best;
+}
+
+function franchiseCatalog(franchise: Franchise, entries: CatalogEntry[]): CatalogEntry[] {
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  return franchise.items.map((id) => byId.get(id)).filter((entry): entry is CatalogEntry => Boolean(entry));
 }
 
 function pickMostEpisodes(shows: CatalogEntry[]): CatalogEntry | undefined {

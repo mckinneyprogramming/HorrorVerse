@@ -175,6 +175,13 @@ export function mountApp(root: HTMLElement): void {
         state.filter = target.dataset.filter as LibraryFilter;
         resetLibraryPages();
       }
+      if (target.dataset.franchises === "1") {
+        state.filter = "all";
+        state.libraryQuery = "";
+        state.libraryTag = "";
+        state.franchisesCollapsed = false;
+        resetLibraryPages();
+      }
       state.authMessage = "";
       state.sheet = null;
       state.listPicker = null;
@@ -191,6 +198,9 @@ export function mountApp(root: HTMLElement): void {
       state.filter = filter === "all" || (filter && isMediaKind(filter)) ? filter : "all";
       state.libraryQuery = target.dataset.query ?? "";
       state.libraryTag = "";
+      if (target.dataset.franchises === "1") {
+        state.franchisesCollapsed = false;
+      }
       state.sheet = null;
       state.listPicker = null;
       state.franchiseListPicker = null;
@@ -1351,6 +1361,11 @@ function renderHome(): string {
     </section>
     ${renderFunStats()}
     <section class="kinds">
+      <button class="kind-card" type="button" data-action="view" data-view="library" data-franchises="1">
+        <span class="kind-count">${state.franchises.length}</span>
+        <span class="kind-label">Franchises</span>
+        <span class="kind-hint">Shared sagas that tie series, films, and shows together.</span>
+      </button>
       ${MEDIA_KINDS.map((kind) => {
         const count = state.entries.filter((entry) => entry.kind === kind.id).length;
         return `
@@ -1370,7 +1385,7 @@ function renderFunStats(): string {
     return "";
   }
 
-  const stats = buildHorrorStats(state.entries, state.finishedIds, Boolean(state.user));
+  const stats = buildHorrorStats(state.entries, state.finishedIds, Boolean(state.user), state.franchises);
   return `
     <section class="fun-stats" aria-label="Time and vault stats">
       <h2>The numbers</h2>
@@ -1410,9 +1425,11 @@ function renderStatGroup(title: string, hint: string, group: StatGroup): string 
 }
 
 function renderFunStat(stat: FunStat): string {
-  const canOpen = Boolean(stat.filter || stat.query);
+  const canOpen = Boolean(stat.filter || stat.query || stat.openFranchises);
   const attrs = canOpen
-    ? `data-action="stat-open" data-filter="${escapeHtml(stat.filter ?? "all")}" data-query="${escapeHtml(stat.query ?? "")}"`
+    ? `data-action="stat-open" data-filter="${escapeHtml(stat.filter ?? "all")}" data-query="${escapeHtml(stat.query ?? "")}"${
+        stat.openFranchises ? ' data-franchises="1"' : ""
+      }`
     : "";
   const tag = canOpen ? "button" : "article";
   return `
