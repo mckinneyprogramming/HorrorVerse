@@ -1538,7 +1538,7 @@ function renderFranchiseCard(franchise: Franchise, searching: boolean): string {
     <details class="user-list franchise-card"${open ? " open" : ""}>
       <summary data-action="toggle-franchise" data-franchise-id="${franchise.id}">
         <span class="user-list-name">${escapeHtml(franchise.name)}</span>
-        <span class="user-list-count">${grouped.total}</span>
+        <span class="user-list-count franchise-count">${escapeHtml(franchiseCountLabel(franchise))}</span>
       </summary>
       ${
         state.user || admin
@@ -1672,6 +1672,32 @@ function franchiseEntries(franchise: Franchise): CatalogEntry[] {
   return franchise.items
     .map((id) => state.entries.find((entry) => entry.id === id))
     .filter((entry): entry is CatalogEntry => Boolean(entry));
+}
+
+const FRANCHISE_COUNT_LABELS: { kind: MediaKind; label: string }[] = [
+  { kind: "series", label: "Series" },
+  { kind: "movie", label: "Films" },
+  { kind: "show", label: "Shows" },
+  { kind: "documentary", label: "Documentaries" },
+  { kind: "book", label: "Books" },
+  { kind: "podcast", label: "Podcasts" },
+  { kind: "game", label: "Games" },
+];
+
+function franchiseCountLabel(franchise: Franchise): string {
+  const entries = franchiseEntries(franchise);
+  if (entries.length === 0) {
+    return "0";
+  }
+
+  const counts = new Map<MediaKind, number>();
+  for (const entry of entries) {
+    counts.set(entry.kind, (counts.get(entry.kind) ?? 0) + 1);
+  }
+
+  return FRANCHISE_COUNT_LABELS.filter((item) => (counts.get(item.kind) ?? 0) > 0)
+    .map((item) => `${item.label}: ${counts.get(item.kind)}`)
+    .join("; ");
 }
 
 function groupFranchiseEntries(franchise: Franchise): {
