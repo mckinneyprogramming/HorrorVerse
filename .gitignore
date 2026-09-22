@@ -289,6 +289,7 @@ node_modules/
 **/dist/
 **/.vite/
 **/dev-dist/
+**/coverage/
 HorrorTracker.Api/wwwroot/
 .env
 .env.local

@@ -67,7 +67,7 @@ jobs:
             /d:sonar.token="$env:SONAR_TOKEN" `
             /d:sonar.host.url="https://sonarcloud.io" `
             /d:sonar.scanner.scanAll=true `
-            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,HorrorTracker.Api/wwwroot/**" `
+            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,**/coverage/**,**/TestResults/**,HorrorTracker.Api/wwwroot/**" `
             /d:sonar.coverage.exclusions="**/*Tests*/**,**/*.test.ts,**/vitest.config.ts" `
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" `
             /d:sonar.javascript.lcov.reportPaths="HorrorTracker.WebApp/coverage/lcov.info"
