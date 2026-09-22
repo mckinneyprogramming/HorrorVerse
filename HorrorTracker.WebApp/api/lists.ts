@@ -8,6 +8,7 @@ interface ListWriteBody {
   listId?: number;
   name?: string;
   itemId?: string;
+  franchiseId?: number;
 }
 
 export async function GET(request: Request) {
@@ -25,7 +26,9 @@ export async function POST(request: Request) {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
     const body = (await request.json().catch(() => ({}))) as ListWriteBody;
-    if (body.itemId) {
+    if (body.franchiseId) {
+      await addFranchise(connectionString, user.id, body);
+    } else if (body.itemId) {
       await addListItem(connectionString, user.id, body);
     } else {
       await createList(connectionString, user.id, body.name);
@@ -54,7 +57,14 @@ export async function DELETE(request: Request) {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
     const url = new URL(request.url);
-    if (url.searchParams.get("itemId")) {
+    if (url.searchParams.get("franchiseId")) {
+      await removeFranchise(
+        connectionString,
+        user.id,
+        Number(url.searchParams.get("listId") ?? url.searchParams.get("id")),
+        Number(url.searchParams.get("franchiseId")),
+      );
+    } else if (url.searchParams.get("itemId")) {
       await removeListItem(connectionString, user.id, Number(url.searchParams.get("listId")), url.searchParams.get("itemId"));
     } else {
       await deleteList(connectionString, user.id, Number(url.searchParams.get("id")));
@@ -189,6 +199,78 @@ async function removeListItem(
   if (kind === "series") {
     await removeSeriesMovies(connectionString, ownedListId, mediaId);
   }
+}
+
+async function addFranchise(connectionString: string, userId: number, body: ListWriteBody): Promise<void> {
+  const listId = await requireOwnedList(connectionString, userId, body.listId ?? body.id);
+  const franchiseId = requireFranchiseId(body.franchiseId);
+  const countRows = await queryRows(
+    connectionString,
+    "SELECT COUNT(*)::int AS count FROM user_list_item WHERE list_id = $1",
+    [listId],
+  );
+  if (Number(countRows[0]?.count) >= 200) {
+    throw new LibraryError("That list is full.", 400);
+  }
+
+  const itemRows = await queryRows(
+    connectionString,
+    "SELECT COUNT(*)::int AS count FROM franchise_item WHERE franchise_id = $1",
+    [franchiseId],
+  );
+  if (Number(itemRows[0]?.count) < 1) {
+    throw new LibraryError("That franchise has nothing to add.", 400);
+  }
+
+  await execute(
+    connectionString,
+    `INSERT INTO user_list_item (list_id, media_kind, media_id)
+     SELECT $1, media_kind, media_id
+     FROM franchise_item
+     WHERE franchise_id = $2
+     ON CONFLICT (list_id, media_kind, media_id) DO NOTHING`,
+    [listId, franchiseId],
+  );
+  const seriesRows = await queryRows(
+    connectionString,
+    "SELECT media_id FROM franchise_item WHERE franchise_id = $1 AND media_kind = 'series'",
+    [franchiseId],
+  );
+  for (const row of seriesRows) {
+    await addSeriesMovies(connectionString, listId, Number(row.media_id));
+  }
+}
+
+async function removeFranchise(connectionString: string, userId: number, listId: number, franchiseId: number): Promise<void> {
+  const ownedListId = await requireOwnedList(connectionString, userId, listId);
+  const id = requireFranchiseId(franchiseId);
+  const seriesRows = await queryRows(
+    connectionString,
+    "SELECT media_id FROM franchise_item WHERE franchise_id = $1 AND media_kind = 'series'",
+    [id],
+  );
+  await execute(
+    connectionString,
+    `DELETE FROM user_list_item
+     WHERE list_id = $1
+       AND (media_kind, media_id) IN (
+         SELECT media_kind, media_id
+         FROM franchise_item
+         WHERE franchise_id = $2
+       )`,
+    [ownedListId, id],
+  );
+  for (const row of seriesRows) {
+    await removeSeriesMovies(connectionString, ownedListId, Number(row.media_id));
+  }
+}
+
+function requireFranchiseId(id: number | undefined): number {
+  if (!Number.isInteger(id) || Number(id) < 1) {
+    throw new LibraryError("That franchise was not found.", 400);
+  }
+
+  return Number(id);
 }
 
 async function addSeriesMovies(connectionString: string, listId: number, seriesId: number): Promise<void> {

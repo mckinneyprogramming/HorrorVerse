@@ -20,10 +20,12 @@ import {
 } from "./auth";
 import { fetchProgressIds, setProgress } from "./progress";
 import {
+  addFranchiseToList,
   addListItem,
   createList,
   deleteList,
   fetchLists,
+  removeFranchiseFromList,
   removeListItem,
   renameList,
   type UserList,
@@ -79,6 +81,7 @@ interface AppState {
   finishedIds: string[];
   lists: UserList[];
   listPicker: CatalogEntry | null;
+  franchiseListPicker: number | null;
   listMessage: string;
   franchises: Franchise[];
   expandedFranchiseIds: Set<number>;
@@ -120,6 +123,7 @@ const state: AppState = {
   finishedIds: [],
   lists: [],
   listPicker: null,
+  franchiseListPicker: null,
   listMessage: "",
   franchises: [],
   expandedFranchiseIds: new Set<number>(),
@@ -167,6 +171,7 @@ export function mountApp(root: HTMLElement): void {
       state.authMessage = "";
       state.sheet = null;
       state.listPicker = null;
+      state.franchiseListPicker = null;
       state.listMessage = "";
       closeFranchiseSheets();
       render(root);
@@ -181,6 +186,7 @@ export function mountApp(root: HTMLElement): void {
       state.libraryTag = "";
       state.sheet = null;
       state.listPicker = null;
+      state.franchiseListPicker = null;
       closeFranchiseSheets();
       render(root);
       return;
@@ -366,6 +372,7 @@ export function mountApp(root: HTMLElement): void {
       state.finishedIds = [];
       state.lists = [];
       state.listPicker = null;
+      state.franchiseListPicker = null;
       closeFranchiseSheets();
       state.authBusy = false;
       state.authMessage = "";
@@ -397,6 +404,8 @@ export function mountApp(root: HTMLElement): void {
       state.tmdbResults = [];
       state.catalogMessage = "";
       state.watchSheet = null;
+      state.listPicker = null;
+      state.franchiseListPicker = null;
       closeFranchiseSheets();
       render(root);
       return;
@@ -415,6 +424,8 @@ export function mountApp(root: HTMLElement): void {
       state.tmdbResults = [];
       state.catalogMessage = "";
       state.watchSheet = null;
+      state.listPicker = null;
+      state.franchiseListPicker = null;
       closeFranchiseSheets();
       render(root);
       if (state.tmdbQuery.length >= 2) {
@@ -432,6 +443,8 @@ export function mountApp(root: HTMLElement): void {
       state.sheet = { mode: "edit", entry };
       state.catalogMessage = "";
       state.watchSheet = null;
+      state.listPicker = null;
+      state.franchiseListPicker = null;
       closeFranchiseSheets();
       render(root);
       return;
@@ -496,6 +509,29 @@ export function mountApp(root: HTMLElement): void {
       }
 
       state.listPicker = entry;
+      state.franchiseListPicker = null;
+      state.listMessage = "";
+      state.watchSheet = null;
+      closeFranchiseSheets();
+      render(root);
+      return;
+    }
+
+    if (action === "open-franchise-lists") {
+      if (!state.user) {
+        state.view = "account";
+        render(root);
+        return;
+      }
+
+      const franchiseId = Number(target.dataset.franchiseId);
+      const franchise = state.franchises.find((item) => item.id === franchiseId);
+      if (!franchise || franchise.items.length < 1) {
+        return;
+      }
+
+      state.franchiseListPicker = franchise.id;
+      state.listPicker = null;
       state.listMessage = "";
       state.watchSheet = null;
       closeFranchiseSheets();
@@ -505,6 +541,7 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "close-lists") {
       state.listPicker = null;
+      state.franchiseListPicker = null;
       state.listMessage = "";
       render(root);
       return;
@@ -525,6 +562,7 @@ export function mountApp(root: HTMLElement): void {
       state.watchSheet = entry;
       state.watchMessage = "";
       state.listPicker = null;
+      state.franchiseListPicker = null;
       state.sheet = null;
       closeFranchiseSheets();
       render(root);
@@ -553,6 +591,23 @@ export function mountApp(root: HTMLElement): void {
         state.lists = list.items.includes(itemId)
           ? await removeListItem(listId, itemId)
           : await addListItem(listId, itemId);
+      });
+      return;
+    }
+
+    if (action === "toggle-franchise-list") {
+      const listId = Number(target.dataset.listId);
+      const franchiseId = Number(target.dataset.franchiseId);
+      const list = state.lists.find((item) => item.id === listId);
+      const franchise = state.franchises.find((item) => item.id === franchiseId);
+      if (!state.user || !list || !franchise || state.catalogBusy) {
+        return;
+      }
+
+      await saveUserLibrary(root, async () => {
+        state.lists = listHasFranchise(list, franchise)
+          ? await removeFranchiseFromList(listId, franchiseId)
+          : await addFranchiseToList(listId, franchiseId);
       });
       return;
     }
@@ -639,6 +694,7 @@ export function mountApp(root: HTMLElement): void {
       state.franchiseAdd = null;
       state.franchiseMessage = "";
       state.listPicker = null;
+      state.franchiseListPicker = null;
       state.watchSheet = null;
       state.sheet = null;
       render(root);
@@ -663,6 +719,7 @@ export function mountApp(root: HTMLElement): void {
       state.franchiseQuery = "";
       state.franchiseMessage = "";
       state.listPicker = null;
+      state.franchiseListPicker = null;
       state.watchSheet = null;
       state.sheet = null;
       render(root);
@@ -1007,6 +1064,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.finishedIds = [];
     state.lists = [];
     state.listPicker = null;
+    state.franchiseListPicker = null;
     render(root);
     return;
   }
@@ -1054,7 +1112,7 @@ async function saveUserLibrary(root: HTMLElement, work: () => Promise<void>): Pr
     await work();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not update your library.";
-    if (state.view === "lists" || state.listPicker) {
+    if (state.view === "lists" || state.listPicker || state.franchiseListPicker !== null) {
       state.listMessage = message;
     } else {
       state.catalogMessage = message;
@@ -1189,10 +1247,11 @@ function render(root: HTMLElement): void {
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
       ${state.sheet && canRenderSheet() ? renderSheet() : ""}
       ${state.listPicker && state.user ? renderListPicker() : ""}
+      ${state.franchiseListPicker !== null && state.user ? renderFranchiseListPicker() : ""}
       ${state.franchisePicker && state.user?.isAdmin ? renderFranchisePicker() : ""}
       ${state.franchiseAdd !== null && state.user?.isAdmin ? renderFranchiseAddSheet() : ""}
       ${state.watchSheet && state.user ? renderWatchSheet() : ""}
-      ${!state.sheet && !state.listPicker && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && canPromptUpdate() ? renderUpdateBanner() : ""}
+      ${!state.sheet && !state.listPicker && state.franchiseListPicker === null && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
@@ -1440,12 +1499,23 @@ function renderFranchiseCard(franchise: Franchise, searching: boolean): string {
         <span class="user-list-count">${grouped.total}</span>
       </summary>
       ${
-        admin
+        state.user || admin
           ? `
             <div class="user-list-actions">
-              <button type="button" data-action="open-franchise-add" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Add title</button>
-              <button type="button" data-action="rename-franchise" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Rename</button>
-              <button type="button" data-action="delete-franchise" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Delete</button>
+              ${
+                state.user
+                  ? `<button type="button" data-action="open-franchise-lists" data-franchise-id="${franchise.id}" ${state.catalogBusy || empty ? "disabled" : ""}>List</button>`
+                  : ""
+              }
+              ${
+                admin
+                  ? `
+                    <button type="button" data-action="open-franchise-add" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Add title</button>
+                    <button type="button" data-action="rename-franchise" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Rename</button>
+                    <button type="button" data-action="delete-franchise" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Delete</button>
+                  `
+                  : ""
+              }
             </div>
           `
           : ""
@@ -2391,6 +2461,53 @@ function renderListPicker(): string {
       </div>
     </div>
   `;
+}
+
+function renderFranchiseListPicker(): string {
+  const franchise = state.franchises.find((item) => item.id === state.franchiseListPicker);
+  if (!franchise) {
+    return "";
+  }
+
+  return `
+    <div class="sheet-backdrop" data-action="close-lists"></div>
+    <div class="sheet" role="dialog" aria-label="Add franchise to a list">
+      <h2>${escapeHtml(franchise.name)}</h2>
+      <p class="fine-print">Every title in this franchise is added, including movies that belong to its series.</p>
+      ${state.listMessage ? `<p class="status is-error">${escapeHtml(state.listMessage)}</p>` : ""}
+      ${
+        state.lists.length === 0
+          ? `<p class="empty">Create a list first.</p>`
+          : `<ul class="list-picker">${state.lists
+              .map((list) => {
+                const on = listHasFranchise(list, franchise);
+                return `
+                  <li>
+                    <button class="list-pick${on ? " is-on" : ""}" type="button" data-action="toggle-franchise-list" data-list-id="${list.id}" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>
+                      <span class="mark" aria-hidden="true"></span>
+                      <span>${escapeHtml(list.name)}</span>
+                    </button>
+                  </li>
+                `;
+              })
+              .join("")}</ul>`
+      }
+      <form class="list-create is-compact" data-list-form>
+        <label>
+          New list
+          <input name="name" type="text" required maxlength="80" placeholder="Favorites" autocomplete="off" />
+        </label>
+        <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>Create</button>
+      </form>
+      <div class="sheet-actions">
+        <button class="ghost-btn" type="button" data-action="close-lists">Done</button>
+      </div>
+    </div>
+  `;
+}
+
+function listHasFranchise(list: UserList, franchise: Franchise): boolean {
+  return franchise.items.length > 0 && franchise.items.every((item) => list.items.includes(item));
 }
 
 function isFinished(entry: CatalogEntry): boolean {

@@ -117,19 +117,23 @@ app.MapPost("/api/lists", (ListWriteRequest body, HttpContext http, AuthService 
     WriteSignedIn(http, auth, user =>
         Results.Json(new
         {
-            lists = string.IsNullOrWhiteSpace(body.ItemId)
-                ? library.CreateList(user, body)
-                : library.AddListItem(user, body)
+            lists = body.FranchiseId is > 0
+                ? library.AddFranchise(user, body)
+                : string.IsNullOrWhiteSpace(body.ItemId)
+                    ? library.CreateList(user, body)
+                    : library.AddListItem(user, body)
         })));
 app.MapPatch("/api/lists", (ListWriteRequest body, HttpContext http, AuthService auth, UserLibraryService library) =>
     WriteSignedIn(http, auth, user => Results.Json(new { lists = library.RenameList(user, body) })));
-app.MapDelete("/api/lists", (int? id, int? listId, string? itemId, HttpContext http, AuthService auth, UserLibraryService library) =>
+app.MapDelete("/api/lists", (int? id, int? listId, int? franchiseId, string? itemId, HttpContext http, AuthService auth, UserLibraryService library) =>
     WriteSignedIn(http, auth, user =>
         Results.Json(new
         {
-            lists = string.IsNullOrWhiteSpace(itemId)
-                ? library.DeleteList(user, id)
-                : library.RemoveListItem(user, listId ?? id, itemId)
+            lists = franchiseId is > 0
+                ? library.RemoveFranchise(user, listId ?? id, franchiseId)
+                : string.IsNullOrWhiteSpace(itemId)
+                    ? library.DeleteList(user, id)
+                    : library.RemoveListItem(user, listId ?? id, itemId)
         })));
 app.MapGet("/api/auth", (HttpContext http, AuthService auth) =>
 {

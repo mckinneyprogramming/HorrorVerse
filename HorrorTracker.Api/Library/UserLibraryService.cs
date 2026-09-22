@@ -244,6 +244,73 @@ public sealed class UserLibraryService(IConfiguration configuration)
         return GetLists(user);
     }
 
+    public IReadOnlyList<UserListDto> AddFranchise(AuthUserDto user, ListWriteRequest request)
+    {
+        EnsureSchema();
+        var listId = RequireOwnedList(user.Id, request.ListId ?? request.Id);
+        var franchiseId = RequireFranchiseId(request.FranchiseId);
+        EnsureItemLimit(listId);
+        var seriesIds = FranchiseSeriesIds(franchiseId);
+        if (FranchiseItemCount(franchiseId) < 1)
+        {
+            throw new InvalidOperationException("That franchise has nothing to add.");
+        }
+
+        using (var connection = OpenConnection())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                INSERT INTO user_list_item (list_id, media_kind, media_id)
+                SELECT @listId, media_kind, media_id
+                FROM franchise_item
+                WHERE franchise_id = @franchiseId
+                ON CONFLICT (list_id, media_kind, media_id) DO NOTHING
+                """;
+            command.Parameters.AddWithValue("listId", listId);
+            command.Parameters.AddWithValue("franchiseId", franchiseId);
+            command.ExecuteNonQuery();
+        }
+
+        foreach (var seriesId in seriesIds)
+        {
+            AddSeriesMovies(listId, seriesId);
+        }
+
+        return GetLists(user);
+    }
+
+    public IReadOnlyList<UserListDto> RemoveFranchise(AuthUserDto user, int? listId, int? franchiseId)
+    {
+        EnsureSchema();
+        var ownedListId = RequireOwnedList(user.Id, listId);
+        var id = RequireFranchiseId(franchiseId);
+        var seriesIds = FranchiseSeriesIds(id);
+
+        using (var connection = OpenConnection())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                DELETE FROM user_list_item
+                WHERE list_id = @listId
+                  AND (media_kind, media_id) IN (
+                    SELECT media_kind, media_id
+                    FROM franchise_item
+                    WHERE franchise_id = @franchiseId
+                  )
+                """;
+            command.Parameters.AddWithValue("listId", ownedListId);
+            command.Parameters.AddWithValue("franchiseId", id);
+            command.ExecuteNonQuery();
+        }
+
+        foreach (var seriesId in seriesIds)
+        {
+            RemoveSeriesMovies(ownedListId, seriesId);
+        }
+
+        return GetLists(user);
+    }
+
     public void PurgeMedia(string? id)
     {
         EnsureSchema();
@@ -389,6 +456,59 @@ public sealed class UserLibraryService(IConfiguration configuration)
         }
 
         return id;
+    }
+
+    private static int RequireFranchiseId(int? id)
+    {
+        if (id is null or < 1)
+        {
+            throw new InvalidOperationException("That franchise was not found.");
+        }
+
+        return id.Value;
+    }
+
+    private int FranchiseItemCount(int franchiseId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM franchise_item WHERE franchise_id = @id";
+            command.Parameters.AddWithValue("id", franchiseId);
+            return Convert.ToInt32(command.ExecuteScalar());
+        }
+        catch (PostgresException)
+        {
+            throw new InvalidOperationException("That franchise was not found.");
+        }
+    }
+
+    private IReadOnlyList<int> FranchiseSeriesIds(int franchiseId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT media_id
+                FROM franchise_item
+                WHERE franchise_id = @id AND media_kind = 'series'
+                """;
+            command.Parameters.AddWithValue("id", franchiseId);
+            var ids = new List<int>();
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                ids.Add(reader.GetInt32(0));
+            }
+
+            return ids;
+        }
+        catch (PostgresException)
+        {
+            throw new InvalidOperationException("That franchise was not found.");
+        }
     }
 
     private void CascadeSeriesMovies(int userId, int seriesId, bool completed)

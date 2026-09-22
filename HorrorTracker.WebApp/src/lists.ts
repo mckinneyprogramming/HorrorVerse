@@ -38,6 +38,22 @@ export async function addListItem(listId: number, itemId: string): Promise<UserL
   return writeLists("POST", "/api/lists", { listId, itemId });
 }
 
+export async function addFranchiseToList(listId: number, franchiseId: number): Promise<UserList[]> {
+  return writeLists("POST", "/api/lists", { listId, franchiseId });
+}
+
+export async function removeFranchiseFromList(listId: number, franchiseId: number): Promise<UserList[]> {
+  const response = await fetch(
+    `/api/lists?listId=${encodeURIComponent(String(listId))}&franchiseId=${encodeURIComponent(String(franchiseId))}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) {
+    throw new Error(await readError(response, "Lists"));
+  }
+
+  return readLists(await response.json());
+}
+
 export async function removeListItem(listId: number, itemId: string): Promise<UserList[]> {
   const response = await fetch(
     `/api/lists?listId=${encodeURIComponent(String(listId))}&itemId=${encodeURIComponent(itemId)}`,
