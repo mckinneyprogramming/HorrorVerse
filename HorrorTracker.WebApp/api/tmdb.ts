@@ -1,7 +1,7 @@
-import { namedRoute } from "./_lib/route";
-import * as sync from "./_lib/sync";
-import * as upcoming from "./_lib/upcoming";
-import * as watch from "./_lib/watch";
+import { namedRoute } from "../lib/route";
+import * as sync from "../lib/sync";
+import * as upcoming from "../lib/upcoming";
+import * as watch from "../lib/watch";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

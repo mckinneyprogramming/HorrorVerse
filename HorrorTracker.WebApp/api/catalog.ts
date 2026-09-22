@@ -1,6 +1,6 @@
-import * as franchises from "./_lib/franchises";
-import * as health from "./_lib/health";
-import { namedRoute } from "./_lib/route";
+import * as franchises from "../lib/franchises";
+import * as health from "../lib/health";
+import { namedRoute } from "../lib/route";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;

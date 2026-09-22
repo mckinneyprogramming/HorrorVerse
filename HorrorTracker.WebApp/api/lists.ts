@@ -1,6 +1,6 @@
-import * as progress from "./_lib/progress";
-import { namedRoute } from "./_lib/route";
-import * as shows from "./_lib/shows";
+import * as progress from "../lib/progress";
+import { namedRoute } from "../lib/route";
+import * as shows from "../lib/shows";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
