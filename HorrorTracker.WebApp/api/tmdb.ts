@@ -4,7 +4,7 @@ export const maxDuration = 60;
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const MAX_RESULTS = 8;
 const MAX_COLLECTION_CANDIDATES = 16;
-const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648]);
+const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648, 878, 14, 10765]);
 const DOCUMENTARY_GENRE = 99;
 
 export async function GET(request: Request) {

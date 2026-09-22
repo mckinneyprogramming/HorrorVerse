@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
-const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648]);
+const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648, 878, 14, 10765]);
 const STALE_HOURS = 6;
 
 export async function GET(request: Request) {

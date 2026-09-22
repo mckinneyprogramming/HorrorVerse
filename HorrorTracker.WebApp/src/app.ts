@@ -1164,7 +1164,7 @@ async function runTmdbSearch(root: HTMLElement): Promise<void> {
   try {
     state.tmdbResults = await searchTmdb(state.sheetKind, state.tmdbQuery);
     if (state.tmdbResults.length === 0) {
-      state.catalogMessage = "No horror, thriller, or mystery matches for that search.";
+      state.catalogMessage = "No horror, thriller, mystery, sci-fi, or fantasy matches for that search.";
     }
   } catch (error) {
     state.tmdbResults = [];
@@ -2658,13 +2658,13 @@ function tmdbPlaceholder(kind: MediaKind): string {
 function tmdbHint(kind: MediaKind): string {
   switch (kind) {
     case "series":
-      return "Horror, thriller, and mystery collections, with their movies in release order.";
+      return "Horror, thriller, mystery, sci-fi, and fantasy collections, with their movies in release order.";
     case "show":
-      return "Horror, thriller, mystery, and documentary TV — including miniseries. Films with the same title stay on Movies or Documentaries.";
+      return "Horror, thriller, mystery, sci-fi, fantasy, and documentary TV — including miniseries. Films with the same title stay on Movies or Documentaries.";
     case "documentary":
       return "Film documentaries TMDb tags as documentary, such as Living with Chucky. TV documentary miniseries are under TV Shows.";
     default:
-      return "Horror, thriller, and mystery feature films. Documentaries and TV shows stay on those radios.";
+      return "Horror, thriller, mystery, sci-fi, and fantasy feature films. Documentaries and TV shows stay on those radios.";
   }
 }
 

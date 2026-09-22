@@ -10,7 +10,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
     private const int MaxResults = 8;
     private const int MaxCollectionCandidates = 16;
     private const int DocumentaryGenre = 99;
-    private static readonly HashSet<int> HorrorAdjacentGenres = [27, 53, 9648];
+    private static readonly HashSet<int> HorrorAdjacentGenres = [27, 53, 9648, 878, 14, 10765];
 
     public async Task<object> SearchAsync(string? kind, string? query, CancellationToken cancellationToken)
     {
