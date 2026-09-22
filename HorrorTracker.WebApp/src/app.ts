@@ -34,6 +34,18 @@ import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
 import { syncVault } from "./sync";
 import { isLibraryTagId, keywordsMatchTag, presentLibraryTags } from "./tags";
+import {
+  addFranchiseItem,
+  createFranchise,
+  deleteFranchise,
+  fetchFranchises,
+  FRANCHISE_KIND_OPTIONS,
+  isFranchiseKind,
+  removeFranchiseItem,
+  renameFranchise,
+  type Franchise,
+  type FranchiseKind,
+} from "./franchises";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
 type View = "home" | "library" | "lists" | "account" | "install";
@@ -68,6 +80,14 @@ interface AppState {
   lists: UserList[];
   listPicker: CatalogEntry | null;
   listMessage: string;
+  franchises: Franchise[];
+  expandedFranchiseIds: Set<number>;
+  expandedFranchiseSeries: Set<string>;
+  franchisePicker: CatalogEntry | null;
+  franchiseAdd: number | null;
+  franchiseKind: FranchiseKind;
+  franchiseQuery: string;
+  franchiseMessage: string;
   watchSheet: CatalogEntry | null;
   watchById: Record<string, WatchOffer>;
   watchBusy: boolean;
@@ -101,6 +121,14 @@ const state: AppState = {
   lists: [],
   listPicker: null,
   listMessage: "",
+  franchises: [],
+  expandedFranchiseIds: new Set<number>(),
+  expandedFranchiseSeries: new Set<string>(),
+  franchisePicker: null,
+  franchiseAdd: null,
+  franchiseKind: "series",
+  franchiseQuery: "",
+  franchiseMessage: "",
   watchSheet: null,
   watchById: {},
   watchBusy: false,
@@ -140,6 +168,7 @@ export function mountApp(root: HTMLElement): void {
       state.sheet = null;
       state.listPicker = null;
       state.listMessage = "";
+      closeFranchiseSheets();
       render(root);
       return;
     }
@@ -152,6 +181,7 @@ export function mountApp(root: HTMLElement): void {
       state.libraryTag = "";
       state.sheet = null;
       state.listPicker = null;
+      closeFranchiseSheets();
       render(root);
       return;
     }
@@ -336,6 +366,7 @@ export function mountApp(root: HTMLElement): void {
       state.finishedIds = [];
       state.lists = [];
       state.listPicker = null;
+      closeFranchiseSheets();
       state.authBusy = false;
       state.authMessage = "";
       render(root);
@@ -366,6 +397,7 @@ export function mountApp(root: HTMLElement): void {
       state.tmdbResults = [];
       state.catalogMessage = "";
       state.watchSheet = null;
+      closeFranchiseSheets();
       render(root);
       return;
     }
@@ -383,6 +415,7 @@ export function mountApp(root: HTMLElement): void {
       state.tmdbResults = [];
       state.catalogMessage = "";
       state.watchSheet = null;
+      closeFranchiseSheets();
       render(root);
       if (state.tmdbQuery.length >= 2) {
         await runTmdbSearch(root);
@@ -399,6 +432,7 @@ export function mountApp(root: HTMLElement): void {
       state.sheet = { mode: "edit", entry };
       state.catalogMessage = "";
       state.watchSheet = null;
+      closeFranchiseSheets();
       render(root);
       return;
     }
@@ -464,6 +498,7 @@ export function mountApp(root: HTMLElement): void {
       state.listPicker = entry;
       state.listMessage = "";
       state.watchSheet = null;
+      closeFranchiseSheets();
       render(root);
       return;
     }
@@ -491,6 +526,7 @@ export function mountApp(root: HTMLElement): void {
       state.watchMessage = "";
       state.listPicker = null;
       state.sheet = null;
+      closeFranchiseSheets();
       render(root);
       if (!state.watchById[entry.id]) {
         await loadWatchOffer(root, entry.id);
@@ -551,6 +587,139 @@ export function mountApp(root: HTMLElement): void {
       await saveUserLibrary(root, async () => {
         state.lists = await deleteList(list.id);
       });
+      return;
+    }
+
+    if (action === "toggle-franchise") {
+      event.preventDefault();
+      const franchiseId = Number(target.dataset.franchiseId);
+      if (!Number.isInteger(franchiseId)) {
+        return;
+      }
+
+      if (state.expandedFranchiseIds.has(franchiseId)) {
+        state.expandedFranchiseIds.delete(franchiseId);
+      } else {
+        state.expandedFranchiseIds.add(franchiseId);
+      }
+
+      render(root);
+      return;
+    }
+
+    if (action === "toggle-franchise-series") {
+      event.preventDefault();
+      const key = franchiseSeriesKey(target.dataset.franchiseId, target.dataset.seriesId);
+      const seriesId = Number(target.dataset.seriesId);
+      if (!key) {
+        return;
+      }
+
+      if (state.expandedFranchiseSeries.has(key)) {
+        state.expandedFranchiseSeries.delete(key);
+        render(root);
+        return;
+      }
+
+      state.expandedFranchiseSeries.add(key);
+      render(root);
+      if (Number.isInteger(seriesId)) {
+        await applyVaultRefresh(root, `series:${seriesId}`);
+      }
+      return;
+    }
+
+    if (action === "open-franchises" && state.user?.isAdmin) {
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      if (!entry || !isFranchiseKind(entry.kind)) {
+        return;
+      }
+
+      state.franchisePicker = entry;
+      state.franchiseAdd = null;
+      state.franchiseMessage = "";
+      state.listPicker = null;
+      state.watchSheet = null;
+      state.sheet = null;
+      render(root);
+      return;
+    }
+
+    if (action === "close-franchises") {
+      closeFranchiseSheets();
+      render(root);
+      return;
+    }
+
+    if (action === "open-franchise-add" && state.user?.isAdmin) {
+      const franchiseId = Number(target.dataset.franchiseId);
+      if (!state.franchises.some((item) => item.id === franchiseId)) {
+        return;
+      }
+
+      state.franchiseAdd = franchiseId;
+      state.franchisePicker = null;
+      state.franchiseKind = "series";
+      state.franchiseQuery = "";
+      state.franchiseMessage = "";
+      state.listPicker = null;
+      state.watchSheet = null;
+      state.sheet = null;
+      render(root);
+      return;
+    }
+
+    if (action === "toggle-franchise-item" && state.user?.isAdmin) {
+      const franchiseId = Number(target.dataset.franchiseId);
+      const itemId = target.dataset.id;
+      const franchise = state.franchises.find((item) => item.id === franchiseId);
+      if (!itemId || !franchise || state.catalogBusy) {
+        return;
+      }
+
+      await saveFranchiseChange(root, () =>
+        franchise.items.includes(itemId) ? removeFranchiseItem(franchiseId, itemId) : addFranchiseItem(franchiseId, itemId),
+      );
+      return;
+    }
+
+    if (action === "remove-franchise-item" && state.user?.isAdmin) {
+      const franchiseId = Number(target.dataset.franchiseId);
+      const itemId = target.dataset.id;
+      if (!itemId || state.catalogBusy) {
+        return;
+      }
+
+      await saveFranchiseChange(root, () => removeFranchiseItem(franchiseId, itemId));
+      return;
+    }
+
+    if (action === "rename-franchise" && state.user?.isAdmin) {
+      const franchise = state.franchises.find((item) => item.id === Number(target.dataset.franchiseId));
+      if (!franchise || state.catalogBusy) {
+        return;
+      }
+
+      const name = window.prompt("Rename franchise", franchise.name);
+      if (name === null) {
+        return;
+      }
+
+      await saveFranchiseChange(root, () => renameFranchise(franchise.id, name));
+      return;
+    }
+
+    if (action === "delete-franchise" && state.user?.isAdmin) {
+      const franchise = state.franchises.find((item) => item.id === Number(target.dataset.franchiseId));
+      if (!franchise || state.catalogBusy) {
+        return;
+      }
+
+      if (!window.confirm(`Delete the franchise “${franchise.name}”?`)) {
+        return;
+      }
+
+      await saveFranchiseChange(root, () => deleteFranchise(franchise.id));
       return;
     }
 
@@ -665,6 +834,31 @@ export function mountApp(root: HTMLElement): void {
   });
 
   root.addEventListener("submit", async (event) => {
+    const franchiseForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-franchise-form]");
+    if (!franchiseForm) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!state.user?.isAdmin || state.catalogBusy) {
+      return;
+    }
+
+    const data = new FormData(franchiseForm);
+    const name = String(data.get("name") ?? "");
+    const existingIds = new Set(state.franchises.map((franchise) => franchise.id));
+    await saveFranchiseChange(root, async () => {
+      const franchises = await createFranchise(name);
+      const created = franchises.find((franchise) => !existingIds.has(franchise.id));
+      if (created) {
+        state.expandedFranchiseIds.add(created.id);
+      }
+
+      return franchises;
+    });
+  });
+
+  root.addEventListener("submit", async (event) => {
     const tmdbForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-tmdb-form]");
     if (!tmdbForm) {
       return;
@@ -691,6 +885,16 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
+    const franchiseKind = (event.target as HTMLElement).closest<HTMLInputElement>("[data-franchise-kind]");
+    if (franchiseKind) {
+      if (isFranchiseKind(franchiseKind.value)) {
+        state.franchiseKind = franchiseKind.value;
+        render(root);
+        restoreFranchiseSearch(root);
+      }
+      return;
+    }
+
     const kindInput = (event.target as HTMLElement).closest<HTMLInputElement | HTMLSelectElement>("[data-sheet-kind]");
     if (!kindInput || !state.sheet || (state.sheet.mode !== "add" && state.sheet.mode !== "tmdb")) {
       return;
@@ -711,23 +915,33 @@ export function mountApp(root: HTMLElement): void {
 
   root.addEventListener("input", (event) => {
     const search = (event.target as HTMLElement).closest<HTMLInputElement>("[data-library-search]");
-    if (!search) {
+    if (search) {
+      state.libraryQuery = search.value;
+      const start = search.selectionStart;
+      const end = search.selectionEnd;
+      render(root);
+      const next = root.querySelector<HTMLInputElement>("[data-library-search]");
+      if (!next) {
+        return;
+      }
+
+      next.focus();
+      if (start !== null && end !== null) {
+        next.setSelectionRange(start, end);
+      }
       return;
     }
 
-    state.libraryQuery = search.value;
-    const start = search.selectionStart;
-    const end = search.selectionEnd;
+    const franchiseSearch = (event.target as HTMLElement).closest<HTMLInputElement>("[data-franchise-search]");
+    if (!franchiseSearch) {
+      return;
+    }
+
+    state.franchiseQuery = franchiseSearch.value;
+    const start = franchiseSearch.selectionStart;
+    const end = franchiseSearch.selectionEnd;
     render(root);
-    const next = root.querySelector<HTMLInputElement>("[data-library-search]");
-    if (!next) {
-      return;
-    }
-
-    next.focus();
-    if (start !== null && end !== null) {
-      next.setSelectionRange(start, end);
-    }
+    restoreFranchiseSearch(root, start, end);
   });
 }
 
@@ -743,6 +957,11 @@ async function applyVaultRefresh(root: HTMLElement, id?: string): Promise<void> 
     }
 
     state.entries = await fetchCatalog();
+    try {
+      state.franchises = await fetchFranchises();
+    } catch {
+      // Franchises stay as last loaded if the request fails.
+    }
     try {
       const [ids, lists] = await Promise.all([fetchProgressIds(), fetchLists()]);
       state.finishedIds = ids;
@@ -767,6 +986,12 @@ async function refreshCatalog(root: HTMLElement): Promise<void> {
   } catch {
     state.entries = [];
     state.status = "error";
+  }
+
+  try {
+    state.franchises = await fetchFranchises();
+  } catch {
+    state.franchises = [];
   }
 
   render(root);
@@ -840,6 +1065,46 @@ async function saveUserLibrary(root: HTMLElement, work: () => Promise<void>): Pr
   render(root);
 }
 
+async function saveFranchiseChange(root: HTMLElement, work: () => Promise<Franchise[]>): Promise<void> {
+  state.catalogBusy = true;
+  state.franchiseMessage = "";
+  state.catalogMessage = "";
+  render(root);
+
+  try {
+    state.franchises = await work();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not update franchises.";
+    if (state.franchisePicker || state.franchiseAdd !== null) {
+      state.franchiseMessage = message;
+    } else {
+      state.catalogMessage = message;
+    }
+  }
+
+  state.catalogBusy = false;
+  render(root);
+}
+
+function closeFranchiseSheets(): void {
+  state.franchisePicker = null;
+  state.franchiseAdd = null;
+  state.franchiseQuery = "";
+  state.franchiseMessage = "";
+}
+
+function restoreFranchiseSearch(root: HTMLElement, start: number | null = null, end: number | null = null): void {
+  const next = root.querySelector<HTMLInputElement>("[data-franchise-search]");
+  if (!next) {
+    return;
+  }
+
+  next.focus();
+  if (start !== null && end !== null) {
+    next.setSelectionRange(start, end);
+  }
+}
+
 async function saveCatalogChange(
   root: HTMLElement,
   work: () => Promise<unknown>,
@@ -852,6 +1117,11 @@ async function saveCatalogChange(
   try {
     const result = await work();
     state.entries = await fetchCatalog();
+    try {
+      state.franchises = await fetchFranchises();
+    } catch {
+      // Franchises stay as last loaded if the request fails.
+    }
     if (state.user) {
       try {
         state.lists = await fetchLists();
@@ -919,8 +1189,10 @@ function render(root: HTMLElement): void {
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
       ${state.sheet && canRenderSheet() ? renderSheet() : ""}
       ${state.listPicker && state.user ? renderListPicker() : ""}
+      ${state.franchisePicker && state.user?.isAdmin ? renderFranchisePicker() : ""}
+      ${state.franchiseAdd !== null && state.user?.isAdmin ? renderFranchiseAddSheet() : ""}
       ${state.watchSheet && state.user ? renderWatchSheet() : ""}
-      ${!state.sheet && !state.listPicker && !state.watchSheet && canPromptUpdate() ? renderUpdateBanner() : ""}
+      ${!state.sheet && !state.listPicker && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
@@ -1113,9 +1385,170 @@ function renderLibrary(): string {
       ${MEDIA_KINDS.filter((kind) => !usesTmdb(kind.id)).map((kind) => chip(kind.id, kind.label)).join("")}
     </div>
     ${renderLibraryTags()}
+    ${renderFranchises()}
     ${state.filter === "all" ? renderGroupedCatalog() : renderFlatCatalog()}
     ${state.status === "ready" ? renderTmdbCta() : ""}
   `;
+}
+
+function renderFranchises(): string {
+  const visible = matchingFranchises();
+  const admin = Boolean(state.user?.isAdmin);
+  if (!admin && visible.length === 0) {
+    return "";
+  }
+
+  const searching = Boolean(normalizeQuery(state.libraryQuery) || state.libraryTag);
+  return `
+    <section class="franchises">
+      <header class="franchises-head">
+        <h2>Franchises</h2>
+        <p>${admin ? "Shared groupings. Only you can create them and add titles." : "Shared groupings anyone can browse."}</p>
+      </header>
+      ${
+        admin
+          ? `
+            <form class="list-create" data-franchise-form>
+              <label>
+                New franchise
+                <input name="name" type="text" required maxlength="80" placeholder="Scream, Halloween, Chucky…" autocomplete="off" />
+              </label>
+              <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>Create</button>
+            </form>
+          `
+          : ""
+      }
+      ${state.franchiseMessage && !state.franchisePicker && state.franchiseAdd === null ? `<p class="status is-error">${escapeHtml(state.franchiseMessage)}</p>` : ""}
+      ${
+        visible.length === 0
+          ? `<p class="empty">${admin ? (searching ? "No franchises match that search." : "No franchises yet. Create one, then add series, movies, shows, or books.") : ""}</p>`
+          : visible.map((franchise) => renderFranchiseCard(franchise, searching)).join("")
+      }
+    </section>
+  `;
+}
+
+function renderFranchiseCard(franchise: Franchise, searching: boolean): string {
+  const grouped = groupFranchiseEntries(franchise);
+  const open = searching || state.expandedFranchiseIds.has(franchise.id);
+  const admin = Boolean(state.user?.isAdmin);
+  const empty = grouped.series.length === 0 && grouped.standalone.length === 0;
+  return `
+    <details class="user-list franchise-card"${open ? " open" : ""}>
+      <summary data-action="toggle-franchise" data-franchise-id="${franchise.id}">
+        <span class="user-list-name">${escapeHtml(franchise.name)}</span>
+        <span class="user-list-count">${grouped.total}</span>
+      </summary>
+      ${
+        admin
+          ? `
+            <div class="user-list-actions">
+              <button type="button" data-action="open-franchise-add" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Add title</button>
+              <button type="button" data-action="rename-franchise" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Rename</button>
+              <button type="button" data-action="delete-franchise" data-franchise-id="${franchise.id}" ${state.catalogBusy ? "disabled" : ""}>Delete</button>
+            </div>
+          `
+          : ""
+      }
+      ${
+        empty
+          ? `<p class="empty">${admin ? "Nothing in this franchise yet. Add a series, movie, show, or book." : "Nothing in this franchise yet."}</p>`
+          : `<div class="list-entries">${grouped.series.map((group) => renderFranchiseSeries(group, franchise.id)).join("")}${
+              grouped.standalone.length > 0 ? renderFranchiseStandalone(grouped.standalone, franchise.id) : ""
+            }</div>`
+      }
+    </details>
+  `;
+}
+
+function renderFranchiseSeries(group: { series: CatalogEntry; movies: CatalogEntry[] }, franchiseId: number): string {
+  const expanded = state.expandedFranchiseSeries.has(franchiseSeriesKey(franchiseId, group.series.mediaId));
+  return `
+    <div class="list-series">
+      <ul class="catalog">${renderFranchiseItem(group.series, franchiseId)}</ul>
+      ${
+        group.movies.length > 0
+          ? `
+            <details class="list-series-group"${expanded ? " open" : ""}>
+              <summary data-action="toggle-franchise-series" data-franchise-id="${franchiseId}" data-series-id="${group.series.mediaId}">
+                <span class="list-series-label">Movies</span>
+                <span class="list-series-count">${group.movies.length}</span>
+              </summary>
+              <ul class="catalog">${group.movies.map((movie) => renderFranchiseItem(movie, franchiseId, true)).join("")}</ul>
+            </details>
+          `
+          : ""
+      }
+    </div>
+  `;
+}
+
+function renderFranchiseStandalone(entries: CatalogEntry[], franchiseId: number): string {
+  if (entries.some((entry) => entry.kind === "show")) {
+    return entries
+      .map((entry) =>
+        entry.kind === "show" ? renderFranchiseItem(entry, franchiseId) : `<ul class="catalog">${renderFranchiseItem(entry, franchiseId)}</ul>`,
+      )
+      .join("");
+  }
+
+  return `<ul class="catalog">${entries.map((entry) => renderFranchiseItem(entry, franchiseId)).join("")}</ul>`;
+}
+
+function renderFranchiseItem(entry: CatalogEntry, franchiseId: number, nested = false): string {
+  if (entry.kind === "show" && state.user) {
+    return renderShowGuide(entry, { franchiseId });
+  }
+
+  return renderEntry(entry, !nested, nested, franchiseId);
+}
+
+function matchingFranchises(): Franchise[] {
+  const query = normalizeQuery(state.libraryQuery);
+  const tagging = Boolean(state.libraryTag);
+  if (!query && !tagging) {
+    return state.franchises;
+  }
+
+  return state.franchises.filter((franchise) => {
+    if (query && franchise.name.toLowerCase().includes(query)) {
+      return true;
+    }
+
+    return franchiseEntries(franchise).some((entry) => matchesLibrary(entry));
+  });
+}
+
+function franchiseEntries(franchise: Franchise): CatalogEntry[] {
+  return franchise.items
+    .map((id) => state.entries.find((entry) => entry.id === id))
+    .filter((entry): entry is CatalogEntry => Boolean(entry));
+}
+
+function groupFranchiseEntries(franchise: Franchise): {
+  series: { series: CatalogEntry; movies: CatalogEntry[] }[];
+  standalone: CatalogEntry[];
+  total: number;
+} {
+  const entries = franchiseEntries(franchise);
+  const series = sortByTitle(entries.filter((entry) => entry.kind === "series"));
+  const nestedIds = new Set<string>();
+  const groups = series.map((item) => {
+    const movies = sortByYear(entries.filter((entry) => entry.kind === "movie" && entry.seriesId === item.mediaId));
+    for (const movie of movies) {
+      nestedIds.add(movie.id);
+    }
+
+    return { series: item, movies };
+  });
+  const standalone = sortByTitle(entries.filter((entry) => entry.kind !== "series" && !nestedIds.has(entry.id)));
+  return { series: groups, standalone, total: entries.length };
+}
+
+function franchiseSeriesKey(franchiseId: number | string | undefined, seriesId: number | string | undefined): string {
+  const franchise = Number(franchiseId);
+  const series = Number(seriesId);
+  return Number.isInteger(franchise) && Number.isInteger(series) ? `${franchise}:${series}` : "";
 }
 
 function renderFlatCatalog(): string {
@@ -1497,7 +1930,7 @@ function renderListStandalone(entries: CatalogEntry[], listId: number): string {
   return `<ul class="catalog">${entries.map((entry) => renderListItem(entry, listId)).join("")}</ul>`;
 }
 
-function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; listId?: number }): string {
+function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; listId?: number; franchiseId?: number }): string {
   const showId = entry.mediaId;
   const guide = state.showGuides[showId];
   const open = state.expandedShowIds.has(showId);
@@ -1523,8 +1956,14 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
             ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>List</button>`
             : `<button class="entry-remove" type="button" data-action="toggle-list-item" data-list-id="${options.listId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>`
         }
+        ${renderFranchiseButton(entry)}
         ${
-          admin && options.listId === undefined
+          admin && options.franchiseId !== undefined
+            ? `<button class="entry-remove" type="button" data-action="remove-franchise-item" data-franchise-id="${options.franchiseId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)} from franchise" ${state.catalogBusy ? "disabled" : ""}>×</button>`
+            : ""
+        }
+        ${
+          admin && options.listId === undefined && options.franchiseId === undefined
             ? `
               <button class="entry-edit" type="button" data-action="open-edit" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>Edit</button>
               <button class="entry-remove" type="button" data-action="delete" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
@@ -1610,7 +2049,7 @@ function showProgressLabel(guide: ShowGuide | undefined): string {
   return `${finished} of ${episodes} episodes`;
 }
 
-function renderEntry(entry: CatalogEntry, showKind = true, nested = false): string {
+function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franchiseId?: number): string {
   const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
   const details = nested ? movieDetailLine({ ...entry, seriesTitle: undefined }) : movieDetailLine(entry);
   const subtitle = details ?? (showKind ? kindLabel : "");
@@ -1634,8 +2073,14 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false): stri
           ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" aria-label="Add ${escapeHtml(entry.title)} to a list" ${state.catalogBusy ? "disabled" : ""}>List</button>`
           : ""
       }
+      ${renderFranchiseButton(entry)}
       ${
-        admin
+        admin && franchiseId !== undefined
+          ? `<button class="entry-remove" type="button" data-action="remove-franchise-item" data-franchise-id="${franchiseId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)} from franchise" ${state.catalogBusy ? "disabled" : ""}>×</button>`
+          : ""
+      }
+      ${
+        admin && franchiseId === undefined
           ? `
             <button class="entry-edit" type="button" data-action="open-edit" data-id="${escapeHtml(entry.id)}" aria-label="Edit ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>Edit</button>
             <button class="entry-remove" type="button" data-action="delete" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
@@ -1643,6 +2088,131 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false): stri
           : ""
       }
     </li>
+  `;
+}
+
+function renderFranchiseButton(entry: CatalogEntry): string {
+  if (!state.user?.isAdmin || !isFranchiseKind(entry.kind)) {
+    return "";
+  }
+
+  return `<button class="entry-list entry-franchise" type="button" data-action="open-franchises" data-id="${escapeHtml(entry.id)}" aria-label="Add ${escapeHtml(entry.title)} to a franchise" ${state.catalogBusy ? "disabled" : ""}>Franchise</button>`;
+}
+
+function renderFranchisePicker(): string {
+  if (!state.franchisePicker) {
+    return "";
+  }
+
+  const entry = state.franchisePicker;
+  return `
+    <div class="sheet-backdrop" data-action="close-franchises"></div>
+    <div class="sheet" role="dialog" aria-label="Add to a franchise">
+      <h2>${escapeHtml(entry.title)}</h2>
+      <p class="fine-print">${
+        entry.kind === "series"
+          ? "Movies in this series are added with it, under a dropdown."
+          : "Choose the franchises this title belongs in."
+      }</p>
+      ${state.franchiseMessage ? `<p class="status is-error">${escapeHtml(state.franchiseMessage)}</p>` : ""}
+      ${
+        state.franchises.length === 0
+          ? `<p class="empty">Create a franchise first.</p>`
+          : `<ul class="list-picker">${state.franchises
+              .map((franchise) => {
+                const on = franchise.items.includes(entry.id);
+                return `
+                  <li>
+                    <button class="list-pick${on ? " is-on" : ""}" type="button" data-action="toggle-franchise-item" data-franchise-id="${franchise.id}" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
+                      <span class="mark" aria-hidden="true"></span>
+                      <span>${escapeHtml(franchise.name)}</span>
+                    </button>
+                  </li>
+                `;
+              })
+              .join("")}</ul>`
+      }
+      <form class="list-create is-compact" data-franchise-form>
+        <label>
+          New franchise
+          <input name="name" type="text" required maxlength="80" placeholder="Scream" autocomplete="off" />
+        </label>
+        <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>Create</button>
+      </form>
+      <div class="sheet-actions">
+        <button class="ghost-btn" type="button" data-action="close-franchises">Done</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderFranchiseAddSheet(): string {
+  const franchise = state.franchises.find((item) => item.id === state.franchiseAdd);
+  if (!franchise) {
+    return "";
+  }
+
+  const query = normalizeQuery(state.franchiseQuery);
+  const matches = sortByTitle(
+    state.entries.filter((entry) => {
+      if (entry.kind !== state.franchiseKind) {
+        return false;
+      }
+
+      return !query || matchesSearch(entry, query);
+    }),
+  ).slice(0, 30);
+
+  return `
+    <div class="sheet-backdrop" data-action="close-franchises"></div>
+    <div class="sheet" role="dialog" aria-label="Add a title to ${escapeHtml(franchise.name)}">
+      <h2>Add to ${escapeHtml(franchise.name)}</h2>
+      <p class="fine-print">Search the vault. Adding a series also adds its movies.</p>
+      ${state.franchiseMessage ? `<p class="status is-error">${escapeHtml(state.franchiseMessage)}</p>` : ""}
+      <fieldset class="search-kinds">
+        <legend>Looking for</legend>
+        ${FRANCHISE_KIND_OPTIONS.map(
+          (kind) => `
+            <label>
+              <input type="radio" name="franchise-kind" value="${kind.id}" data-franchise-kind ${kind.id === state.franchiseKind ? "checked" : ""} />
+              ${escapeHtml(kind.label)}
+            </label>
+          `,
+        ).join("")}
+      </fieldset>
+      <label class="library-search-field">
+        <span class="library-search-label">Search the vault</span>
+        <input
+          data-franchise-search
+          type="search"
+          value="${escapeHtml(state.franchiseQuery)}"
+          placeholder="Title or year"
+          autocomplete="off"
+          enterkeyhint="search"
+          aria-label="Search the vault for a franchise title"
+        />
+      </label>
+      ${
+        matches.length === 0
+          ? `<p class="empty">${query ? "No vault titles match that search." : "No titles of that type in the vault yet."}</p>`
+          : `<ul class="list-picker">${matches
+              .map((entry) => {
+                const on = franchise.items.includes(entry.id);
+                return `
+                  <li>
+                    <button class="list-pick${on ? " is-on" : ""}" type="button" data-action="toggle-franchise-item" data-franchise-id="${franchise.id}" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
+                      <span class="mark" aria-hidden="true"></span>
+                      <span>${escapeHtml(entry.title)}${entry.releaseYear ? ` <em>${entry.releaseYear}</em>` : ""}</span>
+                    </button>
+                  </li>
+                `;
+              })
+              .join("")}</ul>`
+      }
+      <div class="sheet-actions">
+        <button class="ghost-btn" type="button" data-action="close-franchises">Done</button>
+      </div>
+    </div>
   `;
 }
 

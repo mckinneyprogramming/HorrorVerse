@@ -5,7 +5,7 @@ using TMDbLib.Objects.Search;
 
 namespace HorrorTracker.Api.Catalog;
 
-public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideService shows, KeywordCatalogService keywords)
+public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideService shows, KeywordCatalogService keywords, FranchiseCatalogService franchises)
 {
     private const int MaxResults = 8;
     private const int MaxCollectionCandidates = 16;
@@ -116,6 +116,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             if (seriesId is int existingSeriesId)
             {
                 AddMovieToListsContainingSeries(existingSeriesId, existingId);
+                franchises.AddMovieToFranchisesContainingSeries(existingSeriesId, existingId);
             }
 
             await keywords.SaveMovieAsync(existingId, tmdbId, cancellationToken: cancellationToken);
@@ -127,6 +128,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         if (seriesId is int id)
         {
             AddMovieToListsContainingSeries(id, movieId);
+            franchises.AddMovieToFranchisesContainingSeries(id, movieId);
             InvalidateSeriesCompletion(id);
             RefreshSeriesTotals(id);
             keywords.ReplaceSeriesFromMovies(id);
@@ -474,6 +476,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
 
             var addedMovieId = InsertMovie(title, RuntimeOf(film.Runtime), seriesId, year);
             AddMovieToListsContainingSeries(seriesId, addedMovieId);
+            franchises.AddMovieToFranchisesContainingSeries(seriesId, addedMovieId);
             InvalidateSeriesCompletion(seriesId);
             await keywords.SaveMovieAsync(addedMovieId, part.Id, cancellationToken: cancellationToken);
             added++;

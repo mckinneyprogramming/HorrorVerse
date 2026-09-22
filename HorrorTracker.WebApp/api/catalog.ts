@@ -204,6 +204,10 @@ async function purgeUserMedia(connectionString: string, kind: string, mediaId: n
       kind,
       mediaId,
     ]);
+    await execute(connectionString, "DELETE FROM franchise_item WHERE media_kind = $1 AND media_id = $2", [
+      kind,
+      mediaId,
+    ]);
     if (kind === "show") {
       await execute(
         connectionString,

@@ -165,6 +165,7 @@ async function importMovie(connectionString: string, tmdbId: number): Promise<Tm
   if (existingId) {
     if (seriesId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, existingId);
+      await addMovieToFranchisesContainingSeries(connectionString, seriesId, existingId);
     }
 
     await saveMovieKeywords(connectionString, existingId, tmdbId);
@@ -179,6 +180,7 @@ async function importMovie(connectionString: string, tmdbId: number): Promise<Tm
   await saveMovieKeywords(connectionString, movieId, tmdbId);
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
+    await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
     await invalidateSeriesCompletion(connectionString, seriesId);
     await refreshSeriesTotals(connectionString, seriesId);
     await replaceSeriesKeywords(connectionString, seriesId);
@@ -232,6 +234,7 @@ async function importSeries(connectionString: string, collectionId: number): Pro
     const movieId = await insertMovie(connectionString, filmTitle, runtimeOf(film.runtime), seriesId, year);
     if (movieId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
+      await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
       await saveMovieKeywords(connectionString, movieId, Number(record.id));
     }
@@ -570,6 +573,22 @@ async function addMovieToListsContainingSeries(connectionString: string, seriesI
     );
   } catch {
     // Personal lists may not exist yet.
+  }
+}
+
+async function addMovieToFranchisesContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {
+  try {
+    await execute(
+      connectionString,
+      `INSERT INTO franchise_item (franchise_id, media_kind, media_id)
+       SELECT franchise_id, 'movie', $1
+       FROM franchise_item
+       WHERE media_kind = 'series' AND media_id = $2
+       ON CONFLICT (franchise_id, media_kind, media_id) DO NOTHING`,
+      [movieId, seriesId],
+    );
+  } catch {
+    // Franchise tables are created on first franchise read.
   }
 }
 

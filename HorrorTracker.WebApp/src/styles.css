@@ -308,6 +308,7 @@ button.fun-stat:focus-visible {
 .dock-btn,
 .entry-remove,
 .entry-list,
+.entry-franchise,
 .entry-watch,
 .fab {
   font: inherit;
@@ -582,6 +583,7 @@ button.entry-toggle {
 
 .entry-edit,
 .entry-list,
+.entry-franchise,
 .entry-watch {
   flex: 0 0 auto;
   min-height: 36px;
@@ -595,7 +597,8 @@ button.entry-toggle {
   cursor: pointer;
 }
 
-.entry-list {
+.entry-list,
+.entry-franchise {
   color: var(--crimson);
   border-color: var(--blood-bright);
 }
@@ -933,6 +936,30 @@ code {
   text-transform: uppercase;
 }
 
+.franchises {
+  margin: 8px 0 22px;
+}
+
+.franchises-head {
+  margin-bottom: 12px;
+}
+
+.franchises-head h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.franchises-head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.franchise-card {
+  margin-bottom: 10px;
+}
+
 .list-create {
   display: grid;
   gap: 10px;
@@ -1220,6 +1247,12 @@ code {
 
 .list-pick.is-on .mark {
   background: var(--crimson);
+}
+
+.list-pick em {
+  font-style: normal;
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 @media (display-mode: standalone) {

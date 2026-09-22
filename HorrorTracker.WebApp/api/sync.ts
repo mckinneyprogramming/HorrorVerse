@@ -149,6 +149,7 @@ async function syncSeries(connectionString: string, seriesId: number): Promise<n
     );
     if (movieId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
+      await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
       await saveMovieKeywords(connectionString, movieId, Number(record.id));
       added += 1;
@@ -358,6 +359,22 @@ async function addMovieToListsContainingSeries(connectionString: string, seriesI
     );
   } catch {
     // Personal lists may not exist yet.
+  }
+}
+
+async function addMovieToFranchisesContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {
+  try {
+    await execute(
+      connectionString,
+      `INSERT INTO franchise_item (franchise_id, media_kind, media_id)
+       SELECT franchise_id, 'movie', $1
+       FROM franchise_item
+       WHERE media_kind = 'series' AND media_id = $2
+       ON CONFLICT (franchise_id, media_kind, media_id) DO NOTHING`,
+      [movieId, seriesId],
+    );
+  } catch {
+    // Franchise tables are created on first franchise read.
   }
 }
 

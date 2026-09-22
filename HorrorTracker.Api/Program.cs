@@ -26,6 +26,7 @@ builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<ShowGuideService>();
 builder.Services.AddScoped<KeywordCatalogService>();
 builder.Services.AddScoped<WatchCatalogService>();
+builder.Services.AddScoped<FranchiseCatalogService>();
 builder.Services.AddScoped<TmdbCatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserLibraryService>();
@@ -66,14 +67,34 @@ app.MapPost("/api/catalog", (CatalogWriteRequest body, HttpContext http, AuthSer
     WriteCatalog(http, auth, () => Results.Json(catalog.Create(body))));
 app.MapPatch("/api/catalog", (CatalogWriteRequest body, HttpContext http, AuthService auth, CatalogService catalog) =>
     WriteCatalog(http, auth, () => Results.Json(catalog.Update(body))));
-app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, CatalogService catalog, UserLibraryService library, ShowGuideService shows) =>
+app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, CatalogService catalog, UserLibraryService library, FranchiseCatalogService franchises, ShowGuideService shows) =>
     WriteCatalog(http, auth, () =>
     {
         shows.PurgeShow(id);
         catalog.Delete(id);
         library.PurgeMedia(id);
+        franchises.PurgeMedia(id);
         return Results.Json(new { ok = true });
     }));
+app.MapGet("/api/franchises", (FranchiseCatalogService franchises) => Results.Json(new { franchises = franchises.GetAll() }));
+app.MapPost("/api/franchises", (FranchiseWriteRequest body, HttpContext http, AuthService auth, FranchiseCatalogService franchises) =>
+    WriteCatalog(http, auth, () =>
+        Results.Json(new
+        {
+            franchises = string.IsNullOrWhiteSpace(body.ItemId)
+                ? franchises.Create(body)
+                : franchises.AddItem(body)
+        })));
+app.MapPatch("/api/franchises", (FranchiseWriteRequest body, HttpContext http, AuthService auth, FranchiseCatalogService franchises) =>
+    WriteCatalog(http, auth, () => Results.Json(new { franchises = franchises.Rename(body) })));
+app.MapDelete("/api/franchises", (int? id, int? franchiseId, string? itemId, HttpContext http, AuthService auth, FranchiseCatalogService franchises) =>
+    WriteCatalog(http, auth, () =>
+        Results.Json(new
+        {
+            franchises = string.IsNullOrWhiteSpace(itemId)
+                ? franchises.Delete(id)
+                : franchises.RemoveItem(franchiseId ?? id, itemId)
+        })));
 app.MapGet("/api/shows", async (string? id, int? season, HttpContext http, AuthService auth, ShowGuideService shows) =>
     await WriteSignedInUserAsync(http, auth, user => shows.GetGuideAsync(user, id, season, http.RequestAborted)));
 app.MapPatch("/api/shows", async (ShowProgressRequest body, HttpContext http, AuthService auth, ShowGuideService shows) =>
