@@ -7,7 +7,8 @@
     "dev": "vite --host",
     "dev:https": "vite --host --mode https",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "test": "vitest run"
   },
   "engines": {
     "node": "20.x"
@@ -16,6 +17,7 @@
     "@vitejs/plugin-basic-ssl": "^1.2.0",
     "typescript": "^5.9.2",
     "vite": "^6.3.5",
+    "vitest": "^3.2.4",
     "vite-plugin-pwa": "^0.21.2"
   }
 }

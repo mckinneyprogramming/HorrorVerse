@@ -82,6 +82,17 @@ jobs:
       timeout-minutes: 10
       run: msbuild $env:Solution_Name /p:Configuration=$env:Configuration /p:Platform="Any CPU" /verbosity:minimal
 
+    - name: Run unit tests
+      timeout-minutes: 10
+      run: dotnet test $env:Solution_Name --configuration $env:Configuration --no-build --verbosity normal
+
+    - name: Run web unit tests
+      timeout-minutes: 10
+      working-directory: HorrorTracker.WebApp
+      run: |
+        npm ci
+        npm test
+
     # Decode the base 64 encoded pfx and save the Signing_Certificate
     - name: Decode the pfx
       if: hashFiles('HorrorTracker.Package/HorrorTracker.Package.wapproj') != ''

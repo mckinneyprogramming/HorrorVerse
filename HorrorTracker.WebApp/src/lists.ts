@@ -5,6 +5,10 @@ export interface UserList {
   visibility: "private" | "public";
 }
 
+export function normalizeVisibility(value: unknown): "private" | "public" {
+  return String(value ?? "private").toLowerCase() === "public" ? "public" : "private";
+}
+
 export async function fetchLists(): Promise<UserList[]> {
   const response = await fetch("/api/lists");
   if (response.status === 401) {
@@ -105,7 +109,7 @@ function readLists(payload: unknown): UserList[] {
         id: list.id,
         name: list.name,
         items: list.items.filter((item): item is string => typeof item === "string"),
-        visibility: String(list.visibility ?? list.Visibility ?? "private").toLowerCase() === "public" ? "public" : "private",
+        visibility: normalizeVisibility(list.visibility ?? list.Visibility),
       };
     })
     .filter((list): list is UserList => list !== null);

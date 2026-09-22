@@ -1,4 +1,4 @@
-import type { UserList } from "./lists";
+import { normalizeVisibility, type UserList } from "./lists";
 
 export interface PersonCard {
   id: number;
@@ -182,7 +182,7 @@ function readPerson(value: unknown): PersonCard | null {
                 id: listId,
                 name,
                 items: items.filter((entry): entry is string => typeof entry === "string"),
-                visibility: String(list.visibility ?? list.Visibility ?? "private").toLowerCase() === "public" ? "public" : "private",
+                visibility: normalizeVisibility(list.visibility ?? list.Visibility),
               } satisfies UserList;
             })
             .filter((item): item is UserList => item !== null),
