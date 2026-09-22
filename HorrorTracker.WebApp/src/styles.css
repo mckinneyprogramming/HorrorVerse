@@ -940,18 +940,43 @@ code {
   margin: 8px 0 22px;
 }
 
-.franchises-head {
-  margin-bottom: 12px;
+.franchises-note,
+.kind-group > .list-create,
+.kind-group > .empty,
+.kind-group > .status {
+  margin: 0 14px 12px;
 }
 
-.franchises-head h2 {
-  margin: 0 0 4px;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
+.library-page {
+  scroll-margin-top: 12px;
 }
 
-.franchises-head p {
-  margin: 0;
+.library-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 10px 12px;
+}
+
+.library-pager button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.library-pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.library-pager-status {
   color: var(--text-muted);
   font-size: 0.85rem;
 }
@@ -1056,8 +1081,13 @@ code {
   padding: 0 8px;
 }
 
-.kind-group > .list-entries {
+.kind-group > .list-entries,
+.kind-group > .library-page > .list-entries {
   padding: 0 10px 10px;
+}
+
+.franchises .library-page {
+  padding: 0 10px 8px;
 }
 
 .list-entries > .list-series-group {

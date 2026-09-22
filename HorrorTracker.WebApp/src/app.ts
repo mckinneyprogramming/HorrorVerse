@@ -74,10 +74,12 @@ interface AppState {
   catalogBusy: boolean;
   catalogMessage: string;
   collapsedKinds: Set<MediaKind>;
+  franchisesCollapsed: boolean;
   expandedSeriesIds: Set<number>;
   expandedListSeries: Set<string>;
   libraryQuery: string;
   libraryTag: string;
+  libraryPages: Record<string, number>;
   finishedIds: string[];
   lists: UserList[];
   listPicker: CatalogEntry | null;
@@ -115,11 +117,13 @@ const state: AppState = {
   sheet: null,
   catalogBusy: false,
   catalogMessage: "",
-  collapsedKinds: new Set<MediaKind>(),
+  collapsedKinds: new Set<MediaKind>(MEDIA_KINDS.map((kind) => kind.id)),
+  franchisesCollapsed: true,
   expandedSeriesIds: new Set<number>(),
   expandedListSeries: new Set<string>(),
   libraryQuery: "",
   libraryTag: "",
+  libraryPages: {},
   finishedIds: [],
   lists: [],
   listPicker: null,
@@ -145,6 +149,8 @@ const state: AppState = {
   expandedShowSeasons: new Set<string>(),
 };
 
+const LIBRARY_PAGE_SIZE = 20;
+
 export function mountApp(root: HTMLElement): void {
   render(root);
   onInstallAvailabilityChange(() => render(root));
@@ -167,6 +173,7 @@ export function mountApp(root: HTMLElement): void {
       state.view = target.dataset.view as View;
       if (target.dataset.filter) {
         state.filter = target.dataset.filter as LibraryFilter;
+        resetLibraryPages();
       }
       state.authMessage = "";
       state.sheet = null;
@@ -188,12 +195,14 @@ export function mountApp(root: HTMLElement): void {
       state.listPicker = null;
       state.franchiseListPicker = null;
       closeFranchiseSheets();
+      resetLibraryPages();
       render(root);
       return;
     }
 
     if (action === "filter") {
       state.filter = target.dataset.filter as LibraryFilter;
+      resetLibraryPages();
       render(root);
       return;
     }
@@ -201,14 +210,36 @@ export function mountApp(root: HTMLElement): void {
     if (action === "filter-tag") {
       const tag = target.dataset.tag ?? "";
       state.libraryTag = tag && isLibraryTagId(tag) ? tag : "";
+      resetLibraryPages();
       render(root);
       return;
     }
 
     if (action === "clear-search") {
       state.libraryQuery = "";
+      resetLibraryPages();
       render(root);
       root.querySelector<HTMLInputElement>("[data-library-search]")?.focus();
+      return;
+    }
+
+    if (action === "library-page") {
+      const key = target.dataset.pageKey ?? "";
+      const page = Number(target.dataset.page);
+      if (!key || !Number.isInteger(page) || page < 1) {
+        return;
+      }
+
+      state.libraryPages[key] = page;
+      render(root);
+      root.querySelector(`[data-page-anchor="${key}"]`)?.scrollIntoView({ block: "start" });
+      return;
+    }
+
+    if (action === "toggle-franchises") {
+      event.preventDefault();
+      state.franchisesCollapsed = !state.franchisesCollapsed;
+      render(root);
       return;
     }
 
@@ -908,6 +939,7 @@ export function mountApp(root: HTMLElement): void {
       const franchises = await createFranchise(name);
       const created = franchises.find((franchise) => !existingIds.has(franchise.id));
       if (created) {
+        state.franchisesCollapsed = false;
         state.expandedFranchiseIds.add(created.id);
       }
 
@@ -937,6 +969,7 @@ export function mountApp(root: HTMLElement): void {
       const value = libraryKind.value;
       if (value === "all" || isMediaKind(value)) {
         state.filter = value;
+        resetLibraryPages();
         render(root);
       }
       return;
@@ -974,6 +1007,7 @@ export function mountApp(root: HTMLElement): void {
     const search = (event.target as HTMLElement).closest<HTMLInputElement>("[data-library-search]");
     if (search) {
       state.libraryQuery = search.value;
+      resetLibraryPages();
       const start = search.selectionStart;
       const end = search.selectionEnd;
       render(root);
@@ -1458,31 +1492,39 @@ function renderFranchises(): string {
   }
 
   const searching = Boolean(normalizeQuery(state.libraryQuery) || state.libraryTag);
+  const open = searching || !state.franchisesCollapsed;
+  const pageKey = "franchises";
+  const page = pageSlice(visible, pageKey);
   return `
     <section class="franchises">
-      <header class="franchises-head">
-        <h2>Franchises</h2>
-        <p>${admin ? "Shared groupings. Only you can create them and add titles." : "Shared groupings anyone can browse."}</p>
-      </header>
-      ${
-        admin
-          ? `
-            <form class="list-create" data-franchise-form>
-              <label>
-                New franchise
-                <input name="name" type="text" required maxlength="80" placeholder="Scream, Halloween, Chucky…" autocomplete="off" />
-              </label>
-              <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>Create</button>
-            </form>
-          `
-          : ""
-      }
-      ${state.franchiseMessage && !state.franchisePicker && state.franchiseAdd === null ? `<p class="status is-error">${escapeHtml(state.franchiseMessage)}</p>` : ""}
-      ${
-        visible.length === 0
-          ? `<p class="empty">${admin ? (searching ? "No franchises match that search." : "No franchises yet. Create one, then add series, movies, shows, or books.") : ""}</p>`
-          : visible.map((franchise) => renderFranchiseCard(franchise, searching)).join("")
-      }
+      <details class="kind-group"${open ? " open" : ""}>
+        <summary data-action="toggle-franchises">
+          <span class="kind-group-label">Franchises</span>
+          <span class="kind-group-count">${visible.length}</span>
+        </summary>
+        <p class="fine-print franchises-note">${admin ? "Shared groupings. Only you can create them and add titles." : "Shared groupings anyone can browse."}</p>
+        ${
+          admin
+            ? `
+              <form class="list-create" data-franchise-form>
+                <label>
+                  New franchise
+                  <input name="name" type="text" required maxlength="80" placeholder="Scream, Halloween, Chucky…" autocomplete="off" />
+                </label>
+                <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>Create</button>
+              </form>
+            `
+            : ""
+        }
+        ${state.franchiseMessage && !state.franchisePicker && state.franchiseAdd === null ? `<p class="status is-error">${escapeHtml(state.franchiseMessage)}</p>` : ""}
+        ${
+          visible.length === 0
+            ? `<p class="empty">${admin ? (searching ? "No franchises match that search." : "No franchises yet. Create one, then add series, movies, shows, or books.") : ""}</p>`
+            : `<div class="library-page" data-page-anchor="${pageKey}">${page
+                .map((franchise) => renderFranchiseCard(franchise, searching))
+                .join("")}${renderPager(pageKey, visible.length)}</div>`
+        }
+      </details>
     </section>
   `;
 }
@@ -1523,12 +1565,45 @@ function renderFranchiseCard(franchise: Franchise, searching: boolean): string {
       ${
         empty
           ? `<p class="empty">${admin ? "Nothing in this franchise yet. Add a series, movie, show, or book." : "Nothing in this franchise yet."}</p>`
-          : `<div class="list-entries">${grouped.series.map((group) => renderFranchiseSeries(group, franchise.id)).join("")}${
-              grouped.standalone.length > 0 ? renderFranchiseStandalone(grouped.standalone, franchise.id) : ""
-            }</div>`
+          : renderFranchiseRows(grouped, franchise.id)
       }
     </details>
   `;
+}
+
+function renderFranchiseRows(
+  grouped: { series: { series: CatalogEntry; movies: CatalogEntry[] }[]; standalone: CatalogEntry[] },
+  franchiseId: number,
+): string {
+  const rows: Array<{ type: "series"; group: { series: CatalogEntry; movies: CatalogEntry[] } } | { type: "item"; entry: CatalogEntry }> = [
+    ...grouped.series.map((group) => ({ type: "series" as const, group })),
+    ...grouped.standalone.map((entry) => ({ type: "item" as const, entry })),
+  ];
+  const pageKey = `franchise:${franchiseId}`;
+  const page = pageSlice(rows, pageKey);
+  const parts: string[] = [];
+  let standalone: CatalogEntry[] = [];
+  const flushStandalone = (): void => {
+    if (standalone.length === 0) {
+      return;
+    }
+
+    parts.push(renderFranchiseStandalone(standalone, franchiseId));
+    standalone = [];
+  };
+
+  for (const row of page) {
+    if (row.type === "series") {
+      flushStandalone();
+      parts.push(renderFranchiseSeries(row.group, franchiseId));
+      continue;
+    }
+
+    standalone.push(row.entry);
+  }
+
+  flushStandalone();
+  return `<div class="library-page" data-page-anchor="${pageKey}"><div class="list-entries">${parts.join("")}</div>${renderPager(pageKey, rows.length)}</div>`;
 }
 
 function renderFranchiseSeries(group: { series: CatalogEntry; movies: CatalogEntry[] }, franchiseId: number): string {
@@ -1544,7 +1619,11 @@ function renderFranchiseSeries(group: { series: CatalogEntry; movies: CatalogEnt
                 <span class="list-series-label">Movies</span>
                 <span class="list-series-count">${group.movies.length}</span>
               </summary>
-              <ul class="catalog">${group.movies.map((movie) => renderFranchiseItem(movie, franchiseId, true)).join("")}</ul>
+              ${renderPagedCatalog(
+                group.movies,
+                (movie) => renderFranchiseItem(movie, franchiseId, true),
+                `franchise-movies:${franchiseId}:${group.series.mediaId}`,
+              )}
             </details>
           `
           : ""
@@ -1628,10 +1707,10 @@ function renderFlatCatalog(): string {
   }
 
   if (state.filter === "movie") {
-    return renderMoviesBySeries(visible, true);
+    return renderMoviesBySeries(visible, true, "kind:movie");
   }
 
-  return renderKindEntries(visible, true);
+  return renderKindEntries(visible, true, `kind:${state.filter}`);
 }
 
 function renderGroupedCatalog(): string {
@@ -1650,8 +1729,8 @@ function renderGroupedCatalog(): string {
       const open = searching || !state.collapsedKinds.has(group.kind.id);
       const body =
         group.kind.id === "movie"
-          ? renderMoviesBySeries(group.entries, false)
-          : renderKindEntries(group.entries, false);
+          ? renderMoviesBySeries(group.entries, false, "kind:movie")
+          : renderKindEntries(group.entries, false, `kind:${group.kind.id}`);
       return `
         <details class="kind-group"${open ? " open" : ""}>
           <summary data-action="toggle-kind" data-kind="${group.kind.id}">
@@ -1665,33 +1744,50 @@ function renderGroupedCatalog(): string {
     .join("");
 }
 
-function renderMoviesBySeries(movies: CatalogEntry[], showKind: boolean): string {
+function renderMoviesBySeries(movies: CatalogEntry[], showKind: boolean, pageKey: string): string {
   const grouped = groupMoviesBySeries(movies);
   const searching = Boolean(normalizeQuery(state.libraryQuery) || state.libraryTag);
-  const seriesMarkup = grouped.series
-    .map((group) => {
-      const open = searching || state.expandedSeriesIds.has(group.seriesId);
-      return `
-        <details class="list-series-group"${open ? " open" : ""}>
-          <summary data-action="toggle-series" data-series-id="${group.seriesId}">
-            <span class="list-series-label">${escapeHtml(group.title)}</span>
-            <span class="list-series-count">${group.movies.length}</span>
-          </summary>
-          <ul class="catalog">${group.movies.map((movie) => renderEntry(movie, false, true)).join("")}</ul>
-        </details>
-      `;
-    })
-    .join("");
-  const standaloneMarkup =
-    grouped.standalone.length > 0
-      ? `<ul class="catalog">${grouped.standalone.map((entry) => renderEntry(entry, showKind)).join("")}</ul>`
-      : "";
+  const rows: Array<{ type: "series"; group: (typeof grouped.series)[number] } | { type: "movie"; entry: CatalogEntry }> = [
+    ...grouped.series.map((group) => ({ type: "series" as const, group })),
+    ...grouped.standalone.map((entry) => ({ type: "movie" as const, entry })),
+  ];
+  const page = pageSlice(rows, pageKey);
+  const parts: string[] = [];
+  let standalone: CatalogEntry[] = [];
+  const flushStandalone = (): void => {
+    if (standalone.length === 0) {
+      return;
+    }
 
-  if (!seriesMarkup) {
-    return standaloneMarkup;
+    parts.push(`<ul class="catalog">${standalone.map((entry) => renderEntry(entry, showKind)).join("")}</ul>`);
+    standalone = [];
+  };
+
+  for (const row of page) {
+    if (row.type === "series") {
+      flushStandalone();
+      const open = searching || state.expandedSeriesIds.has(row.group.seriesId);
+      parts.push(`
+        <details class="list-series-group"${open ? " open" : ""}>
+          <summary data-action="toggle-series" data-series-id="${row.group.seriesId}">
+            <span class="list-series-label">${escapeHtml(row.group.title)}</span>
+            <span class="list-series-count">${row.group.movies.length}</span>
+          </summary>
+          ${renderPagedCatalog(
+            row.group.movies,
+            (movie) => renderEntry(movie, false, true),
+            `series-movies:${row.group.seriesId}`,
+          )}
+        </details>
+      `);
+      continue;
+    }
+
+    standalone.push(row.entry);
   }
 
-  return `<div class="list-entries">${seriesMarkup}${standaloneMarkup}</div>`;
+  flushStandalone();
+  return `<div class="library-page" data-page-anchor="${pageKey}"><div class="list-entries">${parts.join("")}</div>${renderPager(pageKey, rows.length)}</div>`;
 }
 
 function groupMoviesBySeries(movies: CatalogEntry[]): {
@@ -1976,12 +2072,14 @@ function renderSearchKindRadios(options: {
   `;
 }
 
-function renderKindEntries(entries: CatalogEntry[], showKind: boolean): string {
-  if (state.user && entries.some((entry) => entry.kind === "show")) {
-    return `<div class="list-entries">${sortByTitle(entries).map((entry) => renderCatalogRow(entry, showKind)).join("")}</div>`;
-  }
-
-  return `<ul class="catalog">${sortByTitle(entries).map((entry) => renderEntry(entry, showKind)).join("")}</ul>`;
+function renderKindEntries(entries: CatalogEntry[], showKind: boolean, pageKey: string): string {
+  const sorted = sortByTitle(entries);
+  const page = pageSlice(sorted, pageKey);
+  const body =
+    state.user && page.some((entry) => entry.kind === "show")
+      ? `<div class="list-entries">${page.map((entry) => renderCatalogRow(entry, showKind)).join("")}</div>`
+      : `<ul class="catalog">${page.map((entry) => renderEntry(entry, showKind)).join("")}</ul>`;
+  return `<div class="library-page" data-page-anchor="${pageKey}">${body}${renderPager(pageKey, sorted.length)}</div>`;
 }
 
 function renderCatalogRow(entry: CatalogEntry, showKind = true, nested = false): string {
@@ -2826,6 +2924,51 @@ function renderInstall(standalone: boolean): string {
     </ol>
     <p class="fine-print">Phones need HTTPS (or localhost) for a true installable app. Use <code>npm run dev:https</code> when testing on a real device. The API must also be reachable from the phone.</p>
   `;
+}
+
+function resetLibraryPages(): void {
+  state.libraryPages = {};
+}
+
+function libraryPage(key: string, total: number): number {
+  const pages = Math.max(1, Math.ceil(total / LIBRARY_PAGE_SIZE));
+  const page = state.libraryPages[key] ?? 1;
+  return Math.min(Math.max(page, 1), pages);
+}
+
+function pageSlice<T>(items: T[], key: string): T[] {
+  if (items.length <= LIBRARY_PAGE_SIZE) {
+    return items;
+  }
+
+  const page = libraryPage(key, items.length);
+  const start = (page - 1) * LIBRARY_PAGE_SIZE;
+  return items.slice(start, start + LIBRARY_PAGE_SIZE);
+}
+
+function renderPager(key: string, total: number): string {
+  if (total <= LIBRARY_PAGE_SIZE) {
+    return "";
+  }
+
+  const pages = Math.ceil(total / LIBRARY_PAGE_SIZE);
+  const page = libraryPage(key, total);
+  const start = (page - 1) * LIBRARY_PAGE_SIZE + 1;
+  const end = Math.min(page * LIBRARY_PAGE_SIZE, total);
+  return `
+    <nav class="library-pager" aria-label="Pages">
+      <button type="button" data-action="library-page" data-page-key="${escapeHtml(key)}" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>Previous</button>
+      <span class="library-pager-status">${start}–${end} of ${total}</span>
+      <button type="button" data-action="library-page" data-page-key="${escapeHtml(key)}" data-page="${page + 1}" ${page >= pages ? "disabled" : ""}>Next</button>
+    </nav>
+  `;
+}
+
+function renderPagedCatalog(items: CatalogEntry[], renderItem: (entry: CatalogEntry) => string, pageKey: string): string {
+  const page = pageSlice(items, pageKey);
+  return `<div class="library-page" data-page-anchor="${escapeHtml(pageKey)}"><ul class="catalog">${page
+    .map((item) => renderItem(item))
+    .join("")}</ul>${renderPager(pageKey, items.length)}</div>`;
 }
 
 function escapeHtml(value: string): string {
