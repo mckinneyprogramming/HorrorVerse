@@ -2608,7 +2608,7 @@ function renderPersonRow(person: PersonCard, tone: string): string {
           ${person.aboutMe ? `<em>${escapeHtml(person.aboutMe)}</em>` : ""}
         </span>
       </button>
-      ${renderPersonActions(person, tone)}
+      <div class="people-actions">${renderPersonActions(person, tone)}</div>
     </li>
   `;
 }

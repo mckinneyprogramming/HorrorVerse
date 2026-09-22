@@ -833,12 +833,14 @@ code {
 
 .people-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .people-open {
-  flex: 1;
+  flex: 1 1 140px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -857,13 +859,39 @@ code {
   min-width: 0;
 }
 
+.people-open strong,
+.people-open em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .people-open em {
   color: var(--text-secondary);
   font-size: 0.82rem;
   font-style: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.people-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.people-actions:empty {
+  display: none;
+}
+
+.people-actions .ghost-btn,
+.people-actions .entry-list {
+  width: auto;
+  margin-top: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 0.78rem;
 }
 
 .profile-actions {
