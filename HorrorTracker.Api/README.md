@@ -4,7 +4,7 @@ ASP.NET Core host for the PostgreSQL catalog **and** the production PWA. The Typ
 
 ## Local development
 
-Set the same connection string the console and WinForms apps use, then run API + Vite:
+Set the same connection string the WinForms app uses, then run API + Vite:
 
 ```bash
 $env:HorrorVerseDb = "Host=localhost;Username=postgres;Password=...;Database=HorrorTracker"

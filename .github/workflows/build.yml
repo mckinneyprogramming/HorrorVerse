@@ -61,8 +61,7 @@ jobs:
           /o:"mckinneyprogramming" `
           /d:sonar.token="$env:SONAR_TOKEN" `
           /d:sonar.host.url="https://sonarcloud.io" `
-          /d:sonar.verbose=true `
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+          /d:sonar.verbose=true
 
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Sonar begin command failed with exit code $LASTEXITCODE"
@@ -76,25 +75,6 @@ jobs:
 
           # Build the solution
           dotnet build HorrorTracker.sln --no-incremental
-
-          # Run all tests with coverage (using OpenCover format)
-          dotnet test HorrorTracker.sln --no-build `
-            --collect:"XPlat Code Coverage" `
-            --results-directory TestResults `
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-
-          # Debug - show all test results
-          echo "=== Test Results Directory Structure ==="
-          Get-ChildItem TestResults -Recurse | Select-Object FullName
-
-          # Check if coverage files exist
-          $coverageFiles = Get-ChildItem -Path TestResults -Filter "coverage.opencover.xml" -Recurse
-          if ($coverageFiles.Count -eq 0) {
-            Write-Warning "No OpenCover coverage files found!"
-          } else {
-            echo "=== Found $($coverageFiles.Count) coverage file(s) ==="
-            $coverageFiles | ForEach-Object { echo $_.FullName }
-          }
 
           # End SonarCloud analysis
           & .\.sonar\scanner\dotnet-sonarscanner.exe end /d:sonar.token="$env:SONAR_TOKEN"

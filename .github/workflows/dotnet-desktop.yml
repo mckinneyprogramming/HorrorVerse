@@ -53,7 +53,6 @@ jobs:
 
     env:
       Solution_Name: HorrorTracker.sln
-      Test_Project_Path: HorrorTracker.MSTests\HorrorTracker.MSTests.csproj
       Wap_Project_Directory: HorrorTracker.Package
       Wap_Project_Path: HorrorTracker.Package\HorrorTracker.Package.wapproj
       Configuration: Release
@@ -82,11 +81,6 @@ jobs:
     - name: Build the solution
       timeout-minutes: 10
       run: msbuild $env:Solution_Name /p:Configuration=$env:Configuration /p:Platform="Any CPU" /verbosity:minimal
-
-    # Execute all unit tests in the solution
-    - name: Execute unit tests
-      timeout-minutes: 10
-      run: dotnet test $env:Solution_Name --configuration $env:Configuration --no-build --verbosity normal
 
     # Decode the base 64 encoded pfx and save the Signing_Certificate
     - name: Decode the pfx

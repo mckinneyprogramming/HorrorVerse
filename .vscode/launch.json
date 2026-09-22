@@ -2,20 +2,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            // Use IntelliSense to find out which attributes exist for C# debugging
-            // Use hover for the description of the existing attributes
-            // For further information visit https://github.com/dotnet/vscode-csharp/blob/main/debugger-launchjson.md
-            "name": ".NET Core Launch (console)",
+            "name": "Launch API",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/HorrorTracker.ConsoleApp/bin/Debug/net10.0/HorrorTracker.ConsoleApp.dll",
+            "program": "${workspaceFolder}/HorrorTracker.Api/bin/Debug/net10.0/HorrorTracker.Api.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/HorrorTracker.ConsoleApp",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "internalConsole",
-            "stopAtEntry": false
+            "cwd": "${workspaceFolder}/HorrorTracker.Api",
+            "stopAtEntry": false,
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
         },
         {
             "name": ".NET Core Attach",

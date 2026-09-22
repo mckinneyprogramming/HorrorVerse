@@ -33,7 +33,6 @@ It’s more than a tracker — it’s an evolving **horror universe** where your
 
 | Layer | Purpose |
 |-------|----------|
-| **Console Application** | Core system for adding and managing horror content. |
 | **Windows Forms UI** | Desktop tracker against the PostgreSQL catalog. |
 | **Web App (PWA)** | TypeScript app in `HorrorTracker.WebApp` that installs to a phone home screen. |
 | **Web API** | `HorrorTracker.Api` reads the PostgreSQL catalog for the PWA. |
@@ -70,7 +69,7 @@ npm install
 npm run dev
 ```
 
-Set `HorrorVerseDb` to your PostgreSQL connection string (same variable the console and WinForms apps use). Vite proxies `/api` to `http://localhost:5116`.
+Set `HorrorVerseDb` to your PostgreSQL connection string (same variable the WinForms app uses). Vite proxies `/api` to `http://localhost:5116`.
 
 For a phone home-screen app that reads the live database, host **one HTTPS origin** that serves both the webpage and `/api` (the API project does that in production). See [`HorrorTracker.Api/README.md`](HorrorTracker.Api/README.md). `localhost` on the phone is the phone, not this PC.
 
