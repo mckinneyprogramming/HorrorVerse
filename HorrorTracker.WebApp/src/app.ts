@@ -31,6 +31,7 @@ import {
   type UserList,
 } from "./lists";
 import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
+import { fetchUpcoming, type UpcomingTitle } from "./upcoming";
 import { fetchWatch, type WatchOffer } from "./watch";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
@@ -50,7 +51,8 @@ import {
 } from "./franchises";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
-type View = "home" | "library" | "lists" | "account" | "install";
+type View = "home" | "library" | "upcoming" | "lists" | "account" | "install";
+type UpcomingPane = "films" | "shows";
 type LibraryFilter = MediaKind | "all";
 type LoadStatus = "loading" | "ready" | "error";
 type AuthMode = "login" | "register";
@@ -103,6 +105,12 @@ interface AppState {
   showGuides: Record<number, ShowGuide>;
   expandedShowIds: Set<number>;
   expandedShowSeasons: Set<string>;
+  upcomingFilms: UpcomingTitle[];
+  upcomingShows: UpcomingTitle[];
+  upcomingStatus: LoadStatus;
+  upcomingMessage: string;
+  upcomingPane: UpcomingPane;
+  expandedUpcomingMonths: Set<string>;
 }
 
 const state: AppState = {
@@ -147,6 +155,12 @@ const state: AppState = {
   showGuides: {},
   expandedShowIds: new Set<number>(),
   expandedShowSeasons: new Set<string>(),
+  upcomingFilms: [],
+  upcomingShows: [],
+  upcomingStatus: "loading",
+  upcomingMessage: "",
+  upcomingPane: "films",
+  expandedUpcomingMonths: new Set<string>(),
 };
 
 const LIBRARY_PAGE_SIZE = 20;
@@ -155,6 +169,7 @@ export function mountApp(root: HTMLElement): void {
   render(root);
   onInstallAvailabilityChange(() => render(root));
   void refreshCatalog(root);
+  void refreshUpcoming(root);
   void (async () => {
     await refreshUser(root);
     if (state.user) {
@@ -249,6 +264,30 @@ export function mountApp(root: HTMLElement): void {
     if (action === "toggle-franchises") {
       event.preventDefault();
       state.franchisesCollapsed = !state.franchisesCollapsed;
+      render(root);
+      return;
+    }
+
+    if (action === "upcoming-pane") {
+      const pane = target.dataset.pane === "shows" ? "shows" : "films";
+      state.upcomingPane = pane;
+      render(root);
+      return;
+    }
+
+    if (action === "toggle-upcoming-month") {
+      event.preventDefault();
+      const month = target.dataset.month ?? "";
+      if (!month) {
+        return;
+      }
+
+      if (state.expandedUpcomingMonths.has(month)) {
+        state.expandedUpcomingMonths.delete(month);
+      } else {
+        state.expandedUpcomingMonths.add(month);
+      }
+
       render(root);
       return;
     }
@@ -1098,6 +1137,28 @@ async function refreshCatalog(root: HTMLElement): Promise<void> {
   render(root);
 }
 
+async function refreshUpcoming(root: HTMLElement): Promise<void> {
+  if (state.upcomingFilms.length < 1 && state.upcomingShows.length < 1) {
+    state.upcomingStatus = "loading";
+    render(root);
+  }
+
+  try {
+    const schedule = await fetchUpcoming();
+    state.upcomingFilms = schedule.films;
+    state.upcomingShows = schedule.shows;
+    state.upcomingStatus = "ready";
+    state.upcomingMessage = "";
+    ensureUpcomingMonthOpen(laterUpcoming(schedule.films), "films");
+    ensureUpcomingMonthOpen(laterUpcoming(schedule.shows), "shows");
+  } catch (error) {
+    state.upcomingStatus = "error";
+    state.upcomingMessage = error instanceof Error ? error.message : "Could not load upcoming titles.";
+  }
+
+  render(root);
+}
+
 async function refreshUser(root: HTMLElement): Promise<void> {
   state.user = await fetchCurrentUser();
   await refreshUserLibrary(root);
@@ -1284,6 +1345,7 @@ function render(root: HTMLElement): void {
       <main class="stage">
         ${state.view === "home" ? renderHome() : ""}
         ${state.view === "library" ? renderLibrary() : ""}
+        ${state.view === "upcoming" ? renderUpcomingPage() : ""}
         ${state.view === "lists" ? renderLists() : ""}
         ${state.view === "account" ? renderAccount() : ""}
         ${state.view === "install" ? renderInstall(standalone) : ""}
@@ -1299,6 +1361,7 @@ function render(root: HTMLElement): void {
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
+        ${dockButton("upcoming", "Upcoming", upcomingIcon())}
         ${dockButton("lists", "Lists", listsIcon())}
         ${dockButton("account", "Account", accountIcon())}
         ${standalone ? "" : dockButton("install", "Install", installIcon())}
@@ -1361,6 +1424,11 @@ function renderHome(): string {
     </section>
     ${renderFunStats()}
     <section class="kinds">
+      <button class="kind-card" type="button" data-action="view" data-view="upcoming">
+        <span class="kind-count">${upcomingCount() || (state.upcomingStatus === "loading" ? "…" : "0")}</span>
+        <span class="kind-label">Upcoming</span>
+        <span class="kind-hint">Horror films, shows, and episodes on the way.</span>
+      </button>
       <button class="kind-card" type="button" data-action="view" data-view="library" data-franchises="1">
         <span class="kind-count">${state.franchises.length}</span>
         <span class="kind-label">Franchises</span>
@@ -1402,6 +1470,184 @@ function renderFunStats(): string {
       ${renderStatGroup("HorrorVerse", "Every title in the shared vault.", stats.vault)}
     </section>
   `;
+}
+
+function upcomingCount(): number {
+  return state.upcomingFilms.length + state.upcomingShows.length;
+}
+
+function localTodayIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function laterUpcoming(items: UpcomingTitle[]): UpcomingTitle[] {
+  const today = localTodayIso();
+  return items.filter((item) => item.releaseDate !== today);
+}
+
+function ensureUpcomingMonthOpen(items: UpcomingTitle[], pane: UpcomingPane): void {
+  if (items.length < 1) {
+    return;
+  }
+
+  const prefix = `${pane}:`;
+  const keys = new Set(items.map((item) => `${pane}:${upcomingMonthKey(item.releaseDate)}`));
+  const stillOpen = [...state.expandedUpcomingMonths].some((key) => keys.has(key));
+  if (stillOpen) {
+    return;
+  }
+
+  for (const key of [...state.expandedUpcomingMonths]) {
+    if (key.startsWith(prefix)) {
+      state.expandedUpcomingMonths.delete(key);
+    }
+  }
+
+  state.expandedUpcomingMonths.add(`${pane}:${upcomingMonthKey(items[0].releaseDate)}`);
+}
+
+function renderUpcomingPage(): string {
+  const today = localTodayIso();
+  const paneItems = state.upcomingPane === "shows" ? state.upcomingShows : state.upcomingFilms;
+  const todayItems = [...state.upcomingFilms, ...state.upcomingShows].filter((item) => item.releaseDate === today);
+  const months = groupUpcomingByMonth(laterUpcoming(paneItems));
+  const loading = state.upcomingStatus === "loading" && upcomingCount() < 1;
+  return `
+    <header class="page-head">
+      <h1>Upcoming</h1>
+      <p>A browse-only calendar of horror films, new series, and the next episodes TMDb has dated.</p>
+    </header>
+    ${state.upcomingMessage ? `<p class="status is-error">${escapeHtml(state.upcomingMessage)}</p>` : ""}
+    ${
+      loading
+        ? `<p class="empty">Checking the release calendar…</p>`
+        : `
+          ${renderUpcomingToday(todayItems)}
+          <div class="auth-toggle upcoming-toggle" role="tablist" aria-label="Upcoming kind">
+            <button class="chip${state.upcomingPane === "films" ? " is-active" : ""}" type="button" data-action="upcoming-pane" data-pane="films">Upcoming Films</button>
+            <button class="chip${state.upcomingPane === "shows" ? " is-active" : ""}" type="button" data-action="upcoming-pane" data-pane="shows">Upcoming Shows/Episodes</button>
+          </div>
+          ${renderUpcomingMonths(months, state.upcomingPane, paneItems.length < 1)}
+        `
+    }
+  `;
+}
+
+function renderUpcomingToday(items: UpcomingTitle[]): string {
+  if (items.length < 1) {
+    return "";
+  }
+
+  return `
+    <section class="upcoming-today" aria-label="Out today">
+      <header class="upcoming-head">
+        <h2>Out today</h2>
+        <p>Releasing now — pulled to the top with the TMDb synopsis.</p>
+      </header>
+      <div class="upcoming-today-list">
+        ${items.map((item) => renderUpcomingTodayCard(item)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderUpcomingTodayCard(item: UpcomingTitle): string {
+  const kindLabel = item.kind === "episode" ? "Episode" : item.kind === "show" ? "New series" : "Film";
+  return `
+    <article class="upcoming-today-card">
+      <p class="eyebrow">${escapeHtml(kindLabel)}</p>
+      <h3>${escapeHtml(item.title)}</h3>
+      ${item.detail ? `<p class="upcoming-detail">${escapeHtml(item.detail)}</p>` : ""}
+      <p class="upcoming-date">${escapeHtml(formatUpcomingDate(item.releaseDate))}</p>
+      ${item.overview ? `<p class="upcoming-synopsis">${escapeHtml(item.overview)}</p>` : `<p class="upcoming-synopsis">No synopsis yet.</p>`}
+    </article>
+  `;
+}
+
+function renderUpcomingMonths(
+  months: { key: string; label: string; items: UpcomingTitle[] }[],
+  pane: UpcomingPane,
+  emptySource: boolean,
+): string {
+  if (emptySource && state.upcomingStatus === "ready") {
+    return `<p class="empty">${
+      pane === "shows"
+        ? "No dated horror shows or upcoming episodes showed up."
+        : "No dated horror films showed up for the next two years."
+    }</p>`;
+  }
+
+  if (months.length < 1) {
+    return `<p class="empty">Everything dated for today is up top.</p>`;
+  }
+
+  return months
+    .map((group) => {
+      const key = `${pane}:${group.key}`;
+      const open = state.expandedUpcomingMonths.has(key);
+      return `
+        <details class="kind-group"${open ? " open" : ""}>
+          <summary data-action="toggle-upcoming-month" data-month="${escapeHtml(key)}">
+            <span class="kind-group-label">${escapeHtml(group.label)}</span>
+            <span class="kind-group-count">${group.items.length}</span>
+          </summary>
+          ${renderPagedCatalog(group.items, renderUpcomingItem, `upcoming:${key}`)}
+        </details>
+      `;
+    })
+    .join("");
+}
+
+function renderUpcomingItem(item: UpcomingTitle): string {
+  return `
+    <li class="entry upcoming-entry">
+      <span class="entry-toggle">
+        <span class="entry-copy">
+          <strong>${escapeHtml(item.title)}</strong>
+          <em>${escapeHtml([item.detail, formatUpcomingDate(item.releaseDate)].filter(Boolean).join(" · "))}</em>
+        </span>
+      </span>
+    </li>
+  `;
+}
+
+function groupUpcomingByMonth(items: UpcomingTitle[]): { key: string; label: string; items: UpcomingTitle[] }[] {
+  const groups = new Map<string, UpcomingTitle[]>();
+  for (const item of items) {
+    const key = upcomingMonthKey(item.releaseDate);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.push(item);
+      continue;
+    }
+
+    groups.set(key, [item]);
+  }
+
+  return [...groups.entries()].map(([key, groupItems]) => ({
+    key,
+    label: formatUpcomingMonth(key),
+    items: groupItems,
+  }));
+}
+
+function upcomingMonthKey(releaseDate: string): string {
+  return releaseDate.slice(0, 7);
+}
+
+function formatUpcomingMonth(key: string): string {
+  const [year, month] = key.split("-").map(Number);
+  const date = new Date(Date.UTC(year, (month || 1) - 1, 1));
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+function formatUpcomingDate(releaseDate: string): string {
+  const [year, month, day] = releaseDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, (month || 1) - 1, day || 1));
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
 function renderStatGroup(title: string, hint: string, group: StatGroup): string {
@@ -3007,7 +3253,7 @@ function renderPager(key: string, total: number): string {
   `;
 }
 
-function renderPagedCatalog(items: CatalogEntry[], renderItem: (entry: CatalogEntry) => string, pageKey: string): string {
+function renderPagedCatalog<T>(items: T[], renderItem: (item: T) => string, pageKey: string): string {
   const page = pageSlice(items, pageKey);
   return `<div class="library-page" data-page-anchor="${escapeHtml(pageKey)}"><ul class="catalog">${page
     .map((item) => renderItem(item))
@@ -3041,4 +3287,8 @@ function listsIcon(): string {
 
 function installIcon(): string {
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v9.2l2.6-2.6 1.4 1.4L12 16 7 10.99l1.4-1.4L11 12.2zm-6 13h2v3h10v-3h2v3a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/></svg>`;
+}
+
+function upcomingIcon(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h2v2h6V3h2v2h3v16H4V5h3zm12 6H5v10h14zm-8 2h2v2h-2zm0 4h2v2h-2zM8 11h2v2H8zm0 4h2v2H8z"/></svg>`;
 }

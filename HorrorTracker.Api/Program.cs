@@ -27,6 +27,7 @@ builder.Services.AddScoped<ShowGuideService>();
 builder.Services.AddScoped<KeywordCatalogService>();
 builder.Services.AddScoped<WatchCatalogService>();
 builder.Services.AddScoped<FranchiseCatalogService>();
+builder.Services.AddScoped<UpcomingCatalogService>();
 builder.Services.AddScoped<TmdbCatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserLibraryService>();
@@ -77,6 +78,17 @@ app.MapDelete("/api/catalog", (string? id, HttpContext http, AuthService auth, C
         return Results.Json(new { ok = true });
     }));
 app.MapGet("/api/franchises", (FranchiseCatalogService franchises) => Results.Json(new { franchises = franchises.GetAll() }));
+app.MapGet("/api/upcoming", async (UpcomingCatalogService upcoming, CancellationToken token) =>
+{
+    try
+    {
+        return Results.Json(await upcoming.GetAsync(token));
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.Json(new { error = exception.Message }, statusCode: StatusCodes.Status400BadRequest);
+    }
+});
 app.MapPost("/api/franchises", (FranchiseWriteRequest body, HttpContext http, AuthService auth, FranchiseCatalogService franchises) =>
     WriteCatalog(http, auth, () =>
         Results.Json(new

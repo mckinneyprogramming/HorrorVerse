@@ -261,6 +261,76 @@ button.fun-stat:focus-visible {
   }
 }
 
+.upcoming {
+  margin: 0 0 22px;
+}
+
+.upcoming-head {
+  margin: 0 0 12px;
+}
+
+.upcoming-head h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.upcoming-head p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.upcoming-list {
+  padding: 0 10px 10px;
+}
+
+.upcoming-toggle {
+  flex-wrap: wrap;
+}
+
+.upcoming-today {
+  margin: 0 0 22px;
+}
+
+.upcoming-today-list {
+  display: grid;
+  gap: 12px;
+}
+
+.upcoming-today-card {
+  padding: 16px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.upcoming-today-card .eyebrow {
+  margin: 0 0 8px;
+}
+
+.upcoming-today-card h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.upcoming-detail,
+.upcoming-date {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.upcoming-synopsis {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 .kinds {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -781,7 +851,7 @@ code {
   background: transparent;
   border: 0;
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
 }
 
 .dock-btn svg {
