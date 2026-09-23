@@ -10,6 +10,10 @@ const outDir = join(webAppDir, "api");
 const check = process.argv.includes("--check");
 const banner = "/* Generated from api-src. Edit api-src and lib, then run npm run bundle-api. */\n";
 
+function sameBundle(current, next) {
+  return current.replaceAll("\r\n", "\n") === next.replaceAll("\r\n", "\n");
+}
+
 const entries = (await readdir(srcDir)).filter((name) => name.endsWith(".ts")).sort();
 if (entries.length === 0) {
   throw new Error("No api-src/*.ts files to bundle.");
@@ -38,7 +42,7 @@ for (const name of entries) {
 
   const outfile = join(outDir, name.replace(/\.ts$/, ".js"));
   const current = await readFile(outfile, "utf8").catch(() => "");
-  if (current !== next) {
+  if (!sameBundle(current, next)) {
     stale.push(name.replace(/\.ts$/, ".js"));
     if (!check) {
       await writeFile(outfile, next);
