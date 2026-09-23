@@ -1,8 +1,7 @@
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-import { asResults, tmdbJson, tmdbJsonOptional } from "../lib/tmdb";
-
+const TMDB_BASE = "https://api.themoviedb.org/3";
 const HORROR_GENRE = 27;
 const HORROR_KEYWORD = 3158;
 const EXCLUDED_TV_GENRES = new Set([35, 10762, 10763, 10764, 10766, 10767]);
@@ -251,6 +250,35 @@ function addDays(date: Date, days: number): Date {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
   return next;
+}
+
+async function tmdbJson(path: string): Promise<Record<string, unknown>> {
+  const payload = await tmdbJsonOptional(path);
+  if (!payload) {
+    throw new Error("Could not reach TMDb.");
+  }
+
+  return payload;
+}
+
+async function tmdbJsonOptional(path: string): Promise<Record<string, unknown> | null> {
+  const apiKey = process.env.TMDBKey?.trim();
+  if (!apiKey) {
+    throw new Error("TMDBKey is not configured.");
+  }
+
+  try {
+    const separator = path.includes("?") ? "&" : "?";
+    const response = await fetch(`${TMDB_BASE}${path}${separator}api_key=${encodeURIComponent(apiKey)}`);
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    return response.ok ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+function asResults(payload: Record<string, unknown>): Record<string, unknown>[] {
+  return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
 }
 
 function asObject(value: unknown): Record<string, unknown> | undefined {

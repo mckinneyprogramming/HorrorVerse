@@ -2,42 +2,16 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 void "restore-standalone-tmdb";
 
-import {
-  replaceSeriesKeywords,
-  saveDocumentaryKeywords,
-  saveMovieKeywords,
-  saveShowKeywords,
-} from "../lib/keywords";
-import {
-  execute,
-  HttpError,
-  jsonError as neonJsonError,
-  queryRows,
-  requireDatabaseUrl,
-  requireSessionUser,
-} from "../lib/neon";
-import {
-  asId,
-  asRecord,
-  asResults,
-  collectionIsHorrorAdjacent,
-  isDocumentary,
-  isHorrorAdjacent,
-  requireTitle,
-  runtimeOf,
-  seriesTitle,
-  tmdbJson,
-  trimOverview,
-  yearFrom,
-} from "../lib/tmdb";
-
+const TMDB_BASE = "https://api.themoviedb.org/3";
 const MAX_RESULTS = 8;
 const MAX_COLLECTION_CANDIDATES = 16;
+const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648, 878, 14, 10765]);
+const DOCUMENTARY_GENRE = 99;
 
 export async function GET(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
-    await requireSessionUser(request, connectionString);
+    await requireUser(request, connectionString);
     const url = new URL(request.url);
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
@@ -55,14 +29,14 @@ export async function GET(request: Request) {
             : await searchMovies(query);
     return Response.json({ results });
   } catch (error) {
-    return neonJsonError(error, { log: "TMDb request failed.", fallback: "Could not talk to TMDb." });
+    return jsonError(error);
   }
 }
 
 export async function POST(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
-    await requireSessionUser(request, connectionString);
+    await requireUser(request, connectionString);
     const body = (await request.json().catch(() => ({}))) as { kind?: string; tmdbId?: number };
     const kind = normalizeTmdbKind(body.kind ?? "movie");
     const tmdbId = Number(body.tmdbId);
@@ -81,7 +55,7 @@ export async function POST(request: Request) {
 
     return Response.json(imported);
   } catch (error) {
-    return neonJsonError(error, { log: "TMDb request failed.", fallback: "Could not talk to TMDb." });
+    return jsonError(error);
   }
 }
 
@@ -153,6 +127,32 @@ async function searchShows(query: string): Promise<TmdbHit[]> {
       overview: trimOverview(item.overview),
     }))
     .filter((item) => item.tmdbId > 0 && item.title.length > 0);
+}
+
+async function collectionIsHorrorAdjacent(collectionId: number): Promise<boolean> {
+  try {
+    const collection = await tmdbJson(`/collection/${collectionId}`);
+    const parts = Array.isArray(collection.parts) ? collection.parts : [];
+    return parts.some((part) => isHorrorAdjacent(asRecord(part)?.genre_ids));
+  } catch {
+    return false;
+  }
+}
+
+function isHorrorAdjacent(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.some((id) => HORROR_ADJACENT_GENRES.has(Number(id)));
+}
+
+function isDocumentary(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.some((id) => Number(id) === DOCUMENTARY_GENRE);
 }
 
 async function importMovie(connectionString: string, tmdbId: number): Promise<TmdbImportResult> {
@@ -473,6 +473,123 @@ async function invalidateSeriesCompletion(connectionString: string, seriesId: nu
   }
 }
 
+async function saveMovieKeywords(
+  connectionString: string,
+  movieId: number,
+  tmdbId: number,
+  skipIfPresent = false,
+): Promise<void> {
+  await saveKeywords(connectionString, "movie", movieId, tmdbId, "movie", skipIfPresent);
+}
+
+async function saveDocumentaryKeywords(
+  connectionString: string,
+  documentaryId: number,
+  tmdbId: number,
+  skipIfPresent = false,
+): Promise<void> {
+  await saveKeywords(connectionString, "documentary", documentaryId, tmdbId, "movie", skipIfPresent);
+}
+
+async function saveShowKeywords(
+  connectionString: string,
+  showId: number,
+  tmdbId: number,
+  skipIfPresent = false,
+): Promise<void> {
+  await saveKeywords(connectionString, "show", showId, tmdbId, "tv", skipIfPresent);
+}
+
+async function saveKeywords(
+  connectionString: string,
+  kind: string,
+  mediaId: number,
+  tmdbId: number,
+  tmdbKind: "movie" | "tv",
+  skipIfPresent: boolean,
+): Promise<void> {
+  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+    return;
+  }
+
+  try {
+    await ensureKeywordSchema(connectionString);
+    if (kind === "movie") {
+      await execute(connectionString, "UPDATE movie SET tmdbid = $1 WHERE id = $2", [tmdbId, mediaId]);
+    } else if (kind === "documentary") {
+      await execute(connectionString, "UPDATE documentary SET tmdbid = $1 WHERE id = $2", [tmdbId, mediaId]);
+    }
+
+    if (skipIfPresent) {
+      const existing = await queryRows(
+        connectionString,
+        "SELECT 1 AS present FROM media_keyword WHERE media_kind = $1 AND media_id = $2 LIMIT 1",
+        [kind, mediaId],
+      );
+      if (existing[0]) {
+        return;
+      }
+    }
+
+    const payload = await tmdbJson(`/${tmdbKind}/${tmdbId}/keywords`);
+    const raw = Array.isArray(payload.keywords) ? payload.keywords : Array.isArray(payload.results) ? payload.results : [];
+    await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = $1 AND media_id = $2", [kind, mediaId]);
+    for (const item of raw) {
+      const record = asRecord(item);
+      const keywordId = Number(record?.id);
+      const name = String(record?.name ?? "").trim();
+      if (!Number.isInteger(keywordId) || keywordId < 1 || name.length < 1 || name.length > 80) {
+        continue;
+      }
+
+      await execute(
+        connectionString,
+        `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO UPDATE SET name = EXCLUDED.name`,
+        [kind, mediaId, keywordId, name],
+      );
+    }
+  } catch {
+    // Tags are best-effort and will backfill on vault sync.
+  }
+}
+
+async function replaceSeriesKeywords(connectionString: string, seriesId: number): Promise<void> {
+  try {
+    await ensureKeywordSchema(connectionString);
+    await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
+    await execute(
+      connectionString,
+      `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
+       SELECT DISTINCT ON (k.tmdb_keyword_id) 'series', $1, k.tmdb_keyword_id, k.name
+       FROM media_keyword k
+       JOIN movie m ON m.id = k.media_id
+       WHERE k.media_kind = 'movie' AND m.seriesid = $1
+       ORDER BY k.tmdb_keyword_id, k.name
+       ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO NOTHING`,
+      [seriesId],
+    );
+  } catch {
+    // Series tags are rebuilt after movie tags land.
+  }
+}
+
+async function ensureKeywordSchema(connectionString: string): Promise<void> {
+  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS media_keyword (
+      media_kind TEXT NOT NULL,
+      media_id INTEGER NOT NULL,
+      tmdb_keyword_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      PRIMARY KEY (media_kind, media_id, tmdb_keyword_id)
+    )`,
+  );
+}
+
 async function addMovieToListsContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {
   try {
     await execute(
@@ -524,6 +641,69 @@ async function refreshSeriesTotals(connectionString: string, seriesId: number): 
   );
 }
 
+async function tmdbJson(path: string): Promise<Record<string, unknown>> {
+  const apiKey = process.env.TMDBKey?.trim();
+  if (!apiKey) {
+    throw new TmdbError("TMDBKey is not configured.", 503);
+  }
+
+  const separator = path.includes("?") ? "&" : "?";
+  const response = await fetch(`${TMDB_BASE}${path}${separator}api_key=${encodeURIComponent(apiKey)}`);
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new TmdbError("Could not reach TMDb.", response.status === 401 ? 503 : 502);
+  }
+
+  return payload;
+}
+
+function asResults(payload: Record<string, unknown>): Record<string, unknown>[] {
+  return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+}
+
+function asId(row: Record<string, unknown> | undefined): number | undefined {
+  const id = Number(row?.id);
+  return Number.isInteger(id) && id > 0 ? id : undefined;
+}
+
+function yearFrom(value: unknown): number | undefined {
+  const text = String(value ?? "");
+  const year = Number(text.slice(0, 4));
+  return Number.isInteger(year) && year >= 1888 && year <= 3000 ? year : undefined;
+}
+
+function runtimeOf(value: unknown): number {
+  const runtime = Number(value);
+  return Number.isFinite(runtime) && runtime > 0 ? runtime : 0;
+}
+
+function seriesTitle(name: string): string {
+  const trimmed = name.replace(/\s+Collection$/i, "").trim();
+  return trimmed.length > 0 ? trimmed : name.trim();
+}
+
+function requireTitle(value: unknown): string {
+  const title = String(value ?? "").trim();
+  if (title.length < 1 || title.length > 200) {
+    throw new TmdbError("TMDb did not return a usable title.", 400);
+  }
+
+  return title;
+}
+
+function trimOverview(value: unknown): string | undefined {
+  const overview = String(value ?? "").trim();
+  if (!overview) {
+    return undefined;
+  }
+
+  return overview.length <= 180 ? overview : `${overview.slice(0, 177).trimEnd()}…`;
+}
+
 function normalizeTmdbKind(kind: string): string {
   const value = kind.trim().toLowerCase();
   if (value === "movie" || value === "series" || value === "documentary" || value === "show") {
@@ -533,7 +713,170 @@ function normalizeTmdbKind(kind: string): string {
   throw new TmdbError("TMDb can add movies, series, documentaries, and TV shows.", 400);
 }
 
-class TmdbError extends HttpError {}
+async function requireUser(request: Request, connectionString: string): Promise<void> {
+  const token = readSessionToken(request);
+  if (!token) {
+    throw new TmdbError("Sign in to continue.", 401);
+  }
+
+  const rows = await queryRows(
+    connectionString,
+    `SELECT u.id
+     FROM app_session s
+     JOIN app_user u ON u.id = s.user_id
+     WHERE s.token = $1 AND s.expires_at > NOW()`,
+    [token],
+  );
+  if (!rows[0]) {
+    throw new TmdbError("Sign in to continue.", 401);
+  }
+}
+
+function readSessionToken(request: Request): string | undefined {
+  const cookie = request.headers.get("cookie");
+  if (!cookie) {
+    return undefined;
+  }
+
+  for (const part of cookie.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 1) {
+      continue;
+    }
+
+    if (part.slice(0, separator).trim() === "hv_session") {
+      return decodeURIComponent(part.slice(separator + 1).trim());
+    }
+  }
+
+  return undefined;
+}
+
+async function queryRows(connectionString: string, query: string, params: unknown[] = []): Promise<Record<string, unknown>[]> {
+  const payload = await neonRequest(connectionString, query, params);
+  if (!isNeonRows(payload)) {
+    throw new Error("Neon HTTP response did not include rows.");
+  }
+
+  return payload.rows;
+}
+
+async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
+  await neonRequest(connectionString, query, params);
+}
+
+async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {
+  const url = new URL(connectionString);
+  const response = await fetch(`https://${url.hostname}/sql`, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "neon-connection-string": connectionString,
+    },
+    body: JSON.stringify({ query, params }),
+  });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    throw new Error(neonErrorMessage(payload, response.status));
+  }
+
+  return payload;
+}
+
+function neonErrorMessage(payload: unknown, status: number): string {
+  if (payload && typeof payload === "object" && "message" in payload) {
+    return String((payload as { message: unknown }).message);
+  }
+
+  return `Neon HTTP ${status}`;
+}
+
+function isNeonRows(payload: unknown): payload is { rows: Record<string, unknown>[] } {
+  return typeof payload === "object" && payload !== null && "rows" in payload && Array.isArray((payload as { rows: unknown }).rows);
+}
+
+function requireDatabaseUrl(): string {
+  const connectionString = resolveDatabaseUrl();
+  if (!connectionString) {
+    throw new TmdbError("DATABASE_URL is not configured.", 503);
+  }
+
+  return connectionString;
+}
+
+function resolveDatabaseUrl(): string | undefined {
+  const fromUrl = process.env.DATABASE_URL?.trim();
+  if (fromUrl) {
+    return toHttpDriverUrl(fromUrl);
+  }
+
+  const horrorVerseDb = process.env.HorrorVerseDb?.trim();
+  if (!horrorVerseDb) {
+    return undefined;
+  }
+
+  if (/^postgres(ql)?:\/\//i.test(horrorVerseDb)) {
+    return toHttpDriverUrl(horrorVerseDb);
+  }
+
+  return toHttpDriverUrl(npgsqlToUri(horrorVerseDb));
+}
+
+function npgsqlToUri(connectionString: string): string {
+  const values = new Map<string, string>();
+  for (const part of connectionString.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 1) {
+      continue;
+    }
+
+    values.set(part.slice(0, separator).trim().toLowerCase(), part.slice(separator + 1).trim());
+  }
+
+  const host = values.get("host");
+  const user = values.get("username") ?? values.get("user");
+  const password = values.get("password") ?? "";
+  const database = values.get("database") ?? "HorrorTracker";
+  if (!host || !user) {
+    throw new Error("HorrorVerseDb is missing Host or Username.");
+  }
+
+  const auth = `${encodeURIComponent(user)}:${encodeURIComponent(password)}`;
+  return `postgresql://${auth}@${host}/${encodeURIComponent(database)}?sslmode=require`;
+}
+
+function toHttpDriverUrl(connectionString: string): string {
+  const normalized = connectionString.replace(/^postgres:/i, "postgresql:");
+  const url = new URL(normalized);
+  url.hostname = url.hostname.replace("-pooler", "");
+  url.searchParams.set("sslmode", "require");
+  url.searchParams.delete("channel_binding");
+  return url.toString();
+}
+
+function jsonError(error: unknown): Response {
+  console.error("TMDb request failed.", error);
+  if (error instanceof TmdbError) {
+    return Response.json({ error: error.message }, { status: error.status });
+  }
+
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("not configured")) {
+    return Response.json({ error: message }, { status: 503 });
+  }
+
+  return Response.json({ error: "Could not talk to TMDb." }, { status: 500 });
+}
+
+class TmdbError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
 
 interface TmdbHit {
   tmdbId: number;
