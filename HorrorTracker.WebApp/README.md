@@ -41,7 +41,7 @@ Live production uses these Vercel functions (`HorrorTracker.WebApp/api/*.ts`), n
 npx vercel logs --project horrorverse --scope mc-kinney-programming --environment production
 ```
 
-Do not add a shared `api/_lib` logger. Importing other local modules into a Vercel function has already caused `FUNCTION_INVOCATION_FAILED`.
+Do not import other local modules into a Vercel function (`api/_lib`, `../lib`, or another `api/*.ts` file). Vercel compiles each route on its own and those imports have already caused `FUNCTION_INVOCATION_FAILED` in production.
 
 ## Add to Home Screen
 
