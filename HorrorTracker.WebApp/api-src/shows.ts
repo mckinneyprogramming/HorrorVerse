@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+import { ensureShowTmdbId } from "../lib/catalog";
 import { parseCatalogId } from "../lib/catalog-id";
 import {
   execute,
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     const season = parseOptionalInt(url.searchParams.get("season"));
     await ensureSchema(connectionString);
     await ensureShowExists(connectionString, showId);
-    const tmdbId = await ensureTmdbId(connectionString, showId);
+    const tmdbId = await ensureShowTmdbId(connectionString, showId);
     if (tmdbId) {
       await refreshSeasons(connectionString, showId, tmdbId);
       if (season !== undefined) {
@@ -54,7 +55,7 @@ export async function PATCH(request: Request) {
     } else if (Number.isInteger(body.seasonId) && (body.seasonId ?? 0) > 0) {
       const season = await getSeasonRef(connectionString, Number(body.seasonId));
       showId = season.showId;
-      const tmdbId = await ensureTmdbId(connectionString, showId);
+      const tmdbId = await ensureShowTmdbId(connectionString, showId);
       if (tmdbId) {
         await refreshSeasons(connectionString, showId, tmdbId);
         await ensureEpisodes(connectionString, showId, tmdbId, season.seasonNumber);
@@ -192,39 +193,6 @@ async function ensureShowExists(connectionString: string, showId: number): Promi
   }
 }
 
-async function ensureTmdbId(connectionString: string, showId: number): Promise<number | undefined> {
-  const existing = asId((await queryRows(connectionString, "SELECT tmdbid FROM show WHERE id = $1", [showId]))[0], "tmdbid");
-  if (existing) {
-    return existing;
-  }
-
-  const row = (await queryRows(connectionString, "SELECT title, releaseyear FROM show WHERE id = $1", [showId]))[0];
-  const title = String(row?.title ?? "").trim();
-  if (title.length < 2) {
-    return undefined;
-  }
-
-  const year = yearFrom(row?.releaseyear);
-  const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(title)}&include_adult=false`);
-  const results = Array.isArray(payload.results) ? payload.results : [];
-  const sameTitle = results.filter(
-    (item) => String((item as { name?: string }).name ?? "").trim().toLowerCase() === title.toLowerCase(),
-  );
-  const match =
-    (year
-      ? sameTitle.find((item) => yearFrom((item as { first_air_date?: unknown }).first_air_date) === year)
-      : undefined) ??
-    sameTitle[0] ??
-    results[0];
-  const tmdbId = Number((match as { id?: number } | undefined)?.id);
-  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
-    return undefined;
-  }
-
-  await execute(connectionString, "UPDATE show SET tmdbid = $1 WHERE id = $2", [tmdbId, showId]);
-  return tmdbId;
-}
-
 async function refreshSeasons(connectionString: string, showId: number, tmdbId: number): Promise<void> {
   const before = new Set(
     (await queryRows(connectionString, "SELECT season_number FROM show_season WHERE show_id = $1", [showId])).map((row) =>
@@ -324,7 +292,7 @@ async function invalidateShowCompletion(connectionString: string, showId: number
 async function setShowCompleted(connectionString: string, userId: number, showId: number, completed: boolean): Promise<void> {
   await ensureShowExists(connectionString, showId);
   if (completed) {
-    const tmdbId = await ensureTmdbId(connectionString, showId);
+    const tmdbId = await ensureShowTmdbId(connectionString, showId);
     if (tmdbId) {
       await refreshSeasons(connectionString, showId, tmdbId);
       const seasons = await queryRows(

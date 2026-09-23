@@ -3,6 +3,12 @@ export const maxDuration = 60;
 void "restore-standalone-tmdb";
 
 import {
+  addMovieToFranchisesContainingSeries,
+  addMovieToListsContainingSeries,
+  filmsFromCollection,
+  findMovieId,
+} from "../lib/catalog";
+import {
   replaceSeriesKeywords,
   saveDocumentaryKeywords,
   saveMovieKeywords,
@@ -211,33 +217,20 @@ async function importSeries(connectionString: string, collectionId: number): Pro
     // Older catalogs can still match series by title.
   }
 
-  const parts = Array.isArray(collection.parts) ? collection.parts : [];
-  for (const part of parts) {
-    const record = asRecord(part);
-    if (!record || !yearFrom(record.release_date)) {
-      continue;
-    }
-
-    const film = await tmdbJson(`/movie/${Number(record.id)}`);
-    const filmTitle = String(film.title ?? record.title ?? "").trim();
-    if (filmTitle.length < 1) {
-      continue;
-    }
-
-    const year = yearFrom(film.release_date) ?? yearFrom(record.release_date);
-    const existingId = await findMovieId(connectionString, filmTitle, year);
+  for (const film of await filmsFromCollection(collection)) {
+    const existingId = await findMovieId(connectionString, film.title, film.year);
     if (existingId) {
       await linkMovieToSeries(connectionString, existingId, seriesId);
-      await saveMovieKeywords(connectionString, existingId, Number(record.id), true);
+      await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
       continue;
     }
 
-    const movieId = await insertMovie(connectionString, filmTitle, runtimeOf(film.runtime), seriesId, year);
+    const movieId = await insertMovie(connectionString, film.title, film.runtime, seriesId, film.year);
     if (movieId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
-      await saveMovieKeywords(connectionString, movieId, Number(record.id));
+      await saveMovieKeywords(connectionString, movieId, film.tmdbId);
     }
     added += 1;
   }
@@ -293,15 +286,6 @@ async function importShow(connectionString: string, tmdbId: number): Promise<Tmd
   await attachShowSeasons(connectionString, showId, tmdbId, show, year);
   await saveShowKeywords(connectionString, showId, tmdbId);
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
-}
-
-async function findMovieId(connectionString: string, title: string, year: number | undefined): Promise<number | undefined> {
-  const rows = await queryRows(
-    connectionString,
-    "SELECT id FROM movie WHERE lower(title) = lower($1) AND releaseyear = $2 LIMIT 1",
-    [title, year ?? 0],
-  );
-  return asId(rows[0]);
 }
 
 async function findSeriesId(connectionString: string, title: string): Promise<number | undefined> {
@@ -470,38 +454,6 @@ async function invalidateSeriesCompletion(connectionString: string, seriesId: nu
     await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
   } catch {
     // Progress table is created on first signed-in use.
-  }
-}
-
-async function addMovieToListsContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {
-  try {
-    await execute(
-      connectionString,
-      `INSERT INTO user_list_item (list_id, media_kind, media_id)
-       SELECT list_id, 'movie', $1
-       FROM user_list_item
-       WHERE media_kind = 'series' AND media_id = $2
-       ON CONFLICT (list_id, media_kind, media_id) DO NOTHING`,
-      [movieId, seriesId],
-    );
-  } catch {
-    // Personal lists may not exist yet.
-  }
-}
-
-async function addMovieToFranchisesContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {
-  try {
-    await execute(
-      connectionString,
-      `INSERT INTO franchise_item (franchise_id, media_kind, media_id)
-       SELECT franchise_id, 'movie', $1
-       FROM franchise_item
-       WHERE media_kind = 'series' AND media_id = $2
-       ON CONFLICT (franchise_id, media_kind, media_id) DO NOTHING`,
-      [movieId, seriesId],
-    );
-  } catch {
-    // Franchise tables are created on first franchise read.
   }
 }
 

@@ -152,21 +152,6 @@ function toHttpDriverUrl(connectionString) {
   return url.toString();
 }
 
-// lib/catalog-id.ts
-var LIBRARY_MEDIA_KINDS = ["movie", "series", "documentary", "show", "book", "podcast", "game"];
-function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That title was not found.", status = 400) {
-  const parts = (id ?? "").split(":");
-  const mediaId = Number(parts[1]);
-  if (parts.length !== 2 || !Number.isInteger(mediaId) || mediaId < 1) {
-    throw new HttpError(notFound, status);
-  }
-  const kind = parts[0].trim().toLowerCase();
-  if (!allowed.includes(kind)) {
-    throw new HttpError(notFound, status);
-  }
-  return { kind, mediaId };
-}
-
 // lib/tmdb.ts
 var TMDB_BASE = "https://api.themoviedb.org/3";
 async function tmdbJson(path) {
@@ -199,6 +184,9 @@ async function tmdbJsonOptional(path) {
     return null;
   }
 }
+function asResults(payload) {
+  return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
+}
 function asId(row, key = "id") {
   return asPositiveInt(row?.[key]);
 }
@@ -210,6 +198,44 @@ function yearFrom(value) {
   const text = String(value ?? "");
   const year = Number(text.slice(0, 4));
   return Number.isInteger(year) && year >= 1888 && year <= 3e3 ? year : void 0;
+}
+
+// lib/catalog.ts
+async function ensureShowTmdbId(connectionString, showId) {
+  const existing = asId((await queryRows(connectionString, "SELECT tmdbid FROM show WHERE id = $1", [showId]))[0], "tmdbid");
+  if (existing) {
+    return existing;
+  }
+  const row = (await queryRows(connectionString, "SELECT title, releaseyear FROM show WHERE id = $1", [showId]))[0];
+  const title = String(row?.title ?? "").trim();
+  if (title.length < 2) {
+    return void 0;
+  }
+  const year = yearFrom(row?.releaseyear);
+  const results = asResults(await tmdbJson(`/search/tv?query=${encodeURIComponent(title)}&include_adult=false`));
+  const sameTitle = results.filter((item) => String(item.name ?? "").trim().toLowerCase() === title.toLowerCase());
+  const match = (year ? sameTitle.find((item) => yearFrom(item.first_air_date) === year) : void 0) ?? sameTitle[0] ?? results[0];
+  const tmdbId = Number(match?.id);
+  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+    return void 0;
+  }
+  await execute(connectionString, "UPDATE show SET tmdbid = $1 WHERE id = $2", [tmdbId, showId]);
+  return tmdbId;
+}
+
+// lib/catalog-id.ts
+var LIBRARY_MEDIA_KINDS = ["movie", "series", "documentary", "show", "book", "podcast", "game"];
+function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That title was not found.", status = 400) {
+  const parts = (id ?? "").split(":");
+  const mediaId = Number(parts[1]);
+  if (parts.length !== 2 || !Number.isInteger(mediaId) || mediaId < 1) {
+    throw new HttpError(notFound, status);
+  }
+  const kind = parts[0].trim().toLowerCase();
+  if (!allowed.includes(kind)) {
+    throw new HttpError(notFound, status);
+  }
+  return { kind, mediaId };
 }
 
 // api-src/shows.ts
@@ -224,7 +250,7 @@ async function GET(request) {
     const season = parseOptionalInt(url.searchParams.get("season"));
     await ensureSchema(connectionString);
     await ensureShowExists(connectionString, showId);
-    const tmdbId = await ensureTmdbId(connectionString, showId);
+    const tmdbId = await ensureShowTmdbId(connectionString, showId);
     if (tmdbId) {
       await refreshSeasons(connectionString, showId, tmdbId);
       if (season !== void 0) {
@@ -250,7 +276,7 @@ async function PATCH(request) {
     } else if (Number.isInteger(body.seasonId) && (body.seasonId ?? 0) > 0) {
       const season = await getSeasonRef(connectionString, Number(body.seasonId));
       showId = season.showId;
-      const tmdbId = await ensureTmdbId(connectionString, showId);
+      const tmdbId = await ensureShowTmdbId(connectionString, showId);
       if (tmdbId) {
         await refreshSeasons(connectionString, showId, tmdbId);
         await ensureEpisodes(connectionString, showId, tmdbId, season.seasonNumber);
@@ -380,30 +406,6 @@ async function ensureShowExists(connectionString, showId) {
     throw new ShowError("That show was not found.", 400);
   }
 }
-async function ensureTmdbId(connectionString, showId) {
-  const existing = asId((await queryRows(connectionString, "SELECT tmdbid FROM show WHERE id = $1", [showId]))[0], "tmdbid");
-  if (existing) {
-    return existing;
-  }
-  const row = (await queryRows(connectionString, "SELECT title, releaseyear FROM show WHERE id = $1", [showId]))[0];
-  const title = String(row?.title ?? "").trim();
-  if (title.length < 2) {
-    return void 0;
-  }
-  const year = yearFrom(row?.releaseyear);
-  const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(title)}&include_adult=false`);
-  const results = Array.isArray(payload.results) ? payload.results : [];
-  const sameTitle = results.filter(
-    (item) => String(item.name ?? "").trim().toLowerCase() === title.toLowerCase()
-  );
-  const match = (year ? sameTitle.find((item) => yearFrom(item.first_air_date) === year) : void 0) ?? sameTitle[0] ?? results[0];
-  const tmdbId = Number(match?.id);
-  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
-    return void 0;
-  }
-  await execute(connectionString, "UPDATE show SET tmdbid = $1 WHERE id = $2", [tmdbId, showId]);
-  return tmdbId;
-}
 async function refreshSeasons(connectionString, showId, tmdbId) {
   const before = new Set(
     (await queryRows(connectionString, "SELECT season_number FROM show_season WHERE show_id = $1", [showId])).map(
@@ -492,7 +494,7 @@ async function invalidateShowCompletion(connectionString, showId) {
 async function setShowCompleted(connectionString, userId, showId, completed) {
   await ensureShowExists(connectionString, showId);
   if (completed) {
-    const tmdbId = await ensureTmdbId(connectionString, showId);
+    const tmdbId = await ensureShowTmdbId(connectionString, showId);
     if (tmdbId) {
       await refreshSeasons(connectionString, showId, tmdbId);
       const seasons = await queryRows(

@@ -2,6 +2,13 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 import {
+  addMovieToFranchisesContainingSeries,
+  addMovieToListsContainingSeries,
+  ensureShowTmdbId,
+  filmsFromCollection,
+  findMovieId,
+} from "../lib/catalog";
+import {
   ensureKeywordSchema,
   hasKeywords,
   replaceSeriesKeywords,
@@ -22,7 +29,6 @@ import {
   asRecord,
   asResults,
   collectionIsHorrorAdjacent,
-  runtimeOf,
   seriesTitle,
   tmdbJson,
   yearFrom,
@@ -137,29 +143,16 @@ async function syncSeries(connectionString: string, seriesId: number): Promise<n
 
   await execute(connectionString, "UPDATE movieseries SET tmdbid = $1 WHERE id = $2", [collectionId, seriesId]);
   const collection = await tmdbJson(`/collection/${collectionId}`);
-  const parts = Array.isArray(collection.parts) ? collection.parts : [];
   let added = 0;
-  for (const part of parts) {
-    const record = asRecord(part);
-    if (!record || !yearFrom(record.release_date)) {
-      continue;
-    }
-
-    const film = await tmdbJson(`/movie/${Number(record.id)}`);
-    const filmTitle = String(film.title ?? record.title ?? "").trim();
-    if (filmTitle.length < 1) {
-      continue;
-    }
-
-    const year = yearFrom(film.release_date) ?? yearFrom(record.release_date);
-    const existingId = await findMovieId(connectionString, filmTitle, year);
+  for (const film of await filmsFromCollection(collection)) {
+    const existingId = await findMovieId(connectionString, film.title, film.year);
     if (existingId) {
       await execute(
         connectionString,
         "UPDATE movie SET partofseries = TRUE, seriesid = $1 WHERE id = $2 AND (seriesid IS NULL OR seriesid = 0)",
         [seriesId, existingId],
       );
-      await saveMovieKeywords(connectionString, existingId, Number(record.id), true);
+      await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
       continue;
     }
 
@@ -168,7 +161,7 @@ async function syncSeries(connectionString: string, seriesId: number): Promise<n
         await queryRows(
           connectionString,
           "INSERT INTO movie (title, totaltime, partofseries, seriesid, releaseyear, watched) VALUES ($1, $2, TRUE, $3, $4, FALSE) RETURNING id",
-          [filmTitle, runtimeOf(film.runtime), seriesId, year ?? 0],
+          [film.title, film.runtime, seriesId, film.year ?? 0],
         )
       )[0],
     );
@@ -176,7 +169,7 @@ async function syncSeries(connectionString: string, seriesId: number): Promise<n
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
-      await saveMovieKeywords(connectionString, movieId, Number(record.id));
+      await saveMovieKeywords(connectionString, movieId, film.tmdbId);
       added += 1;
     }
   }
@@ -289,33 +282,6 @@ async function updateShowTotals(connectionString: string, showId: number, show: 
   );
 }
 
-async function ensureShowTmdbId(connectionString: string, showId: number): Promise<number | undefined> {
-  const existing = asId((await queryRows(connectionString, "SELECT tmdbid FROM show WHERE id = $1", [showId]))[0], "tmdbid");
-  if (existing) {
-    return existing;
-  }
-
-  const row = (await queryRows(connectionString, "SELECT title, releaseyear FROM show WHERE id = $1", [showId]))[0];
-  const title = String(row?.title ?? "").trim();
-  if (title.length < 2) {
-    return undefined;
-  }
-
-  const year = yearFrom(row?.releaseyear);
-  const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(title)}&include_adult=false`);
-  const results = asResults(payload);
-  const sameTitle = results.filter((item) => String(item.name ?? "").trim().toLowerCase() === title.toLowerCase());
-  const match =
-    (year ? sameTitle.find((item) => yearFrom(item.first_air_date) === year) : undefined) ?? sameTitle[0] ?? results[0];
-  const tmdbId = Number(match?.id);
-  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
-    return undefined;
-  }
-
-  await execute(connectionString, "UPDATE show SET tmdbid = $1 WHERE id = $2", [tmdbId, showId]);
-  return tmdbId;
-}
-
 async function ensureShowSchema(connectionString: string): Promise<void> {
   await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
   await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS releaseyear INTEGER");
@@ -364,47 +330,6 @@ async function markVaultSynced(connectionString: string): Promise<void> {
      VALUES (1, NOW())
      ON CONFLICT (id) DO UPDATE SET last_synced_at = EXCLUDED.last_synced_at`,
   );
-}
-
-async function findMovieId(connectionString: string, title: string, year: number | undefined): Promise<number | undefined> {
-  const rows = await queryRows(
-    connectionString,
-    "SELECT id FROM movie WHERE lower(title) = lower($1) AND releaseyear = $2 LIMIT 1",
-    [title, year ?? 0],
-  );
-  return asId(rows[0]);
-}
-
-async function addMovieToListsContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {
-  try {
-    await execute(
-      connectionString,
-      `INSERT INTO user_list_item (list_id, media_kind, media_id)
-       SELECT list_id, 'movie', $1
-       FROM user_list_item
-       WHERE media_kind = 'series' AND media_id = $2
-       ON CONFLICT (list_id, media_kind, media_id) DO NOTHING`,
-      [movieId, seriesId],
-    );
-  } catch {
-    // Personal lists may not exist yet.
-  }
-}
-
-async function addMovieToFranchisesContainingSeries(connectionString: string, seriesId: number, movieId: number): Promise<void> {
-  try {
-    await execute(
-      connectionString,
-      `INSERT INTO franchise_item (franchise_id, media_kind, media_id)
-       SELECT franchise_id, 'movie', $1
-       FROM franchise_item
-       WHERE media_kind = 'series' AND media_id = $2
-       ON CONFLICT (franchise_id, media_kind, media_id) DO NOTHING`,
-      [movieId, seriesId],
-    );
-  } catch {
-    // Franchise tables are created on first franchise read.
-  }
 }
 
 async function invalidateSeriesCompletion(connectionString: string, seriesId: number): Promise<void> {

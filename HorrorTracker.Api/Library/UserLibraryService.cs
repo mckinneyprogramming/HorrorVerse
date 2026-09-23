@@ -722,22 +722,8 @@ public sealed class UserLibraryService(IConfiguration configuration)
 
     private NpgsqlConnection OpenConnection() => CatalogDb.Open(configuration);
 
-    private static (string Kind, int MediaId) ParseCatalogId(string? id)
-    {
-        var parts = (id ?? string.Empty).Split(':', 2, StringSplitOptions.TrimEntries);
-        if (parts.Length != 2 || !int.TryParse(parts[1], out var mediaId) || mediaId < 1)
-        {
-            throw new InvalidOperationException("That title was not found.");
-        }
-
-        var kind = parts[0].ToLowerInvariant();
-        if (!MediaKinds.Contains(kind))
-        {
-            throw new InvalidOperationException("That title was not found.");
-        }
-
-        return (kind, mediaId);
-    }
+    private static (string Kind, int MediaId) ParseCatalogId(string? id) =>
+        CatalogDb.ParseCatalogId(id, MediaKinds, "That title was not found.");
 
     private static int RequireListId(int? id)
     {

@@ -306,22 +306,12 @@ public sealed class FranchiseCatalogService(IConfiguration configuration)
 
     private NpgsqlConnection OpenConnection() => CatalogDb.Open(configuration);
 
-    private static (string Kind, int MediaId) ParseCatalogId(string? id)
-    {
-        var parts = (id ?? string.Empty).Split(':', 2, StringSplitOptions.TrimEntries);
-        if (parts.Length != 2 || !int.TryParse(parts[1], out var mediaId) || mediaId < 1)
-        {
-            throw new InvalidOperationException("That title was not found.");
-        }
-
-        var kind = parts[0].ToLowerInvariant();
-        if (!AllowedKinds.Contains(kind))
-        {
-            throw new InvalidOperationException("Franchises can hold series, movies, shows, and books.");
-        }
-
-        return (kind, mediaId);
-    }
+    private static (string Kind, int MediaId) ParseCatalogId(string? id) =>
+        CatalogDb.ParseCatalogId(
+            id,
+            AllowedKinds,
+            "That title was not found.",
+            "Franchises can hold series, movies, shows, and books.");
 
     private static int RequireFranchiseId(int? id)
     {

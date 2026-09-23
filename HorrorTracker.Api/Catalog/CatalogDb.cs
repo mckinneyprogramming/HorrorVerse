@@ -41,4 +41,25 @@ internal static class CatalogDb
             throw new InvalidOperationException(message);
         }
     }
+
+    public static (string Kind, int MediaId) ParseCatalogId(
+        string? id,
+        IReadOnlySet<string> allowed,
+        string notFound,
+        string? invalidKind = null)
+    {
+        var parts = (id ?? string.Empty).Split(':', 2, StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || !int.TryParse(parts[1], out var mediaId) || mediaId < 1)
+        {
+            throw new InvalidOperationException(notFound);
+        }
+
+        var kind = parts[0].ToLowerInvariant();
+        if (!allowed.Contains(kind))
+        {
+            throw new InvalidOperationException(invalidKind ?? notFound);
+        }
+
+        return (kind, mediaId);
+    }
 }

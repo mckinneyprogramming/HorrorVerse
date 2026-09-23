@@ -242,6 +242,70 @@ function trimOverview(value) {
   return overview.length <= 180 ? overview : `${overview.slice(0, 177).trimEnd()}\u2026`;
 }
 
+// lib/catalog.ts
+async function filmsFromCollection(collection) {
+  const parts = Array.isArray(collection.parts) ? collection.parts : [];
+  const films = [];
+  for (const part of parts) {
+    const record = asRecord(part);
+    if (!record || !yearFrom(record.release_date)) {
+      continue;
+    }
+    const tmdbId = Number(record.id);
+    if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+      continue;
+    }
+    const film = await tmdbJson(`/movie/${tmdbId}`);
+    const title = String(film.title ?? record.title ?? "").trim();
+    if (!title) {
+      continue;
+    }
+    films.push({
+      tmdbId,
+      title,
+      year: yearFrom(film.release_date) ?? yearFrom(record.release_date),
+      runtime: runtimeOf(film.runtime)
+    });
+  }
+  return films;
+}
+async function findMovieId(connectionString, title, year) {
+  const rows = await queryRows(
+    connectionString,
+    "SELECT id FROM movie WHERE lower(title) = lower($1) AND releaseyear = $2 LIMIT 1",
+    [title, year ?? 0]
+  );
+  return asId(rows[0]);
+}
+async function addMovieToListsContainingSeries(connectionString, seriesId, movieId) {
+  try {
+    await execute(
+      connectionString,
+      `INSERT INTO user_list_item (list_id, media_kind, media_id)
+       SELECT list_id, 'movie', $1
+       FROM user_list_item
+       WHERE media_kind = 'series' AND media_id = $2
+       ON CONFLICT (list_id, media_kind, media_id) DO NOTHING`,
+      [movieId, seriesId]
+    );
+  } catch {
+  }
+}
+async function addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId) {
+  try {
+    await execute(
+      connectionString,
+      `INSERT INTO franchise_item (franchise_id, media_kind, media_id)
+       SELECT franchise_id, 'movie', $1
+       FROM franchise_item
+       WHERE media_kind = 'series' AND media_id = $2
+       ON CONFLICT (franchise_id, media_kind, media_id) DO NOTHING`,
+      [movieId, seriesId]
+    );
+  } catch {
+  }
+}
+
 // lib/keywords.ts
 async function saveMovieKeywords(connectionString, movieId, tmdbId, skipIfPresent = false) {
   await saveKeywords(connectionString, "movie", movieId, tmdbId, "movie", skipIfPresent);
@@ -462,30 +526,19 @@ async function importSeries(connectionString, collectionId) {
     await execute(connectionString, "UPDATE movieseries SET tmdbid = $1 WHERE id = $2", [collectionId, seriesId]);
   } catch {
   }
-  const parts = Array.isArray(collection.parts) ? collection.parts : [];
-  for (const part of parts) {
-    const record = asRecord(part);
-    if (!record || !yearFrom(record.release_date)) {
-      continue;
-    }
-    const film = await tmdbJson(`/movie/${Number(record.id)}`);
-    const filmTitle = String(film.title ?? record.title ?? "").trim();
-    if (filmTitle.length < 1) {
-      continue;
-    }
-    const year = yearFrom(film.release_date) ?? yearFrom(record.release_date);
-    const existingId = await findMovieId(connectionString, filmTitle, year);
+  for (const film of await filmsFromCollection(collection)) {
+    const existingId = await findMovieId(connectionString, film.title, film.year);
     if (existingId) {
       await linkMovieToSeries(connectionString, existingId, seriesId);
-      await saveMovieKeywords(connectionString, existingId, Number(record.id), true);
+      await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
       continue;
     }
-    const movieId = await insertMovie(connectionString, filmTitle, runtimeOf(film.runtime), seriesId, year);
+    const movieId = await insertMovie(connectionString, film.title, film.runtime, seriesId, film.year);
     if (movieId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
-      await saveMovieKeywords(connectionString, movieId, Number(record.id));
+      await saveMovieKeywords(connectionString, movieId, film.tmdbId);
     }
     added += 1;
   }
@@ -536,14 +589,6 @@ async function importShow(connectionString, tmdbId) {
   await attachShowSeasons(connectionString, showId, tmdbId, show, year);
   await saveShowKeywords(connectionString, showId, tmdbId);
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
-}
-async function findMovieId(connectionString, title, year) {
-  const rows = await queryRows(
-    connectionString,
-    "SELECT id FROM movie WHERE lower(title) = lower($1) AND releaseyear = $2 LIMIT 1",
-    [title, year ?? 0]
-  );
-  return asId(rows[0]);
 }
 async function findSeriesId(connectionString, title) {
   const rows = await queryRows(
@@ -670,34 +715,6 @@ async function insertShow(connectionString, title, totalTime, episodes, seasons,
 async function invalidateSeriesCompletion(connectionString, seriesId) {
   try {
     await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
-  } catch {
-  }
-}
-async function addMovieToListsContainingSeries(connectionString, seriesId, movieId) {
-  try {
-    await execute(
-      connectionString,
-      `INSERT INTO user_list_item (list_id, media_kind, media_id)
-       SELECT list_id, 'movie', $1
-       FROM user_list_item
-       WHERE media_kind = 'series' AND media_id = $2
-       ON CONFLICT (list_id, media_kind, media_id) DO NOTHING`,
-      [movieId, seriesId]
-    );
-  } catch {
-  }
-}
-async function addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId) {
-  try {
-    await execute(
-      connectionString,
-      `INSERT INTO franchise_item (franchise_id, media_kind, media_id)
-       SELECT franchise_id, 'movie', $1
-       FROM franchise_item
-       WHERE media_kind = 'series' AND media_id = $2
-       ON CONFLICT (franchise_id, media_kind, media_id) DO NOTHING`,
-      [movieId, seriesId]
-    );
   } catch {
   }
 }
