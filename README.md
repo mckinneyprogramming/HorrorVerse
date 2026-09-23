@@ -90,5 +90,5 @@ Production PWA errors stay in Vercel. From the repo root (or `HorrorTracker.WebA
 npx vercel logs --project horrorverse --scope mc-kinney-programming --environment production
 ```
 
-Add `--status-code 500 --expand` when a route is failing. Each `HorrorTracker.WebApp/api/*.ts` function logs with `console.error` in that file — do not add a shared `api/_lib` logger, or Vercel may fail to invoke the function.
+Add `--status-code 500 --expand` when a route is failing. Edit `HorrorTracker.WebApp/api-src` and `lib`, then run `npm run bundle-api`. Production functions are the generated `api/*.js` files — do not import other local modules into those deployed files, or Vercel may fail to invoke the function.
 

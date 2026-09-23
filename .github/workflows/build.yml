@@ -67,7 +67,7 @@ jobs:
             /d:sonar.token="$env:SONAR_TOKEN" `
             /d:sonar.host.url="https://sonarcloud.io" `
             /d:sonar.scanner.scanAll=true `
-            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,**/coverage/**,**/TestResults/**,HorrorTracker.Api/wwwroot/**" `
+            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,**/coverage/**,**/TestResults/**,HorrorTracker.Api/wwwroot/**,HorrorTracker.WebApp/api/**" `
             /d:sonar.coverage.exclusions="**/*Tests*/**,**/*.test.ts,**/vitest.config.ts" `
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" `
             /d:sonar.javascript.lcov.reportPaths="HorrorTracker.WebApp/coverage/lcov.info"
@@ -91,6 +91,11 @@ jobs:
           Push-Location HorrorTracker.WebApp
           try {
             npm ci
+            npm run bundle-api -- --check
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Vercel API bundles are stale. Run npm run bundle-api."
+              exit $LASTEXITCODE
+            }
             npm run test:coverage
             if ($LASTEXITCODE -ne 0) {
               Write-Error "Web unit tests failed with exit code $LASTEXITCODE"

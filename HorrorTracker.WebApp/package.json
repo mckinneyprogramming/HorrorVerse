@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host",
     "dev:https": "vite --host --mode https",
-    "build": "tsc --noEmit && vite build",
+    "bundle-api": "node scripts/bundle-api.mjs",
+    "build": "npm run bundle-api && tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
@@ -15,11 +16,12 @@
     "node": "24.x"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^3.2.4",
     "@vitejs/plugin-basic-ssl": "^1.2.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.2",
     "vite": "^6.3.5",
-    "vitest": "^3.2.4",
-    "vite-plugin-pwa": "^0.21.2"
+    "vite-plugin-pwa": "^0.21.2",
+    "vitest": "^3.2.4"
   }
 }

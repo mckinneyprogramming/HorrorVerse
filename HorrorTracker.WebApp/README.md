@@ -35,13 +35,11 @@ Do not install from Vite/`localhost` if you want the home-screen icon to keep wo
 
 Details are in `HorrorTracker.Api/README.md`.
 
-Live production uses these Vercel functions (`HorrorTracker.WebApp/api/*.ts`), not the C# API. Failures are logged with `console.error` in each function file. Read them with:
+Live production uses the bundled Vercel functions in `api/*.js`, not the C# API. Edit `api-src/*.ts` and `lib/*.ts`, then run `npm run bundle-api` so each route is one self-contained file. Vercel compiles each `api` file alone and cannot load sibling TypeScript; importing `../lib` or another route at runtime has already caused `FUNCTION_INVOCATION_FAILED`. Failures are logged with `console.error`. Read them with:
 
 ```bash
 npx vercel logs --project horrorverse --scope mc-kinney-programming --environment production
 ```
-
-Do not import other local modules into a Vercel function (`api/_lib`, `../lib`, or another `api/*.ts` file). Vercel compiles each route on its own and those imports have already caused `FUNCTION_INVOCATION_FAILED` in production.
 
 ## Add to Home Screen
 
