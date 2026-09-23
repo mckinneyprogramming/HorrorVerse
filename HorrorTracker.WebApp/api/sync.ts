@@ -1,6 +1,15 @@
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+import {
+  execute,
+  HttpError,
+  jsonError,
+  queryRows,
+  requireDatabaseUrl,
+  requireSessionUser,
+} from "../lib/neon";
+
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648, 878, 14, 10765]);
 const STALE_HOURS = 6;
@@ -9,7 +18,7 @@ export async function GET(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
     const cron = isTrustedCron(request);
-    const user = cron ? undefined : await requireUser(request, connectionString);
+    const user = cron ? undefined : await requireSessionUser(request, connectionString);
     const url = new URL(request.url);
     const id = (url.searchParams.get("id") ?? "").trim();
     await ensureSeriesSchema(connectionString);
@@ -32,7 +41,7 @@ export async function GET(request: Request) {
     await markVaultSynced(connectionString);
     return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "Vault sync failed.", fallback: "Could not refresh the vault from TMDb." });
   }
 }
 
@@ -657,51 +666,6 @@ function isTrustedCron(request: Request): boolean {
   return request.headers.get("x-vercel-cron") === "1";
 }
 
-async function requireUser(request: Request, connectionString: string): Promise<{ id: number; isAdmin: boolean }> {
-  const token = readSessionToken(request);
-  if (!token) {
-    throw new SyncError("Sign in to continue.", 401);
-  }
-
-  const rows = await queryRows(
-    connectionString,
-    `SELECT u.id, u.email, u.is_admin
-     FROM app_session s
-     JOIN app_user u ON u.id = s.user_id
-     WHERE s.token = $1 AND s.expires_at > NOW()`,
-    [token],
-  );
-  const id = asId(rows[0]);
-  if (!id) {
-    throw new SyncError("Sign in to continue.", 401);
-  }
-
-  const email = String(rows[0]?.email ?? "").trim().toLowerCase();
-  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const isAdmin = Boolean(adminEmail) && email === adminEmail;
-  return { id, isAdmin: isAdmin || Boolean(rows[0]?.is_admin) };
-}
-
-function readSessionToken(request: Request): string | undefined {
-  const cookie = request.headers.get("cookie");
-  if (!cookie) {
-    return undefined;
-  }
-
-  for (const part of cookie.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    if (part.slice(0, separator).trim() === "hv_session") {
-      return decodeURIComponent(part.slice(separator + 1).trim());
-    }
-  }
-
-  return undefined;
-}
-
 function asResults(payload: Record<string, unknown>): Record<string, unknown>[] {
   return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
 }
@@ -731,128 +695,4 @@ function seriesTitle(name: string): string {
   return trimmed.length > 0 ? trimmed : name.trim();
 }
 
-async function queryRows(connectionString: string, query: string, params: unknown[] = []): Promise<Record<string, unknown>[]> {
-  const payload = await neonRequest(connectionString, query, params);
-  if (!isNeonRows(payload)) {
-    throw new Error("Neon HTTP response did not include rows.");
-  }
-
-  return payload.rows;
-}
-
-async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
-  await neonRequest(connectionString, query, params);
-}
-
-async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {
-  const url = new URL(connectionString);
-  const response = await fetch(`https://${url.hostname}/sql`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "neon-connection-string": connectionString,
-    },
-    body: JSON.stringify({ query, params }),
-  });
-  const payload: unknown = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    throw new Error(neonErrorMessage(payload, response.status));
-  }
-
-  return payload;
-}
-
-function neonErrorMessage(payload: unknown, status: number): string {
-  if (payload && typeof payload === "object" && "message" in payload) {
-    return String((payload as { message: unknown }).message);
-  }
-
-  return `Neon HTTP ${status}`;
-}
-
-function isNeonRows(payload: unknown): payload is { rows: Record<string, unknown>[] } {
-  return typeof payload === "object" && payload !== null && "rows" in payload && Array.isArray((payload as { rows: unknown }).rows);
-}
-
-function requireDatabaseUrl(): string {
-  const connectionString = resolveDatabaseUrl();
-  if (!connectionString) {
-    throw new SyncError("DATABASE_URL is not configured.", 503);
-  }
-
-  return connectionString;
-}
-
-function resolveDatabaseUrl(): string | undefined {
-  const fromUrl = process.env.DATABASE_URL?.trim();
-  if (fromUrl) {
-    return toHttpDriverUrl(fromUrl);
-  }
-
-  const horrorVerseDb = process.env.HorrorVerseDb?.trim();
-  if (!horrorVerseDb) {
-    return undefined;
-  }
-
-  if (/^postgres(ql)?:\/\//i.test(horrorVerseDb)) {
-    return toHttpDriverUrl(horrorVerseDb);
-  }
-
-  return toHttpDriverUrl(npgsqlToUri(horrorVerseDb));
-}
-
-function npgsqlToUri(connectionString: string): string {
-  const values = new Map<string, string>();
-  for (const part of connectionString.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    values.set(part.slice(0, separator).trim().toLowerCase(), part.slice(separator + 1).trim());
-  }
-
-  const host = values.get("host");
-  const user = values.get("username") ?? values.get("user");
-  const password = values.get("password") ?? "";
-  const database = values.get("database") ?? "HorrorTracker";
-  if (!host || !user) {
-    throw new Error("HorrorVerseDb is missing Host or Username.");
-  }
-
-  const auth = `${encodeURIComponent(user)}:${encodeURIComponent(password)}`;
-  return `postgresql://${auth}@${host}/${encodeURIComponent(database)}?sslmode=require`;
-}
-
-function toHttpDriverUrl(connectionString: string): string {
-  const normalized = connectionString.replace(/^postgres:/i, "postgresql:");
-  const url = new URL(normalized);
-  url.hostname = url.hostname.replace("-pooler", "");
-  url.searchParams.set("sslmode", "require");
-  url.searchParams.delete("channel_binding");
-  return url.toString();
-}
-
-function jsonError(error: unknown): Response {
-  console.error("Vault sync failed.", error);
-  if (error instanceof SyncError) {
-    return Response.json({ error: error.message }, { status: error.status });
-  }
-
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("not configured")) {
-    return Response.json({ error: message }, { status: 503 });
-  }
-
-  return Response.json({ error: "Could not refresh the vault from TMDb." }, { status: 500 });
-}
-
-class SyncError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
-}
+class SyncError extends HttpError {}

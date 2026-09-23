@@ -1,6 +1,15 @@
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+import {
+  execute,
+  HttpError,
+  jsonError,
+  queryRows,
+  requireDatabaseUrl,
+  requireSessionUser,
+} from "../lib/neon";
+
 const ALLOWED_KINDS = ["movie", "series", "show", "book", "game"] as const;
 
 interface FranchiseWriteBody {
@@ -16,7 +25,7 @@ export async function GET() {
     await ensureFranchiseSchema(connectionString);
     return Response.json({ franchises: await loadFranchises(connectionString) });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "Franchise request failed.", fallback: "Could not update franchises." });
   }
 }
 
@@ -33,7 +42,7 @@ export async function POST(request: Request) {
 
     return Response.json({ franchises: await loadFranchises(connectionString) });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "Franchise request failed.", fallback: "Could not update franchises." });
   }
 }
 
@@ -45,7 +54,7 @@ export async function PATCH(request: Request) {
     await renameFranchise(connectionString, body.id ?? body.franchiseId, body.name);
     return Response.json({ franchises: await loadFranchises(connectionString) });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "Franchise request failed.", fallback: "Could not update franchises." });
   }
 }
 
@@ -62,7 +71,7 @@ export async function DELETE(request: Request) {
 
     return Response.json({ franchises: await loadFranchises(connectionString) });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "Franchise request failed.", fallback: "Could not update franchises." });
   }
 }
 
@@ -252,28 +261,8 @@ function duplicateNameError(error: unknown): Error {
 
 async function requireAdmin(request: Request, connectionString: string): Promise<void> {
   await ensureFranchiseSchema(connectionString);
-  const token = readSessionToken(request);
-  if (!token) {
-    throw new FranchiseError("Sign in to continue.", 401);
-  }
-
-  const rows = await queryRows(
-    connectionString,
-    `SELECT u.email, u.is_admin
-     FROM app_session s
-     JOIN app_user u ON u.id = s.user_id
-     WHERE s.token = $1 AND s.expires_at > NOW()`,
-    [token],
-  );
-  const row = rows[0];
-  if (!row) {
-    throw new FranchiseError("Sign in to continue.", 401);
-  }
-
-  const email = String(row.email ?? "").toLowerCase();
-  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const isAdmin = Boolean(row.is_admin ?? row.isAdmin) || Boolean(adminEmail && email === adminEmail);
-  if (!isAdmin) {
+  const user = await requireSessionUser(request, connectionString);
+  if (!user.isAdmin) {
     throw new FranchiseError("Only the administrator can change franchises.", 403);
   }
 }
@@ -304,148 +293,4 @@ async function ensureFranchiseSchema(connectionString: string): Promise<void> {
   );
 }
 
-class FranchiseError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function requireDatabaseUrl(): string {
-  const connectionString = resolveDatabaseUrl();
-  if (!connectionString) {
-    throw new FranchiseError("DATABASE_URL is not configured.", 503);
-  }
-
-  return connectionString;
-}
-
-async function queryRows(connectionString: string, query: string, params: unknown[] = []): Promise<Record<string, unknown>[]> {
-  const payload = await neonRequest(connectionString, query, params);
-  if (!isNeonRows(payload)) {
-    throw new Error("Neon HTTP response did not include rows.");
-  }
-
-  return payload.rows;
-}
-
-async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
-  await neonRequest(connectionString, query, params);
-}
-
-function jsonError(error: unknown): Response {
-  console.error("Franchise request failed.", error);
-  if (error instanceof FranchiseError) {
-    return Response.json({ error: error.message }, { status: error.status });
-  }
-
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("not configured")) {
-    return Response.json({ error: message }, { status: 503 });
-  }
-
-  return Response.json({ error: "Could not update franchises." }, { status: 500 });
-}
-
-function readSessionToken(request: Request): string | undefined {
-  const cookie = request.headers.get("cookie");
-  if (!cookie) {
-    return undefined;
-  }
-
-  for (const part of cookie.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    if (part.slice(0, separator).trim() === "hv_session") {
-      return decodeURIComponent(part.slice(separator + 1).trim());
-    }
-  }
-
-  return undefined;
-}
-
-async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {
-  const url = new URL(connectionString);
-  const response = await fetch(`https://${url.hostname}/sql`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "neon-connection-string": connectionString,
-    },
-    body: JSON.stringify({ query, params }),
-  });
-  const payload: unknown = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    throw new Error(neonErrorMessage(payload, response.status));
-  }
-
-  return payload;
-}
-
-function neonErrorMessage(payload: unknown, status: number): string {
-  if (payload && typeof payload === "object" && "message" in payload) {
-    return String((payload as { message: unknown }).message);
-  }
-
-  return `Neon HTTP ${status}`;
-}
-
-function isNeonRows(payload: unknown): payload is { rows: Record<string, unknown>[] } {
-  return typeof payload === "object" && payload !== null && "rows" in payload && Array.isArray((payload as { rows: unknown }).rows);
-}
-
-function resolveDatabaseUrl(): string | undefined {
-  const fromUrl = process.env.DATABASE_URL?.trim();
-  if (fromUrl) {
-    return toHttpDriverUrl(fromUrl);
-  }
-
-  const horrorVerseDb = process.env.HorrorVerseDb?.trim();
-  if (!horrorVerseDb) {
-    return undefined;
-  }
-
-  if (/^postgres(ql)?:\/\//i.test(horrorVerseDb)) {
-    return toHttpDriverUrl(horrorVerseDb);
-  }
-
-  return toHttpDriverUrl(npgsqlToUri(horrorVerseDb));
-}
-
-function npgsqlToUri(connectionString: string): string {
-  const values = new Map<string, string>();
-  for (const part of connectionString.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    values.set(part.slice(0, separator).trim().toLowerCase(), part.slice(separator + 1).trim());
-  }
-
-  const host = values.get("host");
-  const user = values.get("username") ?? values.get("user");
-  const password = values.get("password") ?? "";
-  const database = values.get("database") ?? "HorrorTracker";
-  if (!host || !user) {
-    throw new Error("HorrorVerseDb is missing Host or Username.");
-  }
-
-  const auth = `${encodeURIComponent(user)}:${encodeURIComponent(password)}`;
-  return `postgresql://${auth}@${host}/${encodeURIComponent(database)}?sslmode=require`;
-}
-
-function toHttpDriverUrl(connectionString: string): string {
-  const normalized = connectionString.replace(/^postgres:/i, "postgresql:");
-  const url = new URL(normalized);
-  url.hostname = url.hostname.replace("-pooler", "");
-  url.searchParams.set("sslmode", "require");
-  url.searchParams.delete("channel_binding");
-  return url.toString();
-}
+class FranchiseError extends HttpError {}

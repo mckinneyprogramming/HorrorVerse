@@ -85,45 +85,8 @@ public sealed class UserLibraryService(IConfiguration configuration)
         return GetCompletedIds(user);
     }
 
-    public IReadOnlyList<UserListDto> GetLists(AuthUserDto user)
-    {
-        EnsureSchema();
-        using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT l.id, l.name, l.visibility, i.media_kind, i.media_id
-            FROM user_list l
-            LEFT JOIN user_list_item i ON i.list_id = l.id
-            WHERE l.user_id = @userId
-            ORDER BY lower(l.name), l.id, i.added_at, i.media_kind, i.media_id
-            """;
-        command.Parameters.AddWithValue("userId", user.Id);
-
-        var lists = new List<UserListDto>();
-        var indexById = new Dictionary<int, int>();
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var id = reader.GetInt32(0);
-            if (!indexById.TryGetValue(id, out var index))
-            {
-                index = lists.Count;
-                indexById[id] = index;
-                lists.Add(new UserListDto(id, reader.GetString(1), [], ReadVisibility(reader, 2)));
-            }
-
-            if (reader.IsDBNull(3) || reader.IsDBNull(4))
-            {
-                continue;
-            }
-
-            var items = lists[index].Items.ToList();
-            items.Add($"{reader.GetString(3)}:{reader.GetInt32(4)}");
-            lists[index] = lists[index] with { Items = items };
-        }
-
-        return lists;
-    }
+    public IReadOnlyList<UserListDto> GetLists(AuthUserDto user) =>
+        GetPublicLists(user.Id, includePrivate: true);
 
     public IReadOnlyList<UserListDto> GetPublicLists(int ownerId, bool includePrivate)
     {
@@ -146,9 +109,14 @@ public sealed class UserLibraryService(IConfiguration configuration)
                 ORDER BY lower(l.name), l.id, i.added_at, i.media_kind, i.media_id
                 """;
         command.Parameters.AddWithValue("userId", ownerId);
+        using var reader = command.ExecuteReader();
+        return ReadLists(reader);
+    }
+
+    private static IReadOnlyList<UserListDto> ReadLists(NpgsqlDataReader reader)
+    {
         var lists = new List<UserListDto>();
         var indexById = new Dictionary<int, int>();
-        using var reader = command.ExecuteReader();
         while (reader.Read())
         {
             var id = reader.GetInt32(0);

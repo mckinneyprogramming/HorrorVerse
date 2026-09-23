@@ -2,6 +2,16 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 void "restore-standalone-catalog";
 
+import {
+  execute,
+  HttpError,
+  jsonError,
+  queryRows,
+  readSessionToken,
+  requireDatabaseUrl,
+  resolveDatabaseUrl,
+} from "../lib/neon";
+
 interface CatalogItem {
   id: string;
   mediaId: number;
@@ -21,10 +31,7 @@ export async function GET() {
   try {
     return Response.json(await loadCatalog());
   } catch (error) {
-    console.error("Catalog request failed.", error);
-    const message = error instanceof Error ? error.message : "";
-    const status = message.includes("not configured") ? 503 : 500;
-    return Response.json({ error: "Catalog unavailable." }, { status });
+    return jsonError(error, { log: "Catalog request failed.", fallback: "Catalog unavailable." });
   }
 }
 
@@ -129,23 +136,6 @@ async function readOptional(
   }
 }
 
-async function queryRows(
-  connectionString: string,
-  query: string,
-  params: unknown[] = [],
-): Promise<Record<string, unknown>[]> {
-  const payload = await neonRequest(connectionString, query, params);
-  if (!isNeonRows(payload)) {
-    throw new Error("Neon HTTP response did not include rows.");
-  }
-
-  return payload.rows;
-}
-
-async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
-  await neonRequest(connectionString, query, params);
-}
-
 async function attachKeywords(connectionString: string, items: CatalogItem[]): Promise<CatalogItem[]> {
   try {
     await execute(
@@ -224,26 +214,6 @@ async function purgeUserMedia(connectionString: string, kind: string, mediaId: n
   }
 }
 
-async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {
-  const url = new URL(connectionString);
-  const response = await fetch(`https://${url.hostname}/sql`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "neon-connection-string": connectionString,
-    },
-    body: JSON.stringify({ query, params }),
-  });
-
-  const payload: unknown = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    throw new Error(neonErrorMessage(payload, response.status));
-  }
-
-  return payload;
-}
-
 interface CatalogWriteBody {
   id?: string;
   title?: string;
@@ -262,26 +232,16 @@ async function writeCatalog(
   action: (connectionString: string, body: CatalogWriteBody, url: URL) => Promise<Response>,
 ): Promise<Response> {
   try {
-    const connectionString = resolveDatabaseUrl();
-    if (!connectionString) {
-      throw new CatalogError("DATABASE_URL is not configured.", 503);
-    }
-
+    const connectionString = requireDatabaseUrl();
     await requireAdmin(request, connectionString);
     const body = (await request.json().catch(() => ({}))) as CatalogWriteBody;
     return await action(connectionString, body, new URL(request.url));
   } catch (error) {
-    console.error("Catalog write failed.", error);
-    if (error instanceof CatalogError) {
-      return Response.json({ error: error.message }, { status: error.status });
-    }
-
-    const message = error instanceof Error ? error.message : "";
-    if (message.includes("not configured")) {
-      return Response.json({ error: "Catalog unavailable." }, { status: 503 });
-    }
-
-    return Response.json({ error: "Could not change the catalog." }, { status: 500 });
+    return jsonError(error, {
+      log: "Catalog write failed.",
+      fallback: "Could not change the catalog.",
+      unavailable: "Catalog unavailable.",
+    });
   }
 }
 
@@ -310,26 +270,6 @@ async function requireAdmin(request: Request, connectionString: string): Promise
   if (!isAdmin) {
     throw new CatalogError("Only the administrator can change the catalog.", 403);
   }
-}
-
-function readSessionToken(request: Request): string | undefined {
-  const cookie = request.headers.get("cookie");
-  if (!cookie) {
-    return undefined;
-  }
-
-  for (const part of cookie.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    if (part.slice(0, separator).trim() === "hv_session") {
-      return decodeURIComponent(part.slice(separator + 1).trim());
-    }
-  }
-
-  return undefined;
 }
 
 async function ensureOptionalTables(connectionString: string, kind: string): Promise<void> {
@@ -566,31 +506,7 @@ function normalizeTitle(title: string | undefined): string {
   return value;
 }
 
-class CatalogError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function neonErrorMessage(payload: unknown, status: number): string {
-  if (payload && typeof payload === "object" && "message" in payload) {
-    return String((payload as { message: unknown }).message);
-  }
-
-  return `Neon HTTP ${status}`;
-}
-
-function isNeonRows(payload: unknown): payload is { rows: Record<string, unknown>[] } {
-  return (
-    typeof payload === "object" &&
-    payload !== null &&
-    "rows" in payload &&
-    Array.isArray((payload as { rows: unknown }).rows)
-  );
-}
+class CatalogError extends HttpError {}
 
 function mapRows(rows: Record<string, unknown>[], kind: string): CatalogItem[] {
   return rows.map((row) => {
@@ -651,52 +567,3 @@ function asNonEmptyString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function resolveDatabaseUrl(): string | undefined {
-  const fromUrl = process.env.DATABASE_URL?.trim();
-  if (fromUrl) {
-    return toHttpDriverUrl(fromUrl);
-  }
-
-  const horrorVerseDb = process.env.HorrorVerseDb?.trim();
-  if (!horrorVerseDb) {
-    return undefined;
-  }
-
-  if (/^postgres(ql)?:\/\//i.test(horrorVerseDb)) {
-    return toHttpDriverUrl(horrorVerseDb);
-  }
-
-  return toHttpDriverUrl(npgsqlToUri(horrorVerseDb));
-}
-
-function npgsqlToUri(connectionString: string): string {
-  const values = new Map<string, string>();
-  for (const part of connectionString.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    values.set(part.slice(0, separator).trim().toLowerCase(), part.slice(separator + 1).trim());
-  }
-
-  const host = values.get("host");
-  const user = values.get("username") ?? values.get("user");
-  const password = values.get("password") ?? "";
-  const database = values.get("database") ?? "HorrorTracker";
-  if (!host || !user) {
-    throw new Error("HorrorVerseDb is missing Host or Username.");
-  }
-
-  const auth = `${encodeURIComponent(user)}:${encodeURIComponent(password)}`;
-  return `postgresql://${auth}@${host}/${encodeURIComponent(database)}?sslmode=require`;
-}
-
-function toHttpDriverUrl(connectionString: string): string {
-  const normalized = connectionString.replace(/^postgres:/i, "postgresql:");
-  const url = new URL(normalized);
-  url.hostname = url.hostname.replace("-pooler", "");
-  url.searchParams.set("sslmode", "require");
-  url.searchParams.delete("channel_binding");
-  return url.toString();
-}
