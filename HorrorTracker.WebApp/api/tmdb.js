@@ -305,6 +305,27 @@ async function addMovieToFranchisesContainingSeries(connectionString, seriesId, 
   } catch {
   }
 }
+async function upsertShowSeasons(connectionString, showId, show) {
+  const seasons = Array.isArray(show.seasons) ? show.seasons : [];
+  for (const season of seasons) {
+    const record = asRecord(season);
+    if (!record) {
+      continue;
+    }
+    const number = Number(record.season_number);
+    if (!Number.isInteger(number) || number < 0) {
+      continue;
+    }
+    const title = String(record.name ?? "").trim() || (number === 0 ? "Specials" : `Season ${number}`);
+    await execute(
+      connectionString,
+      `INSERT INTO show_season (show_id, season_number, title)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (show_id, season_number) DO UPDATE SET title = EXCLUDED.title`,
+      [showId, number, title]
+    );
+  }
+}
 
 // lib/keywords.ts
 async function saveMovieKeywords(connectionString, movieId, tmdbId, skipIfPresent = false) {
@@ -678,25 +699,7 @@ async function attachShowSeasons(connectionString, showId, tmdbId, show, year) {
         UNIQUE (show_id, season_number)
       )`
     );
-    const seasons = Array.isArray(show.seasons) ? show.seasons : [];
-    for (const season of seasons) {
-      const record = asRecord(season);
-      if (!record) {
-        continue;
-      }
-      const number = Number(record.season_number);
-      if (!Number.isInteger(number) || number < 0) {
-        continue;
-      }
-      const title = String(record.name ?? "").trim() || (number === 0 ? "Specials" : `Season ${number}`);
-      await execute(
-        connectionString,
-        `INSERT INTO show_season (show_id, season_number, title)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (show_id, season_number) DO UPDATE SET title = EXCLUDED.title`,
-        [showId, number, title]
-      );
-    }
+    await upsertShowSeasons(connectionString, showId, show);
   } catch {
   }
 }

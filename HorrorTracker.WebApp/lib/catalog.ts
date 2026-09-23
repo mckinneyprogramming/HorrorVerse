@@ -117,3 +117,31 @@ export async function ensureShowTmdbId(connectionString: string, showId: number)
   await execute(connectionString, "UPDATE show SET tmdbid = $1 WHERE id = $2", [tmdbId, showId]);
   return tmdbId;
 }
+
+export async function upsertShowSeasons(
+  connectionString: string,
+  showId: number,
+  show: Record<string, unknown>,
+): Promise<void> {
+  const seasons = Array.isArray(show.seasons) ? show.seasons : [];
+  for (const season of seasons) {
+    const record = asRecord(season);
+    if (!record) {
+      continue;
+    }
+
+    const number = Number(record.season_number);
+    if (!Number.isInteger(number) || number < 0) {
+      continue;
+    }
+
+    const title = String(record.name ?? "").trim() || (number === 0 ? "Specials" : `Season ${number}`);
+    await execute(
+      connectionString,
+      `INSERT INTO show_season (show_id, season_number, title)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (show_id, season_number) DO UPDATE SET title = EXCLUDED.title`,
+      [showId, number, title],
+    );
+  }
+}

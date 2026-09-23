@@ -308,6 +308,27 @@ async function ensureShowTmdbId(connectionString, showId) {
   await execute(connectionString, "UPDATE show SET tmdbid = $1 WHERE id = $2", [tmdbId, showId]);
   return tmdbId;
 }
+async function upsertShowSeasons(connectionString, showId, show) {
+  const seasons = Array.isArray(show.seasons) ? show.seasons : [];
+  for (const season of seasons) {
+    const record = asRecord(season);
+    if (!record) {
+      continue;
+    }
+    const number = Number(record.season_number);
+    if (!Number.isInteger(number) || number < 0) {
+      continue;
+    }
+    const title = String(record.name ?? "").trim() || (number === 0 ? "Specials" : `Season ${number}`);
+    await execute(
+      connectionString,
+      `INSERT INTO show_season (show_id, season_number, title)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (show_id, season_number) DO UPDATE SET title = EXCLUDED.title`,
+      [showId, number, title]
+    );
+  }
+}
 
 // lib/keywords.ts
 async function saveMovieKeywords(connectionString, movieId, tmdbId, skipIfPresent = false) {
@@ -564,7 +585,7 @@ async function refreshShowSeasons(connectionString, showId, tmdbId) {
     )
   );
   const show = await tmdbJson(`/tv/${tmdbId}`);
-  await insertShowSeasons(connectionString, showId, show);
+  await upsertShowSeasons(connectionString, showId, show);
   await updateShowTotals(connectionString, showId, show);
   const after = (await queryRows(connectionString, "SELECT season_number FROM show_season WHERE show_id = $1", [showId])).map(
     (row) => Number(row.season_number)
@@ -575,27 +596,6 @@ async function refreshShowSeasons(connectionString, showId, tmdbId) {
   }
   await saveShowKeywords(connectionString, showId, tmdbId, true);
   return added;
-}
-async function insertShowSeasons(connectionString, showId, show) {
-  const seasons = Array.isArray(show.seasons) ? show.seasons : [];
-  for (const season of seasons) {
-    const record = asRecord(season);
-    if (!record) {
-      continue;
-    }
-    const number = Number(record.season_number);
-    if (!Number.isInteger(number) || number < 0) {
-      continue;
-    }
-    const title = String(record.name ?? "").trim() || (number === 0 ? "Specials" : `Season ${number}`);
-    await execute(
-      connectionString,
-      `INSERT INTO show_season (show_id, season_number, title)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (show_id, season_number) DO UPDATE SET title = EXCLUDED.title`,
-      [showId, number, title]
-    );
-  }
 }
 async function updateShowTotals(connectionString, showId, show) {
   const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
