@@ -9,8 +9,9 @@ import {
   requireDatabaseUrl,
   requireSessionUser,
 } from "../lib/neon";
+import { parseCatalogId } from "../lib/catalog-id";
+import { asPositiveInt, asRecord, asResults, tmdbJson, yearFrom } from "../lib/tmdb";
 
-const TMDB_BASE = "https://api.themoviedb.org/3";
 const REGION = "US";
 const ATTRIBUTION = "JustWatch";
 
@@ -72,7 +73,7 @@ async function readTarget(connectionString: string, kind: string, mediaId: numbe
   return {
     title,
     year: yearFrom(row.releaseyear),
-    tmdbId: asId(row.tmdbid),
+    tmdbId: asPositiveInt(row.tmdbid),
   };
 }
 
@@ -98,7 +99,7 @@ async function resolveTmdbId(tmdbKind: "movie" | "tv", title: string, year?: num
   const matches = asResults(payload)
     .map((item) => {
       const name = String(item[tmdbKind === "tv" ? "name" : "title"] ?? "").trim();
-      const id = asId(item.id);
+      const id = asPositiveInt(item.id);
       if (!id || !name || name.toLowerCase() !== title.toLowerCase()) {
         return undefined;
       }
@@ -144,7 +145,7 @@ function readProviders(...groups: unknown[]): WatchProvider[] {
         continue;
       }
 
-      const id = asId(item.provider_id);
+      const id = asPositiveInt(item.provider_id);
       const name = String(item.provider_name ?? "").trim();
       if (!id || !name || seen.has(id)) {
         continue;
@@ -172,53 +173,7 @@ function logoUrl(path: string): string | undefined {
 }
 
 function parseId(id: string | null): { kind: string; mediaId: number } {
-  const parts = (id ?? "").split(":");
-  const kind = (parts[0] ?? "").trim().toLowerCase();
-  const mediaId = Number(parts[1]);
-  if (parts.length !== 2 || !Number.isInteger(mediaId) || mediaId < 1) {
-    throw new WatchError("That title was not found.", 404);
-  }
-
-  if (kind !== "movie" && kind !== "series" && kind !== "documentary" && kind !== "show" && kind !== "book") {
-    throw new WatchError("That title was not found.", 404);
-  }
-
-  return { kind, mediaId };
-}
-
-async function tmdbJson(path: string): Promise<Record<string, unknown>> {
-  const apiKey = process.env.TMDBKey?.trim();
-  if (!apiKey) {
-    throw new WatchError("TMDBKey is not configured.", 503);
-  }
-
-  const separator = path.includes("?") ? "&" : "?";
-  const response = await fetch(`${TMDB_BASE}${path}${separator}api_key=${encodeURIComponent(apiKey)}`);
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    throw new WatchError("Could not reach TMDb.", response.status === 401 ? 503 : 502);
-  }
-
-  return payload;
-}
-
-function asResults(payload: Record<string, unknown>): Record<string, unknown>[] {
-  return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
-}
-
-function asId(value: unknown): number | undefined {
-  const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
-}
-
-function yearFrom(value: unknown): number | undefined {
-  const text = String(value ?? "");
-  const year = Number(text.slice(0, 4));
-  return Number.isInteger(year) && year >= 1888 && year <= 3000 ? year : undefined;
+  return parseCatalogId(id, ["movie", "series", "documentary", "show", "book"], "That title was not found.", 404);
 }
 
 class WatchError extends HttpError {}

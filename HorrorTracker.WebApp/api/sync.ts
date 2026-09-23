@@ -2,6 +2,14 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 import {
+  ensureKeywordSchema,
+  hasKeywords,
+  replaceSeriesKeywords,
+  saveDocumentaryKeywords,
+  saveMovieKeywords,
+  saveShowKeywords,
+} from "../lib/keywords";
+import {
   execute,
   HttpError,
   jsonError,
@@ -9,9 +17,17 @@ import {
   requireDatabaseUrl,
   requireSessionUser,
 } from "../lib/neon";
+import {
+  asId,
+  asRecord,
+  asResults,
+  collectionIsHorrorAdjacent,
+  runtimeOf,
+  seriesTitle,
+  tmdbJson,
+  yearFrom,
+} from "../lib/tmdb";
 
-const TMDB_BASE = "https://api.themoviedb.org/3";
-const HORROR_ADJACENT_GENRES = new Set([27, 53, 9648, 878, 14, 10765]);
 const STALE_HOURS = 6;
 
 export async function GET(request: Request) {
@@ -513,147 +529,12 @@ async function resolveMovieTmdbId(title: string, year: number | undefined): Prom
   return Number.isInteger(tmdbId) && tmdbId > 0 ? tmdbId : undefined;
 }
 
-async function hasKeywords(connectionString: string, kind: string, mediaId: number): Promise<boolean> {
-  const rows = await queryRows(
-    connectionString,
-    "SELECT 1 AS present FROM media_keyword WHERE media_kind = $1 AND media_id = $2 LIMIT 1",
-    [kind, mediaId],
-  );
-  return Boolean(rows[0]);
-}
-
-async function saveMovieKeywords(
-  connectionString: string,
-  movieId: number,
-  tmdbId: number,
-  skipIfPresent = false,
-): Promise<void> {
-  await saveKeywords(connectionString, "movie", movieId, tmdbId, "movie", skipIfPresent);
-}
-
-async function saveDocumentaryKeywords(connectionString: string, documentaryId: number, tmdbId: number): Promise<void> {
-  await saveKeywords(connectionString, "documentary", documentaryId, tmdbId, "movie", false);
-}
-
-async function saveShowKeywords(
-  connectionString: string,
-  showId: number,
-  tmdbId: number,
-  skipIfPresent = false,
-): Promise<void> {
-  await saveKeywords(connectionString, "show", showId, tmdbId, "tv", skipIfPresent);
-}
-
-async function saveKeywords(
-  connectionString: string,
-  kind: string,
-  mediaId: number,
-  tmdbId: number,
-  tmdbKind: "movie" | "tv",
-  skipIfPresent: boolean,
-): Promise<void> {
-  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
-    return;
-  }
-
-  await ensureKeywordSchema(connectionString);
-  if (kind === "movie") {
-    await execute(connectionString, "UPDATE movie SET tmdbid = $1 WHERE id = $2", [tmdbId, mediaId]);
-  } else if (kind === "documentary") {
-    await execute(connectionString, "UPDATE documentary SET tmdbid = $1 WHERE id = $2", [tmdbId, mediaId]);
-  }
-
-  if (skipIfPresent && (await hasKeywords(connectionString, kind, mediaId))) {
-    return;
-  }
-
-  const payload = await tmdbJson(`/${tmdbKind}/${tmdbId}/keywords`);
-  const raw = Array.isArray(payload.keywords) ? payload.keywords : Array.isArray(payload.results) ? payload.results : [];
-  await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = $1 AND media_id = $2", [kind, mediaId]);
-  for (const item of raw) {
-    const record = asRecord(item);
-    const keywordId = Number(record?.id);
-    const name = String(record?.name ?? "").trim();
-    if (!Number.isInteger(keywordId) || keywordId < 1 || name.length < 1 || name.length > 80) {
-      continue;
-    }
-
-    await execute(
-      connectionString,
-      `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO UPDATE SET name = EXCLUDED.name`,
-      [kind, mediaId, keywordId, name],
-    );
-  }
-}
-
-async function replaceSeriesKeywords(connectionString: string, seriesId: number): Promise<void> {
-  await ensureKeywordSchema(connectionString);
-  await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
-  await execute(
-    connectionString,
-      `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
-       SELECT DISTINCT ON (k.tmdb_keyword_id) 'series', $1, k.tmdb_keyword_id, k.name
-       FROM media_keyword k
-       JOIN movie m ON m.id = k.media_id
-       WHERE k.media_kind = 'movie' AND m.seriesid = $1
-       ORDER BY k.tmdb_keyword_id, k.name
-       ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO NOTHING`,
-    [seriesId],
-  );
-}
-
-async function ensureKeywordSchema(connectionString: string): Promise<void> {
-  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
-  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
-  await execute(
-    connectionString,
-    `CREATE TABLE IF NOT EXISTS media_keyword (
-      media_kind TEXT NOT NULL,
-      media_id INTEGER NOT NULL,
-      tmdb_keyword_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      PRIMARY KEY (media_kind, media_id, tmdb_keyword_id)
-    )`,
-  );
-}
-
 async function invalidateShowCompletion(connectionString: string, showId: number): Promise<void> {
   try {
     await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'show' AND media_id = $1", [showId]);
   } catch {
     // Progress table is created on first signed-in use.
   }
-}
-
-async function collectionIsHorrorAdjacent(collectionId: number): Promise<boolean> {
-  try {
-    const collection = await tmdbJson(`/collection/${collectionId}`);
-    const parts = Array.isArray(collection.parts) ? collection.parts : [];
-    return parts.some((part) => {
-      const genres = asRecord(part)?.genre_ids;
-      return Array.isArray(genres) && genres.some((id) => HORROR_ADJACENT_GENRES.has(Number(id)));
-    });
-  } catch {
-    return false;
-  }
-}
-
-async function tmdbJson(path: string): Promise<Record<string, unknown>> {
-  const apiKey = process.env.TMDBKey?.trim();
-  if (!apiKey) {
-    throw new SyncError("TMDBKey is not configured.", 503);
-  }
-
-  const separator = path.includes("?") ? "&" : "?";
-  const response = await fetch(`${TMDB_BASE}${path}${separator}api_key=${encodeURIComponent(apiKey)}`);
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    throw new SyncError("Could not reach TMDb.", response.status === 401 ? 503 : 502);
-  }
-
-  return payload;
 }
 
 function isTrustedCron(request: Request): boolean {
@@ -664,35 +545,6 @@ function isTrustedCron(request: Request): boolean {
   }
 
   return request.headers.get("x-vercel-cron") === "1";
-}
-
-function asResults(payload: Record<string, unknown>): Record<string, unknown>[] {
-  return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
-}
-
-function asId(row: Record<string, unknown> | undefined, key = "id"): number | undefined {
-  const id = Number(row?.[key]);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
-}
-
-function yearFrom(value: unknown): number | undefined {
-  const text = String(value ?? "");
-  const year = Number(text.slice(0, 4));
-  return Number.isInteger(year) && year >= 1888 && year <= 3000 ? year : undefined;
-}
-
-function runtimeOf(value: unknown): number {
-  const runtime = Number(value);
-  return Number.isFinite(runtime) && runtime > 0 ? runtime : 0;
-}
-
-function seriesTitle(name: string): string {
-  const trimmed = name.replace(/\s+Collection$/i, "").trim();
-  return trimmed.length > 0 ? trimmed : name.trim();
 }
 
 class SyncError extends HttpError {}

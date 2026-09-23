@@ -66,36 +66,25 @@ public sealed class UpcomingCatalogService
         var end = Iso(until);
         var films = new List<UpcomingTitle>();
         var seen = new HashSet<int>();
-        var pages = 1;
-
-        for (var page = 1; page <= pages && page <= MaxPages; page++)
-        {
-            var path =
+        await ForEachDiscoverResultAsync(
+            page =>
                 $"/discover/movie?include_adult=false&include_video=false&language=en-US&page={page}" +
                 $"&sort_by=primary_release_date.asc&with_genres={HorrorGenre}" +
                 $"&primary_release_date.gte={Uri.EscapeDataString(start)}" +
-                $"&primary_release_date.lte={Uri.EscapeDataString(end)}";
-            using var document = await GetTmdbAsync(path, cancellationToken);
-            if (document is null)
-            {
-                break;
-            }
-
-            var root = document.RootElement;
-            pages = ReadPageCount(root, MaxPages);
-            foreach (var item in ReadResults(root))
+                $"&primary_release_date.lte={Uri.EscapeDataString(end)}",
+            item =>
             {
                 var tmdbId = ReadId(item);
                 var title = ReadString(item, "title");
                 var releaseDate = ReadString(item, "release_date");
                 if (tmdbId < 1 || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(releaseDate) || !seen.Add(tmdbId))
                 {
-                    continue;
+                    return;
                 }
 
                 if (!TryDate(releaseDate, out var date) || date.Date < today || date.Date > until)
                 {
-                    continue;
+                    return;
                 }
 
                 films.Add(new UpcomingTitle(
@@ -106,8 +95,8 @@ public sealed class UpcomingCatalogService
                     date.Year,
                     TrimOverview(ReadString(item, "overview")),
                     null));
-            }
-        }
+            },
+            cancellationToken);
 
         return SortTitles(films);
     }
@@ -138,36 +127,25 @@ public sealed class UpcomingCatalogService
         var end = Iso(until);
         var shows = new List<UpcomingTitle>();
         var seen = new HashSet<int>();
-        var pages = 1;
-
-        for (var page = 1; page <= pages && page <= MaxPages; page++)
-        {
-            var path =
+        await ForEachDiscoverResultAsync(
+            page =>
                 $"/discover/tv?include_adult=false&language=en-US&page={page}" +
                 $"&sort_by=first_air_date.asc" +
                 $"&first_air_date.gte={Uri.EscapeDataString(start)}" +
-                $"&first_air_date.lte={Uri.EscapeDataString(end)}";
-            using var document = await GetTmdbAsync(path, cancellationToken);
-            if (document is null)
-            {
-                break;
-            }
-
-            var root = document.RootElement;
-            pages = ReadPageCount(root, MaxPages);
-            foreach (var item in ReadResults(root))
+                $"&first_air_date.lte={Uri.EscapeDataString(end)}",
+            item =>
             {
                 var tmdbId = ReadId(item);
                 var title = ReadString(item, "name");
                 var releaseDate = ReadString(item, "first_air_date");
                 if (tmdbId < 1 || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(releaseDate) || !seen.Add(tmdbId) || !LooksLikeHorrorTv(item))
                 {
-                    continue;
+                    return;
                 }
 
                 if (!TryDate(releaseDate, out var date) || date.Date < today || date.Date > until)
                 {
-                    continue;
+                    return;
                 }
 
                 shows.Add(new UpcomingTitle(
@@ -178,8 +156,8 @@ public sealed class UpcomingCatalogService
                     date.Year,
                     TrimOverview(ReadString(item, "overview")),
                     "New series"));
-            }
-        }
+            },
+            cancellationToken);
 
         return shows;
     }
@@ -299,15 +277,27 @@ public sealed class UpcomingCatalogService
         return code ?? name;
     }
 
-    private static async Task<JsonDocument?> GetTmdbAsync(string path, CancellationToken cancellationToken)
+    private static async Task ForEachDiscoverResultAsync(
+        Func<int, string> pathForPage,
+        Action<JsonElement> onItem,
+        CancellationToken cancellationToken)
     {
-        var document = await TryGetTmdbAsync(path, cancellationToken);
-        if (document is null)
+        var pages = 1;
+        for (var page = 1; page <= pages && page <= MaxPages; page++)
         {
-            throw new InvalidOperationException("Could not reach TMDb.");
-        }
+            using var document = await TryGetTmdbAsync(pathForPage(page), cancellationToken);
+            if (document is null)
+            {
+                break;
+            }
 
-        return document;
+            var root = document.RootElement;
+            pages = ReadPageCount(root, MaxPages);
+            foreach (var item in ReadResults(root))
+            {
+                onItem(item);
+            }
+        }
     }
 
     private static async Task<JsonDocument?> TryGetTmdbAsync(string path, CancellationToken cancellationToken)

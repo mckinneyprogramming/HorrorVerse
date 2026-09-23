@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+import { parseCatalogId } from "../lib/catalog-id";
 import {
   execute,
   HttpError,
@@ -9,8 +10,7 @@ import {
   requireDatabaseUrl,
   requireSessionUser,
 } from "../lib/neon";
-
-const TMDB_BASE = "https://api.themoviedb.org/3";
+import { asId, tmdbJson, yearFrom } from "../lib/tmdb";
 
 export async function GET(request: Request) {
   try {
@@ -456,30 +456,8 @@ async function getSeasonRef(connectionString: string, seasonId: number): Promise
   return { showId, seasonNumber };
 }
 
-async function tmdbJson(path: string): Promise<Record<string, unknown>> {
-  const apiKey = process.env.TMDBKey?.trim();
-  if (!apiKey) {
-    throw new ShowError("TMDBKey is not configured.", 503);
-  }
-
-  const separator = path.includes("?") ? "&" : "?";
-  const response = await fetch(`${TMDB_BASE}${path}${separator}api_key=${encodeURIComponent(apiKey)}`);
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    throw new ShowError("Could not reach TMDb.", response.status === 401 ? 503 : 502);
-  }
-
-  return payload;
-}
-
 function parseShowId(id: string | null): number {
-  const parts = (id ?? "").split(":");
-  const showId = Number(parts[1]);
-  if (parts[0] !== "show" || !Number.isInteger(showId) || showId < 1) {
-    throw new ShowError("That show was not found.", 400);
-  }
-
-  return showId;
+  return parseCatalogId(id, ["show"], "That show was not found.").mediaId;
 }
 
 function parseOptionalInt(value: string | null): number | undefined {
@@ -489,17 +467,6 @@ function parseOptionalInt(value: string | null): number | undefined {
 
   const parsed = Number(value);
   return Number.isInteger(parsed) ? parsed : undefined;
-}
-
-function asId(row: Record<string, unknown> | undefined, key = "id"): number | undefined {
-  const id = Number(row?.[key]);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
-}
-
-function yearFrom(value: unknown): number | undefined {
-  const text = String(value ?? "");
-  const year = Number(text.slice(0, 4));
-  return Number.isInteger(year) && year >= 1888 && year <= 3000 ? year : undefined;
 }
 
 class ShowError extends HttpError {}

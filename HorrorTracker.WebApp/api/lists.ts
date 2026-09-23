@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 void "restore-standalone-lists";
 
+import { LIBRARY_MEDIA_KINDS, parseCatalogId } from "../lib/catalog-id";
 import {
   ensureUserLibrarySchema,
   execute,
@@ -12,8 +13,6 @@ import {
   requireSessionUser,
   type SessionUser,
 } from "../lib/neon";
-
-const MEDIA_KINDS = ["movie", "series", "documentary", "show", "book", "podcast", "game"] as const;
 
 interface ListWriteBody {
   id?: number;
@@ -185,7 +184,7 @@ async function deleteList(connectionString: string, userId: number, listId: numb
 
 async function addListItem(connectionString: string, userId: number, body: ListWriteBody): Promise<void> {
   const listId = await requireOwnedList(connectionString, userId, body.listId ?? body.id);
-  const { kind, mediaId } = parseCatalogId(body.itemId);
+  const { kind, mediaId } = parseCatalogId(body.itemId, LIBRARY_MEDIA_KINDS);
   const countRows = await queryRows(
     connectionString,
     "SELECT COUNT(*)::int AS count FROM user_list_item WHERE list_id = $1",
@@ -214,7 +213,7 @@ async function removeListItem(
   itemId: string | null,
 ): Promise<void> {
   const ownedListId = await requireOwnedList(connectionString, userId, listId);
-  const { kind, mediaId } = parseCatalogId(itemId);
+  const { kind, mediaId } = parseCatalogId(itemId, LIBRARY_MEDIA_KINDS);
   await execute(
     connectionString,
     "DELETE FROM user_list_item WHERE list_id = $1 AND media_kind = $2 AND media_id = $3",
@@ -388,17 +387,3 @@ function normalizeVisibility(value: string | undefined): string | undefined {
   return visibility;
 }
 
-function parseCatalogId(id: string | null | undefined): { kind: string; mediaId: number } {
-  const parts = (id ?? "").split(":");
-  const mediaId = Number(parts[1]);
-  if (parts.length !== 2 || !Number.isInteger(mediaId) || mediaId < 1) {
-    throw new LibraryError("That title was not found.", 400);
-  }
-
-  const kind = parts[0].trim().toLowerCase();
-  if (!MEDIA_KINDS.includes(kind as (typeof MEDIA_KINDS)[number])) {
-    throw new LibraryError("That title was not found.", 400);
-  }
-
-  return { kind, mediaId };
-}

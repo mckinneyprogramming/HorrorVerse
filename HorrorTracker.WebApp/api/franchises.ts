@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+import { parseCatalogId } from "../lib/catalog-id";
 import {
   execute,
   HttpError,
@@ -142,7 +143,7 @@ async function deleteFranchise(connectionString: string, franchiseId: number): P
 
 async function addItem(connectionString: string, body: FranchiseWriteBody): Promise<void> {
   const franchiseId = await requireExisting(connectionString, body.franchiseId ?? body.id);
-  const { kind, mediaId } = parseCatalogId(body.itemId);
+  const { kind, mediaId } = parseCatalogId(body.itemId, ALLOWED_KINDS, "Franchises can hold series, movies, shows, and books.");
   const countRows = await queryRows(
     connectionString,
     "SELECT COUNT(*)::int AS count FROM franchise_item WHERE franchise_id = $1",
@@ -166,7 +167,7 @@ async function addItem(connectionString: string, body: FranchiseWriteBody): Prom
 
 async function removeItem(connectionString: string, franchiseId: number, itemId: string | null): Promise<void> {
   const id = await requireExisting(connectionString, franchiseId);
-  const { kind, mediaId } = parseCatalogId(itemId);
+  const { kind, mediaId } = parseCatalogId(itemId, ALLOWED_KINDS, "Franchises can hold series, movies, shows, and books.");
   await execute(
     connectionString,
     "DELETE FROM franchise_item WHERE franchise_id = $1 AND media_kind = $2 AND media_id = $3",
@@ -233,21 +234,6 @@ function normalizeName(name: string | undefined): string {
   }
 
   return value;
-}
-
-function parseCatalogId(id: string | null | undefined): { kind: string; mediaId: number } {
-  const parts = (id ?? "").split(":");
-  const mediaId = Number(parts[1]);
-  if (parts.length !== 2 || !Number.isInteger(mediaId) || mediaId < 1) {
-    throw new FranchiseError("That title was not found.", 400);
-  }
-
-  const kind = parts[0].trim().toLowerCase();
-  if (!ALLOWED_KINDS.includes(kind as (typeof ALLOWED_KINDS)[number])) {
-    throw new FranchiseError("Franchises can hold series, movies, shows, and books.", 400);
-  }
-
-  return { kind, mediaId };
 }
 
 function duplicateNameError(error: unknown): Error {

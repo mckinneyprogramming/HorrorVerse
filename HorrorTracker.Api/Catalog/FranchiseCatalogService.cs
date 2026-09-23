@@ -296,30 +296,15 @@ public sealed class FranchiseCatalogService(IConfiguration configuration)
         }
     }
 
-    private void EnsureItemLimit(int franchiseId)
-    {
-        using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM franchise_item WHERE franchise_id = @id";
-        command.Parameters.AddWithValue("id", franchiseId);
-        if (Convert.ToInt64(command.ExecuteScalar()) >= 200)
-        {
-            throw new InvalidOperationException("That franchise is full.");
-        }
-    }
+    private void EnsureItemLimit(int franchiseId) =>
+        CatalogDb.EnsureCountAtMost(
+            configuration,
+            "SELECT COUNT(*) FROM franchise_item WHERE franchise_id = @id",
+            franchiseId,
+            200,
+            "That franchise is full.");
 
-    private NpgsqlConnection OpenConnection()
-    {
-        var connectionString = CatalogService.ResolveConnectionString(configuration);
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("DATABASE_URL is not configured.");
-        }
-
-        var connection = new NpgsqlConnection(connectionString);
-        connection.Open();
-        return connection;
-    }
+    private NpgsqlConnection OpenConnection() => CatalogDb.Open(configuration);
 
     private static (string Kind, int MediaId) ParseCatalogId(string? id)
     {

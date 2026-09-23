@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 void "restore-standalone-catalog";
 
+import { parseCatalogId } from "../lib/catalog-id";
 import {
   execute,
   HttpError,
@@ -11,6 +12,8 @@ import {
   requireDatabaseUrl,
   resolveDatabaseUrl,
 } from "../lib/neon";
+
+const CATALOG_KINDS = ["movie", "series", "documentary", "show", "book"] as const;
 
 interface CatalogItem {
   id: string;
@@ -53,7 +56,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   return writeCatalog(request, async (connectionString, body) => {
-    const { kind, mediaId } = parseCatalogId(body.id);
+    const { kind, mediaId } = parseCatalogId(body.id, CATALOG_KINDS);
     const title = normalizeTitle(body.title);
     await ensureOptionalTables(connectionString, kind);
     await ensureUniqueTitle(connectionString, kind, title, await currentYear(connectionString, kind, mediaId), mediaId);
@@ -69,7 +72,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   return writeCatalog(request, async (connectionString, body, url) => {
-    const { kind, mediaId } = parseCatalogId(body.id ?? url.searchParams.get("id"));
+    const { kind, mediaId } = parseCatalogId(body.id ?? url.searchParams.get("id"), CATALOG_KINDS);
     await ensureOptionalTables(connectionString, kind);
     await execute(connectionString, deleteSql(kind), [mediaId]);
     await purgeUserMedia(connectionString, kind, mediaId);
@@ -476,16 +479,6 @@ function deleteSql(kind: string): string {
     default:
       throw new CatalogError("That type cannot be stored yet.", 400);
   }
-}
-
-function parseCatalogId(id: string | null | undefined): { kind: string; mediaId: number } {
-  const parts = (id ?? "").split(":");
-  const mediaId = Number(parts[1]);
-  if (parts.length !== 2 || !Number.isInteger(mediaId) || mediaId < 1) {
-    throw new CatalogError("That title was not found.", 400);
-  }
-
-  return { kind: normalizeKind(parts[0]), mediaId };
 }
 
 function normalizeKind(kind: string | undefined): string {

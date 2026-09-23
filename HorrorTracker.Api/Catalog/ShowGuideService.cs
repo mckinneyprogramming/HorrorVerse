@@ -653,29 +653,9 @@ public sealed class ShowGuideService(IConfiguration configuration)
             : Convert.ToInt32(value);
     }
 
-    private NpgsqlConnection OpenConnection()
-    {
-        var connectionString = CatalogService.ResolveConnectionString(configuration);
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("DATABASE_URL is not configured.");
-        }
+    private NpgsqlConnection OpenConnection() => CatalogDb.Open(configuration);
 
-        var connection = new NpgsqlConnection(connectionString);
-        connection.Open();
-        return connection;
-    }
-
-    private static MovieDatabaseService CreateClient()
-    {
-        var apiKey = Environment.GetEnvironmentVariable("TMDBKey");
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException("TMDBKey is not configured.");
-        }
-
-        return new MovieDatabaseService(new TMDbClientWrapper(apiKey));
-    }
+    private static MovieDatabaseService CreateClient() => CatalogDb.CreateTmdbClient();
 
     private static int ParseShowId(string? id)
     {

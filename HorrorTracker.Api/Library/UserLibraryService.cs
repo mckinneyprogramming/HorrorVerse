@@ -712,30 +712,15 @@ public sealed class UserLibraryService(IConfiguration configuration)
         }
     }
 
-    private void EnsureItemLimit(int listId)
-    {
-        using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM user_list_item WHERE list_id = @listId";
-        command.Parameters.AddWithValue("listId", listId);
-        if (Convert.ToInt64(command.ExecuteScalar()) >= 200)
-        {
-            throw new InvalidOperationException("That list is full.");
-        }
-    }
+    private void EnsureItemLimit(int listId) =>
+        CatalogDb.EnsureCountAtMost(
+            configuration,
+            "SELECT COUNT(*) FROM user_list_item WHERE list_id = @id",
+            listId,
+            200,
+            "That list is full.");
 
-    private NpgsqlConnection OpenConnection()
-    {
-        var connectionString = CatalogService.ResolveConnectionString(configuration);
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("DATABASE_URL is not configured.");
-        }
-
-        var connection = new NpgsqlConnection(connectionString);
-        connection.Open();
-        return connection;
-    }
+    private NpgsqlConnection OpenConnection() => CatalogDb.Open(configuration);
 
     private static (string Kind, int MediaId) ParseCatalogId(string? id)
     {

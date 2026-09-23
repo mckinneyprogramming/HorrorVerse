@@ -1,6 +1,8 @@
 ﻿export const runtime = "nodejs";
 export const maxDuration = 30;
 
+import { LIBRARY_MEDIA_KINDS, parseCatalogId } from "../lib/catalog-id";
+import { asId } from "../lib/tmdb";
 import {
   ensureUserLibrarySchema,
   execute,
@@ -11,8 +13,6 @@ import {
   requireSessionUser,
   type SessionUser,
 } from "../lib/neon";
-
-const MEDIA_KINDS = ["movie", "series", "documentary", "show", "book", "podcast", "game"] as const;
 
 export async function GET(request: Request) {
   try {
@@ -29,7 +29,7 @@ export async function PATCH(request: Request) {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
     const body = (await request.json().catch(() => ({}))) as { id?: string; completed?: boolean };
-    const { kind, mediaId } = parseCatalogId(body.id);
+    const { kind, mediaId } = parseCatalogId(body.id, LIBRARY_MEDIA_KINDS);
     if (body.completed) {
       await execute(
         connectionString,
@@ -128,11 +128,6 @@ async function syncSeriesForMovie(connectionString: string, userId: number, movi
   }
 }
 
-function asId(row: Record<string, unknown> | undefined, key: string): number | undefined {
-  const id = Number(row?.[key]);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
-}
-
 async function loadCompletedIds(connectionString: string, user: SessionUser): Promise<string[]> {
   await seedAdminProgressIfNeeded(connectionString, user);
   const rows = await queryRows(
@@ -187,20 +182,5 @@ class LibraryError extends HttpError {}
 async function requireUser(request: Request, connectionString: string): Promise<SessionUser> {
   await ensureUserLibrarySchema(connectionString);
   return requireSessionUser(request, connectionString);
-}
-
-function parseCatalogId(id: string | null | undefined): { kind: string; mediaId: number } {
-  const parts = (id ?? "").split(":");
-  const mediaId = Number(parts[1]);
-  if (parts.length !== 2 || !Number.isInteger(mediaId) || mediaId < 1) {
-    throw new LibraryError("That title was not found.", 400);
-  }
-
-  const kind = parts[0].trim().toLowerCase();
-  if (!MEDIA_KINDS.includes(kind as (typeof MEDIA_KINDS)[number])) {
-    throw new LibraryError("That title was not found.", 400);
-  }
-
-  return { kind, mediaId };
 }
 
