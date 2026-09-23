@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asId, asPositiveInt, asRecord, asResults, isDocumentary, isHorrorAdjacent, seriesTitle, yearFrom } from "./tmdb";
+import { asId, asPositiveInt, asRecord, asResults, isDocumentary, isHorrorAdjacent, seriesTitle, showTotalMinutes, yearFrom } from "./tmdb";
 
 describe("yearFrom", () => {
   it("reads a four-digit year from a date", () => {
@@ -32,6 +32,26 @@ describe("genre filters", () => {
     expect(isHorrorAdjacent([18])).toBe(false);
     expect(isDocumentary([99])).toBe(true);
     expect(isDocumentary([27])).toBe(false);
+  });
+});
+
+describe("showTotalMinutes", () => {
+  it("uses series episode_run_time when TMDb provides it", () => {
+    expect(showTotalMinutes({ number_of_episodes: 10, episode_run_time: [45] })).toBe(450);
+  });
+
+  it("falls back to the last aired episode when episode_run_time is empty", () => {
+    expect(
+      showTotalMinutes({
+        number_of_episodes: 8,
+        episode_run_time: [],
+        last_episode_to_air: { runtime: 52 },
+      }),
+    ).toBe(416);
+  });
+
+  it("returns 0 when TMDb has no usable runtime", () => {
+    expect(showTotalMinutes({ number_of_episodes: 8, episode_run_time: [] })).toBe(0);
   });
 });
 

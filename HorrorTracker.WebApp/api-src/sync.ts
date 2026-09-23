@@ -30,6 +30,7 @@ import {
   asResults,
   collectionIsHorrorAdjacent,
   seriesTitle,
+  showTotalMinutes,
   tmdbJson,
   yearFrom,
 } from "../lib/tmdb";
@@ -248,9 +249,7 @@ async function refreshShowSeasons(connectionString: string, showId: number, tmdb
 async function updateShowTotals(connectionString: string, showId: number, show: Record<string, unknown>): Promise<void> {
   const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
   const seasons = Math.max(Number(show.number_of_seasons) || 0, 0);
-  const runtimes = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number) : [];
-  const episodeMinutes = runtimes.find((value) => value > 0) ?? 0;
-  const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+  const totalTime = showTotalMinutes(show);
   await execute(
     connectionString,
     "UPDATE show SET totalepisodes = $1, numberofseasons = $2, totaltime = $3, releaseyear = COALESCE(NULLIF($5, 0), releaseyear) WHERE id = $4",

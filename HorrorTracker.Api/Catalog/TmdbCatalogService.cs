@@ -182,8 +182,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         var existingId = FindShowId(tmdbId, title, year);
         var episodes = Math.Max(show.NumberOfEpisodes, 0);
         var seasons = Math.Max(show.NumberOfSeasons, 0);
-        var episodeMinutes = show.EpisodeRunTime?.FirstOrDefault() ?? 0;
-        var totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+        var totalTime = ShowRuntime.TotalMinutes(show);
         var showId = existingId ?? InsertShow(title, totalTime, episodes, seasons, year);
         await shows.AttachImportedShowAsync(tmdb, showId, tmdbId, show, cancellationToken);
         await keywords.SaveShowAsync(showId, tmdbId, cancellationToken: cancellationToken);

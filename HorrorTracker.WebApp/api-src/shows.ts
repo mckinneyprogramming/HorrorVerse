@@ -11,7 +11,7 @@ import {
   requireDatabaseUrl,
   requireSessionUser,
 } from "../lib/neon";
-import { asId, tmdbJson, yearFrom } from "../lib/tmdb";
+import { asId, showTotalMinutes, tmdbJson, yearFrom } from "../lib/tmdb";
 
 export async function GET(request: Request) {
   try {
@@ -224,9 +224,7 @@ async function refreshSeasons(connectionString: string, showId: number, tmdbId: 
 
   const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
   const seasonCount = Math.max(Number(show.number_of_seasons) || 0, 0);
-  const runtimes = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number) : [];
-  const episodeMinutes = runtimes.find((value) => value > 0) ?? 0;
-  const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+  const totalTime = showTotalMinutes(show);
   await execute(
     connectionString,
     "UPDATE show SET totalepisodes = $1, numberofseasons = $2, totaltime = $3, releaseyear = COALESCE(NULLIF($5, 0), releaseyear) WHERE id = $4",

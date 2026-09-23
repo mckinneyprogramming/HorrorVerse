@@ -67,6 +67,23 @@ export function runtimeOf(value: unknown): number {
   return Number.isFinite(runtime) && runtime > 0 ? runtime : 0;
 }
 
+export function showTotalMinutes(show: Record<string, unknown>, fallbackEpisodeMinutes = 0): number {
+  const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
+  const episodeMinutes = episodeLengthMinutes(show) || fallbackEpisodeMinutes;
+  return episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+}
+
+export function episodeLengthMinutes(show: Record<string, unknown>): number {
+  const listed = Array.isArray(show.episode_run_time)
+    ? show.episode_run_time.map(Number).find((value) => Number.isFinite(value) && value > 0)
+    : undefined;
+  if (listed && listed > 0) {
+    return listed;
+  }
+
+  return runtimeOf(asRecord(show.last_episode_to_air)?.runtime) || runtimeOf(asRecord(show.next_episode_to_air)?.runtime);
+}
+
 export function seriesTitle(name: string): string {
   const trimmed = name.replace(/\s+Collection$/i, "").trim();
   return trimmed.length > 0 ? trimmed : name.trim();

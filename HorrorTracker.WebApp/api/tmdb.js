@@ -206,6 +206,18 @@ function runtimeOf(value) {
   const runtime2 = Number(value);
   return Number.isFinite(runtime2) && runtime2 > 0 ? runtime2 : 0;
 }
+function showTotalMinutes(show, fallbackEpisodeMinutes = 0) {
+  const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
+  const episodeMinutes = episodeLengthMinutes(show) || fallbackEpisodeMinutes;
+  return episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+}
+function episodeLengthMinutes(show) {
+  const listed = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number).find((value) => Number.isFinite(value) && value > 0) : void 0;
+  if (listed && listed > 0) {
+    return listed;
+  }
+  return runtimeOf(asRecord(show.last_episode_to_air)?.runtime) || runtimeOf(asRecord(show.next_episode_to_air)?.runtime);
+}
 function seriesTitle(name) {
   const trimmed = name.replace(/\s+Collection$/i, "").trim();
   return trimmed.length > 0 ? trimmed : name.trim();
@@ -600,9 +612,7 @@ async function importShow(connectionString, tmdbId) {
   const existingId = await findShowId(connectionString, tmdbId, title, year);
   const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
   const seasons = Math.max(Number(show.number_of_seasons) || 0, 0);
-  const runtimes = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number) : [];
-  const episodeMinutes = runtimes.find((value) => value > 0) ?? 0;
-  const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+  const totalTime = showTotalMinutes(show);
   const showId = existingId ?? await insertShow(connectionString, title, totalTime, episodes, seasons, year);
   if (!showId) {
     throw new TmdbError("Could not save that show.", 500);
@@ -686,8 +696,8 @@ async function attachShowSeasons(connectionString, showId, tmdbId, show, year) {
     await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS releaseyear INTEGER", []);
     await execute(
       connectionString,
-      "UPDATE show SET tmdbid = $1, releaseyear = COALESCE(NULLIF($3, 0), releaseyear) WHERE id = $2",
-      [tmdbId, showId, year ?? 0]
+      "UPDATE show SET tmdbid = $1, releaseyear = COALESCE(NULLIF($3, 0), releaseyear), totaltime = CASE WHEN $4 > 0 THEN $4 ELSE totaltime END WHERE id = $2",
+      [tmdbId, showId, year ?? 0, showTotalMinutes(show)]
     );
     await execute(
       connectionString,

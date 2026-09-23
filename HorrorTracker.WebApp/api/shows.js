@@ -187,6 +187,9 @@ async function tmdbJsonOptional(path) {
 function asResults(payload) {
   return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
 }
+function asRecord(value) {
+  return value && typeof value === "object" ? value : void 0;
+}
 function asId(row, key = "id") {
   return asPositiveInt(row?.[key]);
 }
@@ -198,6 +201,22 @@ function yearFrom(value) {
   const text = String(value ?? "");
   const year = Number(text.slice(0, 4));
   return Number.isInteger(year) && year >= 1888 && year <= 3e3 ? year : void 0;
+}
+function runtimeOf(value) {
+  const runtime2 = Number(value);
+  return Number.isFinite(runtime2) && runtime2 > 0 ? runtime2 : 0;
+}
+function showTotalMinutes(show, fallbackEpisodeMinutes = 0) {
+  const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
+  const episodeMinutes = episodeLengthMinutes(show) || fallbackEpisodeMinutes;
+  return episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+}
+function episodeLengthMinutes(show) {
+  const listed = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number).find((value) => Number.isFinite(value) && value > 0) : void 0;
+  if (listed && listed > 0) {
+    return listed;
+  }
+  return runtimeOf(asRecord(show.last_episode_to_air)?.runtime) || runtimeOf(asRecord(show.next_episode_to_air)?.runtime);
 }
 
 // lib/catalog.ts
@@ -434,9 +453,7 @@ async function refreshSeasons(connectionString, showId, tmdbId) {
   }
   const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
   const seasonCount = Math.max(Number(show.number_of_seasons) || 0, 0);
-  const runtimes = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number) : [];
-  const episodeMinutes = runtimes.find((value) => value > 0) ?? 0;
-  const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
+  const totalTime = showTotalMinutes(show);
   await execute(
     connectionString,
     "UPDATE show SET totalepisodes = $1, numberofseasons = $2, totaltime = $3, releaseyear = COALESCE(NULLIF($5, 0), releaseyear) WHERE id = $4",
