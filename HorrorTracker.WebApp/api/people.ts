@@ -1,6 +1,15 @@
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+import {
+  execute,
+  HttpError,
+  jsonError,
+  queryRows,
+  requireDatabaseUrl,
+  requireSessionUser,
+} from "../lib/neon";
+
 interface PersonCard {
   id: number;
   displayName: string;
@@ -38,7 +47,7 @@ export async function GET(request: Request) {
 
     return Response.json({ people: await searchPeople(connectionString, viewer.id, url.searchParams.get("q")) });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "People request failed.", fallback: "Could not load people." });
   }
 }
 
@@ -55,7 +64,7 @@ export async function POST(request: Request) {
 
     throw new SocialError("That request is not supported.", 400);
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "People request failed.", fallback: "Could not load people." });
   }
 }
 
@@ -67,7 +76,7 @@ export async function PATCH(request: Request) {
 
     return respondFriend(request);
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "People request failed.", fallback: "Could not load people." });
   }
 }
 
@@ -84,7 +93,7 @@ export async function DELETE(request: Request) {
 
     throw new SocialError("That request is not supported.", 400);
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "People request failed.", fallback: "Could not load people." });
   }
 }
 
@@ -485,97 +494,8 @@ export async function ensureSocialSchema(connectionString: string): Promise<void
   await execute(connectionString, "ALTER TABLE user_list ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private'");
 }
 
-async function requireUser(request: Request, connectionString: string): Promise<{ id: number }> {
-  const token = readSessionToken(request);
-  if (!token) {
-    throw new SocialError("Sign in to continue.", 401);
-  }
-
-  const rows = await queryRows(
-    connectionString,
-    `SELECT u.id FROM app_session s JOIN app_user u ON u.id = s.user_id WHERE s.token = $1 AND s.expires_at > NOW()`,
-    [token],
-  );
-  const id = Number(rows[0]?.id);
-  if (!Number.isInteger(id) || id < 1) {
-    throw new SocialError("Sign in to continue.", 401);
-  }
-
-  return { id };
+function requireUser(request: Request, connectionString: string) {
+  return requireSessionUser(request, connectionString);
 }
 
-function readSessionToken(request: Request): string | undefined {
-  const cookie = request.headers.get("cookie") ?? "";
-  for (const part of cookie.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    if (part.slice(0, separator).trim() === "hv_session") {
-      return decodeURIComponent(part.slice(separator + 1).trim());
-    }
-  }
-
-  return undefined;
-}
-
-function requireDatabaseUrl(): string {
-  const connectionString = process.env.DATABASE_URL?.trim();
-  if (!connectionString) {
-    throw new SocialError("DATABASE_URL is not configured.", 503);
-  }
-
-  return connectionString;
-}
-
-async function queryRows(connectionString: string, query: string, params: unknown[]): Promise<Record<string, unknown>[]> {
-  const payload = await neonRequest(connectionString, query, params);
-  if (!payload || typeof payload !== "object" || !("rows" in payload) || !Array.isArray((payload as { rows: unknown }).rows)) {
-    throw new Error("Neon HTTP response did not include rows.");
-  }
-
-  return (payload as { rows: Record<string, unknown>[] }).rows;
-}
-
-async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
-  await neonRequest(connectionString, query, params);
-}
-
-async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {
-  const url = new URL(connectionString);
-  const response = await fetch(`https://${url.hostname}/sql`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "neon-connection-string": connectionString,
-    },
-    body: JSON.stringify({ query, params }),
-  });
-  const payload: unknown = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    throw new Error(payload && typeof payload === "object" && "message" in payload ? String((payload as { message: unknown }).message) : `Neon HTTP ${response.status}`);
-  }
-
-  return payload;
-}
-
-function jsonError(error: unknown): Response {
-  if (error instanceof SocialError) {
-    return Response.json({ error: error.message }, { status: error.status });
-  }
-
-  const message = error instanceof Error ? error.message : "";
-  const status = message.includes("not configured") ? 503 : 500;
-  return Response.json({ error: message || "Could not load people." }, { status });
-}
-
-class SocialError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
-}
+class SocialError extends HttpError {}

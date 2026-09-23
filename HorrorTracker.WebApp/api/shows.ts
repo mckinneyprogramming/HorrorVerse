@@ -1,12 +1,21 @@
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const TMDB_BASE = "https://api.themoviedb.org/3";
+import { parseCatalogId } from "../lib/catalog-id";
+import {
+  execute,
+  HttpError,
+  jsonError,
+  queryRows,
+  requireDatabaseUrl,
+  requireSessionUser,
+} from "../lib/neon";
+import { asId, tmdbJson, yearFrom } from "../lib/tmdb";
 
 export async function GET(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
-    const userId = await requireUserId(request, connectionString);
+    const userId = (await requireSessionUser(request, connectionString)).id;
     const url = new URL(request.url);
     const showId = parseShowId(url.searchParams.get("id"));
     const season = parseOptionalInt(url.searchParams.get("season"));
@@ -22,14 +31,14 @@ export async function GET(request: Request) {
 
     return Response.json(await loadGuide(connectionString, userId, showId));
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "Show guide request failed.", fallback: "Could not load that show." });
   }
 }
 
 export async function PATCH(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
-    const userId = await requireUserId(request, connectionString);
+    const userId = (await requireSessionUser(request, connectionString)).id;
     await ensureSchema(connectionString);
     const body = (await request.json().catch(() => ({}))) as {
       id?: string;
@@ -62,7 +71,7 @@ export async function PATCH(request: Request) {
     await syncShowProgress(connectionString, userId, showId);
     return Response.json(await loadGuide(connectionString, userId, showId));
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, { log: "Show guide request failed.", fallback: "Could not load that show." });
   }
 }
 
@@ -447,72 +456,8 @@ async function getSeasonRef(connectionString: string, seasonId: number): Promise
   return { showId, seasonNumber };
 }
 
-async function tmdbJson(path: string): Promise<Record<string, unknown>> {
-  const apiKey = process.env.TMDBKey?.trim();
-  if (!apiKey) {
-    throw new ShowError("TMDBKey is not configured.", 503);
-  }
-
-  const separator = path.includes("?") ? "&" : "?";
-  const response = await fetch(`${TMDB_BASE}${path}${separator}api_key=${encodeURIComponent(apiKey)}`);
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    throw new ShowError("Could not reach TMDb.", response.status === 401 ? 503 : 502);
-  }
-
-  return payload;
-}
-
-async function requireUserId(request: Request, connectionString: string): Promise<number> {
-  const token = readSessionToken(request);
-  if (!token) {
-    throw new ShowError("Sign in to continue.", 401);
-  }
-
-  const rows = await queryRows(
-    connectionString,
-    `SELECT u.id
-     FROM app_session s
-     JOIN app_user u ON u.id = s.user_id
-     WHERE s.token = $1 AND s.expires_at > NOW()`,
-    [token],
-  );
-  const id = asId(rows[0]);
-  if (!id) {
-    throw new ShowError("Sign in to continue.", 401);
-  }
-
-  return id;
-}
-
-function readSessionToken(request: Request): string | undefined {
-  const cookie = request.headers.get("cookie");
-  if (!cookie) {
-    return undefined;
-  }
-
-  for (const part of cookie.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    if (part.slice(0, separator).trim() === "hv_session") {
-      return decodeURIComponent(part.slice(separator + 1).trim());
-    }
-  }
-
-  return undefined;
-}
-
 function parseShowId(id: string | null): number {
-  const parts = (id ?? "").split(":");
-  const showId = Number(parts[1]);
-  if (parts[0] !== "show" || !Number.isInteger(showId) || showId < 1) {
-    throw new ShowError("That show was not found.", 400);
-  }
-
-  return showId;
+  return parseCatalogId(id, ["show"], "That show was not found.").mediaId;
 }
 
 function parseOptionalInt(value: string | null): number | undefined {
@@ -524,142 +469,7 @@ function parseOptionalInt(value: string | null): number | undefined {
   return Number.isInteger(parsed) ? parsed : undefined;
 }
 
-function asId(row: Record<string, unknown> | undefined, key = "id"): number | undefined {
-  const id = Number(row?.[key]);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
-}
-
-function yearFrom(value: unknown): number | undefined {
-  const text = String(value ?? "");
-  const year = Number(text.slice(0, 4));
-  return Number.isInteger(year) && year >= 1888 && year <= 3000 ? year : undefined;
-}
-
-async function queryRows(connectionString: string, query: string, params: unknown[] = []): Promise<Record<string, unknown>[]> {
-  const payload = await neonRequest(connectionString, query, params);
-  if (!isNeonRows(payload)) {
-    throw new Error("Neon HTTP response did not include rows.");
-  }
-
-  return payload.rows;
-}
-
-async function execute(connectionString: string, query: string, params: unknown[] = []): Promise<void> {
-  await neonRequest(connectionString, query, params);
-}
-
-async function neonRequest(connectionString: string, query: string, params: unknown[]): Promise<unknown> {
-  const url = new URL(connectionString);
-  const response = await fetch(`https://${url.hostname}/sql`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "neon-connection-string": connectionString,
-    },
-    body: JSON.stringify({ query, params }),
-  });
-  const payload: unknown = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    throw new Error(neonErrorMessage(payload, response.status));
-  }
-
-  return payload;
-}
-
-function neonErrorMessage(payload: unknown, status: number): string {
-  if (payload && typeof payload === "object" && "message" in payload) {
-    return String((payload as { message: unknown }).message);
-  }
-
-  return `Neon HTTP ${status}`;
-}
-
-function isNeonRows(payload: unknown): payload is { rows: Record<string, unknown>[] } {
-  return typeof payload === "object" && payload !== null && "rows" in payload && Array.isArray((payload as { rows: unknown }).rows);
-}
-
-function requireDatabaseUrl(): string {
-  const connectionString = resolveDatabaseUrl();
-  if (!connectionString) {
-    throw new ShowError("DATABASE_URL is not configured.", 503);
-  }
-
-  return connectionString;
-}
-
-function resolveDatabaseUrl(): string | undefined {
-  const fromUrl = process.env.DATABASE_URL?.trim();
-  if (fromUrl) {
-    return toHttpDriverUrl(fromUrl);
-  }
-
-  const horrorVerseDb = process.env.HorrorVerseDb?.trim();
-  if (!horrorVerseDb) {
-    return undefined;
-  }
-
-  if (/^postgres(ql)?:\/\//i.test(horrorVerseDb)) {
-    return toHttpDriverUrl(horrorVerseDb);
-  }
-
-  return toHttpDriverUrl(npgsqlToUri(horrorVerseDb));
-}
-
-function npgsqlToUri(connectionString: string): string {
-  const values = new Map<string, string>();
-  for (const part of connectionString.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 1) {
-      continue;
-    }
-
-    values.set(part.slice(0, separator).trim().toLowerCase(), part.slice(separator + 1).trim());
-  }
-
-  const host = values.get("host");
-  const user = values.get("username") ?? values.get("user");
-  const password = values.get("password") ?? "";
-  const database = values.get("database") ?? "HorrorTracker";
-  if (!host || !user) {
-    throw new Error("HorrorVerseDb is missing Host or Username.");
-  }
-
-  const auth = `${encodeURIComponent(user)}:${encodeURIComponent(password)}`;
-  return `postgresql://${auth}@${host}/${encodeURIComponent(database)}?sslmode=require`;
-}
-
-function toHttpDriverUrl(connectionString: string): string {
-  const normalized = connectionString.replace(/^postgres:/i, "postgresql:");
-  const url = new URL(normalized);
-  url.hostname = url.hostname.replace("-pooler", "");
-  url.searchParams.set("sslmode", "require");
-  url.searchParams.delete("channel_binding");
-  return url.toString();
-}
-
-function jsonError(error: unknown): Response {
-  console.error("Show guide request failed.", error);
-  if (error instanceof ShowError) {
-    return Response.json({ error: error.message }, { status: error.status });
-  }
-
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("not configured")) {
-    return Response.json({ error: message }, { status: 503 });
-  }
-
-  return Response.json({ error: "Could not load that show." }, { status: 500 });
-}
-
-class ShowError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
-}
+class ShowError extends HttpError {}
 
 interface ShowEpisode {
   id: number;
