@@ -359,10 +359,16 @@ public sealed class ShowGuideService(IConfiguration configuration)
         }
 
         var title = ReadShowTitle(showId);
+        var year = ReadShowYear(showId);
         var tmdb = CreateClient();
         var results = await tmdb.SearchTvShow(title);
-        var match = (results.Results ?? [])
-            .FirstOrDefault(item => string.Equals(item.Name?.Trim(), title, StringComparison.OrdinalIgnoreCase))
+        var sameTitle = (results.Results ?? [])
+            .Where(item => string.Equals(item.Name?.Trim(), title, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var match = (year is int airYear
+                ? sameTitle.FirstOrDefault(item => item.FirstAirDate?.Year == airYear)
+                : null)
+            ?? sameTitle.FirstOrDefault()
             ?? (results.Results ?? []).FirstOrDefault();
         if (match is null)
         {
@@ -422,12 +428,14 @@ public sealed class ShowGuideService(IConfiguration configuration)
         using var command = connection.CreateCommand();
         command.CommandText = """
             UPDATE Show
-            SET TotalEpisodes = @episodes, NumberOfSeasons = @seasons, TotalTime = @totalTime
+            SET TotalEpisodes = @episodes, NumberOfSeasons = @seasons, TotalTime = @totalTime,
+                ReleaseYear = COALESCE(NULLIF(@year, 0), ReleaseYear)
             WHERE Id = @id
             """;
         command.Parameters.AddWithValue("episodes", episodes);
         command.Parameters.AddWithValue("seasons", seasons);
         command.Parameters.AddWithValue("totalTime", totalTime);
+        command.Parameters.AddWithValue("year", show.FirstAirDate is { Year: >= 1888 and <= 3000 } date ? date.Year : 0);
         command.Parameters.AddWithValue("id", showId);
         command.ExecuteNonQuery();
     }
@@ -516,6 +524,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
                 NumberOfSeasons INTEGER NOT NULL,
                 Watched BOOLEAN NOT NULL);
             ALTER TABLE Show ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
+            ALTER TABLE Show ADD COLUMN IF NOT EXISTS ReleaseYear INTEGER;
             CREATE TABLE IF NOT EXISTS show_season (
                 id SERIAL PRIMARY KEY,
                 show_id INTEGER NOT NULL,
@@ -569,6 +578,22 @@ public sealed class ShowGuideService(IConfiguration configuration)
         command.CommandText = "SELECT Title FROM Show WHERE Id = @id";
         command.Parameters.AddWithValue("id", showId);
         return Convert.ToString(command.ExecuteScalar()) ?? string.Empty;
+    }
+
+    private int? ReadShowYear(int showId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT ReleaseYear FROM Show WHERE Id = @id";
+        command.Parameters.AddWithValue("id", showId);
+        var value = command.ExecuteScalar();
+        if (value is null or DBNull)
+        {
+            return null;
+        }
+
+        var year = Convert.ToInt32(value);
+        return year is >= 1888 and <= 3000 ? year : null;
     }
 
     private void SaveTmdbId(int showId, int tmdbId)

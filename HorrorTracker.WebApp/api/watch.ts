@@ -49,7 +49,7 @@ async function readTarget(connectionString: string, kind: string, mediaId: numbe
       ? "SELECT title, releaseyear, tmdbid FROM movie WHERE id = $1"
       : kind === "documentary"
         ? "SELECT title, releaseyear, tmdbid FROM documentary WHERE id = $1"
-        : "SELECT title, NULL AS releaseyear, tmdbid FROM show WHERE id = $1";
+        : "SELECT title, releaseyear, tmdbid FROM show WHERE id = $1";
   const row = (await queryRows(connectionString, sql, [mediaId]))[0];
   if (!row) {
     return undefined;

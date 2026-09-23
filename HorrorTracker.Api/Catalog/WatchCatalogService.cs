@@ -52,7 +52,7 @@ public sealed class WatchCatalogService(IConfiguration configuration, KeywordCat
         {
             "movie" => "SELECT Title, ReleaseYear, TmdbId FROM Movie WHERE Id = @id",
             "documentary" => "SELECT Title, ReleaseYear, TmdbId FROM Documentary WHERE Id = @id",
-            "show" => "SELECT Title, NULL, TmdbId FROM Show WHERE Id = @id",
+            "show" => "SELECT Title, ReleaseYear, TmdbId FROM Show WHERE Id = @id",
             _ => null,
         };
         if (sql is null)

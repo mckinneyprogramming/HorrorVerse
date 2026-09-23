@@ -178,12 +178,13 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         EnsureShowTable();
         var show = await tmdb.GetTvShow(tmdbId);
         var title = RequireTitle(show.Name);
-        var existingId = FindShowId(title);
+        var year = YearOf(show.FirstAirDate);
+        var existingId = FindShowId(tmdbId, title, year);
         var episodes = Math.Max(show.NumberOfEpisodes, 0);
         var seasons = Math.Max(show.NumberOfSeasons, 0);
         var episodeMinutes = show.EpisodeRunTime?.FirstOrDefault() ?? 0;
         var totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
-        var showId = existingId ?? InsertShow(title, totalTime, episodes, seasons);
+        var showId = existingId ?? InsertShow(title, totalTime, episodes, seasons, year);
         await shows.AttachImportedShowAsync(tmdb, showId, tmdbId, show, cancellationToken);
         await keywords.SaveShowAsync(showId, tmdbId, cancellationToken: cancellationToken);
         return new TmdbImportResult($"show:{showId}", existingId is null ? 1 : 0);
@@ -549,15 +550,31 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         return ToInt(command.ExecuteScalar());
     }
 
-    private int? FindShowId(string title)
+    private int? FindShowId(int tmdbId, string title, int? year)
     {
         using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT Id FROM Show WHERE lower(Title) = lower(@title) LIMIT 1";
-        command.Parameters.AddWithValue("title", title);
+        using var byTmdb = connection.CreateCommand();
+        byTmdb.CommandText = "SELECT Id FROM Show WHERE TmdbId = @tmdbId LIMIT 1";
+        byTmdb.Parameters.AddWithValue("tmdbId", tmdbId);
         try
         {
-            return ToInt(command.ExecuteScalar());
+            var existing = ToInt(byTmdb.ExecuteScalar());
+            if (existing is int)
+            {
+                return existing;
+            }
+
+            using var byTitle = connection.CreateCommand();
+            byTitle.CommandText = """
+                SELECT Id FROM Show
+                WHERE lower(Title) = lower(@title)
+                  AND TmdbId IS NULL
+                  AND (ReleaseYear IS NULL OR ReleaseYear = 0 OR ReleaseYear = @year)
+                LIMIT 1
+                """;
+            byTitle.Parameters.AddWithValue("title", title);
+            byTitle.Parameters.AddWithValue("year", year ?? 0);
+            return ToInt(byTitle.ExecuteScalar());
         }
         catch (PostgresException)
         {
@@ -635,19 +652,20 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         return Convert.ToInt32(command.ExecuteScalar());
     }
 
-    private int InsertShow(string title, decimal totalTime, int episodes, int seasons)
+    private int InsertShow(string title, decimal totalTime, int episodes, int seasons, int? year)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO Show (Title, TotalTime, TotalEpisodes, NumberOfSeasons, Watched)
-            VALUES (@title, @totalTime, @episodes, @seasons, FALSE)
+            INSERT INTO Show (Title, TotalTime, TotalEpisodes, NumberOfSeasons, Watched, ReleaseYear)
+            VALUES (@title, @totalTime, @episodes, @seasons, FALSE, @year)
             RETURNING Id
             """;
         command.Parameters.AddWithValue("title", title);
         command.Parameters.AddWithValue("totalTime", totalTime);
         command.Parameters.AddWithValue("episodes", episodes);
         command.Parameters.AddWithValue("seasons", seasons);
+        command.Parameters.AddWithValue("year", year ?? 0);
         return Convert.ToInt32(command.ExecuteScalar());
     }
 
@@ -829,7 +847,9 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
                 TotalTime DECIMAL(10, 2) NOT NULL,
                 TotalEpisodes INTEGER NOT NULL,
                 NumberOfSeasons INTEGER NOT NULL,
-                Watched BOOLEAN NOT NULL)
+                Watched BOOLEAN NOT NULL);
+            ALTER TABLE Show ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
+            ALTER TABLE Show ADD COLUMN IF NOT EXISTS ReleaseYear INTEGER;
             """;
         command.ExecuteNonQuery();
     }

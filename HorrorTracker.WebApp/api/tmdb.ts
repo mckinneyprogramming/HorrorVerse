@@ -274,20 +274,23 @@ async function importShow(connectionString: string, tmdbId: number): Promise<Tmd
       watched BOOLEAN NOT NULL
     )`,
   );
+  await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS releaseyear INTEGER");
   const show = await tmdbJson(`/tv/${tmdbId}`);
   const title = requireTitle(show.name);
-  const existingId = await findShowId(connectionString, title);
+  const year = yearFrom(show.first_air_date);
+  const existingId = await findShowId(connectionString, tmdbId, title, year);
   const episodes = Math.max(Number(show.number_of_episodes) || 0, 0);
   const seasons = Math.max(Number(show.number_of_seasons) || 0, 0);
   const runtimes = Array.isArray(show.episode_run_time) ? show.episode_run_time.map(Number) : [];
   const episodeMinutes = runtimes.find((value) => value > 0) ?? 0;
   const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
-  const showId = existingId ?? (await insertShow(connectionString, title, totalTime, episodes, seasons));
+  const showId = existingId ?? (await insertShow(connectionString, title, totalTime, episodes, seasons, year));
   if (!showId) {
     throw new TmdbError("Could not save that show.", 500);
   }
 
-  await attachShowSeasons(connectionString, showId, tmdbId, show);
+  await attachShowSeasons(connectionString, showId, tmdbId, show, year);
   await saveShowKeywords(connectionString, showId, tmdbId);
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
 }
@@ -319,9 +322,28 @@ async function findDocumentaryId(connectionString: string, title: string, year: 
   return asId(rows[0]);
 }
 
-async function findShowId(connectionString: string, title: string): Promise<number | undefined> {
+async function findShowId(
+  connectionString: string,
+  tmdbId: number,
+  title: string,
+  year: number | undefined,
+): Promise<number | undefined> {
   try {
-    const rows = await queryRows(connectionString, "SELECT id FROM show WHERE lower(title) = lower($1) LIMIT 1", [title]);
+    const byTmdb = await queryRows(connectionString, "SELECT id FROM show WHERE tmdbid = $1 LIMIT 1", [tmdbId]);
+    const tmdbMatch = asId(byTmdb[0]);
+    if (tmdbMatch) {
+      return tmdbMatch;
+    }
+
+    const rows = await queryRows(
+      connectionString,
+      `SELECT id FROM show
+       WHERE lower(title) = lower($1)
+         AND tmdbid IS NULL
+         AND (releaseyear IS NULL OR releaseyear = 0 OR releaseyear = $2)
+       LIMIT 1`,
+      [title, year ?? 0],
+    );
     return asId(rows[0]);
   } catch {
     return undefined;
@@ -376,10 +398,16 @@ async function attachShowSeasons(
   showId: number,
   tmdbId: number,
   show: Record<string, unknown>,
+  year: number | undefined,
 ): Promise<void> {
   try {
     await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS tmdbid INTEGER", []);
-    await execute(connectionString, "UPDATE show SET tmdbid = $1 WHERE id = $2", [tmdbId, showId]);
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS releaseyear INTEGER", []);
+    await execute(
+      connectionString,
+      "UPDATE show SET tmdbid = $1, releaseyear = COALESCE(NULLIF($3, 0), releaseyear) WHERE id = $2",
+      [tmdbId, showId, year ?? 0],
+    );
     await execute(
       connectionString,
       `CREATE TABLE IF NOT EXISTS show_season (
@@ -422,11 +450,12 @@ async function insertShow(
   totalTime: number,
   episodes: number,
   seasons: number,
+  year: number | undefined,
 ): Promise<number> {
   const rows = await queryRows(
     connectionString,
-    "INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched) VALUES ($1, $2, $3, $4, FALSE) RETURNING id",
-    [title, totalTime, episodes, seasons],
+    "INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched, releaseyear) VALUES ($1, $2, $3, $4, FALSE, $5) RETURNING id",
+    [title, totalTime, episodes, seasons, year ?? 0],
   );
   const id = asId(rows[0]);
   if (!id) {

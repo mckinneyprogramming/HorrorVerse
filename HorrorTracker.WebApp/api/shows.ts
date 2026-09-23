@@ -141,6 +141,7 @@ async function ensureSchema(connectionString: string): Promise<void> {
     )`,
   );
   await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS releaseyear INTEGER");
   await execute(
     connectionString,
     `CREATE TABLE IF NOT EXISTS show_season (
@@ -188,15 +189,23 @@ async function ensureTmdbId(connectionString: string, showId: number): Promise<n
     return existing;
   }
 
-  const title = String((await queryRows(connectionString, "SELECT title FROM show WHERE id = $1", [showId]))[0]?.title ?? "").trim();
+  const row = (await queryRows(connectionString, "SELECT title, releaseyear FROM show WHERE id = $1", [showId]))[0];
+  const title = String(row?.title ?? "").trim();
   if (title.length < 2) {
     return undefined;
   }
 
+  const year = yearFrom(row?.releaseyear);
   const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(title)}&include_adult=false`);
   const results = Array.isArray(payload.results) ? payload.results : [];
+  const sameTitle = results.filter(
+    (item) => String((item as { name?: string }).name ?? "").trim().toLowerCase() === title.toLowerCase(),
+  );
   const match =
-    results.find((item) => String((item as { name?: string }).name ?? "").trim().toLowerCase() === title.toLowerCase()) ??
+    (year
+      ? sameTitle.find((item) => yearFrom((item as { first_air_date?: unknown }).first_air_date) === year)
+      : undefined) ??
+    sameTitle[0] ??
     results[0];
   const tmdbId = Number((match as { id?: number } | undefined)?.id);
   if (!Number.isInteger(tmdbId) || tmdbId < 1) {
@@ -243,8 +252,8 @@ async function refreshSeasons(connectionString: string, showId: number, tmdbId: 
   const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
   await execute(
     connectionString,
-    "UPDATE show SET totalepisodes = $1, numberofseasons = $2, totaltime = $3 WHERE id = $4",
-    [episodes, seasonCount, totalTime, showId],
+    "UPDATE show SET totalepisodes = $1, numberofseasons = $2, totaltime = $3, releaseyear = COALESCE(NULLIF($5, 0), releaseyear) WHERE id = $4",
+    [episodes, seasonCount, totalTime, showId, yearFrom(show.first_air_date) ?? 0],
   );
   const after = (await queryRows(connectionString, "SELECT season_number FROM show_season WHERE show_id = $1", [showId])).map(
     (row) => Number(row.season_number),

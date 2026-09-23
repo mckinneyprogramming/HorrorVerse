@@ -183,7 +183,7 @@ function optionalText(value: unknown): string | undefined {
 }
 
 export function movieDetailLine(entry: CatalogEntry): string | undefined {
-  if (entry.kind !== "movie" && entry.kind !== "documentary") {
+  if (entry.kind !== "movie" && entry.kind !== "documentary" && entry.kind !== "show") {
     return undefined;
   }
 

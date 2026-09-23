@@ -77,6 +77,7 @@ async function loadCatalog(): Promise<CatalogItem[]> {
     throw new Error("DATABASE_URL is not configured.");
   }
 
+  await ensureOptionalTables(connectionString, "show");
   const items = [
     ...(await readTable(
       connectionString,
@@ -99,7 +100,7 @@ async function loadCatalog(): Promise<CatalogItem[]> {
     )),
     ...(await readOptional(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons FROM show",
+      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear FROM show",
       "show",
     )),
     ...(await readOptional(connectionString, "SELECT id, title, read AS completed FROM book", "book")),
@@ -344,6 +345,8 @@ async function ensureOptionalTables(connectionString: string, kind: string): Pro
         watched BOOLEAN NOT NULL
       )`,
     );
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS releaseyear INTEGER");
   }
 
   if (kind === "book") {
@@ -374,8 +377,8 @@ function insertSql(kind: string): string {
       return `INSERT INTO documentary (title, totaltime, releaseyear, watched)
               VALUES ($1, $2, $3, $4) RETURNING id, title, watched AS completed`;
     case "show":
-      return `INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched)
-              VALUES ($1, $2, $3, $4, $5) RETURNING id, title, watched AS completed`;
+      return `INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched, releaseyear)
+              VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, watched AS completed`;
     case "book":
       return `INSERT INTO book (title, seriesid, pages, partofseries, releaseyear, read)
               VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, read AS completed`;
@@ -439,7 +442,7 @@ function existingIdSql(kind: string): string {
               LIMIT 1`;
     case "show":
       return `SELECT id FROM show
-              WHERE lower(title) = lower($1)
+              WHERE lower(title) = lower($1) AND COALESCE(releaseyear, 0) = $2
                 AND ($3 = 0 OR id <> $3)
               LIMIT 1`;
     case "book":
@@ -453,7 +456,7 @@ function existingIdSql(kind: string): string {
 }
 
 async function currentYear(connectionString: string, kind: string, mediaId: number): Promise<number> {
-  if (kind === "series" || kind === "show") {
+  if (kind === "series") {
     return 0;
   }
 
@@ -462,9 +465,11 @@ async function currentYear(connectionString: string, kind: string, mediaId: numb
       ? "SELECT releaseyear FROM movie WHERE id = $1"
       : kind === "documentary"
         ? "SELECT releaseyear FROM documentary WHERE id = $1"
-        : kind === "book"
-          ? "SELECT releaseyear FROM book WHERE id = $1"
-          : null;
+        : kind === "show"
+          ? "SELECT releaseyear FROM show WHERE id = $1"
+          : kind === "book"
+            ? "SELECT releaseyear FROM book WHERE id = $1"
+            : null;
   if (!query) {
     return 0;
   }
@@ -491,7 +496,7 @@ function insertParams(kind: string, title: string, body: CatalogWriteBody): unkn
     case "documentary":
       return [title, totalTime, year, completed];
     case "show":
-      return [title, totalTime, Math.max(Number(body.totalEpisodes) || 0, 0), Math.max(Number(body.numberOfSeasons) || 0, 0), completed];
+      return [title, totalTime, Math.max(Number(body.totalEpisodes) || 0, 0), Math.max(Number(body.numberOfSeasons) || 0, 0), completed, year];
     case "book":
       return [title, null, Math.max(Number(body.pages) || 0, 0), false, year, completed];
     default:

@@ -116,10 +116,11 @@ public sealed class CatalogService(
 
         try
         {
+            EnsureOptionalTables("show");
             using var connection = new NpgsqlConnection(connectionString);
             connection.Open();
             using var command = new NpgsqlCommand(
-                "SELECT Id, Title, Watched, TotalTime, TotalEpisodes, NumberOfSeasons FROM Show",
+                "SELECT Id, Title, Watched, TotalTime, TotalEpisodes, NumberOfSeasons, ReleaseYear FROM Show",
                 connection);
             using var reader = command.ExecuteReader();
             var items = new List<CatalogItemDto>();
@@ -128,6 +129,7 @@ public sealed class CatalogService(
                 var totalTime = reader.IsDBNull(3) ? 0m : reader.GetDecimal(3);
                 var episodes = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
                 var seasons = reader.IsDBNull(5) ? 0 : reader.GetInt32(5);
+                var year = reader.FieldCount > 6 && !reader.IsDBNull(6) ? reader.GetInt32(6) : 0;
                 items.Add(new CatalogItemDto(
                     $"show:{reader.GetInt32(0)}",
                     reader.GetInt32(0),
@@ -135,7 +137,7 @@ public sealed class CatalogService(
                     "show",
                     !reader.IsDBNull(2) && reader.GetBoolean(2),
                     totalTime > 0 ? totalTime : null,
-                    null,
+                    year > 0 ? year : null,
                     null,
                     null,
                     episodes > 0 ? episodes : null,
@@ -279,7 +281,7 @@ public sealed class CatalogService(
                 """,
             "show" => """
                 SELECT Id FROM Show
-                WHERE lower(Title) = lower(@title)
+                WHERE lower(Title) = lower(@title) AND COALESCE(ReleaseYear, 0) = @year
                   AND (@excludeId = 0 OR Id <> @excludeId)
                 LIMIT 1
                 """,
@@ -307,7 +309,7 @@ public sealed class CatalogService(
 
     private int CurrentYear(string kind, int mediaId)
     {
-        if (kind is "series" or "show")
+        if (kind is "series")
         {
             return 0;
         }
@@ -318,6 +320,7 @@ public sealed class CatalogService(
         {
             "movie" => "SELECT ReleaseYear FROM Movie WHERE Id = @id",
             "documentary" => "SELECT ReleaseYear FROM Documentary WHERE Id = @id",
+            "show" => "SELECT ReleaseYear FROM Show WHERE Id = @id",
             "book" => "SELECT ReleaseYear FROM Book WHERE Id = @id",
             _ => throw new InvalidOperationException("That type cannot be stored yet.")
         };
@@ -353,7 +356,9 @@ public sealed class CatalogService(
                     TotalTime DECIMAL(10, 2) NOT NULL,
                     TotalEpisodes INTEGER NOT NULL,
                     NumberOfSeasons INTEGER NOT NULL,
-                    Watched BOOLEAN NOT NULL)
+                    Watched BOOLEAN NOT NULL);
+                ALTER TABLE Show ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
+                ALTER TABLE Show ADD COLUMN IF NOT EXISTS ReleaseYear INTEGER;
                 """
             : """
                 CREATE TABLE IF NOT EXISTS Book (
@@ -412,6 +417,7 @@ public sealed class CatalogService(
                 command.Parameters.AddWithValue("totalTime", totalTime);
                 command.Parameters.AddWithValue("totalEpisodes", Math.Max(request.TotalEpisodes ?? 0, 0));
                 command.Parameters.AddWithValue("numberOfSeasons", Math.Max(request.NumberOfSeasons ?? 0, 0));
+                command.Parameters.AddWithValue("releaseYear", year);
                 break;
             case "book":
                 command.Parameters.AddWithValue("seriesId", DBNull.Value);
@@ -440,8 +446,8 @@ public sealed class CatalogService(
             RETURNING Id, Title, Watched
             """,
         "show" => """
-            INSERT INTO Show (Title, TotalTime, TotalEpisodes, NumberOfSeasons, Watched)
-            VALUES (@title, @totalTime, @totalEpisodes, @numberOfSeasons, @completed)
+            INSERT INTO Show (Title, TotalTime, TotalEpisodes, NumberOfSeasons, Watched, ReleaseYear)
+            VALUES (@title, @totalTime, @totalEpisodes, @numberOfSeasons, @completed, @releaseYear)
             RETURNING Id, Title, Watched
             """,
         "book" => """

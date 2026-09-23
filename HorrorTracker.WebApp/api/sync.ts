@@ -259,8 +259,8 @@ async function updateShowTotals(connectionString: string, showId: number, show: 
   const totalTime = episodeMinutes > 0 && episodes > 0 ? episodeMinutes * episodes : episodeMinutes;
   await execute(
     connectionString,
-    "UPDATE show SET totalepisodes = $1, numberofseasons = $2, totaltime = $3 WHERE id = $4",
-    [episodes, seasons, totalTime, showId],
+    "UPDATE show SET totalepisodes = $1, numberofseasons = $2, totaltime = $3, releaseyear = COALESCE(NULLIF($5, 0), releaseyear) WHERE id = $4",
+    [episodes, seasons, totalTime, showId, yearFrom(show.first_air_date) ?? 0],
   );
 }
 
@@ -270,15 +270,18 @@ async function ensureShowTmdbId(connectionString: string, showId: number): Promi
     return existing;
   }
 
-  const title = String((await queryRows(connectionString, "SELECT title FROM show WHERE id = $1", [showId]))[0]?.title ?? "").trim();
+  const row = (await queryRows(connectionString, "SELECT title, releaseyear FROM show WHERE id = $1", [showId]))[0];
+  const title = String(row?.title ?? "").trim();
   if (title.length < 2) {
     return undefined;
   }
 
+  const year = yearFrom(row?.releaseyear);
   const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(title)}&include_adult=false`);
   const results = asResults(payload);
+  const sameTitle = results.filter((item) => String(item.name ?? "").trim().toLowerCase() === title.toLowerCase());
   const match =
-    results.find((item) => String(item.name ?? "").trim().toLowerCase() === title.toLowerCase()) ?? results[0];
+    (year ? sameTitle.find((item) => yearFrom(item.first_air_date) === year) : undefined) ?? sameTitle[0] ?? results[0];
   const tmdbId = Number(match?.id);
   if (!Number.isInteger(tmdbId) || tmdbId < 1) {
     return undefined;
@@ -290,6 +293,7 @@ async function ensureShowTmdbId(connectionString: string, showId: number): Promi
 
 async function ensureShowSchema(connectionString: string): Promise<void> {
   await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+  await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS releaseyear INTEGER");
   await execute(
     connectionString,
     `CREATE TABLE IF NOT EXISTS show_season (
