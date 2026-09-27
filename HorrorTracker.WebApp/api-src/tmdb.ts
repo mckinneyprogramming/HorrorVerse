@@ -2,19 +2,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 void "restore-standalone-tmdb";
 
-import {
-  addMovieToFranchisesContainingSeries,
-  addMovieToListsContainingSeries,
-  filmsFromCollection,
-  findMovieId,
-  upsertShowSeasons,
-} from "../lib/catalog";
-import {
-  replaceSeriesKeywords,
-  saveDocumentaryKeywords,
-  saveMovieKeywords,
-  saveShowKeywords,
-} from "../lib/keywords";
+import { upsertShowSeasons } from "../lib/catalog";
+import { importMovie, importSeries } from "../lib/import-tmdb";
+import { saveDocumentaryKeywords, saveShowKeywords } from "../lib/keywords";
 import {
   execute,
   HttpError,
@@ -25,7 +15,6 @@ import {
 } from "../lib/neon";
 import {
   asId,
-  asRecord,
   asResults,
   collectionIsHorrorAdjacent,
   isDocumentary,
@@ -163,85 +152,6 @@ async function searchShows(query: string): Promise<TmdbHit[]> {
     .filter((item) => item.tmdbId > 0 && item.title.length > 0);
 }
 
-async function importMovie(connectionString: string, tmdbId: number): Promise<TmdbImportResult> {
-  const movie = await tmdbJson(`/movie/${tmdbId}`);
-  const title = requireTitle(movie.title);
-  const year = yearFrom(movie.release_date);
-  const collection = asRecord(movie.belongs_to_collection);
-  const seriesName = collection ? seriesTitle(String(collection.name ?? "")) : "";
-  const seriesId = seriesName ? await findSeriesId(connectionString, seriesName) : undefined;
-  const existingId = await findMovieId(connectionString, title, year);
-  if (existingId) {
-    if (seriesId) {
-      await addMovieToListsContainingSeries(connectionString, seriesId, existingId);
-      await addMovieToFranchisesContainingSeries(connectionString, seriesId, existingId);
-    }
-
-    await saveMovieKeywords(connectionString, existingId, tmdbId);
-    return { added: 0, id: `movie:${existingId}` };
-  }
-
-  const movieId = await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
-  if (!movieId) {
-    throw new TmdbError("Could not save that movie.", 500);
-  }
-
-  await saveMovieKeywords(connectionString, movieId, tmdbId);
-  if (seriesId) {
-    await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
-    await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
-    await invalidateSeriesCompletion(connectionString, seriesId);
-    await refreshSeriesTotals(connectionString, seriesId);
-    await replaceSeriesKeywords(connectionString, seriesId);
-  }
-
-  return { added: 1, id: `movie:${movieId}` };
-}
-
-async function importSeries(connectionString: string, collectionId: number): Promise<TmdbImportResult> {
-  const collection = await tmdbJson(`/collection/${collectionId}`);
-  const title = seriesTitle(String(collection.name ?? ""));
-  if (!title) {
-    throw new TmdbError("TMDb did not return a usable title.", 400);
-  }
-
-  let seriesId = await findSeriesId(connectionString, title);
-  let added = 0;
-  if (!seriesId) {
-    seriesId = await insertSeries(connectionString, title);
-    added += 1;
-  }
-
-  try {
-    await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
-    await execute(connectionString, "UPDATE movieseries SET tmdbid = $1 WHERE id = $2", [collectionId, seriesId]);
-  } catch {
-    // Older catalogs can still match series by title.
-  }
-
-  for (const film of await filmsFromCollection(collection)) {
-    const existingId = await findMovieId(connectionString, film.title, film.year);
-    if (existingId) {
-      await linkMovieToSeries(connectionString, existingId, seriesId);
-      await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
-      continue;
-    }
-
-    const movieId = await insertMovie(connectionString, film.title, film.runtime, seriesId, film.year);
-    if (movieId) {
-      await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
-      await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
-      await invalidateSeriesCompletion(connectionString, seriesId);
-      await saveMovieKeywords(connectionString, movieId, film.tmdbId);
-    }
-    added += 1;
-  }
-
-  await refreshSeriesTotals(connectionString, seriesId);
-  await replaceSeriesKeywords(connectionString, seriesId);
-  return { added, id: `series:${seriesId}` };
-}
-
 async function importDocumentary(connectionString: string, tmdbId: number): Promise<TmdbImportResult> {
   const movie = await tmdbJson(`/movie/${tmdbId}`);
   const title = requireTitle(movie.title);
@@ -288,15 +198,6 @@ async function importShow(connectionString: string, tmdbId: number): Promise<Tmd
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
 }
 
-async function findSeriesId(connectionString: string, title: string): Promise<number | undefined> {
-  const rows = await queryRows(
-    connectionString,
-    "SELECT id FROM movieseries WHERE lower(title) = lower($1) LIMIT 1",
-    [title],
-  );
-  return asId(rows[0]);
-}
-
 async function findDocumentaryId(connectionString: string, title: string, year: number): Promise<number | undefined> {
   const rows = await queryRows(
     connectionString,
@@ -332,35 +233,6 @@ async function findShowId(
   } catch {
     return undefined;
   }
-}
-
-async function insertMovie(
-  connectionString: string,
-  title: string,
-  totalTime: number,
-  seriesId: number | undefined,
-  year: number | undefined,
-): Promise<number | undefined> {
-  const rows = await queryRows(
-    connectionString,
-    "INSERT INTO movie (title, totaltime, partofseries, seriesid, releaseyear, watched) VALUES ($1, $2, $3, $4, $5, FALSE) RETURNING id",
-    [title, totalTime, Boolean(seriesId), seriesId ?? null, year ?? 0],
-  );
-  return asId(rows[0]);
-}
-
-async function insertSeries(connectionString: string, title: string): Promise<number> {
-  const rows = await queryRows(
-    connectionString,
-    "INSERT INTO movieseries (title, totaltime, totalmovies, watched) VALUES ($1, 0, 0, FALSE) RETURNING id",
-    [title],
-  );
-  const id = asId(rows[0]);
-  if (!id) {
-    throw new TmdbError("Could not save that series.", 500);
-  }
-
-  return id;
 }
 
 async function insertDocumentary(connectionString: string, title: string, totalTime: number, year: number): Promise<number> {
@@ -427,33 +299,6 @@ async function insertShow(
   }
 
   return id;
-}
-
-async function invalidateSeriesCompletion(connectionString: string, seriesId: number): Promise<void> {
-  try {
-    await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
-  } catch {
-    // Progress table is created on first signed-in use.
-  }
-}
-
-async function linkMovieToSeries(connectionString: string, movieId: number, seriesId: number): Promise<void> {
-  await execute(
-    connectionString,
-    "UPDATE movie SET partofseries = TRUE, seriesid = $1 WHERE id = $2 AND (seriesid IS NULL OR seriesid = 0)",
-    [seriesId, movieId],
-  );
-}
-
-async function refreshSeriesTotals(connectionString: string, seriesId: number): Promise<void> {
-  await execute(
-    connectionString,
-    `UPDATE movieseries
-     SET totalmovies = (SELECT COUNT(*) FROM movie WHERE seriesid = $1),
-         totaltime = COALESCE((SELECT SUM(totaltime) FROM movie WHERE seriesid = $1), 0)
-     WHERE id = $1`,
-    [seriesId],
-  );
 }
 
 function normalizeTmdbKind(kind: string): string {

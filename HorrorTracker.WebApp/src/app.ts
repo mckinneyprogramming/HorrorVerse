@@ -49,7 +49,7 @@ import {
 import { fetchWatch, type WatchOffer } from "./watch";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
-import { syncVault } from "./sync";
+import { importHorrorVault, syncVault, type HorrorImportKind, type HorrorImportProgress } from "./sync";
 import { isLibraryTagId, keywordsMatchTag, presentLibraryTags } from "./tags";
 import {
   addFranchiseItem,
@@ -131,6 +131,9 @@ interface AppState {
   friendInbox: FriendInbox;
   socialMessage: string;
   socialBusy: boolean;
+  horrorImportKind: HorrorImportKind | null;
+  horrorImportStop: boolean;
+  horrorImportStatus: string;
 }
 
 const state: AppState = {
@@ -187,6 +190,9 @@ const state: AppState = {
   friendInbox: { friends: [], incoming: [], outgoing: [], following: [] },
   socialMessage: "",
   socialBusy: false,
+  horrorImportKind: null,
+  horrorImportStop: false,
+  horrorImportStatus: "",
 };
 
 const LIBRARY_PAGE_SIZE = 20;
@@ -580,6 +586,7 @@ export function mountApp(root: HTMLElement): void {
     }
 
     if (action === "logout") {
+      state.horrorImportStop = true;
       state.authBusy = true;
       render(root);
       await logoutAccount();
@@ -591,7 +598,25 @@ export function mountApp(root: HTMLElement): void {
       closeFranchiseSheets();
       state.authBusy = false;
       state.authMessage = "";
+      state.horrorImportKind = null;
+      state.horrorImportStatus = "";
       render(root);
+      return;
+    }
+
+    if (action === "stop-horror-import") {
+      state.horrorImportStop = true;
+      state.horrorImportStatus = "Stopping after this batch…";
+      render(root);
+      return;
+    }
+
+    if (action === "import-horror-films" || action === "import-horror-collections") {
+      if (!state.user?.isAdmin || state.horrorImportKind) {
+        return;
+      }
+
+      await runHorrorImport(root, action === "import-horror-films" ? "horror-films" : "horror-collections");
       return;
     }
 
@@ -2513,6 +2538,7 @@ function renderAccount(): string {
         </form>
         <button class="ghost-btn" type="button" data-action="logout" ${state.authBusy ? "disabled" : ""}>Sign out</button>
       </section>
+      ${state.user.isAdmin ? renderVaultImport() : ""}
       ${stats.yours ? renderStatGroup("Your nights", "Hours you've marked finished, plus the titles that linger.", stats.yours) : ""}
       ${renderPeopleSection()}
     `;
@@ -2554,6 +2580,66 @@ function renderAccount(): string {
       }</button>
     </form>
   `;
+}
+
+function renderVaultImport(): string {
+  const running = Boolean(state.horrorImportKind);
+  const busy = running ? "disabled" : "";
+  return `
+    <section class="people-panel vault-import">
+      <header class="upcoming-head">
+        <h2>Horror vault import</h2>
+        <p>Pull TMDb horror films and their collections into the shared vault, a few titles at a time.</p>
+      </header>
+      ${state.horrorImportStatus ? `<p class="status${/failed|could not/i.test(state.horrorImportStatus) ? " is-error" : ""}">${escapeHtml(state.horrorImportStatus)}</p>` : ""}
+      <div class="vault-import-actions">
+        <button class="primary-btn" type="button" data-action="import-horror-films" ${busy}>Import horror films</button>
+        <button class="primary-btn" type="button" data-action="import-horror-collections" ${busy}>Import horror collections</button>
+        ${running ? `<button class="ghost-btn" type="button" data-action="stop-horror-import">Stop</button>` : ""}
+      </div>
+    </section>
+  `;
+}
+
+async function runHorrorImport(root: HTMLElement, kind: HorrorImportKind): Promise<void> {
+  state.horrorImportKind = kind;
+  state.horrorImportStop = false;
+  state.horrorImportStatus = kind === "horror-films" ? "Importing horror films…" : "Importing horror collections…";
+  render(root);
+
+  try {
+    while (!state.horrorImportStop) {
+      const batch = await importHorrorVault(kind);
+      state.horrorImportStatus = formatHorrorImportStatus(batch);
+      if (batch.batchAdded > 0) {
+        try {
+          state.entries = await fetchCatalog();
+        } catch {
+          // Keep the last catalog if reload fails after a batch.
+        }
+      }
+
+      render(root);
+      if (batch.done) {
+        break;
+      }
+    }
+
+    if (state.horrorImportStop && state.user) {
+      state.horrorImportStatus = `${state.horrorImportStatus} Stopped.`;
+    }
+  } catch (error) {
+    state.horrorImportStatus = error instanceof Error ? error.message : "Could not import from TMDb.";
+  }
+
+  state.horrorImportKind = null;
+  state.horrorImportStop = false;
+  render(root);
+}
+
+function formatHorrorImportStatus(batch: HorrorImportProgress): string {
+  const queued = batch.queued > 0 ? ` ${batch.queued} collection${batch.queued === 1 ? "" : "s"} queued.` : "";
+  return `${batch.added} added, ${batch.skipped} already in the vault. ${batch.label}${queued}`;
 }
 
 function renderPeopleSection(): string {

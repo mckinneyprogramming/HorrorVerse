@@ -43,7 +43,20 @@ export async function findMovieId(
   connectionString: string,
   title: string,
   year: number | undefined,
+  tmdbId?: number,
 ): Promise<number | undefined> {
+  if (tmdbId && tmdbId > 0) {
+    try {
+      const byTmdb = await queryRows(connectionString, "SELECT id FROM movie WHERE tmdbid = $1 LIMIT 1", [tmdbId]);
+      const match = asId(byTmdb[0]);
+      if (match) {
+        return match;
+      }
+    } catch {
+      // tmdbid is added when keywords are first saved.
+    }
+  }
+
   const rows = await queryRows(
     connectionString,
     "SELECT id FROM movie WHERE lower(title) = lower($1) AND releaseyear = $2 LIMIT 1",

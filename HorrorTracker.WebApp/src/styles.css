@@ -969,6 +969,17 @@ code {
   line-height: 1.5;
 }
 
+.vault-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.vault-import .primary-btn {
+  margin-top: 0;
+}
+
 .dock {
   position: fixed;
   left: 0;

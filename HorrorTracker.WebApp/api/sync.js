@@ -222,9 +222,20 @@ function seriesTitle(name) {
   const trimmed = name.replace(/\s+Collection$/i, "").trim();
   return trimmed.length > 0 ? trimmed : name.trim();
 }
+function requireTitle(value) {
+  const title = String(value ?? "").trim();
+  if (title.length < 1 || title.length > 200) {
+    throw new HttpError("TMDb did not return a usable title.", 400);
+  }
+  return title;
+}
 var HORROR_ADJACENT_GENRES = /* @__PURE__ */ new Set([27, 53, 9648, 878, 14, 10765]);
+var DOCUMENTARY_GENRE = 99;
 function isHorrorAdjacent(value) {
   return Array.isArray(value) && value.some((id) => HORROR_ADJACENT_GENRES.has(Number(id)));
+}
+function isDocumentary(value) {
+  return Array.isArray(value) && value.some((id) => Number(id) === DOCUMENTARY_GENRE);
 }
 async function collectionIsHorrorAdjacent(collectionId) {
   try {
@@ -263,7 +274,17 @@ async function filmsFromCollection(collection) {
   }
   return films;
 }
-async function findMovieId(connectionString, title, year) {
+async function findMovieId(connectionString, title, year, tmdbId) {
+  if (tmdbId && tmdbId > 0) {
+    try {
+      const byTmdb = await queryRows(connectionString, "SELECT id FROM movie WHERE tmdbid = $1 LIMIT 1", [tmdbId]);
+      const match = asId(byTmdb[0]);
+      if (match) {
+        return match;
+      }
+    } catch {
+    }
+  }
   const rows = await queryRows(
     connectionString,
     "SELECT id FROM movie WHERE lower(title) = lower($1) AND releaseyear = $2 LIMIT 1",
@@ -428,6 +449,361 @@ async function hasKeywords(connectionString, kind, mediaId) {
   return Boolean(rows[0]);
 }
 
+// lib/import-tmdb.ts
+async function importMovie(connectionString, tmdbId) {
+  const movie = await tmdbJson(`/movie/${tmdbId}`);
+  const title = requireTitle(movie.title);
+  const year = yearFrom(movie.release_date);
+  const collection = asRecord(movie.belongs_to_collection);
+  const collectionId = asId(collection);
+  if (collectionId) {
+    await queueHorrorCollection(connectionString, collectionId);
+  }
+  const seriesName = collection ? seriesTitle(String(collection.name ?? "")) : "";
+  const seriesId = seriesName ? await findSeriesId(connectionString, seriesName) : void 0;
+  const existingId = await findMovieId(connectionString, title, year, tmdbId);
+  if (existingId) {
+    if (seriesId) {
+      await addMovieToListsContainingSeries(connectionString, seriesId, existingId);
+      await addMovieToFranchisesContainingSeries(connectionString, seriesId, existingId);
+    }
+    await saveMovieKeywords(connectionString, existingId, tmdbId);
+    return { added: 0, id: `movie:${existingId}` };
+  }
+  const movieId = await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
+  if (!movieId) {
+    throw new HttpError("Could not save that movie.", 500);
+  }
+  await saveMovieKeywords(connectionString, movieId, tmdbId);
+  if (seriesId) {
+    await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
+    await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
+    await invalidateSeriesCompletion(connectionString, seriesId);
+    await refreshSeriesTotals(connectionString, seriesId);
+    await replaceSeriesKeywords(connectionString, seriesId);
+  }
+  return { added: 1, id: `movie:${movieId}` };
+}
+async function importSeries(connectionString, collectionId) {
+  const collection = await tmdbJson(`/collection/${collectionId}`);
+  const title = seriesTitle(String(collection.name ?? ""));
+  if (!title) {
+    throw new HttpError("TMDb did not return a usable title.", 400);
+  }
+  let seriesId = await findSeriesId(connectionString, title);
+  let added = 0;
+  if (!seriesId) {
+    seriesId = await insertSeries(connectionString, title);
+    added += 1;
+  }
+  try {
+    await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS tmdbid INTEGER");
+    await execute(connectionString, "UPDATE movieseries SET tmdbid = $1 WHERE id = $2", [collectionId, seriesId]);
+  } catch {
+  }
+  for (const film of await filmsFromCollection(collection)) {
+    const existingId = await findMovieId(connectionString, film.title, film.year, film.tmdbId);
+    if (existingId) {
+      await linkMovieToSeries(connectionString, existingId, seriesId);
+      await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
+      continue;
+    }
+    const movieId = await insertMovie(connectionString, film.title, film.runtime, seriesId, film.year);
+    if (movieId) {
+      await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
+      await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
+      await invalidateSeriesCompletion(connectionString, seriesId);
+      await saveMovieKeywords(connectionString, movieId, film.tmdbId);
+    }
+    added += 1;
+  }
+  await refreshSeriesTotals(connectionString, seriesId);
+  await replaceSeriesKeywords(connectionString, seriesId);
+  return { added, id: `series:${seriesId}` };
+}
+async function ensureImportSchema(connectionString) {
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS catalog_import (
+        id TEXT PRIMARY KEY,
+        cursor JSONB NOT NULL,
+        added INTEGER NOT NULL DEFAULT 0,
+        skipped INTEGER NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`
+  );
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS catalog_import_collection (
+        tmdbid INTEGER PRIMARY KEY,
+        queued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        imported_at TIMESTAMPTZ
+      )`
+  );
+}
+async function queueHorrorCollection(connectionString, tmdbId) {
+  if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+    return;
+  }
+  await ensureImportSchema(connectionString);
+  await execute(
+    connectionString,
+    `INSERT INTO catalog_import_collection (tmdbid)
+     VALUES ($1)
+     ON CONFLICT (tmdbid) DO NOTHING`,
+    [tmdbId]
+  );
+}
+async function findSeriesId(connectionString, title) {
+  const rows = await queryRows(
+    connectionString,
+    "SELECT id FROM movieseries WHERE lower(title) = lower($1) LIMIT 1",
+    [title]
+  );
+  return asId(rows[0]);
+}
+async function insertMovie(connectionString, title, totalTime, seriesId, year) {
+  const rows = await queryRows(
+    connectionString,
+    "INSERT INTO movie (title, totaltime, partofseries, seriesid, releaseyear, watched) VALUES ($1, $2, $3, $4, $5, FALSE) RETURNING id",
+    [title, totalTime, Boolean(seriesId), seriesId ?? null, year ?? 0]
+  );
+  return asId(rows[0]);
+}
+async function insertSeries(connectionString, title) {
+  const rows = await queryRows(
+    connectionString,
+    "INSERT INTO movieseries (title, totaltime, totalmovies, watched) VALUES ($1, 0, 0, FALSE) RETURNING id",
+    [title]
+  );
+  const id = asId(rows[0]);
+  if (!id) {
+    throw new HttpError("Could not save that series.", 500);
+  }
+  return id;
+}
+async function invalidateSeriesCompletion(connectionString, seriesId) {
+  try {
+    await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
+  } catch {
+  }
+}
+async function linkMovieToSeries(connectionString, movieId, seriesId) {
+  await execute(
+    connectionString,
+    "UPDATE movie SET partofseries = TRUE, seriesid = $1 WHERE id = $2 AND (seriesid IS NULL OR seriesid = 0)",
+    [seriesId, movieId]
+  );
+}
+async function refreshSeriesTotals(connectionString, seriesId) {
+  await execute(
+    connectionString,
+    `UPDATE movieseries
+     SET totalmovies = (SELECT COUNT(*) FROM movie WHERE seriesid = $1),
+         totaltime = COALESCE((SELECT SUM(totaltime) FROM movie WHERE seriesid = $1), 0)
+     WHERE id = $1`,
+    [seriesId]
+  );
+}
+
+// lib/horror-import.ts
+var HORROR_GENRE = 27;
+var FILM_BATCH = 8;
+var COLLECTION_BATCH = 6;
+var WINDOW_YEARS = 5;
+var FIRST_YEAR = 1895;
+var MAX_DISCOVER_PAGE = 500;
+function filmWindows(now = /* @__PURE__ */ new Date()) {
+  const last = now.getUTCFullYear() + 1;
+  const windows = [];
+  for (let year = FIRST_YEAR; year <= last; year += WINDOW_YEARS) {
+    const end = Math.min(year + WINDOW_YEARS - 1, last);
+    windows.push({ fromYear: year, from: `${year}-01-01`, to: `${end}-12-31` });
+  }
+  return windows;
+}
+function nextFilmCursor(cursor, consumed, pageCount, resultCount, windows) {
+  const index = cursor.index + consumed;
+  if (index < resultCount) {
+    return { ...cursor, index, done: false };
+  }
+  if (cursor.page < pageCount && cursor.page < MAX_DISCOVER_PAGE) {
+    return { fromYear: cursor.fromYear, page: cursor.page + 1, index: 0, done: false };
+  }
+  const windowIndex = windows.findIndex((window) => window.fromYear === cursor.fromYear);
+  const next = windows[windowIndex + 1];
+  if (!next) {
+    return { fromYear: cursor.fromYear, page: cursor.page, index, done: true };
+  }
+  return { fromYear: next.fromYear, page: 1, index: 0, done: false };
+}
+async function importHorrorBatch(connectionString, kind) {
+  await ensureImportSchema(connectionString);
+  await ensureKeywordSchema(connectionString);
+  return kind === "horror-collections" ? importCollectionBatch(connectionString) : importFilmBatch(connectionString);
+}
+async function importFilmBatch(connectionString) {
+  const windows = filmWindows();
+  const stored = await loadCursor(connectionString, "horror-films");
+  let cursor = parseFilmCursor(stored.cursor, windows);
+  if (cursor.done) {
+    cursor = { fromYear: windows[0].fromYear, page: 1, index: 0, done: false };
+  }
+  const window = windows.find((item) => item.fromYear === cursor.fromYear) ?? windows[0];
+  const payload = await tmdbJson(
+    `/discover/movie?include_adult=false&include_video=false&language=en-US&page=${cursor.page}&sort_by=primary_release_date.asc&with_genres=${HORROR_GENRE}&primary_release_date.gte=${encodeURIComponent(window.from)}&primary_release_date.lte=${encodeURIComponent(window.to)}`
+  );
+  const results = asResults(payload).filter((item) => !isDocumentary(item.genre_ids));
+  const pageCount = Math.min(Math.max(Number(payload.total_pages) || 1, 1), MAX_DISCOVER_PAGE);
+  const slice = results.slice(cursor.index, cursor.index + FILM_BATCH);
+  let batchAdded = 0;
+  let batchSkipped = 0;
+  for (const item of slice) {
+    const tmdbId = asId(item);
+    if (!tmdbId) {
+      batchSkipped += 1;
+      continue;
+    }
+    try {
+      const imported = await importMovie(connectionString, tmdbId);
+      if (imported.added > 0) {
+        batchAdded += imported.added;
+      } else {
+        batchSkipped += 1;
+      }
+    } catch {
+      batchSkipped += 1;
+    }
+  }
+  const next = nextFilmCursor(cursor, slice.length, pageCount, results.length, windows);
+  const added = stored.added + batchAdded;
+  const skipped = stored.skipped + batchSkipped;
+  await saveCursor(connectionString, "horror-films", next, added, skipped);
+  const nextWindow = windows.find((item) => item.fromYear === next.fromYear) ?? window;
+  return {
+    import: "horror-films",
+    done: next.done,
+    added,
+    skipped,
+    batchAdded,
+    batchSkipped,
+    queued: await queuedCollectionCount(connectionString),
+    label: next.done ? "Horror films are imported." : `Films ${nextWindow.from.slice(0, 4)}\u2013${nextWindow.to.slice(0, 4)}, page ${next.page}.`
+  };
+}
+async function importCollectionBatch(connectionString) {
+  const stored = await loadCursor(connectionString, "horror-collections");
+  const rows = await queryRows(
+    connectionString,
+    "SELECT tmdbid FROM catalog_import_collection WHERE imported_at IS NULL ORDER BY queued_at, tmdbid LIMIT $1",
+    [COLLECTION_BATCH]
+  );
+  let batchAdded = 0;
+  let batchSkipped = 0;
+  for (const row of rows) {
+    const tmdbId = asId(row, "tmdbid");
+    if (!tmdbId) {
+      continue;
+    }
+    try {
+      if (!await collectionIsHorrorAdjacent(tmdbId)) {
+        batchSkipped += 1;
+        await markCollectionImported(connectionString, tmdbId);
+        continue;
+      }
+      const imported = await importSeries(connectionString, tmdbId);
+      if (imported.added > 0) {
+        batchAdded += imported.added;
+      } else {
+        batchSkipped += 1;
+      }
+    } catch {
+      batchSkipped += 1;
+    }
+    await markCollectionImported(connectionString, tmdbId);
+  }
+  const added = stored.added + batchAdded;
+  const skipped = stored.skipped + batchSkipped;
+  const remaining = await queuedCollectionCount(connectionString);
+  const done = remaining < 1;
+  await saveCursor(connectionString, "horror-collections", { done }, added, skipped);
+  return {
+    import: "horror-collections",
+    done,
+    added,
+    skipped,
+    batchAdded,
+    batchSkipped,
+    queued: remaining,
+    label: done ? "Horror collections are imported." : `${remaining} collection${remaining === 1 ? "" : "s"} still queued.`
+  };
+}
+async function queuedCollectionCount(connectionString) {
+  const rows = await queryRows(
+    connectionString,
+    "SELECT COUNT(*)::int AS count FROM catalog_import_collection WHERE imported_at IS NULL"
+  );
+  return Number(rows[0]?.count) || 0;
+}
+async function markCollectionImported(connectionString, tmdbId) {
+  await execute(
+    connectionString,
+    "UPDATE catalog_import_collection SET imported_at = NOW() WHERE tmdbid = $1",
+    [tmdbId]
+  );
+}
+async function loadCursor(connectionString, id) {
+  const rows = await queryRows(connectionString, "SELECT cursor, added, skipped FROM catalog_import WHERE id = $1", [id]);
+  const row = rows[0];
+  if (!row) {
+    return { cursor: {}, added: 0, skipped: 0 };
+  }
+  return {
+    cursor: asCursor(row.cursor),
+    added: Number(row.added) || 0,
+    skipped: Number(row.skipped) || 0
+  };
+}
+async function saveCursor(connectionString, id, cursor, added, skipped) {
+  await execute(
+    connectionString,
+    `INSERT INTO catalog_import (id, cursor, added, skipped, updated_at)
+     VALUES ($1, $2::jsonb, $3, $4, NOW())
+     ON CONFLICT (id) DO UPDATE SET cursor = EXCLUDED.cursor, added = EXCLUDED.added, skipped = EXCLUDED.skipped, updated_at = NOW()`,
+    [id, JSON.stringify(cursor), added, skipped]
+  );
+}
+function asCursor(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+function parseFilmCursor(cursor, windows) {
+  const fromYear = Number(cursor.fromYear);
+  const page = Number(cursor.page);
+  const index = Number(cursor.index);
+  if (!windows.some((window) => window.fromYear === fromYear) || !Number.isInteger(page) || page < 1) {
+    return { fromYear: windows[0].fromYear, page: 1, index: 0, done: false };
+  }
+  return {
+    fromYear,
+    page,
+    index: Number.isInteger(index) && index > 0 ? index : 0,
+    done: Boolean(cursor.done)
+  };
+}
+
 // api-src/sync.ts
 var runtime = "nodejs";
 var maxDuration = 60;
@@ -458,6 +834,23 @@ async function GET(request) {
     return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged });
   } catch (error) {
     return jsonError(error, { log: "Vault sync failed.", fallback: "Could not refresh the vault from TMDb." });
+  }
+}
+async function POST(request) {
+  try {
+    const connectionString = requireDatabaseUrl();
+    const user = await requireSessionUser(request, connectionString);
+    if (!user.isAdmin) {
+      throw new SyncError("Only the administrator can import the horror vault.", 403);
+    }
+    const body = await request.json().catch(() => ({}));
+    const kind = body.import === "horror-films" || body.import === "horror-collections" ? body.import : void 0;
+    if (!kind) {
+      throw new SyncError("Choose horror-films or horror-collections.", 400);
+    }
+    return Response.json(await importHorrorBatch(connectionString, kind));
+  } catch (error) {
+    return jsonError(error, { log: "Horror import failed.", fallback: "Could not import horror titles from TMDb." });
   }
 }
 async function syncOne(connectionString, id) {
@@ -543,7 +936,7 @@ async function syncSeries(connectionString, seriesId) {
     if (movieId) {
       await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
-      await invalidateSeriesCompletion(connectionString, seriesId);
+      await invalidateSeriesCompletion2(connectionString, seriesId);
       await saveMovieKeywords(connectionString, movieId, film.tmdbId);
       added += 1;
     }
@@ -664,7 +1057,7 @@ async function markVaultSynced(connectionString) {
      ON CONFLICT (id) DO UPDATE SET last_synced_at = EXCLUDED.last_synced_at`
   );
 }
-async function invalidateSeriesCompletion(connectionString, seriesId) {
+async function invalidateSeriesCompletion2(connectionString, seriesId) {
   try {
     await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
   } catch {
@@ -779,6 +1172,7 @@ var SyncError = class extends HttpError {
 };
 export {
   GET,
+  POST,
   maxDuration,
   runtime
 };

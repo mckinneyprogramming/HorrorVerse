@@ -17,6 +17,7 @@ import {
   saveMovieKeywords,
   saveShowKeywords,
 } from "../lib/keywords";
+import { importHorrorBatch } from "../lib/horror-import";
 import {
   execute,
   HttpError,
@@ -65,6 +66,26 @@ export async function GET(request: Request) {
     return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged });
   } catch (error) {
     return jsonError(error, { log: "Vault sync failed.", fallback: "Could not refresh the vault from TMDb." });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const connectionString = requireDatabaseUrl();
+    const user = await requireSessionUser(request, connectionString);
+    if (!user.isAdmin) {
+      throw new SyncError("Only the administrator can import the horror vault.", 403);
+    }
+
+    const body = (await request.json().catch(() => ({}))) as { import?: string };
+    const kind = body.import === "horror-films" || body.import === "horror-collections" ? body.import : undefined;
+    if (!kind) {
+      throw new SyncError("Choose horror-films or horror-collections.", 400);
+    }
+
+    return Response.json(await importHorrorBatch(connectionString, kind));
+  } catch (error) {
+    return jsonError(error, { log: "Horror import failed.", fallback: "Could not import horror titles from TMDb." });
   }
 }
 
