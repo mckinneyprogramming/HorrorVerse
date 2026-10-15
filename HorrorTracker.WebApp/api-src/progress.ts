@@ -28,17 +28,11 @@ export async function PATCH(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
-    const body = (await request.json().catch(() => ({}))) as { id?: string; completed?: boolean };
+    const body = (await request.json().catch(() => ({}))) as { id?: string; completed?: boolean; dated?: boolean };
     const { kind, mediaId } = parseCatalogId(body.id, LIBRARY_MEDIA_KINDS);
+    const dated = body.dated !== false;
     if (body.completed) {
-      await execute(
-        connectionString,
-        `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (user_id, media_kind, media_id)
-         DO UPDATE SET completed_at = EXCLUDED.completed_at`,
-        [user.id, kind, mediaId],
-      );
+      await upsertProgress(connectionString, user.id, kind, mediaId, dated);
     } else {
       await execute(
         connectionString,
@@ -48,9 +42,9 @@ export async function PATCH(request: Request) {
     }
 
     if (kind === "series") {
-      await cascadeSeriesMovies(connectionString, user.id, mediaId, Boolean(body.completed));
+      await cascadeSeriesMovies(connectionString, user.id, mediaId, Boolean(body.completed), dated);
     } else if (kind === "movie") {
-      await syncSeriesForMovie(connectionString, user.id, mediaId);
+      await syncSeriesForMovie(connectionString, user.id, mediaId, dated);
     }
 
     return Response.json(await loadProgress(connectionString, user));
@@ -59,18 +53,41 @@ export async function PATCH(request: Request) {
   }
 }
 
-async function cascadeSeriesMovies(connectionString: string, userId: number, seriesId: number, completed: boolean): Promise<void> {
+async function upsertProgress(
+  connectionString: string,
+  userId: number,
+  kind: string,
+  mediaId: number,
+  dated: boolean,
+): Promise<void> {
+  await execute(
+    connectionString,
+    `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+     VALUES ($1, $2, $3, CASE WHEN $4 THEN NOW() ELSE NULL END)
+     ON CONFLICT (user_id, media_kind, media_id)
+     DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+    [userId, kind, mediaId, dated],
+  );
+}
+
+async function cascadeSeriesMovies(
+  connectionString: string,
+  userId: number,
+  seriesId: number,
+  completed: boolean,
+  dated: boolean,
+): Promise<void> {
   try {
     if (completed) {
       await execute(
         connectionString,
         `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-         SELECT $1, 'movie', id, NOW()
+         SELECT $1, 'movie', id, CASE WHEN $3 THEN NOW() ELSE NULL END
          FROM movie
          WHERE seriesid = $2
          ON CONFLICT (user_id, media_kind, media_id)
          DO UPDATE SET completed_at = EXCLUDED.completed_at`,
-        [userId, seriesId],
+        [userId, seriesId, dated],
       );
       return;
     }
@@ -88,7 +105,7 @@ async function cascadeSeriesMovies(connectionString: string, userId: number, ser
   }
 }
 
-async function syncSeriesForMovie(connectionString: string, userId: number, movieId: number): Promise<void> {
+async function syncSeriesForMovie(connectionString: string, userId: number, movieId: number, dated: boolean): Promise<void> {
   try {
     const seriesId = asId((await queryRows(connectionString, "SELECT seriesid FROM movie WHERE id = $1", [movieId]))[0], "seriesid");
     if (!seriesId) {
@@ -107,14 +124,7 @@ async function syncSeriesForMovie(connectionString: string, userId: number, movi
     const total = Number(rows[0]?.total) || 0;
     const finished = Number(rows[0]?.finished) || 0;
     if (total > 0 && finished >= total) {
-      await execute(
-        connectionString,
-        `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-         VALUES ($1, 'series', $2, NOW())
-         ON CONFLICT (user_id, media_kind, media_id)
-         DO UPDATE SET completed_at = EXCLUDED.completed_at`,
-        [userId, seriesId],
-      );
+      await upsertProgress(connectionString, userId, "series", seriesId, dated);
       return;
     }
 
@@ -131,17 +141,17 @@ async function syncSeriesForMovie(connectionString: string, userId: number, movi
 async function loadProgress(
   connectionString: string,
   user: SessionUser,
-): Promise<{ ids: string[]; recentIds: string[] }> {
+): Promise<{ ids: string[]; recentIds: string[]; undatedIds: string[] }> {
   await seedAdminProgressIfNeeded(connectionString, user);
   const rows = await queryRows(
     connectionString,
-    "SELECT media_kind, media_id FROM user_media_progress WHERE user_id = $1",
+    "SELECT media_kind, media_id, completed_at FROM user_media_progress WHERE user_id = $1",
     [user.id],
   );
   const recent = await queryRows(
     connectionString,
     `SELECT media_kind, media_id FROM user_media_progress
-     WHERE user_id = $1
+     WHERE user_id = $1 AND completed_at IS NOT NULL
      ORDER BY completed_at DESC, media_kind, media_id
      LIMIT 8`,
     [user.id],
@@ -149,6 +159,7 @@ async function loadProgress(
   return {
     ids: rows.map(progressId),
     recentIds: recent.map(progressId),
+    undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
   };
 }
 

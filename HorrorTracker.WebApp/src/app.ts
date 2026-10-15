@@ -19,7 +19,7 @@ import {
   updateProfile,
   type AuthUser,
 } from "./auth";
-import { fetchProgress, setProgress, type UserProgress } from "./progress";
+import { canMarkEarlier, fetchProgress, setProgress, type UserProgress } from "./progress";
 import { shareStoryImage } from "./share";
 import {
   finishedTitleCount,
@@ -106,6 +106,7 @@ interface AppState {
   libraryPages: Record<string, number>;
   finishedIds: string[];
   recentIds: string[];
+  undatedIds: string[];
   shareBusy: boolean;
   shareMessage: string;
   shareError: boolean;
@@ -169,6 +170,7 @@ const state: AppState = {
   libraryPages: {},
   finishedIds: [],
   recentIds: [],
+  undatedIds: [],
   shareBusy: false,
   shareMessage: "",
   shareError: false,
@@ -609,6 +611,7 @@ export function mountApp(root: HTMLElement): void {
       state.user = null;
       state.finishedIds = [];
       state.recentIds = [];
+      state.undatedIds = [];
       state.shareMessage = "";
       state.shareError = false;
       state.lists = [];
@@ -655,6 +658,25 @@ export function mountApp(root: HTMLElement): void {
       }
 
       await shareFinishedRecap(root);
+      return;
+    }
+
+    if (action === "mark-earlier") {
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      if (!state.user || !entry || state.catalogBusy || !canMarkEarlier(state.undatedIds, entry.id)) {
+        return;
+      }
+
+      await saveUserLibrary(root, async () => {
+        if (entry.kind === "show") {
+          const guide = await setShowProgress(entry.mediaId, true, { dated: false });
+          state.showGuides[guide.showId] = guide;
+          applyProgress(await fetchProgress());
+          return;
+        }
+
+        applyProgress(await setProgress(entry.id, true, { dated: false }));
+      });
       return;
     }
 
@@ -1430,6 +1452,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
   if (!state.user) {
     state.finishedIds = [];
     state.recentIds = [];
+    state.undatedIds = [];
     state.lists = [];
     state.listPicker = null;
     state.franchiseListPicker = null;
@@ -1447,6 +1470,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     } catch {
       state.finishedIds = [];
       state.recentIds = [];
+      state.undatedIds = [];
       state.lists = [];
     }
 
@@ -2977,6 +3001,7 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
         <button class="ghost-btn" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${done ? "Unmark show" : "Mark show"}</button>
         ${renderWatchButton(entry)}
         ${renderShareButton(entry)}
+        ${renderEarlierButton(entry)}
         ${
           options.listId === undefined
             ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -3095,6 +3120,7 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franc
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>
       ${renderWatchButton(entry)}
       ${renderShareButton(entry)}
+      ${renderEarlierButton(entry)}
       ${
         signedIn
           ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" aria-label="Add ${escapeHtml(entry.title)} to a list" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -3477,6 +3503,7 @@ function isFinished(entry: CatalogEntry): boolean {
 function applyProgress(progress: UserProgress): void {
   state.finishedIds = progress.ids;
   state.recentIds = progress.recentIds;
+  state.undatedIds = progress.undatedIds;
 }
 
 function renderShareButton(entry: CatalogEntry): string {
@@ -3485,6 +3512,18 @@ function renderShareButton(entry: CatalogEntry): string {
   }
 
   return `<button class="entry-watch entry-share" type="button" data-action="share-title" data-id="${escapeHtml(entry.id)}" aria-label="Share ${escapeHtml(entry.title)} to Instagram Stories" ${state.shareBusy || state.catalogBusy ? "disabled" : ""}>Share</button>`;
+}
+
+function renderEarlierButton(entry: CatalogEntry): string {
+  if (!state.user || !canMarkEarlier(state.undatedIds, entry.id)) {
+    return "";
+  }
+
+  const label = isFinished(entry) ? "No date" : "Before";
+  const hint = isFinished(entry)
+    ? `Forget the watch date for ${entry.title} so it is not recent`
+    : `Mark ${entry.title} as watched earlier, without a date`;
+  return `<button class="entry-watch" type="button" data-action="mark-earlier" data-id="${escapeHtml(entry.id)}" aria-label="${escapeHtml(hint)}" ${state.catalogBusy ? "disabled" : ""}>${label}</button>`;
 }
 
 function renderShareStatus(): string {

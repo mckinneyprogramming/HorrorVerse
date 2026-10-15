@@ -41,11 +41,21 @@ export async function setSeasonProgress(seasonId: number, completed: boolean): P
   return writeGuide({ seasonId, completed });
 }
 
-export async function setShowProgress(showId: number, completed: boolean): Promise<ShowGuide> {
-  return writeGuide({ id: `show:${showId}`, completed });
+export async function setShowProgress(
+  showId: number,
+  completed: boolean,
+  options: { dated?: boolean } = {},
+): Promise<ShowGuide> {
+  return writeGuide({ id: `show:${showId}`, completed, dated: options.dated !== false });
 }
 
-async function writeGuide(body: { id?: string; episodeId?: number; seasonId?: number; completed: boolean }): Promise<ShowGuide> {
+async function writeGuide(body: {
+  id?: string;
+  episodeId?: number;
+  seasonId?: number;
+  completed: boolean;
+  dated?: boolean;
+}): Promise<ShowGuide> {
   const response = await fetch("/api/shows", {
     method: "PATCH",
     headers: { "content-type": "application/json" },

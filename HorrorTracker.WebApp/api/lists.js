@@ -98,6 +98,7 @@ async function ensureUserLibrarySchema(connectionString) {
         PRIMARY KEY (user_id, media_kind, media_id)
       )`
   );
+  await execute(connectionString, "ALTER TABLE user_media_progress ALTER COLUMN completed_at DROP NOT NULL");
   await execute(
     connectionString,
     `CREATE TABLE IF NOT EXISTS user_list (

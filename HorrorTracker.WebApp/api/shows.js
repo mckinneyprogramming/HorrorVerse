@@ -288,6 +288,7 @@ async function PATCH(request) {
     await ensureSchema(connectionString);
     const body = await request.json().catch(() => ({}));
     const completed = Boolean(body.completed);
+    const dated = body.dated !== false;
     let showId;
     if (Number.isInteger(body.episodeId) && (body.episodeId ?? 0) > 0) {
       showId = await getEpisodeShowId(connectionString, Number(body.episodeId));
@@ -307,7 +308,7 @@ async function PATCH(request) {
     } else {
       throw new ShowError("Choose a show, season, or episode to mark.", 400);
     }
-    await syncShowProgress(connectionString, userId, showId);
+    await syncShowProgress(connectionString, userId, showId, dated);
     return Response.json(await loadGuide(connectionString, userId, showId));
   } catch (error) {
     return jsonError(error, { log: "Show guide request failed.", fallback: "Could not load that show." });
@@ -581,7 +582,7 @@ async function setSeasonCompleted(connectionString, userId, seasonId, completed)
     [userId, seasonId]
   );
 }
-async function syncShowProgress(connectionString, userId, showId) {
+async function syncShowProgress(connectionString, userId, showId, dated = true) {
   const rows = await queryRows(
     connectionString,
     `SELECT
@@ -602,10 +603,10 @@ async function syncShowProgress(connectionString, userId, showId) {
     await execute(
       connectionString,
       `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-       VALUES ($1, 'show', $2, NOW())
+       VALUES ($1, 'show', $2, CASE WHEN $3 THEN NOW() ELSE NULL END)
        ON CONFLICT (user_id, media_kind, media_id)
        DO UPDATE SET completed_at = EXCLUDED.completed_at`,
-      [userId, showId]
+      [userId, showId, dated]
     );
     return;
   }
