@@ -903,9 +903,10 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         EnsureShowTable();
         var posters = new Dictionary<string, string>(StringComparer.Ordinal);
         var tmdb = CreateClient();
+        var deadline = DateTime.UtcNow.AddSeconds(8);
         foreach (var id in recentIds)
         {
-            if (cancellationToken.IsCancellationRequested)
+            if (cancellationToken.IsCancellationRequested || DateTime.UtcNow >= deadline)
             {
                 break;
             }

@@ -309,38 +309,33 @@ async function applyPosterSchema(connectionString) {
   } catch {
   }
 }
-async function postersForRecentProgress(connectionString, userId) {
-  if (!Number.isInteger(userId) || userId < 1) {
+var HOME_POSTER_BUDGET_MS = 8e3;
+var HOME_POSTER_CHUNK = 3;
+async function postersForCatalogIds(connectionString, ids, budgetMs = HOME_POSTER_BUDGET_MS) {
+  const unique = [...new Set(ids)].filter((id) => id.includes(":"));
+  if (unique.length < 1) {
     return {};
   }
   await ensurePosterSchema(connectionString);
-  let rows = [];
-  try {
-    rows = await queryRows(
-      connectionString,
-      `SELECT media_kind, media_id FROM user_media_progress
-       WHERE user_id = $1 AND completed_at IS NOT NULL
-       ORDER BY completed_at DESC, media_kind, media_id
-       LIMIT 8`,
-      [userId]
-    );
-  } catch {
-    return {};
-  }
+  const deadline = Date.now() + Math.max(budgetMs, 0);
   const posters = {};
-  await Promise.all(
-    rows.map(async (row) => {
-      const kind = String(row.media_kind ?? "");
-      const mediaId = asId(row, "media_id");
-      if (!mediaId) {
-        return;
-      }
-      const path = await ensurePoster(connectionString, kind, mediaId);
-      if (path) {
-        posters[`${kind}:${mediaId}`] = path;
-      }
-    })
-  );
+  for (let index = 0; index < unique.length; index += HOME_POSTER_CHUNK) {
+    if (Date.now() >= deadline) {
+      break;
+    }
+    const chunk = unique.slice(index, index + HOME_POSTER_CHUNK);
+    await Promise.all(
+      chunk.map(async (id) => {
+        const separator = id.indexOf(":");
+        const kind = id.slice(0, separator);
+        const mediaId = Number(id.slice(separator + 1));
+        const path = await ensurePoster(connectionString, kind, mediaId);
+        if (path) {
+          posters[id] = path;
+        }
+      })
+    );
+  }
   return posters;
 }
 async function ensurePoster(connectionString, kind, mediaId) {
@@ -827,13 +822,21 @@ async function loadProgress(connectionString, user) {
     }
   }
   const recentIds = recent.map(progressId);
+  const watchNext = await loadWatchNext(connectionString, user.id).catch(() => []);
+  const homePosters = await postersForCatalogIds(connectionString, [
+    ...recentIds,
+    ...watchNext.map((item) => item.id)
+  ]);
   return {
     ids: rows.map(progressId),
     recentIds,
     undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
     watchedYears,
-    recentPosters: await postersForRecentProgress(connectionString, user.id),
-    watchNext: await loadWatchNext(connectionString, user.id).catch(() => [])
+    recentPosters: Object.fromEntries(recentIds.flatMap((id) => homePosters[id] ? [[id, homePosters[id]]] : [])),
+    watchNext: watchNext.map((item) => {
+      const posterPath = item.posterPath ?? homePosters[item.id];
+      return posterPath && !item.posterPath ? { ...item, posterPath } : item;
+    })
   };
 }
 function progressId(row) {

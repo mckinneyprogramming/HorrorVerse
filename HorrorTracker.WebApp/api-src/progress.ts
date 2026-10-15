@@ -3,7 +3,7 @@ export const maxDuration = 30;
 
 import { LIBRARY_MEDIA_KINDS, parseCatalogId } from "../lib/catalog-id";
 import { parseWatchYear, watchTimestamp, yearFromCompletedAt } from "../lib/watch-year";
-import { postersForRecentProgress } from "../lib/poster";
+import { postersForCatalogIds } from "../lib/poster";
 import { loadWatchNext, type WatchNextItem } from "../lib/watch-next";
 import { asId } from "../lib/tmdb";
 import {
@@ -205,13 +205,21 @@ async function loadProgress(
   }
 
   const recentIds = recent.map(progressId);
+  const watchNext = await loadWatchNext(connectionString, user.id).catch(() => []);
+  const homePosters = await postersForCatalogIds(connectionString, [
+    ...recentIds,
+    ...watchNext.map((item) => item.id),
+  ]);
   return {
     ids: rows.map(progressId),
     recentIds,
     undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
     watchedYears,
-    recentPosters: await postersForRecentProgress(connectionString, user.id),
-    watchNext: await loadWatchNext(connectionString, user.id).catch(() => []),
+    recentPosters: Object.fromEntries(recentIds.flatMap((id) => (homePosters[id] ? [[id, homePosters[id]]] : []))),
+    watchNext: watchNext.map((item) => {
+      const posterPath = item.posterPath ?? homePosters[item.id];
+      return posterPath && !item.posterPath ? { ...item, posterPath } : item;
+    }),
   };
 }
 

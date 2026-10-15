@@ -126,6 +126,9 @@ export async function fillMissingPosters(connectionString: string, budgetMs = 18
   return filled;
 }
 
+const HOME_POSTER_BUDGET_MS = 8_000;
+const HOME_POSTER_CHUNK = 3;
+
 export async function postersForRecentProgress(
   connectionString: string,
   userId: number,
@@ -134,7 +137,6 @@ export async function postersForRecentProgress(
     return {};
   }
 
-  await ensurePosterSchema(connectionString);
   let rows: Record<string, unknown>[] = [];
   try {
     rows = await queryRows(
@@ -149,21 +151,43 @@ export async function postersForRecentProgress(
     return {};
   }
 
-  const posters: Record<string, string> = {};
-  await Promise.all(
-    rows.map(async (row) => {
-      const kind = String(row.media_kind ?? "");
-      const mediaId = asId(row, "media_id");
-      if (!mediaId) {
-        return;
-      }
-
-      const path = await ensurePoster(connectionString, kind, mediaId);
-      if (path) {
-        posters[`${kind}:${mediaId}`] = path;
-      }
-    }),
+  return postersForCatalogIds(
+    connectionString,
+    rows.map((row) => `${String(row.media_kind)}:${Number(row.media_id)}`),
   );
+}
+
+export async function postersForCatalogIds(
+  connectionString: string,
+  ids: readonly string[],
+  budgetMs = HOME_POSTER_BUDGET_MS,
+): Promise<Record<string, string>> {
+  const unique = [...new Set(ids)].filter((id) => id.includes(":"));
+  if (unique.length < 1) {
+    return {};
+  }
+
+  await ensurePosterSchema(connectionString);
+  const deadline = Date.now() + Math.max(budgetMs, 0);
+  const posters: Record<string, string> = {};
+  for (let index = 0; index < unique.length; index += HOME_POSTER_CHUNK) {
+    if (Date.now() >= deadline) {
+      break;
+    }
+
+    const chunk = unique.slice(index, index + HOME_POSTER_CHUNK);
+    await Promise.all(
+      chunk.map(async (id) => {
+        const separator = id.indexOf(":");
+        const kind = id.slice(0, separator);
+        const mediaId = Number(id.slice(separator + 1));
+        const path = await ensurePoster(connectionString, kind, mediaId);
+        if (path) {
+          posters[id] = path;
+        }
+      }),
+    );
+  }
 
   return posters;
 }

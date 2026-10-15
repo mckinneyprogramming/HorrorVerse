@@ -83,14 +83,16 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         }
 
         var recentIds = dated.OrderByDescending(item => item.At).ThenBy(item => item.Id).Take(8).Select(item => item.Id).ToList();
-        Dictionary<string, string> recentPosters;
+        var watchNext = LoadWatchNextSafe(userId);
+        var homeIds = recentIds.Concat(watchNext.Select(item => item.Id)).Distinct(StringComparer.Ordinal).ToList();
+        Dictionary<string, string> homePosters;
         try
         {
-            recentPosters = tmdb.PostersForRecentAsync(recentIds, CancellationToken.None).GetAwaiter().GetResult();
+            homePosters = tmdb.PostersForRecentAsync(homeIds, CancellationToken.None).GetAwaiter().GetResult();
         }
         catch
         {
-            recentPosters = [];
+            homePosters = [];
         }
 
         return new
@@ -99,12 +101,20 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             recentIds,
             undatedIds,
             watchedYears,
-            recentPosters,
-            watchNext = LoadWatchNextSafe(userId)
+            recentPosters = recentIds.Where(homePosters.ContainsKey).ToDictionary(id => id, id => homePosters[id]),
+            watchNext = watchNext.Select(item => (object)new
+            {
+                id = item.Id,
+                title = item.Title,
+                kind = item.Kind,
+                reason = item.Reason,
+                detail = item.Detail,
+                posterPath = item.PosterPath ?? (homePosters.TryGetValue(item.Id, out var path) ? path : null)
+            }).ToList()
         };
     }
 
-    private List<object> LoadWatchNextSafe(int userId)
+    private List<WatchNextPick> LoadWatchNextSafe(int userId)
     {
         try
         {
@@ -116,7 +126,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         }
     }
 
-    private List<object> LoadWatchNext(int userId)
+    private List<WatchNextPick> LoadWatchNext(int userId)
     {
         var picked = new List<WatchNextPick>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -137,16 +147,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         Add(LoadNextSeriesMovies(userId));
         Add(LoadListedUnfinished(userId));
         Add(ShuffleWatchNext(LoadVaultUnfinished(userId), userId));
-
-        return picked.Select(item => (object)new
-        {
-            id = item.Id,
-            title = item.Title,
-            kind = item.Kind,
-            reason = item.Reason,
-            detail = item.Detail,
-            posterPath = item.PosterPath
-        }).ToList();
+        return picked;
     }
 
     private List<WatchNextPick> LoadNextEpisodes(int userId)
