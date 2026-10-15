@@ -319,10 +319,10 @@ async function loadMissingPosterRows(connectionString, kind, table) {
       `SELECT t.id, t.tmdbid FROM ${table} t
        WHERE t.tmdbid IS NOT NULL
          AND (t.posterpath IS NULL OR t.posterpath = '')
-       ORDER BY EXISTS (
-         SELECT 1 FROM user_media_progress p
+       ORDER BY (
+         SELECT MAX(p.completed_at) FROM user_media_progress p
          WHERE p.media_kind = $2 AND p.media_id = t.id
-       ) DESC, t.id
+       ) DESC NULLS LAST, t.id
        LIMIT $1`,
       [POSTER_BATCH, kind]
     );

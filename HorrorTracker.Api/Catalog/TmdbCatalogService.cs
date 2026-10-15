@@ -869,6 +869,98 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         command.ExecuteNonQuery();
     }
 
+    public async Task<Dictionary<string, string>> PostersForRecentAsync(IReadOnlyList<string> recentIds, CancellationToken cancellationToken)
+    {
+        EnsureSeriesSchema();
+        EnsureShowTable();
+        var posters = new Dictionary<string, string>(StringComparer.Ordinal);
+        var tmdb = CreateClient();
+        foreach (var id in recentIds)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            var parts = id.Split(':', 2);
+            if (parts.Length != 2 || parts[0] is "series" || !int.TryParse(parts[1], out var mediaId) || mediaId < 1)
+            {
+                continue;
+            }
+
+            var kind = parts[0];
+            var table = kind switch
+            {
+                "movie" => "Movie",
+                "documentary" => "Documentary",
+                "show" => "Show",
+                _ => null,
+            };
+            if (table is null)
+            {
+                continue;
+            }
+
+            var (tmdbId, existing) = ReadTmdbAndPoster(table, mediaId);
+            if (IsPosterPath(existing))
+            {
+                posters[id] = existing!.Trim();
+                continue;
+            }
+
+            if (tmdbId is not > 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                var path = kind == "show"
+                    ? (await tmdb.GetTvShow(tmdbId.Value)).PosterPath
+                    : (await tmdb.GetMovie(tmdbId.Value)).PosterPath;
+                if (IsPosterPath(path))
+                {
+                    SavePoster(kind, mediaId, path);
+                    posters[id] = path!.Trim();
+                }
+                else
+                {
+                    WritePosterValue(kind, mediaId, "-");
+                }
+            }
+            catch
+            {
+                // Recents still render titles if one poster cannot be matched.
+            }
+        }
+
+        return posters;
+    }
+
+    private (int? TmdbId, string? PosterPath) ReadTmdbAndPoster(string table, int mediaId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT TmdbId, PosterPath FROM {table} WHERE Id = @id";
+            command.Parameters.AddWithValue("id", mediaId);
+            using var reader = command.ExecuteReader();
+            if (!reader.Read())
+            {
+                return (null, null);
+            }
+
+            return (
+                reader.IsDBNull(0) ? null : reader.GetInt32(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1));
+        }
+        catch (PostgresException)
+        {
+            return (null, null);
+        }
+    }
+
     private async Task<int> FillMissingPostersAsync(CancellationToken cancellationToken)
     {
         EnsureSeriesSchema();
@@ -933,10 +1025,10 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
                 SELECT t.Id, t.TmdbId FROM {table} t
                 WHERE t.TmdbId IS NOT NULL
                   AND (t.PosterPath IS NULL OR t.PosterPath = '')
-                ORDER BY EXISTS (
-                  SELECT 1 FROM user_media_progress p
+                ORDER BY (
+                  SELECT MAX(p.completed_at) FROM user_media_progress p
                   WHERE p.media_kind = @kind AND p.media_id = t.Id
-                ) DESC, t.Id
+                ) DESC NULLS LAST, t.Id
                 LIMIT 48
                 """,
                 kind);

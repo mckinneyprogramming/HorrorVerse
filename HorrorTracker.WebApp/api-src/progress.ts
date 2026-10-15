@@ -3,6 +3,7 @@ export const maxDuration = 30;
 
 import { LIBRARY_MEDIA_KINDS, parseCatalogId } from "../lib/catalog-id";
 import { parseWatchYear, watchTimestamp, yearFromCompletedAt } from "../lib/watch-year";
+import { postersForRecentProgress } from "../lib/poster";
 import { asId } from "../lib/tmdb";
 import {
   ensureUserLibrarySchema,
@@ -172,7 +173,13 @@ async function syncSeriesForMovie(
 async function loadProgress(
   connectionString: string,
   user: SessionUser,
-): Promise<{ ids: string[]; recentIds: string[]; undatedIds: string[]; watchedYears: Record<string, number> }> {
+): Promise<{
+  ids: string[];
+  recentIds: string[];
+  undatedIds: string[];
+  watchedYears: Record<string, number>;
+  recentPosters: Record<string, string>;
+}> {
   await seedAdminProgressIfNeeded(connectionString, user);
   const rows = await queryRows(
     connectionString,
@@ -195,11 +202,13 @@ async function loadProgress(
     }
   }
 
+  const recentIds = recent.map(progressId);
   return {
     ids: rows.map(progressId),
-    recentIds: recent.map(progressId),
+    recentIds,
     undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
     watchedYears,
+    recentPosters: await postersForRecentProgress(connectionString, user.id),
   };
 }
 

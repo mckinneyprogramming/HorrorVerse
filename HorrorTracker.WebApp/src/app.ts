@@ -107,6 +107,7 @@ interface AppState {
   libraryPages: Record<string, number>;
   finishedIds: string[];
   recentIds: string[];
+  recentPosters: Record<string, string>;
   undatedIds: string[];
   watchedYears: Record<string, number>;
   whenPicker: CatalogEntry | null;
@@ -173,6 +174,7 @@ const state: AppState = {
   libraryPages: {},
   finishedIds: [],
   recentIds: [],
+  recentPosters: {},
   undatedIds: [],
   watchedYears: {},
   whenPicker: null,
@@ -616,6 +618,7 @@ export function mountApp(root: HTMLElement): void {
       state.user = null;
       state.finishedIds = [];
       state.recentIds = [];
+      state.recentPosters = {};
       state.undatedIds = [];
       state.watchedYears = {};
       state.whenPicker = null;
@@ -1492,6 +1495,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
   if (!state.user) {
     state.finishedIds = [];
     state.recentIds = [];
+    state.recentPosters = {};
     state.undatedIds = [];
     state.watchedYears = {};
     state.whenPicker = null;
@@ -1512,6 +1516,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     } catch {
       state.finishedIds = [];
       state.recentIds = [];
+      state.recentPosters = {};
       state.undatedIds = [];
       state.watchedYears = {};
       state.lists = [];
@@ -1862,12 +1867,12 @@ function renderHomeRecents(): string {
       <div class="home-recents-strip">
         ${recents
           .map((entry) => {
-            const art = posterUrl(entry.posterPath, "w185");
+            const art = posterUrl(entry.posterPath ?? state.recentPosters[entry.id], "w185");
             return `
               <button class="home-recent" type="button" data-action="stat-open" data-query="${escapeHtml(entry.title)}" aria-label="${escapeHtml(entry.title)}">
                 ${
                   art
-                    ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" loading="lazy" referrerpolicy="no-referrer" />`
+                    ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" decoding="async" referrerpolicy="no-referrer" />`
                     : `<span class="home-recent-fallback">${escapeHtml(entry.title)}</span>`
                 }
               </button>
@@ -3598,8 +3603,15 @@ function isFinished(entry: CatalogEntry): boolean {
 function applyProgress(progress: UserProgress): void {
   state.finishedIds = progress.ids;
   state.recentIds = progress.recentIds;
+  state.recentPosters = progress.recentPosters;
   state.undatedIds = progress.undatedIds;
   state.watchedYears = progress.watchedYears;
+  if (Object.keys(progress.recentPosters).length > 0) {
+    state.entries = state.entries.map((entry) => {
+      const posterPath = progress.recentPosters[entry.id];
+      return posterPath && !entry.posterPath ? { ...entry, posterPath } : entry;
+    });
+  }
 }
 
 async function markFinishedWhen(

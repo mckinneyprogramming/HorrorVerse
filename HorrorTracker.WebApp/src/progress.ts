@@ -1,8 +1,11 @@
+import { parsePosterPath } from "./catalog";
+
 export interface UserProgress {
   ids: string[];
   recentIds: string[];
   undatedIds: string[];
   watchedYears: Record<string, number>;
+  recentPosters: Record<string, string>;
 }
 
 export async function fetchProgress(): Promise<UserProgress> {
@@ -71,7 +74,29 @@ function readProgress(payload: unknown): UserProgress {
     recentIds: readIds(payload, "recentIds"),
     undatedIds: readIds(payload, "undatedIds"),
     watchedYears: readWatchedYears(payload),
+    recentPosters: readRecentPosters(payload),
   };
+}
+
+export function readRecentPosters(payload: unknown): Record<string, string> {
+  if (typeof payload !== "object" || payload === null || !("recentPosters" in payload)) {
+    return {};
+  }
+
+  const value = (payload as { recentPosters: unknown }).recentPosters;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {};
+  }
+
+  const posters: Record<string, string> = {};
+  for (const [id, path] of Object.entries(value)) {
+    const parsed = parsePosterPath(path);
+    if (parsed) {
+      posters[id] = parsed;
+    }
+  }
+
+  return posters;
 }
 
 function readIds(payload: unknown, key: "ids" | "recentIds" | "undatedIds"): string[] {
@@ -88,7 +113,7 @@ function readIds(payload: unknown, key: "ids" | "recentIds" | "undatedIds"): str
 }
 
 function emptyProgress(): UserProgress {
-  return { ids: [], recentIds: [], undatedIds: [], watchedYears: {} };
+  return { ids: [], recentIds: [], undatedIds: [], watchedYears: {}, recentPosters: {} };
 }
 
 async function readError(response: Response, label: string): Promise<string> {

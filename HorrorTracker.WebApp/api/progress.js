@@ -240,12 +240,135 @@ function yearFromCompletedAt(value) {
 }
 
 // lib/tmdb.ts
+var TMDB_BASE = "https://api.themoviedb.org/3";
+async function tmdbJsonOptional(path) {
+  const apiKey = process.env.TMDBKey?.trim();
+  if (!apiKey) {
+    throw new HttpError("TMDBKey is not configured.", 503);
+  }
+  try {
+    const separator = path.includes("?") ? "&" : "?";
+    const response = await fetch(`${TMDB_BASE}${path}${separator}api_key=${encodeURIComponent(apiKey)}`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new HttpError("Could not reach TMDb.", 503);
+      }
+      return null;
+    }
+    return payload;
+  } catch (error) {
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    return null;
+  }
+}
 function asId(row, key = "id") {
   return asPositiveInt(row?.[key]);
 }
 function asPositiveInt(value) {
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : void 0;
+}
+
+// lib/poster.ts
+var TABLES = {
+  movie: { table: "movie", tmdbKind: "movie" },
+  documentary: { table: "documentary", tmdbKind: "movie" },
+  show: { table: "show", tmdbKind: "tv" },
+  series: { table: "movieseries", tmdbKind: "collection" }
+};
+var NO_POSTER = "-";
+var posterSchema;
+var posterSchemaKey = "";
+function parsePosterPath(value) {
+  const path = String(value ?? "").trim();
+  if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
+    return void 0;
+  }
+  return path;
+}
+async function ensurePosterSchema(connectionString) {
+  if (!posterSchema || posterSchemaKey !== connectionString) {
+    posterSchemaKey = connectionString;
+    posterSchema = applyPosterSchema(connectionString).catch((error) => {
+      posterSchema = void 0;
+      throw error;
+    });
+  }
+  await posterSchema;
+}
+async function applyPosterSchema(connectionString) {
+  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  try {
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  } catch {
+  }
+}
+async function postersForRecentProgress(connectionString, userId) {
+  if (!Number.isInteger(userId) || userId < 1) {
+    return {};
+  }
+  await ensurePosterSchema(connectionString);
+  let rows = [];
+  try {
+    rows = await queryRows(
+      connectionString,
+      `SELECT media_kind, media_id FROM user_media_progress
+       WHERE user_id = $1 AND completed_at IS NOT NULL
+       ORDER BY completed_at DESC, media_kind, media_id
+       LIMIT 8`,
+      [userId]
+    );
+  } catch {
+    return {};
+  }
+  const posters = {};
+  await Promise.all(
+    rows.map(async (row) => {
+      const kind = String(row.media_kind ?? "");
+      const mediaId = asId(row, "media_id");
+      const target = TABLES[kind];
+      if (!mediaId || !target || kind === "series") {
+        return;
+      }
+      try {
+        const existing = await queryRows(
+          connectionString,
+          `SELECT tmdbid, posterpath FROM ${target.table} WHERE id = $1`,
+          [mediaId]
+        );
+        const current = parsePosterPath(existing[0]?.posterpath);
+        if (current) {
+          posters[`${kind}:${mediaId}`] = current;
+          return;
+        }
+        const tmdbId = asId(existing[0], "tmdbid");
+        if (!tmdbId) {
+          return;
+        }
+        const payload = await tmdbJsonOptional(`/${target.tmdbKind}/${tmdbId}`);
+        const path = parsePosterPath(payload?.poster_path);
+        await writePosterValue(connectionString, kind, mediaId, path ?? NO_POSTER);
+        if (path) {
+          posters[`${kind}:${mediaId}`] = path;
+        }
+      } catch {
+      }
+    })
+  );
+  return posters;
+}
+async function writePosterValue(connectionString, kind, mediaId, value) {
+  const target = TABLES[kind];
+  if (!target || !Number.isInteger(mediaId) || mediaId < 1) {
+    return;
+  }
+  await ensurePosterSchema(connectionString);
+  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [value, mediaId]);
 }
 
 // api-src/progress.ts
@@ -393,11 +516,13 @@ async function loadProgress(connectionString, user) {
       watchedYears[progressId(row)] = year;
     }
   }
+  const recentIds = recent.map(progressId);
   return {
     ids: rows.map(progressId),
-    recentIds: recent.map(progressId),
+    recentIds,
     undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
-    watchedYears
+    watchedYears,
+    recentPosters: await postersForRecentProgress(connectionString, user.id)
   };
 }
 function progressId(row) {

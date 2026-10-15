@@ -94,6 +94,71 @@ export async function fillMissingPosters(connectionString: string, budgetMs = 18
   return filled;
 }
 
+export async function postersForRecentProgress(
+  connectionString: string,
+  userId: number,
+): Promise<Record<string, string>> {
+  if (!Number.isInteger(userId) || userId < 1) {
+    return {};
+  }
+
+  await ensurePosterSchema(connectionString);
+  let rows: Record<string, unknown>[] = [];
+  try {
+    rows = await queryRows(
+      connectionString,
+      `SELECT media_kind, media_id FROM user_media_progress
+       WHERE user_id = $1 AND completed_at IS NOT NULL
+       ORDER BY completed_at DESC, media_kind, media_id
+       LIMIT 8`,
+      [userId],
+    );
+  } catch {
+    return {};
+  }
+
+  const posters: Record<string, string> = {};
+  await Promise.all(
+    rows.map(async (row) => {
+      const kind = String(row.media_kind ?? "");
+      const mediaId = asId(row, "media_id");
+      const target = TABLES[kind];
+      if (!mediaId || !target || kind === "series") {
+        return;
+      }
+
+      try {
+        const existing = await queryRows(
+          connectionString,
+          `SELECT tmdbid, posterpath FROM ${target.table} WHERE id = $1`,
+          [mediaId],
+        );
+        const current = parsePosterPath(existing[0]?.posterpath);
+        if (current) {
+          posters[`${kind}:${mediaId}`] = current;
+          return;
+        }
+
+        const tmdbId = asId(existing[0], "tmdbid");
+        if (!tmdbId) {
+          return;
+        }
+
+        const payload = await tmdbJsonOptional(`/${target.tmdbKind}/${tmdbId}`);
+        const path = parsePosterPath(payload?.poster_path);
+        await writePosterValue(connectionString, kind, mediaId, path ?? NO_POSTER);
+        if (path) {
+          posters[`${kind}:${mediaId}`] = path;
+        }
+      } catch {
+        // Recents still render titles if one poster cannot be matched.
+      }
+    }),
+  );
+
+  return posters;
+}
+
 async function loadMissingPosterRows(
   connectionString: string,
   kind: string,
@@ -105,10 +170,10 @@ async function loadMissingPosterRows(
       `SELECT t.id, t.tmdbid FROM ${table} t
        WHERE t.tmdbid IS NOT NULL
          AND (t.posterpath IS NULL OR t.posterpath = '')
-       ORDER BY EXISTS (
-         SELECT 1 FROM user_media_progress p
+       ORDER BY (
+         SELECT MAX(p.completed_at) FROM user_media_progress p
          WHERE p.media_kind = $2 AND p.media_id = t.id
-       ) DESC, t.id
+       ) DESC NULLS LAST, t.id
        LIMIT $1`,
       [POSTER_BATCH, kind],
     );

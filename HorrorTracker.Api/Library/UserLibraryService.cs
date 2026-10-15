@@ -4,7 +4,7 @@ using Npgsql;
 
 namespace HorrorTracker.Api.Library;
 
-public sealed class UserLibraryService(IConfiguration configuration)
+public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalogService tmdb)
 {
     private static readonly HashSet<string> MediaKinds =
     [
@@ -82,12 +82,24 @@ public sealed class UserLibraryService(IConfiguration configuration)
             watchedYears[id] = completedAt.UtcDateTime.Year;
         }
 
+        var recentIds = dated.OrderByDescending(item => item.At).ThenBy(item => item.Id).Take(8).Select(item => item.Id).ToList();
+        Dictionary<string, string> recentPosters;
+        try
+        {
+            recentPosters = tmdb.PostersForRecentAsync(recentIds, CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            recentPosters = [];
+        }
+
         return new
         {
             ids,
-            recentIds = dated.OrderByDescending(item => item.At).ThenBy(item => item.Id).Take(8).Select(item => item.Id).ToList(),
+            recentIds,
             undatedIds,
-            watchedYears
+            watchedYears,
+            recentPosters
         };
     }
 
