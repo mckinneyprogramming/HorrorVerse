@@ -6,6 +6,7 @@ import {
   MEDIA_KINDS,
   formatRuntime,
   movieDetailLine,
+  posterUrl,
   updateCatalogEntry,
   WRITABLE_KINDS,
   type CatalogEntry,
@@ -1815,6 +1816,7 @@ function renderHome(): string {
         <em>${state.user ? "Left to watch or read" : "Your remaining titles appear after sign-in"}</em>
       </article>
     </section>
+    ${renderHomeRecents()}
     ${renderFunStats()}
     <section class="kinds">
       <button class="kind-card" type="button" data-action="view" data-view="upcoming">
@@ -1837,6 +1839,42 @@ function renderHome(): string {
           </button>
         `;
       }).join("")}
+    </section>
+  `;
+}
+
+function renderHomeRecents(): string {
+  if (!state.user) {
+    return "";
+  }
+
+  const recents = state.recentIds
+    .map((id) => state.entries.find((entry) => entry.id === id))
+    .filter((entry): entry is CatalogEntry => entry !== undefined && entry.kind !== "series")
+    .slice(0, 8);
+  if (recents.length < 1) {
+    return "";
+  }
+
+  return `
+    <section class="home-recents" aria-label="Recently survived">
+      <h2>Recently survived</h2>
+      <div class="home-recents-strip">
+        ${recents
+          .map((entry) => {
+            const art = posterUrl(entry.posterPath, "w185");
+            return `
+              <button class="home-recent" type="button" data-action="stat-open" data-query="${escapeHtml(entry.title)}" aria-label="${escapeHtml(entry.title)}">
+                ${
+                  art
+                    ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" loading="lazy" />`
+                    : `<span class="home-recent-fallback">${escapeHtml(entry.title)}</span>`
+                }
+              </button>
+            `;
+          })
+          .join("")}
+      </div>
     </section>
   `;
 }
@@ -1998,6 +2036,7 @@ function renderUpcomingItem(item: UpcomingTitle): string {
   return `
     <li class="entry upcoming-entry">
       <span class="entry-toggle">
+        ${renderPoster(item.posterPath)}
         <span class="entry-copy">
           <strong>${escapeHtml(item.title)}</strong>
           <em>${escapeHtml([item.detail, formatUpcomingDate(item.releaseDate)].filter(Boolean).join(" · "))}</em>
@@ -2453,6 +2492,7 @@ function renderMoviesBySeries(movies: CatalogEntry[], showKind: boolean, pageKey
       parts.push(`
         <details class="list-series-group"${open ? " open" : ""}>
           <summary data-action="toggle-series" data-series-id="${row.group.seriesId}">
+            ${renderPoster(seriesPosterPath(row.group.seriesId, row.group.movies))}
             <span class="list-series-label">${escapeHtml(row.group.title)}</span>
             <span class="list-series-count">${row.group.movies.length}</span>
           </summary>
@@ -3034,6 +3074,7 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
   return `
     <details class="list-series-group show-guide${done ? " is-done" : ""}"${open ? " open" : ""}>
       <summary data-action="toggle-show" data-show-id="${showId}">
+        ${renderPoster(entry.posterPath)}
         <span class="mark" aria-hidden="true"></span>
         <span class="list-series-label">
           <strong>${escapeHtml(entry.title)}</strong>
@@ -3152,6 +3193,7 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franc
   const signedIn = Boolean(state.user);
   const done = isFinished(entry);
   const body = `
+    ${renderPoster(entry.posterPath)}
     <span class="mark" aria-hidden="true"></span>
     <span class="entry-copy">
       <strong>${escapeHtml(entry.title)}</strong>
@@ -3434,6 +3476,7 @@ function renderListItem(entry: CatalogEntry, listId: number, nested = false): st
   return `
     <li class="entry${isFinished(entry) ? " is-done" : ""}${nested ? " is-nested" : ""}">
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
+        ${renderPoster(entry.posterPath)}
         <span class="mark" aria-hidden="true"></span>
         <span class="entry-copy">
           <strong>${escapeHtml(entry.title)}</strong>
@@ -3585,6 +3628,20 @@ function renderWhenButton(entry: CatalogEntry): string {
   const year = state.watchedYears[entry.id];
   const label = state.undatedIds.includes(entry.id) ? "No date" : year ? String(year) : "When";
   return `<button class="entry-watch" type="button" data-action="open-when" data-id="${escapeHtml(entry.id)}" aria-label="Set when you watched ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>${label}</button>`;
+}
+
+function renderPoster(path: string | undefined): string {
+  const url = posterUrl(path);
+  if (!url) {
+    return "";
+  }
+
+  return `<img class="entry-poster" src="${escapeHtml(url)}" alt="" width="40" height="60" loading="lazy" decoding="async" />`;
+}
+
+function seriesPosterPath(seriesId: number, movies: CatalogEntry[]): string | undefined {
+  const series = state.entries.find((entry) => entry.kind === "series" && entry.mediaId === seriesId);
+  return series?.posterPath ?? movies.find((movie) => movie.posterPath)?.posterPath;
 }
 
 function renderShareStatus(): string {

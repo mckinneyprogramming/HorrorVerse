@@ -14,6 +14,9 @@ public sealed class KeywordCatalogService(IConfiguration configuration)
         command.CommandText = """
             ALTER TABLE Movie ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
             ALTER TABLE Documentary ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
+            ALTER TABLE Movie ADD COLUMN IF NOT EXISTS PosterPath TEXT;
+            ALTER TABLE MovieSeries ADD COLUMN IF NOT EXISTS PosterPath TEXT;
+            ALTER TABLE Documentary ADD COLUMN IF NOT EXISTS PosterPath TEXT;
             CREATE TABLE IF NOT EXISTS media_keyword (
                 media_kind TEXT NOT NULL,
                 media_id INTEGER NOT NULL,

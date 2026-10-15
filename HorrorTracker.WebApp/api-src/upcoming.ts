@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+import { parsePosterPath } from "../lib/poster";
 import { asResults, tmdbJson, tmdbJsonOptional } from "../lib/tmdb";
 
 const HORROR_GENRE = 27;
@@ -22,6 +23,7 @@ interface UpcomingTitle {
   year?: number;
   overview?: string;
   detail?: string;
+  posterPath?: string;
 }
 
 let cache: { expires: number; films: UpcomingTitle[]; shows: UpcomingTitle[] } | null = null;
@@ -84,6 +86,7 @@ async function loadFilms(): Promise<UpcomingTitle[]> {
 
       seen.add(tmdbId);
       const overview = trimOverview(String(item.overview ?? "").trim());
+      const posterPath = parsePosterPath(item.poster_path);
       films.push({
         kind: "film",
         tmdbId,
@@ -91,6 +94,7 @@ async function loadFilms(): Promise<UpcomingTitle[]> {
         releaseDate: isoDate(date),
         year: date.getUTCFullYear(),
         ...(overview ? { overview } : {}),
+        ...(posterPath ? { posterPath } : {}),
       });
     }
   }
@@ -137,6 +141,7 @@ async function loadShowPremieres(today: Date, until: Date): Promise<UpcomingTitl
 
       seen.add(tmdbId);
       const overview = trimOverview(String(item.overview ?? "").trim());
+      const posterPath = parsePosterPath(item.poster_path);
       shows.push({
         kind: "show",
         tmdbId,
@@ -145,6 +150,7 @@ async function loadShowPremieres(today: Date, until: Date): Promise<UpcomingTitl
         year: date.getUTCFullYear(),
         detail: "New series",
         ...(overview ? { overview } : {}),
+        ...(posterPath ? { posterPath } : {}),
       });
     }
   }
@@ -213,6 +219,7 @@ async function loadNextEpisodes(showIds: number[], today: Date, until: Date): Pr
     const overview =
       trimOverview(String(next?.overview ?? "").trim()) || trimOverview(String(payload.overview ?? "").trim());
     const detail = formatEpisodeDetail(season, episode, episodeName);
+    const posterPath = parsePosterPath(payload.poster_path);
     episodes.push({
       kind: "episode",
       tmdbId: ids[index],
@@ -221,6 +228,7 @@ async function loadNextEpisodes(showIds: number[], today: Date, until: Date): Pr
       year: date.getUTCFullYear(),
       ...(overview ? { overview } : {}),
       ...(detail ? { detail } : {}),
+      ...(posterPath ? { posterPath } : {}),
     });
   });
   return episodes;

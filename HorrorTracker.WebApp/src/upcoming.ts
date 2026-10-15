@@ -1,3 +1,5 @@
+import { parsePosterPath } from "./catalog";
+
 export type UpcomingKind = "film" | "show" | "episode";
 
 export interface UpcomingTitle {
@@ -8,6 +10,7 @@ export interface UpcomingTitle {
   year?: number;
   overview?: string;
   detail?: string;
+  posterPath?: string;
 }
 
 export interface UpcomingSchedule {
@@ -54,6 +57,7 @@ function readTitle(value: unknown, fallbackKind?: UpcomingKind): UpcomingTitle |
   const yearValue = Number(record.year ?? record.Year ?? releaseDate.slice(0, 4));
   const overview = String(record.overview ?? record.Overview ?? "").trim();
   const detail = String(record.detail ?? record.Detail ?? "").trim();
+  const posterPath = parsePosterPath(record.posterPath ?? record.PosterPath);
   return {
     kind,
     tmdbId,
@@ -62,5 +66,6 @@ function readTitle(value: unknown, fallbackKind?: UpcomingKind): UpcomingTitle |
     ...(Number.isInteger(yearValue) && yearValue >= 1888 ? { year: yearValue } : {}),
     ...(overview ? { overview } : {}),
     ...(detail ? { detail } : {}),
+    ...(posterPath ? { posterPath } : {}),
   };
 }

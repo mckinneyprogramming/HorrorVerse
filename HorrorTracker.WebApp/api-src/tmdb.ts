@@ -3,6 +3,7 @@ export const maxDuration = 60;
 void "restore-standalone-tmdb";
 
 import { upsertShowSeasons } from "../lib/catalog";
+import { savePoster } from "../lib/poster";
 import { importMovie, importSeries } from "../lib/import-tmdb";
 import { saveDocumentaryKeywords, saveShowKeywords } from "../lib/keywords";
 import {
@@ -159,11 +160,13 @@ async function importDocumentary(connectionString: string, tmdbId: number): Prom
   const existingId = await findDocumentaryId(connectionString, title, year);
   if (existingId) {
     await saveDocumentaryKeywords(connectionString, existingId, tmdbId);
+    await savePoster(connectionString, "documentary", existingId, movie.poster_path);
     return { added: 0, id: `documentary:${existingId}` };
   }
 
   const documentaryId = await insertDocumentary(connectionString, title, runtimeOf(movie.runtime), year);
   await saveDocumentaryKeywords(connectionString, documentaryId, tmdbId);
+  await savePoster(connectionString, "documentary", documentaryId, movie.poster_path);
   return { added: 1, id: `documentary:${documentaryId}` };
 }
 
@@ -195,6 +198,7 @@ async function importShow(connectionString: string, tmdbId: number): Promise<Tmd
 
   await attachShowSeasons(connectionString, showId, tmdbId, show, year);
   await saveShowKeywords(connectionString, showId, tmdbId);
+  await savePoster(connectionString, "show", showId, show.poster_path);
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
 }
 

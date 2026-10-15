@@ -254,6 +254,39 @@ function trimOverview(value) {
   return overview.length <= 180 ? overview : `${overview.slice(0, 177).trimEnd()}\u2026`;
 }
 
+// lib/poster.ts
+var TABLES = {
+  movie: { table: "movie", tmdbKind: "movie" },
+  documentary: { table: "documentary", tmdbKind: "movie" },
+  show: { table: "show", tmdbKind: "tv" },
+  series: { table: "movieseries", tmdbKind: "collection" }
+};
+function parsePosterPath(value) {
+  const path = String(value ?? "").trim();
+  if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
+    return void 0;
+  }
+  return path;
+}
+async function ensurePosterSchema(connectionString) {
+  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  try {
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  } catch {
+  }
+}
+async function savePoster(connectionString, kind, mediaId, value) {
+  const path = parsePosterPath(value);
+  const target = TABLES[kind];
+  if (!path || !target || !Number.isInteger(mediaId) || mediaId < 1) {
+    return;
+  }
+  await ensurePosterSchema(connectionString);
+  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [path, mediaId]);
+}
+
 // lib/catalog.ts
 async function filmsFromCollection(collection) {
   const parts = Array.isArray(collection.parts) ? collection.parts : [];
@@ -272,11 +305,13 @@ async function filmsFromCollection(collection) {
     if (!title) {
       continue;
     }
+    const posterPath = parsePosterPath(film.poster_path) ?? parsePosterPath(record.poster_path);
     films.push({
       tmdbId,
       title,
       year: yearFrom(film.release_date) ?? yearFrom(record.release_date),
-      runtime: runtimeOf(film.runtime)
+      runtime: runtimeOf(film.runtime),
+      ...posterPath ? { posterPath } : {}
     });
   }
   return films;
@@ -454,6 +489,7 @@ async function importMovie(connectionString, tmdbId) {
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, existingId);
     }
     await saveMovieKeywords(connectionString, existingId, tmdbId);
+    await savePoster(connectionString, "movie", existingId, movie.poster_path);
     return { added: 0, id: `movie:${existingId}` };
   }
   const movieId = await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
@@ -461,6 +497,7 @@ async function importMovie(connectionString, tmdbId) {
     throw new HttpError("Could not save that movie.", 500);
   }
   await saveMovieKeywords(connectionString, movieId, tmdbId);
+  await savePoster(connectionString, "movie", movieId, movie.poster_path);
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
@@ -487,11 +524,13 @@ async function importSeries(connectionString, collectionId) {
     await execute(connectionString, "UPDATE movieseries SET tmdbid = $1 WHERE id = $2", [collectionId, seriesId]);
   } catch {
   }
+  await savePoster(connectionString, "series", seriesId, collection.poster_path);
   for (const film of await filmsFromCollection(collection)) {
     const existingId = await findMovieId(connectionString, film.title, film.year, film.tmdbId);
     if (existingId) {
       await linkMovieToSeries(connectionString, existingId, seriesId);
       await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
+      await savePoster(connectionString, "movie", existingId, film.posterPath);
       continue;
     }
     const movieId = await insertMovie(connectionString, film.title, film.runtime, seriesId, film.year);
@@ -500,6 +539,7 @@ async function importSeries(connectionString, collectionId) {
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
       await saveMovieKeywords(connectionString, movieId, film.tmdbId);
+      await savePoster(connectionString, "movie", movieId, film.posterPath);
     }
     added += 1;
   }
@@ -686,10 +726,12 @@ async function importDocumentary(connectionString, tmdbId) {
   const existingId = await findDocumentaryId(connectionString, title, year);
   if (existingId) {
     await saveDocumentaryKeywords(connectionString, existingId, tmdbId);
+    await savePoster(connectionString, "documentary", existingId, movie.poster_path);
     return { added: 0, id: `documentary:${existingId}` };
   }
   const documentaryId = await insertDocumentary(connectionString, title, runtimeOf(movie.runtime), year);
   await saveDocumentaryKeywords(connectionString, documentaryId, tmdbId);
+  await savePoster(connectionString, "documentary", documentaryId, movie.poster_path);
   return { added: 1, id: `documentary:${documentaryId}` };
 }
 async function importShow(connectionString, tmdbId) {
@@ -719,6 +761,7 @@ async function importShow(connectionString, tmdbId) {
   }
   await attachShowSeasons(connectionString, showId, tmdbId, show, year);
   await saveShowKeywords(connectionString, showId, tmdbId);
+  await savePoster(connectionString, "show", showId, show.poster_path);
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
 }
 async function findDocumentaryId(connectionString, title, year) {

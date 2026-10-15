@@ -12,4 +12,5 @@ public sealed record CatalogItemDto(
     string? SeriesTitle = null,
     int? TotalEpisodes = null,
     int? NumberOfSeasons = null,
-    IReadOnlyList<string>? Keywords = null);
+    IReadOnlyList<string>? Keywords = null,
+    string? PosterPath = null);

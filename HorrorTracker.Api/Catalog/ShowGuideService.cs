@@ -534,6 +534,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
                 Watched BOOLEAN NOT NULL);
             ALTER TABLE Show ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
             ALTER TABLE Show ADD COLUMN IF NOT EXISTS ReleaseYear INTEGER;
+            ALTER TABLE Show ADD COLUMN IF NOT EXISTS PosterPath TEXT;
             CREATE TABLE IF NOT EXISTS show_season (
                 id SERIAL PRIMARY KEY,
                 show_id INTEGER NOT NULL,

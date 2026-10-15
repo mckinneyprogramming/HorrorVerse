@@ -46,6 +46,15 @@ function asResults(payload) {
   return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
 }
 
+// lib/poster.ts
+function parsePosterPath(value) {
+  const path = String(value ?? "").trim();
+  if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
+    return void 0;
+  }
+  return path;
+}
+
 // api-src/upcoming.ts
 var runtime = "nodejs";
 var maxDuration = 60;
@@ -109,13 +118,15 @@ async function loadFilms() {
       }
       seen.add(tmdbId);
       const overview = trimOverview(String(item.overview ?? "").trim());
+      const posterPath = parsePosterPath(item.poster_path);
       films.push({
         kind: "film",
         tmdbId,
         title,
         releaseDate: isoDate(date),
         year: date.getUTCFullYear(),
-        ...overview ? { overview } : {}
+        ...overview ? { overview } : {},
+        ...posterPath ? { posterPath } : {}
       });
     }
   }
@@ -153,6 +164,7 @@ async function loadShowPremieres(today, until) {
       }
       seen.add(tmdbId);
       const overview = trimOverview(String(item.overview ?? "").trim());
+      const posterPath = parsePosterPath(item.poster_path);
       shows.push({
         kind: "show",
         tmdbId,
@@ -160,7 +172,8 @@ async function loadShowPremieres(today, until) {
         releaseDate: isoDate(date),
         year: date.getUTCFullYear(),
         detail: "New series",
-        ...overview ? { overview } : {}
+        ...overview ? { overview } : {},
+        ...posterPath ? { posterPath } : {}
       });
     }
   }
@@ -219,6 +232,7 @@ async function loadNextEpisodes(showIds, today, until) {
     const episodeName = String(next?.name ?? "").trim();
     const overview = trimOverview(String(next?.overview ?? "").trim()) || trimOverview(String(payload.overview ?? "").trim());
     const detail = formatEpisodeDetail(season, episode, episodeName);
+    const posterPath = parsePosterPath(payload.poster_path);
     episodes.push({
       kind: "episode",
       tmdbId: ids[index],
@@ -226,7 +240,8 @@ async function loadNextEpisodes(showIds, today, until) {
       releaseDate: isoDate(date),
       year: date.getUTCFullYear(),
       ...overview ? { overview } : {},
-      ...detail ? { detail } : {}
+      ...detail ? { detail } : {},
+      ...posterPath ? { posterPath } : {}
     });
   });
   return episodes;

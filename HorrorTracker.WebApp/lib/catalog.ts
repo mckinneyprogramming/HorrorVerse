@@ -1,4 +1,5 @@
 import { execute, queryRows } from "./neon";
+import { parsePosterPath } from "./poster";
 import { asId, asRecord, asResults, runtimeOf, tmdbJson, yearFrom } from "./tmdb";
 
 export interface CollectionFilm {
@@ -6,6 +7,7 @@ export interface CollectionFilm {
   title: string;
   year?: number;
   runtime: number;
+  posterPath?: string;
 }
 
 export async function filmsFromCollection(collection: Record<string, unknown>): Promise<CollectionFilm[]> {
@@ -28,11 +30,13 @@ export async function filmsFromCollection(collection: Record<string, unknown>): 
       continue;
     }
 
+    const posterPath = parsePosterPath(film.poster_path) ?? parsePosterPath(record.poster_path);
     films.push({
       tmdbId,
       title,
       year: yearFrom(film.release_date) ?? yearFrom(record.release_date),
       runtime: runtimeOf(film.runtime),
+      ...(posterPath ? { posterPath } : {}),
     });
   }
 

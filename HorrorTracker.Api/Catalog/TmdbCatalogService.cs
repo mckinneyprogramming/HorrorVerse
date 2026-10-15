@@ -120,11 +120,13 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             }
 
             await keywords.SaveMovieAsync(existingId, tmdbId, cancellationToken: cancellationToken);
+            SavePoster("movie", existingId, movie.PosterPath);
             return new TmdbImportResult($"movie:{existingId}", 0);
         }
 
         var movieId = InsertMovie(title, runtime, seriesId, year);
         await keywords.SaveMovieAsync(movieId, tmdbId, cancellationToken: cancellationToken);
+        SavePoster("movie", movieId, movie.PosterPath);
         if (seriesId is int id)
         {
             AddMovieToListsContainingSeries(id, movieId);
@@ -151,6 +153,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
 
         EnsureSeriesSchema();
         SaveSeriesTmdbId(seriesId.Value, collectionId);
+        SavePoster("series", seriesId.Value, collection.PosterPath);
         var moviesAdded = await ImportCollectionPartsAsync(tmdb, seriesId.Value, collection, cancellationToken);
         RefreshSeriesTotals(seriesId.Value);
         keywords.ReplaceSeriesFromMovies(seriesId.Value);
@@ -165,11 +168,13 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         if (FindDocumentaryId(title, year) is int existingId)
         {
             await keywords.SaveDocumentaryAsync(existingId, tmdbId, cancellationToken: cancellationToken);
+            SavePoster("documentary", existingId, movie.PosterPath);
             return new TmdbImportResult($"documentary:{existingId}", 0);
         }
 
         var documentaryId = InsertDocumentary(title, RuntimeOf(movie.Runtime), year);
         await keywords.SaveDocumentaryAsync(documentaryId, tmdbId, cancellationToken: cancellationToken);
+        SavePoster("documentary", documentaryId, movie.PosterPath);
         return new TmdbImportResult($"documentary:{documentaryId}", 1);
     }
 
@@ -186,6 +191,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         var showId = existingId ?? InsertShow(title, totalTime, episodes, seasons, year);
         await shows.AttachImportedShowAsync(tmdb, showId, tmdbId, show, cancellationToken);
         await keywords.SaveShowAsync(showId, tmdbId, cancellationToken: cancellationToken);
+        SavePoster("show", showId, show.PosterPath);
         return new TmdbImportResult($"show:{showId}", existingId is null ? 1 : 0);
     }
 
@@ -447,6 +453,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
 
         SaveSeriesTmdbId(seriesId, collectionId.Value);
         var collection = await tmdb.GetCollection(collectionId.Value);
+        SavePoster("series", seriesId, collection.PosterPath);
         var added = await ImportCollectionPartsAsync(tmdb, seriesId, collection, cancellationToken);
         RefreshSeriesTotals(seriesId);
         keywords.ReplaceSeriesFromMovies(seriesId);
@@ -471,6 +478,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             {
                 LinkMovieToSeries(movieId, seriesId);
                 await keywords.SaveMovieAsync(movieId, part.Id, skipIfPresent: true, cancellationToken);
+                SavePoster("movie", movieId, film.PosterPath);
                 continue;
             }
 
@@ -479,6 +487,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             franchises.AddMovieToFranchisesContainingSeries(seriesId, addedMovieId);
             InvalidateSeriesCompletion(seriesId);
             await keywords.SaveMovieAsync(addedMovieId, part.Id, cancellationToken: cancellationToken);
+            SavePoster("movie", addedMovieId, film.PosterPath);
             added++;
         }
 
@@ -721,6 +730,9 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         using var command = connection.CreateCommand();
         command.CommandText = """
             ALTER TABLE MovieSeries ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
+            ALTER TABLE Movie ADD COLUMN IF NOT EXISTS PosterPath TEXT;
+            ALTER TABLE MovieSeries ADD COLUMN IF NOT EXISTS PosterPath TEXT;
+            ALTER TABLE Documentary ADD COLUMN IF NOT EXISTS PosterPath TEXT;
             CREATE TABLE IF NOT EXISTS catalog_sync (
                 id INTEGER PRIMARY KEY,
                 last_synced_at TIMESTAMPTZ NOT NULL);
@@ -849,8 +861,45 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
                 Watched BOOLEAN NOT NULL);
             ALTER TABLE Show ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
             ALTER TABLE Show ADD COLUMN IF NOT EXISTS ReleaseYear INTEGER;
+            ALTER TABLE Show ADD COLUMN IF NOT EXISTS PosterPath TEXT;
             """;
         command.ExecuteNonQuery();
+    }
+
+    private void SavePoster(string kind, int mediaId, string? path)
+    {
+        var value = (path ?? string.Empty).Trim();
+        if (mediaId < 1 || !value.StartsWith('/') || value.Length > 160 || value.Contains("..", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var table = kind switch
+        {
+            "movie" => "Movie",
+            "series" => "MovieSeries",
+            "documentary" => "Documentary",
+            "show" => "Show",
+            _ => null,
+        };
+        if (table is null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = $"UPDATE {table} SET PosterPath = @path WHERE Id = @id";
+            command.Parameters.AddWithValue("path", value);
+            command.Parameters.AddWithValue("id", mediaId);
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // Poster column is added on catalog read or vault sync.
+        }
     }
 
     private NpgsqlConnection OpenConnection() => CatalogDb.Open(configuration);

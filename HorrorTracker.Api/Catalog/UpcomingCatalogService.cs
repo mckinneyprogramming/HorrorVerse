@@ -55,7 +55,7 @@ public sealed class UpcomingCatalogService
 
     private static UpcomingTitleDto ToDto(UpcomingTitle item)
     {
-        return new UpcomingTitleDto(item.Kind, item.TmdbId, item.Title, item.ReleaseDate, item.Year, item.Overview, item.Detail);
+        return new UpcomingTitleDto(item.Kind, item.TmdbId, item.Title, item.ReleaseDate, item.Year, item.Overview, item.Detail, item.PosterPath);
     }
 
     private static async Task<IReadOnlyList<UpcomingTitle>> FetchFilmsAsync(CancellationToken cancellationToken)
@@ -94,7 +94,8 @@ public sealed class UpcomingCatalogService
                     Iso(date),
                     date.Year,
                     TrimOverview(ReadString(item, "overview")),
-                    null));
+                    null,
+                    PosterPathOf(item)));
             },
             cancellationToken);
 
@@ -155,7 +156,8 @@ public sealed class UpcomingCatalogService
                     Iso(date),
                     date.Year,
                     TrimOverview(ReadString(item, "overview")),
-                    "New series"));
+                    "New series",
+                    PosterPathOf(item)));
             },
             cancellationToken);
 
@@ -260,7 +262,8 @@ public sealed class UpcomingCatalogService
                 Iso(date),
                 date.Year,
                 overview,
-                FormatEpisodeDetail(season, episode, episodeName)));
+                FormatEpisodeDetail(season, episode, episodeName),
+                PosterPathOf(root)));
         }
 
         return episodes;
@@ -427,6 +430,14 @@ public sealed class UpcomingCatalogService
             item.TryGetProperty("id", out var id) && id.TryGetInt32(out var genre) && ExcludedTvGenreIds.Contains(genre));
     }
 
+    private static string? PosterPathOf(JsonElement element)
+    {
+        var path = ReadString(element, "poster_path");
+        return path is { Length: > 1 and <= 160 } && path.StartsWith('/') && !path.Contains("..", StringComparison.Ordinal)
+            ? path
+            : null;
+    }
+
     private static string? ReadString(JsonElement element, string name)
     {
         if (!element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
@@ -466,7 +477,7 @@ public sealed class UpcomingCatalogService
             .ToList();
     }
 
-    private sealed record UpcomingTitle(string Kind, int TmdbId, string Title, string ReleaseDate, int Year, string? Overview, string? Detail);
+    private sealed record UpcomingTitle(string Kind, int TmdbId, string Title, string ReleaseDate, int Year, string? Overview, string? Detail, string? PosterPath = null);
 
     private sealed record CacheEntry(DateTimeOffset Expires, IReadOnlyList<UpcomingTitle> Films, IReadOnlyList<UpcomingTitle> Shows);
 }

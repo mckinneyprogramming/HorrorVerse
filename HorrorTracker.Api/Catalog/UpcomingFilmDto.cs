@@ -7,7 +7,8 @@ public sealed record UpcomingTitleDto(
     string ReleaseDate,
     int? Year,
     string? Overview,
-    string? Detail);
+    string? Detail,
+    string? PosterPath = null);
 
 public sealed record UpcomingScheduleDto(
     IReadOnlyList<UpcomingTitleDto> Films,

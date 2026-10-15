@@ -27,6 +27,7 @@ export interface CatalogEntry {
   totalEpisodes?: number;
   numberOfSeasons?: number;
   keywords?: string[];
+  posterPath?: string;
 }
 
 export function isMediaKind(value: string): value is MediaKind {
@@ -129,6 +130,7 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
   const totalEpisodes = optionalPositiveNumber(entry.totalEpisodes);
   const numberOfSeasons = optionalPositiveNumber(entry.numberOfSeasons);
   const keywords = readKeywords(value);
+  const posterPath = parsePosterPath(entry.posterPath ?? (value as { PosterPath?: unknown }).PosterPath);
 
   return {
     id: entry.id,
@@ -143,7 +145,22 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
     ...(totalEpisodes !== undefined ? { totalEpisodes } : {}),
     ...(numberOfSeasons !== undefined ? { numberOfSeasons } : {}),
     ...(keywords.length > 0 ? { keywords } : {}),
+    ...(posterPath ? { posterPath } : {}),
   };
+}
+
+export function parsePosterPath(value: unknown): string | undefined {
+  const path = String(value ?? "").trim();
+  if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
+    return undefined;
+  }
+
+  return path;
+}
+
+export function posterUrl(path: string | undefined, size = "w92"): string | undefined {
+  const parsed = parsePosterPath(path);
+  return parsed ? `https://image.tmdb.org/t/p/${size}${parsed}` : undefined;
 }
 
 function optionalPositiveNumber(value: unknown): number | undefined {

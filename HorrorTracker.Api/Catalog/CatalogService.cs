@@ -23,7 +23,7 @@ public sealed class CatalogService(
         items.AddRange(Read(() => documentaries.GetAll().Select(MapDocumentary), "documentaries"));
         items.AddRange(ReadShows());
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Read FROM Book", "book"));
-        return AttachKeywords(items);
+        return AttachPosters(AttachKeywords(items));
     }
 
     public IReadOnlyList<CatalogItemDto> GetByKind(string kind)
@@ -91,6 +91,73 @@ public sealed class CatalogService(
         return items
             .Select(item => tags.TryGetValue(item.Id, out var names) ? item with { Keywords = names } : item)
             .ToList();
+    }
+
+    private IReadOnlyList<CatalogItemDto> AttachPosters(IReadOnlyList<CatalogItemDto> items)
+    {
+        try
+        {
+            keywords.EnsureSchema();
+            var posters = LoadPosters();
+            return items
+                .Select(item => posters.TryGetValue(item.Id, out var path) ? item with { PosterPath = path } : item)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not load catalog posters from PostgreSQL.");
+            return items;
+        }
+    }
+
+    private Dictionary<string, string> LoadPosters()
+    {
+        var posters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        using var connection = OpenConnection();
+        ReadPosterRows(connection, posters, "SELECT 'movie', Id, PosterPath FROM Movie WHERE PosterPath IS NOT NULL AND PosterPath <> ''");
+        ReadPosterRows(
+            connection,
+            posters,
+            """
+            SELECT 'series', s.Id, COALESCE(s.PosterPath, (
+                SELECT m.PosterPath FROM Movie m
+                WHERE m.SeriesId = s.Id AND m.PosterPath IS NOT NULL AND m.PosterPath <> ''
+                ORDER BY m.ReleaseYear NULLS LAST, m.Id
+                LIMIT 1
+            ))
+            FROM MovieSeries s
+            """);
+        ReadPosterRows(connection, posters, "SELECT 'documentary', Id, PosterPath FROM Documentary WHERE PosterPath IS NOT NULL AND PosterPath <> ''");
+        try
+        {
+            ReadPosterRows(connection, posters, "SELECT 'show', Id, PosterPath FROM Show WHERE PosterPath IS NOT NULL AND PosterPath <> ''");
+        }
+        catch (PostgresException)
+        {
+            // Show table is created on first TV import.
+        }
+
+        return posters;
+    }
+
+    private static void ReadPosterRows(NpgsqlConnection connection, Dictionary<string, string> posters, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (reader.IsDBNull(2))
+            {
+                continue;
+            }
+
+            var path = reader.GetString(2).Trim();
+            if (path.StartsWith('/') && path.Length <= 160 && !path.Contains("..", StringComparison.Ordinal))
+            {
+                posters[$"{reader.GetString(0)}:{reader.GetInt32(1)}"] = path;
+            }
+        }
     }
 
     private IEnumerable<T> Read<T>(Func<IEnumerable<T>> source, string name)
@@ -359,6 +426,7 @@ public sealed class CatalogService(
                     Watched BOOLEAN NOT NULL);
                 ALTER TABLE Show ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
                 ALTER TABLE Show ADD COLUMN IF NOT EXISTS ReleaseYear INTEGER;
+                ALTER TABLE Show ADD COLUMN IF NOT EXISTS PosterPath TEXT;
                 """
             : """
                 CREATE TABLE IF NOT EXISTS Book (

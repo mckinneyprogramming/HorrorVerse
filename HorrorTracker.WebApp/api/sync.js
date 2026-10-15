@@ -247,6 +247,76 @@ async function collectionIsHorrorAdjacent(collectionId) {
   }
 }
 
+// lib/poster.ts
+var TABLES = {
+  movie: { table: "movie", tmdbKind: "movie" },
+  documentary: { table: "documentary", tmdbKind: "movie" },
+  show: { table: "show", tmdbKind: "tv" },
+  series: { table: "movieseries", tmdbKind: "collection" }
+};
+var POSTER_BATCH = 8;
+function parsePosterPath(value) {
+  const path = String(value ?? "").trim();
+  if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
+    return void 0;
+  }
+  return path;
+}
+async function ensurePosterSchema(connectionString) {
+  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  try {
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  } catch {
+  }
+}
+async function savePoster(connectionString, kind, mediaId, value) {
+  const path = parsePosterPath(value);
+  const target = TABLES[kind];
+  if (!path || !target || !Number.isInteger(mediaId) || mediaId < 1) {
+    return;
+  }
+  await ensurePosterSchema(connectionString);
+  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [path, mediaId]);
+}
+async function fillMissingPosters(connectionString) {
+  await ensurePosterSchema(connectionString);
+  let filled = 0;
+  for (const [kind, target] of Object.entries(TABLES)) {
+    let rows = [];
+    try {
+      rows = await queryRows(
+        connectionString,
+        `SELECT id, tmdbid FROM ${target.table}
+         WHERE tmdbid IS NOT NULL
+           AND (posterpath IS NULL OR posterpath = '')
+         ORDER BY id
+         LIMIT $1`,
+        [POSTER_BATCH]
+      );
+    } catch {
+      continue;
+    }
+    for (const row of rows) {
+      const mediaId = asId(row);
+      const tmdbId = asId(row, "tmdbid");
+      if (!mediaId || !tmdbId) {
+        continue;
+      }
+      try {
+        const payload = await tmdbJson(`/${target.tmdbKind}/${tmdbId}`);
+        await savePoster(connectionString, kind, mediaId, payload.poster_path);
+        if (parsePosterPath(payload.poster_path)) {
+          filled += 1;
+        }
+      } catch {
+      }
+    }
+  }
+  return filled;
+}
+
 // lib/catalog.ts
 async function filmsFromCollection(collection) {
   const parts = Array.isArray(collection.parts) ? collection.parts : [];
@@ -265,11 +335,13 @@ async function filmsFromCollection(collection) {
     if (!title) {
       continue;
     }
+    const posterPath = parsePosterPath(film.poster_path) ?? parsePosterPath(record.poster_path);
     films.push({
       tmdbId,
       title,
       year: yearFrom(film.release_date) ?? yearFrom(record.release_date),
-      runtime: runtimeOf(film.runtime)
+      runtime: runtimeOf(film.runtime),
+      ...posterPath ? { posterPath } : {}
     });
   }
   return films;
@@ -468,6 +540,7 @@ async function importMovie(connectionString, tmdbId) {
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, existingId);
     }
     await saveMovieKeywords(connectionString, existingId, tmdbId);
+    await savePoster(connectionString, "movie", existingId, movie.poster_path);
     return { added: 0, id: `movie:${existingId}` };
   }
   const movieId = await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
@@ -475,6 +548,7 @@ async function importMovie(connectionString, tmdbId) {
     throw new HttpError("Could not save that movie.", 500);
   }
   await saveMovieKeywords(connectionString, movieId, tmdbId);
+  await savePoster(connectionString, "movie", movieId, movie.poster_path);
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
@@ -501,11 +575,13 @@ async function importSeries(connectionString, collectionId) {
     await execute(connectionString, "UPDATE movieseries SET tmdbid = $1 WHERE id = $2", [collectionId, seriesId]);
   } catch {
   }
+  await savePoster(connectionString, "series", seriesId, collection.poster_path);
   for (const film of await filmsFromCollection(collection)) {
     const existingId = await findMovieId(connectionString, film.title, film.year, film.tmdbId);
     if (existingId) {
       await linkMovieToSeries(connectionString, existingId, seriesId);
       await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
+      await savePoster(connectionString, "movie", existingId, film.posterPath);
       continue;
     }
     const movieId = await insertMovie(connectionString, film.title, film.runtime, seriesId, film.year);
@@ -514,6 +590,7 @@ async function importSeries(connectionString, collectionId) {
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
       await saveMovieKeywords(connectionString, movieId, film.tmdbId);
+      await savePoster(connectionString, "movie", movieId, film.posterPath);
     }
     added += 1;
   }
@@ -820,16 +897,19 @@ async function GET(request) {
     if (id) {
       const added = await syncOne(connectionString, id);
       await refreshMissingKeywords(connectionString, id);
+      await fillMissingPosters(connectionString);
       return Response.json({ added });
     }
     const force = cron || Boolean(user?.isAdmin);
     let tagged = await refreshMissingKeywords(connectionString);
     if (!force && !await isVaultStale(connectionString)) {
+      await fillMissingPosters(connectionString);
       return Response.json({ added: tagged, seriesAdded: 0, showsAdded: 0, keywordsAdded: tagged, skipped: tagged === 0 });
     }
     const seriesAdded = await syncAllSeries(connectionString);
     const showsAdded = await syncAllShows(connectionString);
     tagged += await refreshMissingKeywords(connectionString);
+    await fillMissingPosters(connectionString);
     await markVaultSynced(connectionString);
     return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged });
   } catch (error) {
@@ -914,6 +994,7 @@ async function syncSeries(connectionString, seriesId) {
   }
   await execute(connectionString, "UPDATE movieseries SET tmdbid = $1 WHERE id = $2", [collectionId, seriesId]);
   const collection = await tmdbJson(`/collection/${collectionId}`);
+  await savePoster(connectionString, "series", seriesId, collection.poster_path);
   let added = 0;
   for (const film of await filmsFromCollection(collection)) {
     const existingId = await findMovieId(connectionString, film.title, film.year);
@@ -924,6 +1005,7 @@ async function syncSeries(connectionString, seriesId) {
         [seriesId, existingId]
       );
       await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
+      await savePoster(connectionString, "movie", existingId, film.posterPath);
       continue;
     }
     const movieId = asId(
@@ -938,6 +1020,7 @@ async function syncSeries(connectionString, seriesId) {
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion2(connectionString, seriesId);
       await saveMovieKeywords(connectionString, movieId, film.tmdbId);
+      await savePoster(connectionString, "movie", movieId, film.posterPath);
       added += 1;
     }
   }

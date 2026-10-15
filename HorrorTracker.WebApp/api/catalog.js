@@ -137,6 +137,24 @@ function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That titl
   return { kind, mediaId };
 }
 
+// lib/poster.ts
+function parsePosterPath(value) {
+  const path = String(value ?? "").trim();
+  if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
+    return void 0;
+  }
+  return path;
+}
+async function ensurePosterSchema(connectionString) {
+  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  try {
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS posterpath TEXT");
+  } catch {
+  }
+}
+
 // api-src/catalog.ts
 var runtime = "nodejs";
 var maxDuration = 30;
@@ -192,6 +210,7 @@ async function loadCatalog() {
     throw new Error("DATABASE_URL is not configured.");
   }
   await ensureOptionalTables(connectionString, "show");
+  await ensurePosterSchema(connectionString);
   const items = [
     ...await readTable(
       connectionString,
@@ -201,20 +220,34 @@ async function loadCatalog() {
               m.totaltime,
               m.releaseyear,
               m.seriesid,
-              s.title AS seriestitle
+              s.title AS seriestitle,
+              m.posterpath
        FROM movie m
        LEFT JOIN movieseries s ON s.id = m.seriesid`,
       "movie"
     ),
-    ...await readTable(connectionString, "SELECT id, title, watched AS completed FROM movieseries", "series"),
     ...await readTable(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, releaseyear FROM documentary",
+      `SELECT s.id,
+              s.title,
+              s.watched AS completed,
+              COALESCE(s.posterpath, (
+                SELECT m.posterpath FROM movie m
+                WHERE m.seriesid = s.id AND m.posterpath IS NOT NULL AND m.posterpath <> ''
+                ORDER BY m.releaseyear NULLS LAST, m.id
+                LIMIT 1
+              )) AS posterpath
+       FROM movieseries s`,
+      "series"
+    ),
+    ...await readTable(
+      connectionString,
+      "SELECT id, title, watched AS completed, totaltime, releaseyear, posterpath FROM documentary",
       "documentary"
     ),
     ...await readOptional(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear FROM show",
+      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath FROM show",
       "show"
     ),
     ...await readOptional(connectionString, "SELECT id, title, read AS completed FROM book", "book")
@@ -559,6 +592,10 @@ function mapRows(rows, kind) {
     }
     if (numberOfSeasons !== void 0 && numberOfSeasons > 0) {
       item.numberOfSeasons = numberOfSeasons;
+    }
+    const posterPath = parsePosterPath(row.posterpath ?? row.posterPath);
+    if (posterPath) {
+      item.posterPath = posterPath;
     }
     return item;
   });

@@ -6,6 +6,7 @@ import {
 } from "./catalog";
 import { replaceSeriesKeywords, saveMovieKeywords } from "./keywords";
 import { execute, HttpError, queryRows } from "./neon";
+import { savePoster } from "./poster";
 import { asId, asRecord, requireTitle, runtimeOf, seriesTitle, tmdbJson, yearFrom } from "./tmdb";
 
 export interface TmdbImportResult {
@@ -33,6 +34,7 @@ export async function importMovie(connectionString: string, tmdbId: number): Pro
     }
 
     await saveMovieKeywords(connectionString, existingId, tmdbId);
+    await savePoster(connectionString, "movie", existingId, movie.poster_path);
     return { added: 0, id: `movie:${existingId}` };
   }
 
@@ -42,6 +44,7 @@ export async function importMovie(connectionString: string, tmdbId: number): Pro
   }
 
   await saveMovieKeywords(connectionString, movieId, tmdbId);
+  await savePoster(connectionString, "movie", movieId, movie.poster_path);
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
@@ -74,11 +77,14 @@ export async function importSeries(connectionString: string, collectionId: numbe
     // Older catalogs can still match series by title.
   }
 
+  await savePoster(connectionString, "series", seriesId, collection.poster_path);
+
   for (const film of await filmsFromCollection(collection)) {
     const existingId = await findMovieId(connectionString, film.title, film.year, film.tmdbId);
     if (existingId) {
       await linkMovieToSeries(connectionString, existingId, seriesId);
       await saveMovieKeywords(connectionString, existingId, film.tmdbId, true);
+      await savePoster(connectionString, "movie", existingId, film.posterPath);
       continue;
     }
 
@@ -88,6 +94,7 @@ export async function importSeries(connectionString: string, collectionId: numbe
       await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
       await invalidateSeriesCompletion(connectionString, seriesId);
       await saveMovieKeywords(connectionString, movieId, film.tmdbId);
+      await savePoster(connectionString, "movie", movieId, film.posterPath);
     }
     added += 1;
   }

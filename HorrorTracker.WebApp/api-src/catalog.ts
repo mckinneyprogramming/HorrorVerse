@@ -3,6 +3,7 @@ export const maxDuration = 30;
 void "restore-standalone-catalog";
 
 import { parseCatalogId } from "../lib/catalog-id";
+import { ensurePosterSchema, parsePosterPath } from "../lib/poster";
 import {
   execute,
   HttpError,
@@ -28,6 +29,7 @@ interface CatalogItem {
   totalEpisodes?: number;
   numberOfSeasons?: number;
   keywords?: string[];
+  posterPath?: string;
 }
 
 export async function GET() {
@@ -88,6 +90,7 @@ async function loadCatalog(): Promise<CatalogItem[]> {
   }
 
   await ensureOptionalTables(connectionString, "show");
+  await ensurePosterSchema(connectionString);
   const items = [
     ...(await readTable(
       connectionString,
@@ -97,20 +100,34 @@ async function loadCatalog(): Promise<CatalogItem[]> {
               m.totaltime,
               m.releaseyear,
               m.seriesid,
-              s.title AS seriestitle
+              s.title AS seriestitle,
+              m.posterpath
        FROM movie m
        LEFT JOIN movieseries s ON s.id = m.seriesid`,
       "movie",
     )),
-    ...(await readTable(connectionString, "SELECT id, title, watched AS completed FROM movieseries", "series")),
     ...(await readTable(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, releaseyear FROM documentary",
+      `SELECT s.id,
+              s.title,
+              s.watched AS completed,
+              COALESCE(s.posterpath, (
+                SELECT m.posterpath FROM movie m
+                WHERE m.seriesid = s.id AND m.posterpath IS NOT NULL AND m.posterpath <> ''
+                ORDER BY m.releaseyear NULLS LAST, m.id
+                LIMIT 1
+              )) AS posterpath
+       FROM movieseries s`,
+      "series",
+    )),
+    ...(await readTable(
+      connectionString,
+      "SELECT id, title, watched AS completed, totaltime, releaseyear, posterpath FROM documentary",
       "documentary",
     )),
     ...(await readOptional(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear FROM show",
+      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath FROM show",
       "show",
     )),
     ...(await readOptional(connectionString, "SELECT id, title, read AS completed FROM book", "book")),
@@ -540,6 +557,11 @@ function mapRows(rows: Record<string, unknown>[], kind: string): CatalogItem[] {
 
     if (numberOfSeasons !== undefined && numberOfSeasons > 0) {
       item.numberOfSeasons = numberOfSeasons;
+    }
+
+    const posterPath = parsePosterPath(row.posterpath ?? row.posterPath);
+    if (posterPath) {
+      item.posterPath = posterPath;
     }
 
     return item;
