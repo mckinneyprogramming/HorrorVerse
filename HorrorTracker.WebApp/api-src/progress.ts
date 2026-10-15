@@ -4,6 +4,7 @@ export const maxDuration = 30;
 import { LIBRARY_MEDIA_KINDS, parseCatalogId } from "../lib/catalog-id";
 import { parseWatchYear, watchTimestamp, yearFromCompletedAt } from "../lib/watch-year";
 import { postersForRecentProgress } from "../lib/poster";
+import { loadWatchNext, type WatchNextItem } from "../lib/watch-next";
 import { asId } from "../lib/tmdb";
 import {
   ensureUserLibrarySchema,
@@ -179,6 +180,7 @@ async function loadProgress(
   undatedIds: string[];
   watchedYears: Record<string, number>;
   recentPosters: Record<string, string>;
+  watchNext: WatchNextItem[];
 }> {
   await seedAdminProgressIfNeeded(connectionString, user);
   const rows = await queryRows(
@@ -209,6 +211,7 @@ async function loadProgress(
     undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
     watchedYears,
     recentPosters: await postersForRecentProgress(connectionString, user.id),
+    watchNext: await loadWatchNext(connectionString, user.id),
   };
 }
 

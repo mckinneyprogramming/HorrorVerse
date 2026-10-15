@@ -20,7 +20,7 @@ import {
   updateProfile,
   type AuthUser,
 } from "./auth";
-import { fetchProgress, setProgress, type UserProgress } from "./progress";
+import { fetchProgress, setProgress, type UserProgress, type WatchNextItem } from "./progress";
 import { shareStoryImage } from "./share";
 import {
   finishedTitleCount,
@@ -110,6 +110,7 @@ interface AppState {
   recentPosters: Record<string, string>;
   undatedIds: string[];
   watchedYears: Record<string, number>;
+  watchNext: WatchNextItem[];
   whenPicker: CatalogEntry | null;
   whenEpisode: { showId: number; episode: ShowEpisode } | null;
   shareBusy: boolean;
@@ -178,6 +179,7 @@ const state: AppState = {
   recentPosters: {},
   undatedIds: [],
   watchedYears: {},
+  watchNext: [],
   whenPicker: null,
   whenEpisode: null,
   shareBusy: false,
@@ -623,6 +625,7 @@ export function mountApp(root: HTMLElement): void {
       state.recentPosters = {};
       state.undatedIds = [];
       state.watchedYears = {};
+      state.watchNext = [];
       state.whenPicker = null;
       state.whenEpisode = null;
       state.shareMessage = "";
@@ -1537,6 +1540,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.recentPosters = {};
     state.undatedIds = [];
     state.watchedYears = {};
+    state.watchNext = [];
     state.whenPicker = null;
     state.whenEpisode = null;
     state.lists = [];
@@ -1559,6 +1563,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
       state.recentPosters = {};
       state.undatedIds = [];
       state.watchedYears = {};
+      state.watchNext = [];
       state.lists = [];
     }
 
@@ -1862,6 +1867,7 @@ function renderHome(): string {
         <em>${state.user ? "Left to watch or read" : "Your remaining titles appear after sign-in"}</em>
       </article>
     </section>
+    ${renderWatchNext()}
     ${renderHomeRecents()}
     ${renderFunStats()}
     <section class="kinds">
@@ -1887,6 +1893,88 @@ function renderHome(): string {
       }).join("")}
     </section>
   `;
+}
+
+function renderWatchNext(): string {
+  if (!state.user || state.watchNext.length < 1) {
+    return "";
+  }
+
+  const [featured, ...more] = state.watchNext;
+  if (!featured) {
+    return "";
+  }
+
+  return `
+    <section class="watch-next" aria-label="Watch next">
+      <h2>Watch next</h2>
+      <p>Continue a started night, or pick something still waiting.</p>
+      ${renderWatchNextFeatured(featured)}
+      ${
+        more.length > 0
+          ? `<div class="home-recents-strip">${more.map((item) => renderWatchNextPoster(item)).join("")}</div>`
+          : ""
+      }
+    </section>
+  `;
+}
+
+function renderWatchNextFeatured(item: WatchNextItem): string {
+  const entry = state.entries.find((catalog) => catalog.id === item.id);
+  const art = posterUrl(item.posterPath ?? entry?.posterPath, "w185");
+  const watchable = canWatchKind(item.kind);
+  return `
+    <article class="watch-next-card">
+      ${
+        art
+          ? `<img class="watch-next-poster" src="${escapeHtml(art)}" alt="" width="72" height="108" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
+          : ""
+      }
+      <div class="watch-next-copy">
+        <p class="eyebrow">${escapeHtml(watchNextReasonLabel(item.reason))}</p>
+        <h3>${escapeHtml(item.title)}</h3>
+        ${item.detail ? `<p class="watch-next-detail">${escapeHtml(item.detail)}</p>` : ""}
+        <div class="watch-next-actions">
+          <button class="ghost-btn" type="button" data-action="stat-open" data-filter="${escapeHtml(item.kind)}" data-query="${escapeHtml(item.title)}">Open</button>
+          ${
+            watchable
+              ? `<button class="primary-btn" type="button" data-action="open-watch" data-id="${escapeHtml(item.id)}" ${state.watchBusy ? "disabled" : ""}>Watch</button>`
+              : ""
+          }
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderWatchNextPoster(item: WatchNextItem): string {
+  const entry = state.entries.find((catalog) => catalog.id === item.id);
+  const art = posterUrl(item.posterPath ?? entry?.posterPath, "w185");
+  return `
+    <button class="home-recent" type="button" data-action="stat-open" data-filter="${escapeHtml(item.kind)}" data-query="${escapeHtml(item.title)}" aria-label="${escapeHtml(item.title)}">
+      ${
+        art
+          ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" decoding="async" referrerpolicy="no-referrer" />`
+          : `<span class="home-recent-fallback">${escapeHtml(item.title)}</span>`
+      }
+    </button>
+  `;
+}
+
+function watchNextReasonLabel(reason: WatchNextItem["reason"]): string {
+  if (reason === "episode") {
+    return "Continue";
+  }
+
+  if (reason === "series") {
+    return "Next in series";
+  }
+
+  if (reason === "list") {
+    return "On your list";
+  }
+
+  return "Suggested";
 }
 
 function renderHomeRecents(): string {
@@ -3649,6 +3737,7 @@ function applyProgress(progress: UserProgress): void {
   state.recentPosters = progress.recentPosters;
   state.undatedIds = progress.undatedIds;
   state.watchedYears = progress.watchedYears;
+  state.watchNext = progress.watchNext;
   if (Object.keys(progress.recentPosters).length > 0) {
     state.entries = state.entries.map((entry) => {
       const posterPath = progress.recentPosters[entry.id];

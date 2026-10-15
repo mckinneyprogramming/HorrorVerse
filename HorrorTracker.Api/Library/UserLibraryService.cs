@@ -99,8 +99,263 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             recentIds,
             undatedIds,
             watchedYears,
-            recentPosters
+            recentPosters,
+            watchNext = LoadWatchNext(userId)
         };
+    }
+
+    private List<object> LoadWatchNext(int userId)
+    {
+        var picked = new List<object>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        void Add(IEnumerable<(string Id, object Item)> items)
+        {
+            foreach (var (id, item) in items)
+            {
+                if (picked.Count >= 6 || !seen.Add(id))
+                {
+                    continue;
+                }
+
+                picked.Add(item);
+            }
+        }
+
+        Add(LoadNextEpisodes(userId));
+        Add(LoadNextSeriesMovies(userId));
+        Add(LoadListedUnfinished(userId));
+        Add(ShuffleWatchNext(LoadVaultUnfinished(userId), userId));
+        return picked;
+    }
+
+    private List<(string Id, object Item)> LoadNextEpisodes(int userId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT DISTINCT ON (s.id)
+                    s.id, s.title, s.posterpath, se.season_number, e.episode_number, e.title,
+                    (SELECT MAX(p.completed_at)
+                     FROM user_episode_progress p
+                     JOIN show_episode pe ON pe.id = p.episode_id
+                     WHERE p.user_id = @userId AND pe.show_id = s.id) AS last_watched
+                FROM show s
+                JOIN show_episode e ON e.show_id = s.id
+                JOIN show_season se ON se.id = e.season_id
+                WHERE EXISTS (
+                    SELECT 1 FROM user_episode_progress p
+                    JOIN show_episode pe ON pe.id = p.episode_id
+                    WHERE p.user_id = @userId AND pe.show_id = s.id)
+                  AND NOT EXISTS (
+                    SELECT 1 FROM user_media_progress ump
+                    WHERE ump.user_id = @userId AND ump.media_kind = 'show' AND ump.media_id = s.id)
+                  AND NOT EXISTS (
+                    SELECT 1 FROM user_episode_progress p2
+                    WHERE p2.user_id = @userId AND p2.episode_id = e.id)
+                ORDER BY s.id, se.season_number, e.episode_number
+                """;
+            command.Parameters.AddWithValue("userId", userId);
+            using var reader = command.ExecuteReader();
+            var rows = new List<(DateTimeOffset At, string Id, object Item)>();
+            while (reader.Read())
+            {
+                var season = reader.GetInt32(3);
+                var number = reader.GetInt32(4);
+                var episodeTitle = reader.GetString(5);
+                var seasonLabel = season == 0 ? "Specials" : $"S{season}";
+                var detail = string.IsNullOrWhiteSpace(episodeTitle) ? $"{seasonLabel} E{number}" : $"{seasonLabel} E{number} · {episodeTitle}";
+                var at = reader.IsDBNull(6) ? DateTimeOffset.MinValue : reader.GetFieldValue<DateTimeOffset>(6);
+                var item = WatchNextItem("show", reader.GetInt32(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), "episode", detail);
+                if (item is not null)
+                {
+                    rows.Add((at, item.Value.Id, item.Value.Item));
+                }
+            }
+
+            return rows.OrderByDescending(row => row.At).Select(row => (row.Id, row.Item)).ToList();
+        }
+        catch (PostgresException)
+        {
+            return [];
+        }
+    }
+
+    private List<(string Id, object Item)> LoadNextSeriesMovies(int userId)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT DISTINCT ON (m.seriesid)
+                    m.id, m.title, m.posterpath, m.releaseyear, ms.title,
+                    (SELECT MAX(p.completed_at)
+                     FROM user_media_progress p
+                     JOIN movie fm ON fm.id = p.media_id
+                     WHERE p.user_id = @userId AND p.media_kind = 'movie' AND fm.seriesid = m.seriesid) AS last_watched
+                FROM movie m
+                JOIN movieseries ms ON ms.id = m.seriesid
+                WHERE m.seriesid IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1 FROM user_media_progress p
+                    JOIN movie fm ON fm.id = p.media_id
+                    WHERE p.user_id = @userId AND p.media_kind = 'movie' AND fm.seriesid = m.seriesid)
+                  AND NOT EXISTS (
+                    SELECT 1 FROM user_media_progress p
+                    WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
+                ORDER BY m.seriesid, m.releaseyear NULLS LAST, m.title
+                """;
+            command.Parameters.AddWithValue("userId", userId);
+            using var reader = command.ExecuteReader();
+            var rows = new List<(DateTimeOffset At, string Id, object Item)>();
+            while (reader.Read())
+            {
+                var year = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
+                var seriesTitle = reader.GetString(4);
+                var detail = string.Join(" · ", new[] { seriesTitle, year is int value && value > 0 ? value.ToString() : null }.Where(part => !string.IsNullOrWhiteSpace(part)));
+                var at = reader.IsDBNull(5) ? DateTimeOffset.MinValue : reader.GetFieldValue<DateTimeOffset>(5);
+                var item = WatchNextItem("movie", reader.GetInt32(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), "series", detail);
+                if (item is not null)
+                {
+                    rows.Add((at, item.Value.Id, item.Value.Item));
+                }
+            }
+
+            return rows.OrderByDescending(row => row.At).Select(row => (row.Id, row.Item)).ToList();
+        }
+        catch (PostgresException)
+        {
+            return [];
+        }
+    }
+
+    private List<(string Id, object Item)> LoadListedUnfinished(int userId) =>
+        ReadWatchNextRows(
+            userId,
+            """
+            SELECT 'movie' AS kind, m.id, m.title, m.posterpath, m.releaseyear
+            FROM user_list_item i
+            JOIN user_list l ON l.id = i.list_id
+            JOIN movie m ON m.id = i.media_id
+            WHERE l.user_id = @userId AND i.media_kind = 'movie'
+              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
+            UNION ALL
+            SELECT 'documentary', d.id, d.title, d.posterpath, d.releaseyear
+            FROM user_list_item i
+            JOIN user_list l ON l.id = i.list_id
+            JOIN documentary d ON d.id = i.media_id
+            WHERE l.user_id = @userId AND i.media_kind = 'documentary'
+              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'documentary' AND p.media_id = d.id)
+            UNION ALL
+            SELECT 'show', s.id, s.title, s.posterpath, s.releaseyear
+            FROM user_list_item i
+            JOIN user_list l ON l.id = i.list_id
+            JOIN show s ON s.id = i.media_id
+            WHERE l.user_id = @userId AND i.media_kind = 'show'
+              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
+            UNION ALL
+            SELECT 'book', b.id, b.title, NULL, b.releaseyear
+            FROM user_list_item i
+            JOIN user_list l ON l.id = i.list_id
+            JOIN book b ON b.id = i.media_id
+            WHERE l.user_id = @userId AND i.media_kind = 'book'
+              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'book' AND p.media_id = b.id)
+            """,
+            "list");
+
+    private List<(string Id, object Item)> LoadVaultUnfinished(int userId) =>
+        ReadWatchNextRows(
+            userId,
+            """
+            SELECT 'movie' AS kind, id, title, posterpath, releaseyear FROM movie m
+            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
+            UNION ALL
+            SELECT 'documentary', id, title, posterpath, releaseyear FROM documentary d
+            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'documentary' AND p.media_id = d.id)
+            UNION ALL
+            SELECT 'show', id, title, posterpath, releaseyear FROM show s
+            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
+            UNION ALL
+            SELECT 'book', id, title, NULL, releaseyear FROM book b
+            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'book' AND p.media_id = b.id)
+            LIMIT 80
+            """,
+            "vault");
+
+    private List<(string Id, object Item)> ReadWatchNextRows(int userId, string sql, string reason)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            command.Parameters.AddWithValue("userId", userId);
+            using var reader = command.ExecuteReader();
+            var items = new List<(string Id, object Item)>();
+            while (reader.Read())
+            {
+                var year = reader.IsDBNull(4) ? (int?)null : Convert.ToInt32(reader.GetValue(4));
+                var item = WatchNextItem(
+                    reader.GetString(0),
+                    Convert.ToInt32(reader.GetValue(1)),
+                    reader.GetString(2),
+                    reader.IsDBNull(3) ? null : reader.GetString(3),
+                    reason,
+                    year is int value && value > 0 ? value.ToString() : null);
+                if (item is not null)
+                {
+                    items.Add(item.Value);
+                }
+            }
+
+            return items;
+        }
+        catch (PostgresException)
+        {
+            return [];
+        }
+    }
+
+    private static List<(string Id, object Item)> ShuffleWatchNext(List<(string Id, object Item)> items, int userId)
+    {
+        var seed = (uint)(userId * 10_000 + DateTime.UtcNow.Year * 400 + DateTime.UtcNow.Month * 32 + DateTime.UtcNow.Day);
+        if (seed == 0)
+        {
+            seed = 1;
+        }
+
+        for (var index = items.Count - 1; index > 0; index--)
+        {
+            seed = unchecked(seed * 1664525u + 1013904223u);
+            var swap = (int)(seed % (uint)(index + 1));
+            (items[index], items[swap]) = (items[swap], items[index]);
+        }
+
+        return items;
+    }
+
+    private static (string Id, object Item)? WatchNextItem(string kind, int mediaId, string title, string? posterPath, string reason, string? detail)
+    {
+        var name = title.Trim();
+        if (mediaId < 1 || name.Length < 1)
+        {
+            return null;
+        }
+
+        var path = (posterPath ?? string.Empty).Trim();
+        var poster = path.StartsWith('/') && path.Length <= 160 && !path.Contains("..", StringComparison.Ordinal) ? path : null;
+        var id = $"{kind}:{mediaId}";
+        return (id, new
+        {
+            id,
+            title = name,
+            kind,
+            reason,
+            detail = string.IsNullOrWhiteSpace(detail) ? null : detail,
+            posterPath = poster
+        });
     }
 
     private static int? ParseWatchYear(int? year)

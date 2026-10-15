@@ -1,11 +1,24 @@
 import { parsePosterPath } from "./catalog";
 
+export type WatchNextKind = "movie" | "documentary" | "show" | "book";
+export type WatchNextReason = "episode" | "series" | "list" | "vault";
+
+export interface WatchNextItem {
+  id: string;
+  title: string;
+  kind: WatchNextKind;
+  reason: WatchNextReason;
+  detail?: string;
+  posterPath?: string;
+}
+
 export interface UserProgress {
   ids: string[];
   recentIds: string[];
   undatedIds: string[];
   watchedYears: Record<string, number>;
   recentPosters: Record<string, string>;
+  watchNext: WatchNextItem[];
 }
 
 export async function fetchProgress(): Promise<UserProgress> {
@@ -75,6 +88,53 @@ function readProgress(payload: unknown): UserProgress {
     undatedIds: readIds(payload, "undatedIds"),
     watchedYears: readWatchedYears(payload),
     recentPosters: readRecentPosters(payload),
+    watchNext: readWatchNext(payload),
+  };
+}
+
+export function readWatchNext(payload: unknown): WatchNextItem[] {
+  if (typeof payload !== "object" || payload === null || !("watchNext" in payload)) {
+    return [];
+  }
+
+  const value = (payload as { watchNext: unknown }).watchNext;
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => readWatchNextItem(item))
+    .filter((item): item is WatchNextItem => item !== undefined);
+}
+
+function readWatchNextItem(value: unknown): WatchNextItem | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const item = value as Record<string, unknown>;
+  const kind = item.kind;
+  const reason = item.reason;
+  if (
+    (kind !== "movie" && kind !== "documentary" && kind !== "show" && kind !== "book") ||
+    (reason !== "episode" && reason !== "series" && reason !== "list" && reason !== "vault") ||
+    typeof item.id !== "string" ||
+    typeof item.title !== "string" ||
+    !item.id ||
+    !item.title.trim()
+  ) {
+    return undefined;
+  }
+
+  const detail = typeof item.detail === "string" && item.detail.trim() ? item.detail.trim() : undefined;
+  const posterPath = parsePosterPath(item.posterPath);
+  return {
+    id: item.id,
+    title: item.title.trim(),
+    kind,
+    reason,
+    ...(detail ? { detail } : {}),
+    ...(posterPath ? { posterPath } : {}),
   };
 }
 
@@ -113,7 +173,7 @@ function readIds(payload: unknown, key: "ids" | "recentIds" | "undatedIds"): str
 }
 
 function emptyProgress(): UserProgress {
-  return { ids: [], recentIds: [], undatedIds: [], watchedYears: {}, recentPosters: {} };
+  return { ids: [], recentIds: [], undatedIds: [], watchedYears: {}, recentPosters: {}, watchNext: [] };
 }
 
 async function readError(response: Response, label: string): Promise<string> {
