@@ -1,5 +1,5 @@
 import { execute, queryRows } from "./neon";
-import { asId, tmdbJson } from "./tmdb";
+import { asId, tmdbJsonOptional } from "./tmdb";
 
 const TABLES: Record<string, { table: string; tmdbKind: "movie" | "tv" | "collection" }> = {
   movie: { table: "movie", tmdbKind: "movie" },
@@ -8,7 +8,12 @@ const TABLES: Record<string, { table: string; tmdbKind: "movie" | "tv" | "collec
   series: { table: "movieseries", tmdbKind: "collection" },
 };
 
-const POSTER_BATCH = 8;
+const POSTER_BATCH = 48;
+const POSTER_CONCURRENCY = 8;
+const NO_POSTER = "-";
+
+let posterSchema: Promise<void> | undefined;
+let posterSchemaKey = "";
 
 export function parsePosterPath(value: unknown): string | undefined {
   const path = String(value ?? "").trim();
@@ -29,6 +34,18 @@ export function posterUrl(path: string | undefined, size = "w92"): string | unde
 }
 
 export async function ensurePosterSchema(connectionString: string): Promise<void> {
+  if (!posterSchema || posterSchemaKey !== connectionString) {
+    posterSchemaKey = connectionString;
+    posterSchema = applyPosterSchema(connectionString).catch((error: unknown) => {
+      posterSchema = undefined;
+      throw error;
+    });
+  }
+
+  await posterSchema;
+}
+
+async function applyPosterSchema(connectionString: string): Promise<void> {
   await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS posterpath TEXT");
   await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS posterpath TEXT");
   await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS posterpath TEXT");
@@ -46,24 +63,60 @@ export async function savePoster(
   value: unknown,
 ): Promise<void> {
   const path = parsePosterPath(value);
-  const target = TABLES[kind];
-  if (!path || !target || !Number.isInteger(mediaId) || mediaId < 1) {
+  if (!path) {
     return;
   }
 
-  await ensurePosterSchema(connectionString);
-  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [path, mediaId]);
+  await writePosterValue(connectionString, kind, mediaId, path);
 }
 
-export async function fillMissingPosters(connectionString: string): Promise<number> {
+export async function fillMissingPosters(connectionString: string, budgetMs = 18_000): Promise<number> {
   await ensurePosterSchema(connectionString);
+  const deadline = Date.now() + Math.max(budgetMs, 0);
   let filled = 0;
   for (const [kind, target] of Object.entries(TABLES)) {
-    let rows: Record<string, unknown>[] = [];
+    if (Date.now() >= deadline) {
+      break;
+    }
+
+    const rows = await loadMissingPosterRows(connectionString, kind, target.table);
+    for (let index = 0; index < rows.length; index += POSTER_CONCURRENCY) {
+      if (Date.now() >= deadline) {
+        break;
+      }
+
+      const chunk = rows.slice(index, index + POSTER_CONCURRENCY);
+      const saved = await Promise.all(chunk.map((row) => fillOnePoster(connectionString, kind, target.tmdbKind, row)));
+      filled += saved.filter(Boolean).length;
+    }
+  }
+
+  return filled;
+}
+
+async function loadMissingPosterRows(
+  connectionString: string,
+  kind: string,
+  table: string,
+): Promise<Record<string, unknown>[]> {
+  try {
+    return await queryRows(
+      connectionString,
+      `SELECT t.id, t.tmdbid FROM ${table} t
+       WHERE t.tmdbid IS NOT NULL
+         AND (t.posterpath IS NULL OR t.posterpath = '')
+       ORDER BY EXISTS (
+         SELECT 1 FROM user_media_progress p
+         WHERE p.media_kind = $2 AND p.media_id = t.id
+       ) DESC, t.id
+       LIMIT $1`,
+      [POSTER_BATCH, kind],
+    );
+  } catch {
     try {
-      rows = await queryRows(
+      return await queryRows(
         connectionString,
-        `SELECT id, tmdbid FROM ${target.table}
+        `SELECT id, tmdbid FROM ${table}
          WHERE tmdbid IS NOT NULL
            AND (posterpath IS NULL OR posterpath = '')
          ORDER BY id
@@ -71,27 +124,49 @@ export async function fillMissingPosters(connectionString: string): Promise<numb
         [POSTER_BATCH],
       );
     } catch {
-      continue;
-    }
-
-    for (const row of rows) {
-      const mediaId = asId(row);
-      const tmdbId = asId(row, "tmdbid");
-      if (!mediaId || !tmdbId) {
-        continue;
-      }
-
-      try {
-        const payload = await tmdbJson(`/${target.tmdbKind}/${tmdbId}`);
-        await savePoster(connectionString, kind, mediaId, payload.poster_path);
-        if (parsePosterPath(payload.poster_path)) {
-          filled += 1;
-        }
-      } catch {
-        // Keep filling the rest of the vault if one title cannot be matched.
-      }
+      return [];
     }
   }
+}
 
-  return filled;
+async function fillOnePoster(
+  connectionString: string,
+  kind: string,
+  tmdbKind: "movie" | "tv" | "collection",
+  row: Record<string, unknown>,
+): Promise<boolean> {
+  const mediaId = asId(row);
+  const tmdbId = asId(row, "tmdbid");
+  if (!mediaId || !tmdbId) {
+    return false;
+  }
+
+  try {
+    const payload = await tmdbJsonOptional(`/${tmdbKind}/${tmdbId}`);
+    if (!payload) {
+      await writePosterValue(connectionString, kind, mediaId, NO_POSTER);
+      return false;
+    }
+
+    const path = parsePosterPath(payload.poster_path);
+    await writePosterValue(connectionString, kind, mediaId, path ?? NO_POSTER);
+    return Boolean(path);
+  } catch {
+    return false;
+  }
+}
+
+async function writePosterValue(
+  connectionString: string,
+  kind: string,
+  mediaId: number,
+  value: string,
+): Promise<void> {
+  const target = TABLES[kind];
+  if (!target || !Number.isInteger(mediaId) || mediaId < 1) {
+    return;
+  }
+
+  await ensurePosterSchema(connectionString);
+  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [value, mediaId]);
 }

@@ -138,6 +138,8 @@ function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That titl
 }
 
 // lib/poster.ts
+var posterSchema;
+var posterSchemaKey = "";
 function parsePosterPath(value) {
   const path = String(value ?? "").trim();
   if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
@@ -146,6 +148,16 @@ function parsePosterPath(value) {
   return path;
 }
 async function ensurePosterSchema(connectionString) {
+  if (!posterSchema || posterSchemaKey !== connectionString) {
+    posterSchemaKey = connectionString;
+    posterSchema = applyPosterSchema(connectionString).catch((error) => {
+      posterSchema = void 0;
+      throw error;
+    });
+  }
+  await posterSchema;
+}
+async function applyPosterSchema(connectionString) {
   await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS posterpath TEXT");
   await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS posterpath TEXT");
   await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS posterpath TEXT");

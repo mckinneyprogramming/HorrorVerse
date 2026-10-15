@@ -345,11 +345,27 @@ button.fun-stat:focus-visible {
 }
 
 .upcoming-today-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
   padding: 16px;
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
+}
+
+.upcoming-today-poster {
+  width: 64px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex: 0 0 auto;
+  background: var(--bg);
+}
+
+.upcoming-today-copy {
+  min-width: 0;
 }
 
 .upcoming-today-card .eyebrow {

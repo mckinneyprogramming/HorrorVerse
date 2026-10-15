@@ -62,13 +62,15 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         {
             var added = await SyncOneAsync(id, cancellationToken);
             await RefreshKeywordsForIdAsync(id, cancellationToken);
-            return new { added };
+            var postersFilled = await FillMissingPostersAsync(cancellationToken);
+            return new { added, postersFilled };
         }
 
         var tagged = await RefreshMissingKeywordsAsync(cancellationToken);
         if (!force && !IsVaultStale())
         {
-            return new { added = tagged, seriesAdded = 0, showsAdded = 0, keywordsAdded = tagged, skipped = tagged == 0 };
+            var postersFilled = await FillMissingPostersAsync(cancellationToken);
+            return new { added = tagged, seriesAdded = 0, showsAdded = 0, keywordsAdded = tagged, skipped = tagged == 0, postersFilled };
         }
 
         var tmdb = CreateClient();
@@ -99,8 +101,9 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         }
 
         tagged += await RefreshMissingKeywordsAsync(cancellationToken);
+        var filled = await FillMissingPostersAsync(cancellationToken);
         MarkVaultSynced();
-        return new { added = seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded = tagged };
+        return new { added = seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded = tagged, postersFilled = filled };
     }
 
     private async Task<TmdbImportResult> ImportMovieAsync(MovieDatabaseService tmdb, int tmdbId, CancellationToken cancellationToken)
@@ -866,10 +869,142 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         command.ExecuteNonQuery();
     }
 
-    private void SavePoster(string kind, int mediaId, string? path)
+    private async Task<int> FillMissingPostersAsync(CancellationToken cancellationToken)
+    {
+        EnsureSeriesSchema();
+        EnsureShowTable();
+        var filled = 0;
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        var tmdb = CreateClient();
+        foreach (var (kind, table, tmdbKind) in new (string kind, string table, string tmdbKind)[]
+        {
+            ("movie", "Movie", "movie"),
+            ("documentary", "Documentary", "movie"),
+            ("show", "Show", "tv"),
+            ("series", "MovieSeries", "collection"),
+        })
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                break;
+            }
+
+            foreach (var (mediaId, tmdbId) in ListMissingPosters(table, kind))
+            {
+                if (cancellationToken.IsCancellationRequested || DateTime.UtcNow >= deadline)
+                {
+                    break;
+                }
+
+                try
+                {
+                    var path = tmdbKind switch
+                    {
+                        "tv" => (await tmdb.GetTvShow(tmdbId)).PosterPath,
+                        "collection" => (await tmdb.GetCollection(tmdbId)).PosterPath,
+                        _ => (await tmdb.GetMovie(tmdbId)).PosterPath,
+                    };
+                    if (IsPosterPath(path))
+                    {
+                        SavePoster(kind, mediaId, path);
+                        filled += 1;
+                    }
+                    else
+                    {
+                        WritePosterValue(kind, mediaId, "-");
+                    }
+                }
+                catch
+                {
+                    // Keep filling the rest of the vault if one title cannot be matched.
+                }
+            }
+        }
+
+        return filled;
+    }
+
+    private IReadOnlyList<(int Id, int TmdbId)> ListMissingPosters(string table, string kind)
+    {
+        try
+        {
+            return ReadMissingPosters(
+                $"""
+                SELECT t.Id, t.TmdbId FROM {table} t
+                WHERE t.TmdbId IS NOT NULL
+                  AND (t.PosterPath IS NULL OR t.PosterPath = '')
+                ORDER BY EXISTS (
+                  SELECT 1 FROM user_media_progress p
+                  WHERE p.media_kind = @kind AND p.media_id = t.Id
+                ) DESC, t.Id
+                LIMIT 48
+                """,
+                kind);
+        }
+        catch (PostgresException)
+        {
+            try
+            {
+                return ReadMissingPosters(
+                    $"""
+                    SELECT Id, TmdbId FROM {table}
+                    WHERE TmdbId IS NOT NULL
+                      AND (PosterPath IS NULL OR PosterPath = '')
+                    ORDER BY Id
+                    LIMIT 48
+                    """,
+                    kind);
+            }
+            catch (PostgresException)
+            {
+                return [];
+            }
+        }
+    }
+
+    private IReadOnlyList<(int Id, int TmdbId)> ReadMissingPosters(string sql, string kind)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        if (sql.Contains("@kind", StringComparison.Ordinal))
+        {
+            command.Parameters.AddWithValue("kind", kind);
+        }
+        using var reader = command.ExecuteReader();
+        var rows = new List<(int Id, int TmdbId)>();
+        while (reader.Read())
+        {
+            var mediaId = reader.GetInt32(0);
+            var tmdbId = reader.GetInt32(1);
+            if (mediaId > 0 && tmdbId > 0)
+            {
+                rows.Add((mediaId, tmdbId));
+            }
+        }
+
+        return rows;
+    }
+
+    private static bool IsPosterPath(string? path)
     {
         var value = (path ?? string.Empty).Trim();
-        if (mediaId < 1 || !value.StartsWith('/') || value.Length > 160 || value.Contains("..", StringComparison.Ordinal))
+        return value.StartsWith('/') && value.Length <= 160 && !value.Contains("..", StringComparison.Ordinal);
+    }
+
+    private void SavePoster(string kind, int mediaId, string? path)
+    {
+        if (!IsPosterPath(path))
+        {
+            return;
+        }
+
+        WritePosterValue(kind, mediaId, path!.Trim());
+    }
+
+    private void WritePosterValue(string kind, int mediaId, string value)
+    {
+        if (mediaId < 1)
         {
             return;
         }

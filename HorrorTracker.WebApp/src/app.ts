@@ -1415,8 +1415,8 @@ async function applyVaultRefresh(root: HTMLElement, id?: string): Promise<void> 
   }
 
   try {
-    const added = await syncVault(id);
-    if (added < 1) {
+    const { added, postersFilled } = await syncVault(id);
+    if (added < 1 && postersFilled < 1) {
       return;
     }
 
@@ -1867,7 +1867,7 @@ function renderHomeRecents(): string {
               <button class="home-recent" type="button" data-action="stat-open" data-query="${escapeHtml(entry.title)}" aria-label="${escapeHtml(entry.title)}">
                 ${
                   art
-                    ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" loading="lazy" />`
+                    ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" loading="lazy" referrerpolicy="no-referrer" />`
                     : `<span class="home-recent-fallback">${escapeHtml(entry.title)}</span>`
                 }
               </button>
@@ -1987,13 +1987,21 @@ function renderUpcomingToday(items: UpcomingTitle[]): string {
 
 function renderUpcomingTodayCard(item: UpcomingTitle): string {
   const kindLabel = item.kind === "episode" ? "Episode" : item.kind === "show" ? "New series" : "Film";
+  const art = posterUrl(item.posterPath, "w185");
   return `
     <article class="upcoming-today-card">
-      <p class="eyebrow">${escapeHtml(kindLabel)}</p>
-      <h3>${escapeHtml(item.title)}</h3>
-      ${item.detail ? `<p class="upcoming-detail">${escapeHtml(item.detail)}</p>` : ""}
-      <p class="upcoming-date">${escapeHtml(formatUpcomingDate(item.releaseDate))}</p>
-      ${item.overview ? `<p class="upcoming-synopsis">${escapeHtml(item.overview)}</p>` : `<p class="upcoming-synopsis">No synopsis yet.</p>`}
+      ${
+        art
+          ? `<img class="upcoming-today-poster" src="${escapeHtml(art)}" alt="" width="64" height="96" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
+          : ""
+      }
+      <div class="upcoming-today-copy">
+        <p class="eyebrow">${escapeHtml(kindLabel)}</p>
+        <h3>${escapeHtml(item.title)}</h3>
+        ${item.detail ? `<p class="upcoming-detail">${escapeHtml(item.detail)}</p>` : ""}
+        <p class="upcoming-date">${escapeHtml(formatUpcomingDate(item.releaseDate))}</p>
+        ${item.overview ? `<p class="upcoming-synopsis">${escapeHtml(item.overview)}</p>` : `<p class="upcoming-synopsis">No synopsis yet.</p>`}
+      </div>
     </article>
   `;
 }
@@ -3636,7 +3644,7 @@ function renderPoster(path: string | undefined): string {
     return "";
   }
 
-  return `<img class="entry-poster" src="${escapeHtml(url)}" alt="" width="40" height="60" loading="lazy" decoding="async" />`;
+  return `<img class="entry-poster" src="${escapeHtml(url)}" alt="" width="40" height="60" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`;
 }
 
 function seriesPosterPath(seriesId: number, movies: CatalogEntry[]): string | undefined {

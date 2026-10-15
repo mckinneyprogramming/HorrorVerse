@@ -254,7 +254,11 @@ var TABLES = {
   show: { table: "show", tmdbKind: "tv" },
   series: { table: "movieseries", tmdbKind: "collection" }
 };
-var POSTER_BATCH = 8;
+var POSTER_BATCH = 48;
+var POSTER_CONCURRENCY = 8;
+var NO_POSTER = "-";
+var posterSchema;
+var posterSchemaKey = "";
 function parsePosterPath(value) {
   const path = String(value ?? "").trim();
   if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
@@ -263,6 +267,16 @@ function parsePosterPath(value) {
   return path;
 }
 async function ensurePosterSchema(connectionString) {
+  if (!posterSchema || posterSchemaKey !== connectionString) {
+    posterSchemaKey = connectionString;
+    posterSchema = applyPosterSchema(connectionString).catch((error) => {
+      posterSchema = void 0;
+      throw error;
+    });
+  }
+  await posterSchema;
+}
+async function applyPosterSchema(connectionString) {
   await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS posterpath TEXT");
   await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS posterpath TEXT");
   await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS posterpath TEXT");
@@ -273,22 +287,50 @@ async function ensurePosterSchema(connectionString) {
 }
 async function savePoster(connectionString, kind, mediaId, value) {
   const path = parsePosterPath(value);
-  const target = TABLES[kind];
-  if (!path || !target || !Number.isInteger(mediaId) || mediaId < 1) {
+  if (!path) {
     return;
   }
-  await ensurePosterSchema(connectionString);
-  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [path, mediaId]);
+  await writePosterValue(connectionString, kind, mediaId, path);
 }
-async function fillMissingPosters(connectionString) {
+async function fillMissingPosters(connectionString, budgetMs = 18e3) {
   await ensurePosterSchema(connectionString);
+  const deadline = Date.now() + Math.max(budgetMs, 0);
   let filled = 0;
   for (const [kind, target] of Object.entries(TABLES)) {
-    let rows = [];
+    if (Date.now() >= deadline) {
+      break;
+    }
+    const rows = await loadMissingPosterRows(connectionString, kind, target.table);
+    for (let index = 0; index < rows.length; index += POSTER_CONCURRENCY) {
+      if (Date.now() >= deadline) {
+        break;
+      }
+      const chunk = rows.slice(index, index + POSTER_CONCURRENCY);
+      const saved = await Promise.all(chunk.map((row) => fillOnePoster(connectionString, kind, target.tmdbKind, row)));
+      filled += saved.filter(Boolean).length;
+    }
+  }
+  return filled;
+}
+async function loadMissingPosterRows(connectionString, kind, table) {
+  try {
+    return await queryRows(
+      connectionString,
+      `SELECT t.id, t.tmdbid FROM ${table} t
+       WHERE t.tmdbid IS NOT NULL
+         AND (t.posterpath IS NULL OR t.posterpath = '')
+       ORDER BY EXISTS (
+         SELECT 1 FROM user_media_progress p
+         WHERE p.media_kind = $2 AND p.media_id = t.id
+       ) DESC, t.id
+       LIMIT $1`,
+      [POSTER_BATCH, kind]
+    );
+  } catch {
     try {
-      rows = await queryRows(
+      return await queryRows(
         connectionString,
-        `SELECT id, tmdbid FROM ${target.table}
+        `SELECT id, tmdbid FROM ${table}
          WHERE tmdbid IS NOT NULL
            AND (posterpath IS NULL OR posterpath = '')
          ORDER BY id
@@ -296,25 +338,36 @@ async function fillMissingPosters(connectionString) {
         [POSTER_BATCH]
       );
     } catch {
-      continue;
-    }
-    for (const row of rows) {
-      const mediaId = asId(row);
-      const tmdbId = asId(row, "tmdbid");
-      if (!mediaId || !tmdbId) {
-        continue;
-      }
-      try {
-        const payload = await tmdbJson(`/${target.tmdbKind}/${tmdbId}`);
-        await savePoster(connectionString, kind, mediaId, payload.poster_path);
-        if (parsePosterPath(payload.poster_path)) {
-          filled += 1;
-        }
-      } catch {
-      }
+      return [];
     }
   }
-  return filled;
+}
+async function fillOnePoster(connectionString, kind, tmdbKind, row) {
+  const mediaId = asId(row);
+  const tmdbId = asId(row, "tmdbid");
+  if (!mediaId || !tmdbId) {
+    return false;
+  }
+  try {
+    const payload = await tmdbJsonOptional(`/${tmdbKind}/${tmdbId}`);
+    if (!payload) {
+      await writePosterValue(connectionString, kind, mediaId, NO_POSTER);
+      return false;
+    }
+    const path = parsePosterPath(payload.poster_path);
+    await writePosterValue(connectionString, kind, mediaId, path ?? NO_POSTER);
+    return Boolean(path);
+  } catch {
+    return false;
+  }
+}
+async function writePosterValue(connectionString, kind, mediaId, value) {
+  const target = TABLES[kind];
+  if (!target || !Number.isInteger(mediaId) || mediaId < 1) {
+    return;
+  }
+  await ensurePosterSchema(connectionString);
+  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [value, mediaId]);
 }
 
 // lib/catalog.ts
@@ -897,21 +950,21 @@ async function GET(request) {
     if (id) {
       const added = await syncOne(connectionString, id);
       await refreshMissingKeywords(connectionString, id);
-      await fillMissingPosters(connectionString);
-      return Response.json({ added });
+      const postersFilled2 = await fillMissingPosters(connectionString);
+      return Response.json({ added, postersFilled: postersFilled2 });
     }
     const force = cron || Boolean(user?.isAdmin);
     let tagged = await refreshMissingKeywords(connectionString);
     if (!force && !await isVaultStale(connectionString)) {
-      await fillMissingPosters(connectionString);
-      return Response.json({ added: tagged, seriesAdded: 0, showsAdded: 0, keywordsAdded: tagged, skipped: tagged === 0 });
+      const postersFilled2 = await fillMissingPosters(connectionString, 45e3);
+      return Response.json({ added: tagged, seriesAdded: 0, showsAdded: 0, keywordsAdded: tagged, skipped: tagged === 0, postersFilled: postersFilled2 });
     }
     const seriesAdded = await syncAllSeries(connectionString);
     const showsAdded = await syncAllShows(connectionString);
     tagged += await refreshMissingKeywords(connectionString);
-    await fillMissingPosters(connectionString);
+    const postersFilled = await fillMissingPosters(connectionString, 12e3);
     await markVaultSynced(connectionString);
-    return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged });
+    return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged, postersFilled });
   } catch (error) {
     return jsonError(error, { log: "Vault sync failed.", fallback: "Could not refresh the vault from TMDb." });
   }

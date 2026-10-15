@@ -6,6 +6,7 @@ describe("parsePosterPath", () => {
     expect(parsePosterPath("/abc123.jpg")).toBe("/abc123.jpg");
     expect(parsePosterPath("https://image.tmdb.org/t/p/w92/abc123.jpg")).toBeUndefined();
     expect(parsePosterPath("/../secret.jpg")).toBeUndefined();
+    expect(parsePosterPath("-")).toBeUndefined();
   });
 });
 

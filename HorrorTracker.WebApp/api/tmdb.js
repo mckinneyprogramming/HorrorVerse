@@ -261,6 +261,8 @@ var TABLES = {
   show: { table: "show", tmdbKind: "tv" },
   series: { table: "movieseries", tmdbKind: "collection" }
 };
+var posterSchema;
+var posterSchemaKey = "";
 function parsePosterPath(value) {
   const path = String(value ?? "").trim();
   if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {
@@ -269,6 +271,16 @@ function parsePosterPath(value) {
   return path;
 }
 async function ensurePosterSchema(connectionString) {
+  if (!posterSchema || posterSchemaKey !== connectionString) {
+    posterSchemaKey = connectionString;
+    posterSchema = applyPosterSchema(connectionString).catch((error) => {
+      posterSchema = void 0;
+      throw error;
+    });
+  }
+  await posterSchema;
+}
+async function applyPosterSchema(connectionString) {
   await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS posterpath TEXT");
   await execute(connectionString, "ALTER TABLE movieseries ADD COLUMN IF NOT EXISTS posterpath TEXT");
   await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS posterpath TEXT");
@@ -279,12 +291,18 @@ async function ensurePosterSchema(connectionString) {
 }
 async function savePoster(connectionString, kind, mediaId, value) {
   const path = parsePosterPath(value);
+  if (!path) {
+    return;
+  }
+  await writePosterValue(connectionString, kind, mediaId, path);
+}
+async function writePosterValue(connectionString, kind, mediaId, value) {
   const target = TABLES[kind];
-  if (!path || !target || !Number.isInteger(mediaId) || mediaId < 1) {
+  if (!target || !Number.isInteger(mediaId) || mediaId < 1) {
     return;
   }
   await ensurePosterSchema(connectionString);
-  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [path, mediaId]);
+  await execute(connectionString, `UPDATE ${target.table} SET posterpath = $1 WHERE id = $2`, [value, mediaId]);
 }
 
 // lib/catalog.ts

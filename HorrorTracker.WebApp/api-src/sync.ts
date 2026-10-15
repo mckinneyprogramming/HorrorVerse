@@ -51,23 +51,23 @@ export async function GET(request: Request) {
     if (id) {
       const added = await syncOne(connectionString, id);
       await refreshMissingKeywords(connectionString, id);
-      await fillMissingPosters(connectionString);
-      return Response.json({ added });
+      const postersFilled = await fillMissingPosters(connectionString);
+      return Response.json({ added, postersFilled });
     }
 
     const force = cron || Boolean(user?.isAdmin);
     let tagged = await refreshMissingKeywords(connectionString);
     if (!force && !(await isVaultStale(connectionString))) {
-      await fillMissingPosters(connectionString);
-      return Response.json({ added: tagged, seriesAdded: 0, showsAdded: 0, keywordsAdded: tagged, skipped: tagged === 0 });
+      const postersFilled = await fillMissingPosters(connectionString, 45_000);
+      return Response.json({ added: tagged, seriesAdded: 0, showsAdded: 0, keywordsAdded: tagged, skipped: tagged === 0, postersFilled });
     }
 
     const seriesAdded = await syncAllSeries(connectionString);
     const showsAdded = await syncAllShows(connectionString);
     tagged += await refreshMissingKeywords(connectionString);
-    await fillMissingPosters(connectionString);
+    const postersFilled = await fillMissingPosters(connectionString, 12_000);
     await markVaultSynced(connectionString);
-    return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged });
+    return Response.json({ added: seriesAdded + showsAdded + tagged, seriesAdded, showsAdded, keywordsAdded: tagged, postersFilled });
   } catch (error) {
     return jsonError(error, { log: "Vault sync failed.", fallback: "Could not refresh the vault from TMDb." });
   }
