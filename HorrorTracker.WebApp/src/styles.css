@@ -380,6 +380,7 @@ button.fun-stat:focus-visible {
 .entry-list,
 .entry-franchise,
 .entry-watch,
+.entry-share,
 .fab {
   font: inherit;
   color: inherit;
@@ -675,7 +676,8 @@ button.entry-toggle {
 .entry-edit,
 .entry-list,
 .entry-franchise,
-.entry-watch {
+.entry-watch,
+.entry-share {
   flex: 0 0 auto;
   min-height: 36px;
   padding: 0 10px;
@@ -967,6 +969,18 @@ code {
   margin: 16px 0 0;
   color: var(--text-secondary);
   line-height: 1.5;
+}
+
+.story-share {
+  margin: 8px 0 22px;
+}
+
+.story-share .primary-btn {
+  margin-top: 12px;
+}
+
+.story-share .account-note {
+  margin-top: 10px;
 }
 
 .vault-import-actions {

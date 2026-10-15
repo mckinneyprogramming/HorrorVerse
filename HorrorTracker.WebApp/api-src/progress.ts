@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
-    return Response.json({ ids: await loadCompletedIds(connectionString, user) });
+    return Response.json(await loadProgress(connectionString, user));
   } catch (error) {
     return neonJsonError(error, { log: "User library request failed.", fallback: "Could not update your library.", unavailable: "Library unavailable." });
   }
@@ -53,7 +53,7 @@ export async function PATCH(request: Request) {
       await syncSeriesForMovie(connectionString, user.id, mediaId);
     }
 
-    return Response.json({ ids: await loadCompletedIds(connectionString, user) });
+    return Response.json(await loadProgress(connectionString, user));
   } catch (error) {
     return neonJsonError(error, { log: "User library request failed.", fallback: "Could not update your library.", unavailable: "Library unavailable." });
   }
@@ -128,14 +128,32 @@ async function syncSeriesForMovie(connectionString: string, userId: number, movi
   }
 }
 
-async function loadCompletedIds(connectionString: string, user: SessionUser): Promise<string[]> {
+async function loadProgress(
+  connectionString: string,
+  user: SessionUser,
+): Promise<{ ids: string[]; recentIds: string[] }> {
   await seedAdminProgressIfNeeded(connectionString, user);
   const rows = await queryRows(
     connectionString,
     "SELECT media_kind, media_id FROM user_media_progress WHERE user_id = $1",
     [user.id],
   );
-  return rows.map((row) => `${String(row.media_kind)}:${Number(row.media_id)}`);
+  const recent = await queryRows(
+    connectionString,
+    `SELECT media_kind, media_id FROM user_media_progress
+     WHERE user_id = $1
+     ORDER BY completed_at DESC, media_kind, media_id
+     LIMIT 8`,
+    [user.id],
+  );
+  return {
+    ids: rows.map(progressId),
+    recentIds: recent.map(progressId),
+  };
+}
+
+function progressId(row: Record<string, unknown>): string {
+  return `${String(row.media_kind)}:${Number(row.media_id)}`;
 }
 
 async function seedAdminProgressIfNeeded(connectionString: string, user: SessionUser): Promise<void> {

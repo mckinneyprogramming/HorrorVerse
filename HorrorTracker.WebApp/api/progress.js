@@ -230,7 +230,7 @@ async function GET(request) {
   try {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
-    return Response.json({ ids: await loadCompletedIds(connectionString, user) });
+    return Response.json(await loadProgress(connectionString, user));
   } catch (error) {
     return jsonError(error, { log: "User library request failed.", fallback: "Could not update your library.", unavailable: "Library unavailable." });
   }
@@ -262,7 +262,7 @@ async function PATCH(request) {
     } else if (kind === "movie") {
       await syncSeriesForMovie(connectionString, user.id, mediaId);
     }
-    return Response.json({ ids: await loadCompletedIds(connectionString, user) });
+    return Response.json(await loadProgress(connectionString, user));
   } catch (error) {
     return jsonError(error, { log: "User library request failed.", fallback: "Could not update your library.", unavailable: "Library unavailable." });
   }
@@ -329,14 +329,28 @@ async function syncSeriesForMovie(connectionString, userId, movieId) {
   } catch {
   }
 }
-async function loadCompletedIds(connectionString, user) {
+async function loadProgress(connectionString, user) {
   await seedAdminProgressIfNeeded(connectionString, user);
   const rows = await queryRows(
     connectionString,
     "SELECT media_kind, media_id FROM user_media_progress WHERE user_id = $1",
     [user.id]
   );
-  return rows.map((row) => `${String(row.media_kind)}:${Number(row.media_id)}`);
+  const recent = await queryRows(
+    connectionString,
+    `SELECT media_kind, media_id FROM user_media_progress
+     WHERE user_id = $1
+     ORDER BY completed_at DESC, media_kind, media_id
+     LIMIT 8`,
+    [user.id]
+  );
+  return {
+    ids: rows.map(progressId),
+    recentIds: recent.map(progressId)
+  };
+}
+function progressId(row) {
+  return `${String(row.media_kind)}:${Number(row.media_id)}`;
 }
 async function seedAdminProgressIfNeeded(connectionString, user) {
   if (!user.isAdmin) {

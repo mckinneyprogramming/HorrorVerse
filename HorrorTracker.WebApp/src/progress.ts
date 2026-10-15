@@ -1,17 +1,26 @@
-export async function fetchProgressIds(): Promise<string[]> {
+export interface UserProgress {
+  ids: string[];
+  recentIds: string[];
+}
+
+export async function fetchProgress(): Promise<UserProgress> {
   const response = await fetch("/api/progress");
   if (response.status === 401) {
-    return [];
+    return emptyProgress();
   }
 
   if (!response.ok) {
     throw new Error(await readError(response, "Progress"));
   }
 
-  return readIds(await response.json());
+  return readProgress(await response.json());
 }
 
-export async function setProgress(id: string, completed: boolean): Promise<string[]> {
+export async function fetchProgressIds(): Promise<string[]> {
+  return (await fetchProgress()).ids;
+}
+
+export async function setProgress(id: string, completed: boolean): Promise<UserProgress> {
   const response = await fetch("/api/progress", {
     method: "PATCH",
     headers: { "content-type": "application/json" },
@@ -22,15 +31,31 @@ export async function setProgress(id: string, completed: boolean): Promise<strin
     throw new Error(await readError(response, "Progress"));
   }
 
-  return readIds(await response.json());
+  return readProgress(await response.json());
 }
 
-function readIds(payload: unknown): string[] {
-  if (typeof payload !== "object" || payload === null || !("ids" in payload) || !Array.isArray(payload.ids)) {
+function readProgress(payload: unknown): UserProgress {
+  return {
+    ids: readIds(payload, "ids"),
+    recentIds: readIds(payload, "recentIds"),
+  };
+}
+
+function readIds(payload: unknown, key: "ids" | "recentIds"): string[] {
+  if (typeof payload !== "object" || payload === null || !(key in payload)) {
     return [];
   }
 
-  return payload.ids.filter((id): id is string => typeof id === "string");
+  const value = (payload as Record<string, unknown>)[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((id): id is string => typeof id === "string");
+}
+
+function emptyProgress(): UserProgress {
+  return { ids: [], recentIds: [] };
 }
 
 async function readError(response: Response, label: string): Promise<string> {

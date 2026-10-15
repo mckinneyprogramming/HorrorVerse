@@ -19,7 +19,15 @@ import {
   updateProfile,
   type AuthUser,
 } from "./auth";
-import { fetchProgressIds, setProgress } from "./progress";
+import { fetchProgress, setProgress, type UserProgress } from "./progress";
+import { shareStoryImage } from "./share";
+import {
+  finishedTitleCount,
+  recapTitlesFromCatalog,
+  renderRecapStoryCard,
+  renderTitleStoryCard,
+  storyFilename,
+} from "./story";
 import {
   addFranchiseToList,
   addListItem,
@@ -97,6 +105,10 @@ interface AppState {
   libraryTag: string;
   libraryPages: Record<string, number>;
   finishedIds: string[];
+  recentIds: string[];
+  shareBusy: boolean;
+  shareMessage: string;
+  shareError: boolean;
   lists: UserList[];
   listPicker: CatalogEntry | null;
   franchiseListPicker: number | null;
@@ -156,6 +168,10 @@ const state: AppState = {
   libraryTag: "",
   libraryPages: {},
   finishedIds: [],
+  recentIds: [],
+  shareBusy: false,
+  shareMessage: "",
+  shareError: false,
   lists: [],
   listPicker: null,
   franchiseListPicker: null,
@@ -525,7 +541,7 @@ export function mountApp(root: HTMLElement): void {
       await saveUserLibrary(root, async () => {
         const guide = await setEpisodeProgress(episodeId, completed);
         state.showGuides[guide.showId] = guide;
-        state.finishedIds = await fetchProgressIds();
+        applyProgress(await fetchProgress());
       });
       return;
     }
@@ -546,7 +562,7 @@ export function mountApp(root: HTMLElement): void {
       await saveUserLibrary(root, async () => {
         const guide = await setSeasonProgress(seasonId, completed);
         state.showGuides[guide.showId] = guide;
-        state.finishedIds = await fetchProgressIds();
+        applyProgress(await fetchProgress());
       });
       return;
     }
@@ -592,6 +608,9 @@ export function mountApp(root: HTMLElement): void {
       await logoutAccount();
       state.user = null;
       state.finishedIds = [];
+      state.recentIds = [];
+      state.shareMessage = "";
+      state.shareError = false;
       state.lists = [];
       state.listPicker = null;
       state.franchiseListPicker = null;
@@ -617,6 +636,25 @@ export function mountApp(root: HTMLElement): void {
       }
 
       await runHorrorImport(root, action === "import-horror-films" ? "horror-films" : "horror-collections");
+      return;
+    }
+
+    if (action === "share-title") {
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      if (!state.user || !entry || !isFinished(entry) || state.shareBusy) {
+        return;
+      }
+
+      await shareFinishedTitle(root, entry);
+      return;
+    }
+
+    if (action === "share-recap") {
+      if (!state.user || state.shareBusy || finishedTitleCount(state.entries, state.finishedIds) < 1) {
+        return;
+      }
+
+      await shareFinishedRecap(root);
       return;
     }
 
@@ -727,11 +765,11 @@ export function mountApp(root: HTMLElement): void {
         if (entry.kind === "show") {
           const guide = await setShowProgress(entry.mediaId, completed);
           state.showGuides[guide.showId] = guide;
-          state.finishedIds = await fetchProgressIds();
+          applyProgress(await fetchProgress());
           return;
         }
 
-        state.finishedIds = await setProgress(entry.id, completed);
+        applyProgress(await setProgress(entry.id, completed));
       });
       return;
     }
@@ -1327,8 +1365,8 @@ async function applyVaultRefresh(root: HTMLElement, id?: string): Promise<void> 
       // Franchises stay as last loaded if the request fails.
     }
     try {
-      const [ids, lists] = await Promise.all([fetchProgressIds(), fetchLists()]);
-      state.finishedIds = ids;
+      const [progress, lists] = await Promise.all([fetchProgress(), fetchLists()]);
+      applyProgress(progress);
       state.lists = lists;
     } catch {
       // Keep last library state if a refresh request fails.
@@ -1391,6 +1429,7 @@ async function refreshUser(root: HTMLElement): Promise<void> {
 async function refreshUserLibrary(root: HTMLElement): Promise<void> {
   if (!state.user) {
     state.finishedIds = [];
+    state.recentIds = [];
     state.lists = [];
     state.listPicker = null;
     state.franchiseListPicker = null;
@@ -1402,11 +1441,12 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
   }
 
     try {
-      const [ids, lists] = await Promise.all([fetchProgressIds(), fetchLists()]);
-      state.finishedIds = ids;
+      const [progress, lists] = await Promise.all([fetchProgress(), fetchLists()]);
+      applyProgress(progress);
       state.lists = lists;
     } catch {
       state.finishedIds = [];
+      state.recentIds = [];
       state.lists = [];
     }
 
@@ -1998,6 +2038,7 @@ function renderLibrary(): string {
     </header>
     ${renderStatus()}
     ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
+    ${renderShareStatus()}
     <form class="library-search" data-library-search-form>
       <label class="library-search-field">
         <span class="library-search-label">Search</span>
@@ -2540,6 +2581,7 @@ function renderAccount(): string {
       </section>
       ${state.user.isAdmin ? renderVaultImport() : ""}
       ${stats.yours ? renderStatGroup("Your nights", "Hours you've marked finished, plus the titles that linger.", stats.yours) : ""}
+      ${renderRecapShare()}
       ${renderPeopleSection()}
     `;
   }
@@ -2934,6 +2976,7 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
       <div class="show-toolbar">
         <button class="ghost-btn" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${done ? "Unmark show" : "Mark show"}</button>
         ${renderWatchButton(entry)}
+        ${renderShareButton(entry)}
         ${
           options.listId === undefined
             ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -3051,6 +3094,7 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franc
     <li class="entry${done ? " is-done" : ""}${nested ? " is-nested" : ""}">
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>
       ${renderWatchButton(entry)}
+      ${renderShareButton(entry)}
       ${
         signedIn
           ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" aria-label="Add ${escapeHtml(entry.title)} to a list" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -3428,6 +3472,95 @@ function listHasFranchise(list: UserList, franchise: Franchise): boolean {
 
 function isFinished(entry: CatalogEntry): boolean {
   return state.finishedIds.includes(entry.id);
+}
+
+function applyProgress(progress: UserProgress): void {
+  state.finishedIds = progress.ids;
+  state.recentIds = progress.recentIds;
+}
+
+function renderShareButton(entry: CatalogEntry): string {
+  if (!state.user || !isFinished(entry)) {
+    return "";
+  }
+
+  return `<button class="entry-watch entry-share" type="button" data-action="share-title" data-id="${escapeHtml(entry.id)}" aria-label="Share ${escapeHtml(entry.title)} to Instagram Stories" ${state.shareBusy || state.catalogBusy ? "disabled" : ""}>Share</button>`;
+}
+
+function renderShareStatus(): string {
+  if (!state.shareMessage) {
+    return "";
+  }
+
+  return `<p class="status${state.shareError ? " is-error" : ""}">${escapeHtml(state.shareMessage)}</p>`;
+}
+
+function renderRecapShare(): string {
+  if (!state.user) {
+    return "";
+  }
+
+  const finished = finishedTitleCount(state.entries, state.finishedIds);
+  const disabled = finished < 1 || state.shareBusy;
+  return `
+    <div class="story-share">
+      ${renderShareStatus()}
+      <button class="primary-btn" type="button" data-action="share-recap" ${disabled ? "disabled" : ""}>Share to Stories</button>
+      ${finished < 1 ? `<p class="account-note">Mark a title finished to share your nights.</p>` : ""}
+    </div>
+  `;
+}
+
+async function shareFinishedTitle(root: HTMLElement, entry: CatalogEntry): Promise<void> {
+  if (!state.user) {
+    return;
+  }
+
+  await runStoryShare(root, async () => {
+    const blob = await renderTitleStoryCard({
+      title: entry.title,
+      year: entry.releaseYear,
+      kind: entry.kind,
+      displayName: state.user?.displayName ?? "",
+    });
+    return shareStoryImage(blob, storyFilename(entry.title));
+  });
+}
+
+async function shareFinishedRecap(root: HTMLElement): Promise<void> {
+  if (!state.user) {
+    return;
+  }
+
+  await runStoryShare(root, async () => {
+    const stats = buildHorrorStats(state.entries, state.finishedIds, true, state.franchises);
+    const hoursLabel = stats.yours?.time.find((item) => item.label === "Hours survived")?.value ?? "0 hr";
+    const blob = await renderRecapStoryCard({
+      hoursLabel,
+      finishedCount: finishedTitleCount(state.entries, state.finishedIds),
+      titles: recapTitlesFromCatalog(state.entries, state.recentIds),
+      displayName: state.user?.displayName ?? "",
+    });
+    return shareStoryImage(blob, storyFilename("nights"));
+  });
+}
+
+async function runStoryShare(root: HTMLElement, work: () => Promise<"shared" | "saved">): Promise<void> {
+  state.shareBusy = true;
+  state.shareMessage = "";
+  state.shareError = false;
+  render(root);
+  try {
+    const result = await work();
+    state.shareMessage = result === "saved" ? "Saved. Add that image to your Instagram Story." : "";
+    state.shareError = false;
+  } catch (error) {
+    state.shareMessage = error instanceof Error ? error.message : "Could not share that story.";
+    state.shareError = true;
+  }
+
+  state.shareBusy = false;
+  render(root);
 }
 
 function renderSheet(): string {
