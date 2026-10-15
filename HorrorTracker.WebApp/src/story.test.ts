@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { CatalogEntry } from "./catalog";
 import {
   finishedTitleCount,
+  recapItemsFromCatalog,
   recapStoryCopy,
-  recapTitlesFromCatalog,
   storyFilename,
   storyTag,
   titleKicker,
@@ -83,7 +83,11 @@ describe("recapStoryCopy", () => {
     const copy = recapStoryCopy({
       hoursLabel: "12 hr",
       finishedCount: 3,
-      titles: ["Scream", "Aliens", "The Thing"],
+      items: [
+        { title: "Scream", posterPath: "/scream.jpg" },
+        { title: "Aliens" },
+        { title: "The Thing" },
+      ],
       allNighters: 2,
       longestNight: "Aliens",
     });
@@ -92,15 +96,19 @@ describe("recapStoryCopy", () => {
     expect(copy.hours).toBe("12 hr");
     expect(copy.count).toBe("3 titles survived");
     expect(copy.extras).toEqual(["2 all-nighters", "Longest night · Aliens"]);
-    expect(copy.titles).toEqual(["Scream", "Aliens", "The Thing"]);
+    expect(copy.items).toEqual([
+      { title: "Scream", posterPath: "/scream.jpg" },
+      { title: "Aliens" },
+      { title: "The Thing" },
+    ]);
   });
 
   it("explains an empty vault", () => {
-    const copy = recapStoryCopy({ hoursLabel: "0 hr", finishedCount: 0, titles: [] });
+    const copy = recapStoryCopy({ hoursLabel: "0 hr", finishedCount: 0, items: [] });
     expect(copy.empty).toBe(true);
     expect(copy.count).toContain("Mark a title finished");
     expect(copy.extras).toEqual([]);
-    expect(copy.titles).toEqual([]);
+    expect(copy.items).toEqual([]);
   });
 });
 
@@ -110,9 +118,19 @@ describe("storyTag", () => {
   });
 });
 
-describe("recapTitlesFromCatalog", () => {
+describe("recapItemsFromCatalog", () => {
   it("skips series and keeps catalog order of recent ids", () => {
-    expect(recapTitlesFromCatalog([scream, alien], ["series:10", "movie:1"])).toEqual(["Scream"]);
+    expect(
+      recapItemsFromCatalog([{ ...scream, posterPath: "/scream.jpg" }, alien], ["series:10", "movie:1"], {
+        "movie:1": "/ignored.jpg",
+      }),
+    ).toEqual([{ title: "Scream", posterPath: "/scream.jpg" }]);
+  });
+
+  it("uses extra poster paths when the catalog row has none", () => {
+    expect(recapItemsFromCatalog([scream, alien], ["movie:1"], { "movie:1": "/extra.jpg" })).toEqual([
+      { title: "Scream", posterPath: "/extra.jpg" },
+    ]);
   });
 });
 

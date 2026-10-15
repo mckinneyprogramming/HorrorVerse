@@ -47,6 +47,7 @@ function asResults(payload) {
 }
 
 // lib/poster.ts
+var MAX_POSTER_BYTES = 8 * 1024 * 1024;
 function parsePosterPath(value) {
   const path = String(value ?? "").trim();
   if (!path.startsWith("/") || path.length > 160 || path.includes("..") || /[^A-Za-z0-9._/-]/.test(path)) {

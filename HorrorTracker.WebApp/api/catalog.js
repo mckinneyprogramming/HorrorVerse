@@ -138,6 +138,7 @@ function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That titl
 }
 
 // lib/poster.ts
+var MAX_POSTER_BYTES = 8 * 1024 * 1024;
 var posterSchema;
 var posterSchemaKey = "";
 function parsePosterPath(value) {

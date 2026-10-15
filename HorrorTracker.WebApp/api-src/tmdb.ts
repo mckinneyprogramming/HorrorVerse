@@ -3,7 +3,7 @@ export const maxDuration = 60;
 void "restore-standalone-tmdb";
 
 import { upsertShowSeasons } from "../lib/catalog";
-import { savePoster } from "../lib/poster";
+import { parsePosterPath, proxyTmdbPoster, savePoster } from "../lib/poster";
 import { importMovie, importSeries } from "../lib/import-tmdb";
 import { saveDocumentaryKeywords, saveShowKeywords } from "../lib/keywords";
 import {
@@ -37,6 +37,11 @@ export async function GET(request: Request) {
     const connectionString = requireDatabaseUrl();
     await requireSessionUser(request, connectionString);
     const url = new URL(request.url);
+    const poster = parsePosterPath(url.searchParams.get("poster"));
+    if (poster) {
+      return proxyTmdbPoster(poster, url.searchParams.get("size"));
+    }
+
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
     if (query.length < 2) {

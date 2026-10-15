@@ -257,6 +257,7 @@ var TABLES = {
 var POSTER_BATCH = 48;
 var POSTER_CONCURRENCY = 8;
 var NO_POSTER = "-";
+var MAX_POSTER_BYTES = 8 * 1024 * 1024;
 var posterSchema;
 var posterSchemaKey = "";
 function parsePosterPath(value) {

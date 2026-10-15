@@ -1,4 +1,4 @@
-import { execute, queryRows } from "./neon";
+import { execute, HttpError, queryRows } from "./neon";
 import { asId, tmdbJsonOptional } from "./tmdb";
 
 const TABLES: Record<string, { table: string; tmdbKind: "movie" | "tv" | "collection" }> = {
@@ -11,6 +11,8 @@ const TABLES: Record<string, { table: string; tmdbKind: "movie" | "tv" | "collec
 const POSTER_BATCH = 48;
 const POSTER_CONCURRENCY = 8;
 const NO_POSTER = "-";
+const POSTER_SIZES = new Set(["w92", "w185", "w342", "w500", "w780"]);
+const MAX_POSTER_BYTES = 8 * 1024 * 1024;
 
 let posterSchema: Promise<void> | undefined;
 let posterSchemaKey = "";
@@ -31,6 +33,36 @@ export function posterUrl(path: string | undefined, size = "w92"): string | unde
   }
 
   return `https://image.tmdb.org/t/p/${size}${parsed}`;
+}
+
+export function posterSize(value: unknown): string {
+  const size = String(value ?? "").trim();
+  return POSTER_SIZES.has(size) ? size : "w500";
+}
+
+export async function proxyTmdbPoster(path: unknown, size: unknown): Promise<Response> {
+  const parsed = parsePosterPath(path);
+  if (!parsed) {
+    throw new HttpError("That poster was not found.", 400);
+  }
+
+  const response = await fetch(`https://image.tmdb.org/t/p/${posterSize(size)}${parsed}`);
+  if (!response.ok) {
+    throw new HttpError("That poster was not found.", 404);
+  }
+
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength < 1 || bytes.byteLength > MAX_POSTER_BYTES) {
+    throw new HttpError("That poster was not found.", 404);
+  }
+
+  const type = response.headers.get("content-type") ?? "";
+  return new Response(bytes, {
+    headers: {
+      "content-type": type.startsWith("image/") ? type : "image/jpeg",
+      "cache-control": "private, max-age=86400",
+    },
+  });
 }
 
 export async function ensurePosterSchema(connectionString: string): Promise<void> {

@@ -12,6 +12,34 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
     private const int DocumentaryGenre = 99;
     private static readonly HashSet<int> HorrorAdjacentGenres = [27, 53, 9648, 878, 14, 10765];
 
+    private static readonly HttpClient PosterHttp = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly HashSet<string> PosterSizes = ["w92", "w185", "w342", "w500", "w780"];
+
+    public async Task<IResult> ProxyPosterAsync(string? poster, string? size, CancellationToken cancellationToken)
+    {
+        var path = (poster ?? string.Empty).Trim();
+        if (!IsPosterPath(path))
+        {
+            throw new InvalidOperationException("That poster was not found.");
+        }
+
+        var dim = PosterSizes.Contains(size ?? string.Empty) ? size! : "w500";
+        using var response = await PosterHttp.GetAsync($"https://image.tmdb.org/t/p/{dim}{path}", cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException("That poster was not found.");
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        if (bytes.Length is < 1 or > 8 * 1024 * 1024)
+        {
+            throw new InvalidOperationException("That poster was not found.");
+        }
+
+        var contentType = response.Content.Headers.ContentType?.MediaType;
+        return Results.File(bytes, contentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true ? contentType : "image/jpeg");
+    }
+
     public async Task<object> SearchAsync(string? kind, string? query, CancellationToken cancellationToken)
     {
         _ = cancellationToken;

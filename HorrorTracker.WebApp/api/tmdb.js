@@ -261,6 +261,8 @@ var TABLES = {
   show: { table: "show", tmdbKind: "tv" },
   series: { table: "movieseries", tmdbKind: "collection" }
 };
+var POSTER_SIZES = /* @__PURE__ */ new Set(["w92", "w185", "w342", "w500", "w780"]);
+var MAX_POSTER_BYTES = 8 * 1024 * 1024;
 var posterSchema;
 var posterSchemaKey = "";
 function parsePosterPath(value) {
@@ -269,6 +271,31 @@ function parsePosterPath(value) {
     return void 0;
   }
   return path;
+}
+function posterSize(value) {
+  const size = String(value ?? "").trim();
+  return POSTER_SIZES.has(size) ? size : "w500";
+}
+async function proxyTmdbPoster(path, size) {
+  const parsed = parsePosterPath(path);
+  if (!parsed) {
+    throw new HttpError("That poster was not found.", 400);
+  }
+  const response = await fetch(`https://image.tmdb.org/t/p/${posterSize(size)}${parsed}`);
+  if (!response.ok) {
+    throw new HttpError("That poster was not found.", 404);
+  }
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength < 1 || bytes.byteLength > MAX_POSTER_BYTES) {
+    throw new HttpError("That poster was not found.", 404);
+  }
+  const type = response.headers.get("content-type") ?? "";
+  return new Response(bytes, {
+    headers: {
+      "content-type": type.startsWith("image/") ? type : "image/jpeg",
+      "cache-control": "private, max-age=86400"
+    }
+  });
 }
 async function ensurePosterSchema(connectionString) {
   if (!posterSchema || posterSchemaKey !== connectionString) {
@@ -660,6 +687,10 @@ async function GET(request) {
     const connectionString = requireDatabaseUrl();
     await requireSessionUser(request, connectionString);
     const url = new URL(request.url);
+    const poster = parsePosterPath(url.searchParams.get("poster"));
+    if (poster) {
+      return proxyTmdbPoster(poster, url.searchParams.get("size"));
+    }
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
     if (query.length < 2) {

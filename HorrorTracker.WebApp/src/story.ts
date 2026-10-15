@@ -1,4 +1,4 @@
-import { formatRuntime, MEDIA_KINDS, type CatalogEntry, type MediaKind } from "./catalog";
+import { formatRuntime, MEDIA_KINDS, parsePosterPath, type CatalogEntry, type MediaKind } from "./catalog";
 import { keywordsMatchTag, LIBRARY_TAGS } from "./tags";
 
 export const STORY_WIDTH = 1080;
@@ -18,12 +18,17 @@ export interface TitleStoryCopy {
   byline: string;
 }
 
+export interface RecapStoryItem {
+  title: string;
+  posterPath?: string;
+}
+
 export interface RecapStoryCopy {
   heading: string;
   hours: string;
   count: string;
   extras: string[];
-  titles: string[];
+  items: RecapStoryItem[];
   empty: boolean;
 }
 
@@ -85,19 +90,25 @@ export function titleStoryCopy(input: {
 export function recapStoryCopy(input: {
   hoursLabel: string;
   finishedCount: number;
-  titles: string[];
+  items: RecapStoryItem[];
   allNighters?: number;
   longestNight?: string;
 }): RecapStoryCopy {
-  const titles = input.titles.map((title) => title.trim()).filter(Boolean).slice(0, 5);
-  const empty = input.finishedCount < 1 && titles.length < 1;
+  const items = input.items
+    .map((item) => ({
+      title: item.title.trim(),
+      ...(parsePosterPath(item.posterPath) ? { posterPath: parsePosterPath(item.posterPath) } : {}),
+    }))
+    .filter((item) => item.title)
+    .slice(0, 5);
+  const empty = input.finishedCount < 1 && items.length < 1;
   if (empty) {
     return {
       heading: "Your nights",
       hours: input.hoursLabel.trim() || "0 hr",
       count: "Mark a title finished to start your nights.",
       extras: [],
-      titles: [],
+      items: [],
       empty: true,
     };
   }
@@ -112,33 +123,41 @@ export function recapStoryCopy(input: {
     extras.push(`Longest night · ${longest}`);
   }
 
-  const count = input.finishedCount === 1 ? "1 title survived" : `${Math.max(input.finishedCount, titles.length)} titles survived`;
+  const count = input.finishedCount === 1 ? "1 title survived" : `${Math.max(input.finishedCount, items.length)} titles survived`;
   return {
     heading: "Your nights",
     hours: input.hoursLabel.trim() || "0 hr",
     count,
     extras: extras.slice(0, 2),
-    titles,
+    items,
     empty: false,
   };
 }
 
-export function recapTitlesFromCatalog(entries: readonly CatalogEntry[], recentIds: readonly string[]): string[] {
+export function recapItemsFromCatalog(
+  entries: readonly CatalogEntry[],
+  recentIds: readonly string[],
+  extraPosters: Readonly<Record<string, string>> = {},
+): RecapStoryItem[] {
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  const titles: string[] = [];
+  const items: RecapStoryItem[] = [];
   for (const id of recentIds) {
     const entry = byId.get(id);
     if (!entry || entry.kind === "series") {
       continue;
     }
 
-    titles.push(entry.title);
-    if (titles.length >= 5) {
+    const posterPath = parsePosterPath(entry.posterPath ?? extraPosters[entry.id]);
+    items.push({
+      title: entry.title,
+      ...(posterPath ? { posterPath } : {}),
+    });
+    if (items.length >= 5) {
       break;
     }
   }
 
-  return titles;
+  return items;
 }
 
 export function finishedTitleCount(entries: readonly CatalogEntry[], finishedIds: readonly string[]): number {
@@ -165,24 +184,28 @@ export async function renderTitleStoryCard(input: {
   keywords?: string[];
   watchedIn?: number;
   avatar?: string;
+  posterPath?: string;
 }): Promise<Blob> {
   const copy = titleStoryCopy(input);
-  const avatar = await loadAvatar(input.avatar);
-  return renderStoryCard((ctx) => paintTitleStory(ctx, copy, avatar));
+  const [avatar, poster] = await Promise.all([loadAvatar(input.avatar), loadPoster(input.posterPath, "w780")]);
+  return renderStoryCard((ctx) => paintTitleStory(ctx, copy, avatar, poster));
 }
 
 export async function renderRecapStoryCard(input: {
   hoursLabel: string;
   finishedCount: number;
-  titles: string[];
+  items: RecapStoryItem[];
   displayName: string;
   allNighters?: number;
   longestNight?: string;
   avatar?: string;
 }): Promise<Blob> {
   const copy = recapStoryCopy(input);
-  const avatar = await loadAvatar(input.avatar);
-  return renderStoryCard((ctx) => paintRecapStory(ctx, copy, input.displayName.trim() || "a survivor", avatar));
+  const [avatar, posters] = await Promise.all([
+    loadAvatar(input.avatar),
+    Promise.all(copy.items.map((item) => loadPoster(item.posterPath, "w185"))),
+  ]);
+  return renderStoryCard((ctx) => paintRecapStory(ctx, copy, input.displayName.trim() || "a survivor", avatar, posters));
 }
 
 async function renderStoryCard(paint: (ctx: CanvasRenderingContext2D) => void): Promise<Blob> {
@@ -230,21 +253,34 @@ function paintVignette(ctx: CanvasRenderingContext2D): void {
   ctx.fillRect(0, STORY_HEIGHT - SAFE_BOTTOM, STORY_WIDTH, SAFE_BOTTOM);
 }
 
-function paintTitleStory(ctx: CanvasRenderingContext2D, copy: TitleStoryCopy, avatar?: CanvasImageSource): void {
+function paintTitleStory(
+  ctx: CanvasRenderingContext2D,
+  copy: TitleStoryCopy,
+  avatar: CanvasImageSource | undefined,
+  poster: CanvasImageSource | undefined,
+): void {
   const contentWidth = STORY_WIDTH - MARGIN * 2;
   ctx.fillStyle = "#dc143c";
   ctx.font = '600 28px "Source Sans 3", "Segoe UI", sans-serif';
-  ctx.fillText(copy.kicker.toUpperCase(), MARGIN, SAFE_TOP + 220);
+  ctx.fillText(copy.kicker.toUpperCase(), MARGIN, SAFE_TOP + 180);
 
-  ctx.fillStyle = "#f5f5f5";
-  ctx.font = '700 88px "Cinzel", "Palatino Linotype", Palatino, serif';
-  let y = SAFE_TOP + 360;
-  for (const line of wrapText(ctx, copy.title, contentWidth, 4)) {
-    ctx.fillText(line, MARGIN, y);
-    y += 102;
+  let y = SAFE_TOP + 220;
+  if (poster) {
+    const posterWidth = 600;
+    const posterHeight = 900;
+    paintCoverImage(ctx, poster, (STORY_WIDTH - posterWidth) / 2, y, posterWidth, posterHeight, 18);
+    y += posterHeight + 56;
+  } else {
+    ctx.fillStyle = "#f5f5f5";
+    ctx.font = '700 88px "Cinzel", "Palatino Linotype", Palatino, serif';
+    y = SAFE_TOP + 320;
+    for (const line of wrapText(ctx, copy.title, contentWidth, 4)) {
+      ctx.fillText(line, MARGIN, y);
+      y += 102;
+    }
+    y += 12;
   }
 
-  y += 12;
   if (copy.meta) {
     ctx.fillStyle = "#b0b0b0";
     ctx.font = '400 30px "Source Sans 3", "Segoe UI", sans-serif';
@@ -270,7 +306,8 @@ function paintRecapStory(
   ctx: CanvasRenderingContext2D,
   copy: RecapStoryCopy,
   displayName: string,
-  avatar?: CanvasImageSource,
+  avatar: CanvasImageSource | undefined,
+  posters: (CanvasImageSource | undefined)[],
 ): void {
   const contentWidth = STORY_WIDTH - MARGIN * 2;
   ctx.fillStyle = "#dc143c";
@@ -293,15 +330,32 @@ function paintRecapStory(
     y += 46;
   }
 
-  y += 28;
-  ctx.font = '500 36px "Cinzel", "Palatino Linotype", Palatino, serif';
-  copy.titles.forEach((title, index) => {
-    const label = `${String(index + 1).padStart(2, "0")}  ${title}`;
-    for (const line of wrapText(ctx, label, contentWidth, 2)) {
-      ctx.fillText(line, MARGIN, y);
-      y += 52;
+  y += 36;
+  const gap = 16;
+  const posterWidth = Math.min(176, Math.floor((contentWidth - gap * Math.max(copy.items.length - 1, 0)) / Math.max(copy.items.length, 1)));
+  const posterHeight = Math.round(posterWidth * 1.5);
+  copy.items.forEach((item, index) => {
+    const x = MARGIN + index * (posterWidth + gap);
+    const art = posters[index];
+    if (art) {
+      paintCoverImage(ctx, art, x, y, posterWidth, posterHeight, 12);
+      return;
     }
-    y += 10;
+
+    ctx.fillStyle = "#141414";
+    roundRect(ctx, x, y, posterWidth, posterHeight, 12);
+    ctx.fill();
+    ctx.strokeStyle = "#b71c1c";
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, posterWidth, posterHeight, 12);
+    ctx.stroke();
+    ctx.fillStyle = "#f5f5f5";
+    ctx.font = '600 22px "Cinzel", "Palatino Linotype", Palatino, serif';
+    let textY = y + 48;
+    for (const line of wrapText(ctx, item.title, posterWidth - 20, 4)) {
+      ctx.fillText(line, x + 10, textY);
+      textY += 28;
+    }
   });
 
   paintByline(ctx, `Watched by ${displayName}`, avatar);
@@ -388,6 +442,85 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
   }
 
   return lines.length > 0 ? lines : [text];
+}
+
+function paintCoverImage(
+  ctx: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const size = sourceSize(image);
+  const scale = Math.max(width / Math.max(size.width, 1), height / Math.max(size.height, 1));
+  const drawWidth = size.width * scale;
+  const drawHeight = size.height * scale;
+  ctx.save();
+  roundRect(ctx, x, y, width, height, radius);
+  ctx.clip();
+  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+  ctx.restore();
+  ctx.strokeStyle = "#b71c1c";
+  ctx.lineWidth = 3;
+  roundRect(ctx, x, y, width, height, radius);
+  ctx.stroke();
+}
+
+function sourceSize(image: CanvasImageSource): { width: number; height: number } {
+  if (image instanceof HTMLImageElement) {
+    return { width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
+  }
+
+  if (typeof ImageBitmap !== "undefined" && image instanceof ImageBitmap) {
+    return { width: image.width, height: image.height };
+  }
+
+  return { width: Number("width" in image ? image.width : 0), height: Number("height" in image ? image.height : 0) };
+}
+
+async function loadPoster(path: string | undefined, size: string): Promise<CanvasImageSource | undefined> {
+  const parsed = parsePosterPath(path);
+  if (!parsed) {
+    return undefined;
+  }
+
+  try {
+    const response = await fetch(`/api/tmdb?poster=${encodeURIComponent(parsed)}&size=${encodeURIComponent(size)}`);
+    if (!response.ok) {
+      return undefined;
+    }
+
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/") || blob.size < 1) {
+      return undefined;
+    }
+
+    if (typeof createImageBitmap === "function") {
+      return await createImageBitmap(blob);
+    }
+
+    return await blobImage(blob);
+  } catch {
+    return undefined;
+  }
+}
+
+function blobImage(blob: Blob): Promise<CanvasImageSource | undefined> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const url = URL.createObjectURL(blob);
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(undefined);
+    };
+    image.src = url;
+  });
 }
 
 async function loadAvatar(avatar: string | undefined): Promise<CanvasImageSource | undefined> {

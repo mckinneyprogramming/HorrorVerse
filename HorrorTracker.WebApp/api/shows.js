@@ -219,6 +219,9 @@ function episodeLengthMinutes(show) {
   return runtimeOf(asRecord(show.last_episode_to_air)?.runtime) || runtimeOf(asRecord(show.next_episode_to_air)?.runtime);
 }
 
+// lib/poster.ts
+var MAX_POSTER_BYTES = 8 * 1024 * 1024;
+
 // lib/catalog.ts
 async function ensureShowTmdbId(connectionString, showId) {
   const existing = asId((await queryRows(connectionString, "SELECT tmdbid FROM show WHERE id = $1", [showId]))[0], "tmdbid");

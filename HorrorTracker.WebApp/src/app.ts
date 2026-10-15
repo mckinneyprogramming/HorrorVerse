@@ -24,7 +24,7 @@ import { fetchProgress, setProgress, type UserProgress } from "./progress";
 import { shareStoryImage } from "./share";
 import {
   finishedTitleCount,
-  recapTitlesFromCatalog,
+  recapItemsFromCatalog,
   renderRecapStoryCard,
   renderTitleStoryCard,
   storyFilename,
@@ -3704,6 +3704,7 @@ async function shareFinishedTitle(root: HTMLElement, entry: CatalogEntry): Promi
       keywords: entry.keywords,
       ...(state.watchedYears[entry.id] ? { watchedIn: state.watchedYears[entry.id] } : {}),
       avatar: state.user?.avatar,
+      posterPath: entry.posterPath ?? state.recentPosters[entry.id],
     });
     return shareStoryImage(blob, storyFilename(entry.title));
   });
@@ -3722,7 +3723,7 @@ async function shareFinishedRecap(root: HTMLElement): Promise<void> {
     const blob = await renderRecapStoryCard({
       hoursLabel,
       finishedCount: finishedTitleCount(state.entries, state.finishedIds),
-      titles: recapTitlesFromCatalog(state.entries, state.recentIds),
+      items: recapItemsFromCatalog(state.entries, state.recentIds, state.recentPosters),
       displayName: state.user?.displayName ?? "",
       ...(Number.isFinite(allNighters) && allNighters > 0 ? { allNighters } : {}),
       ...(longestNight ? { longestNight } : {}),
