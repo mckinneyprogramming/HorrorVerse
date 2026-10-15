@@ -936,33 +936,73 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
                 continue;
             }
 
-            if (tmdbId is not > 0)
+            if (tmdbId is > 0)
             {
-                continue;
-            }
+                try
+                {
+                    var path = kind == "show"
+                        ? (await tmdb.GetTvShow(tmdbId.Value)).PosterPath
+                        : (await tmdb.GetMovie(tmdbId.Value)).PosterPath;
+                    if (IsPosterPath(path))
+                    {
+                        SavePoster(kind, mediaId, path);
+                        posters[id] = path!.Trim();
+                        continue;
+                    }
 
-            try
-            {
-                var path = kind == "show"
-                    ? (await tmdb.GetTvShow(tmdbId.Value)).PosterPath
-                    : (await tmdb.GetMovie(tmdbId.Value)).PosterPath;
-                if (IsPosterPath(path))
-                {
-                    SavePoster(kind, mediaId, path);
-                    posters[id] = path!.Trim();
-                }
-                else
-                {
                     WritePosterValue(kind, mediaId, "-");
                 }
+                catch
+                {
+                    // Recents still render titles if one poster cannot be matched.
+                }
             }
-            catch
+
+            var sibling = SiblingMoviePoster(kind, mediaId);
+            if (IsPosterPath(sibling))
             {
-                // Recents still render titles if one poster cannot be matched.
+                posters[id] = sibling!.Trim();
             }
         }
 
         return posters;
+    }
+
+    private string? SiblingMoviePoster(string kind, int mediaId)
+    {
+        if (kind != "movie" || mediaId < 1)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT COALESCE(
+                    NULLIF(ms.PosterPath, '-'),
+                    (
+                        SELECT fm.PosterPath FROM Movie fm
+                        WHERE fm.SeriesId = m.SeriesId
+                          AND fm.Id <> m.Id
+                          AND fm.PosterPath IS NOT NULL
+                          AND fm.PosterPath LIKE '/%'
+                        LIMIT 1
+                    )
+                )
+                FROM Movie m
+                LEFT JOIN MovieSeries ms ON ms.Id = m.SeriesId
+                WHERE m.Id = @id
+                """;
+            command.Parameters.AddWithValue("id", mediaId);
+            var value = command.ExecuteScalar();
+            return value is string path ? path : null;
+        }
+        catch (PostgresException)
+        {
+            return null;
+        }
     }
 
     private (int? TmdbId, string? PosterPath) ReadTmdbAndPoster(string table, int mediaId)

@@ -154,41 +154,90 @@ export async function postersForRecentProgress(
     rows.map(async (row) => {
       const kind = String(row.media_kind ?? "");
       const mediaId = asId(row, "media_id");
-      const target = TABLES[kind];
-      if (!mediaId || !target || kind === "series") {
+      if (!mediaId) {
         return;
       }
 
-      try {
-        const existing = await queryRows(
-          connectionString,
-          `SELECT tmdbid, posterpath FROM ${target.table} WHERE id = $1`,
-          [mediaId],
-        );
-        const current = parsePosterPath(existing[0]?.posterpath);
-        if (current) {
-          posters[`${kind}:${mediaId}`] = current;
-          return;
-        }
-
-        const tmdbId = asId(existing[0], "tmdbid");
-        if (!tmdbId) {
-          return;
-        }
-
-        const payload = await tmdbJsonOptional(`/${target.tmdbKind}/${tmdbId}`);
-        const path = parsePosterPath(payload?.poster_path);
-        await writePosterValue(connectionString, kind, mediaId, path ?? NO_POSTER);
-        if (path) {
-          posters[`${kind}:${mediaId}`] = path;
-        }
-      } catch {
-        // Recents still render titles if one poster cannot be matched.
+      const path = await ensurePoster(connectionString, kind, mediaId);
+      if (path) {
+        posters[`${kind}:${mediaId}`] = path;
       }
     }),
   );
 
   return posters;
+}
+
+export async function ensurePoster(
+  connectionString: string,
+  kind: string,
+  mediaId: number,
+): Promise<string | undefined> {
+  const target = TABLES[kind];
+  if (!target || kind === "series" || !Number.isInteger(mediaId) || mediaId < 1) {
+    return undefined;
+  }
+
+  await ensurePosterSchema(connectionString);
+  try {
+    const existing = await queryRows(
+      connectionString,
+      `SELECT tmdbid, posterpath FROM ${target.table} WHERE id = $1`,
+      [mediaId],
+    );
+    const current = parsePosterPath(existing[0]?.posterpath);
+    if (current) {
+      return current;
+    }
+
+    const tmdbId = asId(existing[0], "tmdbid");
+    if (tmdbId) {
+      const payload = await tmdbJsonOptional(`/${target.tmdbKind}/${tmdbId}`);
+      const path = parsePosterPath(payload?.poster_path);
+      await writePosterValue(connectionString, kind, mediaId, path ?? NO_POSTER);
+      if (path) {
+        return path;
+      }
+    }
+
+    return siblingMoviePoster(connectionString, kind, mediaId);
+  } catch {
+    return undefined;
+  }
+}
+
+async function siblingMoviePoster(
+  connectionString: string,
+  kind: string,
+  mediaId: number,
+): Promise<string | undefined> {
+  if (kind !== "movie") {
+    return undefined;
+  }
+
+  try {
+    const rows = await queryRows(
+      connectionString,
+      `SELECT COALESCE(
+         NULLIF(ms.posterpath, '-'),
+         (
+           SELECT fm.posterpath FROM movie fm
+           WHERE fm.seriesid = m.seriesid
+             AND fm.id <> m.id
+             AND fm.posterpath IS NOT NULL
+             AND fm.posterpath LIKE '/%'
+           LIMIT 1
+         )
+       ) AS posterpath
+       FROM movie m
+       LEFT JOIN movieseries ms ON ms.id = m.seriesid
+       WHERE m.id = $1`,
+      [mediaId],
+    );
+    return parsePosterPath(rows[0]?.posterpath);
+  } catch {
+    return undefined;
+  }
 }
 
 async function loadMissingPosterRows(

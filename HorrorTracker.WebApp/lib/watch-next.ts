@@ -1,5 +1,5 @@
 import { queryRows } from "./neon";
-import { parsePosterPath } from "./poster";
+import { ensurePoster, parsePosterPath } from "./poster";
 
 export const WATCH_NEXT_LIMIT = 6;
 
@@ -54,7 +54,18 @@ export async function loadWatchNext(connectionString: string, userId: number): P
     loadListedUnfinished(connectionString, userId),
     loadVaultUnfinished(connectionString, userId),
   ]);
-  return pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
+  const picked = pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
+  return Promise.all(picked.map((item) => attachPoster(connectionString, item)));
+}
+
+async function attachPoster(connectionString: string, item: WatchNextItem): Promise<WatchNextItem> {
+  if (item.posterPath) {
+    return item;
+  }
+
+  const mediaId = Number(item.id.split(":")[1]);
+  const posterPath = await ensurePoster(connectionString, item.kind, mediaId);
+  return posterPath ? { ...item, posterPath } : item;
 }
 
 async function loadNextEpisodes(connectionString: string, userId: number): Promise<WatchNextItem[]> {
@@ -114,7 +125,7 @@ async function loadNextSeriesMovies(connectionString: string, userId: number): P
       `SELECT DISTINCT ON (m.seriesid)
          m.id,
          m.title,
-         m.posterpath,
+         COALESCE(NULLIF(m.posterpath, '-'), NULLIF(ms.posterpath, '-')) AS posterpath,
          m.releaseyear,
          ms.title AS series_title,
          (

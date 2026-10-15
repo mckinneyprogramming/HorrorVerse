@@ -332,36 +332,74 @@ async function postersForRecentProgress(connectionString, userId) {
     rows.map(async (row) => {
       const kind = String(row.media_kind ?? "");
       const mediaId = asId(row, "media_id");
-      const target = TABLES[kind];
-      if (!mediaId || !target || kind === "series") {
+      if (!mediaId) {
         return;
       }
-      try {
-        const existing = await queryRows(
-          connectionString,
-          `SELECT tmdbid, posterpath FROM ${target.table} WHERE id = $1`,
-          [mediaId]
-        );
-        const current = parsePosterPath(existing[0]?.posterpath);
-        if (current) {
-          posters[`${kind}:${mediaId}`] = current;
-          return;
-        }
-        const tmdbId = asId(existing[0], "tmdbid");
-        if (!tmdbId) {
-          return;
-        }
-        const payload = await tmdbJsonOptional(`/${target.tmdbKind}/${tmdbId}`);
-        const path = parsePosterPath(payload?.poster_path);
-        await writePosterValue(connectionString, kind, mediaId, path ?? NO_POSTER);
-        if (path) {
-          posters[`${kind}:${mediaId}`] = path;
-        }
-      } catch {
+      const path = await ensurePoster(connectionString, kind, mediaId);
+      if (path) {
+        posters[`${kind}:${mediaId}`] = path;
       }
     })
   );
   return posters;
+}
+async function ensurePoster(connectionString, kind, mediaId) {
+  const target = TABLES[kind];
+  if (!target || kind === "series" || !Number.isInteger(mediaId) || mediaId < 1) {
+    return void 0;
+  }
+  await ensurePosterSchema(connectionString);
+  try {
+    const existing = await queryRows(
+      connectionString,
+      `SELECT tmdbid, posterpath FROM ${target.table} WHERE id = $1`,
+      [mediaId]
+    );
+    const current = parsePosterPath(existing[0]?.posterpath);
+    if (current) {
+      return current;
+    }
+    const tmdbId = asId(existing[0], "tmdbid");
+    if (tmdbId) {
+      const payload = await tmdbJsonOptional(`/${target.tmdbKind}/${tmdbId}`);
+      const path = parsePosterPath(payload?.poster_path);
+      await writePosterValue(connectionString, kind, mediaId, path ?? NO_POSTER);
+      if (path) {
+        return path;
+      }
+    }
+    return siblingMoviePoster(connectionString, kind, mediaId);
+  } catch {
+    return void 0;
+  }
+}
+async function siblingMoviePoster(connectionString, kind, mediaId) {
+  if (kind !== "movie") {
+    return void 0;
+  }
+  try {
+    const rows = await queryRows(
+      connectionString,
+      `SELECT COALESCE(
+         NULLIF(ms.posterpath, '-'),
+         (
+           SELECT fm.posterpath FROM movie fm
+           WHERE fm.seriesid = m.seriesid
+             AND fm.id <> m.id
+             AND fm.posterpath IS NOT NULL
+             AND fm.posterpath LIKE '/%'
+           LIMIT 1
+         )
+       ) AS posterpath
+       FROM movie m
+       LEFT JOIN movieseries ms ON ms.id = m.seriesid
+       WHERE m.id = $1`,
+      [mediaId]
+    );
+    return parsePosterPath(rows[0]?.posterpath);
+  } catch {
+    return void 0;
+  }
 }
 async function writePosterValue(connectionString, kind, mediaId, value) {
   const target = TABLES[kind];
@@ -402,7 +440,16 @@ async function loadWatchNext(connectionString, userId) {
     loadListedUnfinished(connectionString, userId),
     loadVaultUnfinished(connectionString, userId)
   ]);
-  return pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
+  const picked = pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
+  return Promise.all(picked.map((item) => attachPoster(connectionString, item)));
+}
+async function attachPoster(connectionString, item) {
+  if (item.posterPath) {
+    return item;
+  }
+  const mediaId = Number(item.id.split(":")[1]);
+  const posterPath = await ensurePoster(connectionString, item.kind, mediaId);
+  return posterPath ? { ...item, posterPath } : item;
 }
 async function loadNextEpisodes(connectionString, userId) {
   try {
@@ -456,7 +503,7 @@ async function loadNextSeriesMovies(connectionString, userId) {
       `SELECT DISTINCT ON (m.seriesid)
          m.id,
          m.title,
-         m.posterpath,
+         COALESCE(NULLIF(m.posterpath, '-'), NULLIF(ms.posterpath, '-')) AS posterpath,
          m.releaseyear,
          ms.title AS series_title,
          (

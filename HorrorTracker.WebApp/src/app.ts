@@ -3738,9 +3738,16 @@ function applyProgress(progress: UserProgress): void {
   state.undatedIds = progress.undatedIds;
   state.watchedYears = progress.watchedYears;
   state.watchNext = progress.watchNext;
-  if (Object.keys(progress.recentPosters).length > 0) {
+  const filledPosters: Record<string, string> = { ...progress.recentPosters };
+  for (const item of progress.watchNext) {
+    if (item.posterPath && !filledPosters[item.id]) {
+      filledPosters[item.id] = item.posterPath;
+    }
+  }
+
+  if (Object.keys(filledPosters).length > 0) {
     state.entries = state.entries.map((entry) => {
-      const posterPath = progress.recentPosters[entry.id];
+      const posterPath = filledPosters[entry.id];
       return posterPath && !entry.posterPath ? { ...entry, posterPath } : entry;
     });
   }

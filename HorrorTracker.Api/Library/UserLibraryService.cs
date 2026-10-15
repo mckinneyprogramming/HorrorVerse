@@ -106,13 +106,13 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
 
     private List<object> LoadWatchNext(int userId)
     {
-        var picked = new List<object>();
+        var picked = new List<WatchNextPick>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        void Add(IEnumerable<(string Id, object Item)> items)
+        void Add(IEnumerable<WatchNextPick> items)
         {
-            foreach (var (id, item) in items)
+            foreach (var item in items)
             {
-                if (picked.Count >= 6 || !seen.Add(id))
+                if (picked.Count >= 6 || !seen.Add(item.Id))
                 {
                     continue;
                 }
@@ -125,10 +125,37 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         Add(LoadNextSeriesMovies(userId));
         Add(LoadListedUnfinished(userId));
         Add(ShuffleWatchNext(LoadVaultUnfinished(userId), userId));
-        return picked;
+
+        Dictionary<string, string> posters = [];
+        var missing = picked.Where(item => item.PosterPath is null).Select(item => item.Id).ToList();
+        if (missing.Count > 0)
+        {
+            try
+            {
+                posters = tmdb.PostersForRecentAsync(missing, CancellationToken.None).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                posters = [];
+            }
+        }
+
+        return picked.Select(item =>
+        {
+            var poster = item.PosterPath ?? (posters.TryGetValue(item.Id, out var path) ? path : null);
+            return (object)new
+            {
+                id = item.Id,
+                title = item.Title,
+                kind = item.Kind,
+                reason = item.Reason,
+                detail = item.Detail,
+                posterPath = poster
+            };
+        }).ToList();
     }
 
-    private List<(string Id, object Item)> LoadNextEpisodes(int userId)
+    private List<WatchNextPick> LoadNextEpisodes(int userId)
     {
         try
         {
@@ -158,7 +185,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
                 """;
             command.Parameters.AddWithValue("userId", userId);
             using var reader = command.ExecuteReader();
-            var rows = new List<(DateTimeOffset At, string Id, object Item)>();
+            var rows = new List<(DateTimeOffset At, WatchNextPick Item)>();
             while (reader.Read())
             {
                 var season = reader.GetInt32(3);
@@ -170,11 +197,11 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
                 var item = WatchNextItem("show", reader.GetInt32(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), "episode", detail);
                 if (item is not null)
                 {
-                    rows.Add((at, item.Value.Id, item.Value.Item));
+                    rows.Add((at, item));
                 }
             }
 
-            return rows.OrderByDescending(row => row.At).Select(row => (row.Id, row.Item)).ToList();
+            return rows.OrderByDescending(row => row.At).Select(row => row.Item).ToList();
         }
         catch (PostgresException)
         {
@@ -182,7 +209,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         }
     }
 
-    private List<(string Id, object Item)> LoadNextSeriesMovies(int userId)
+    private List<WatchNextPick> LoadNextSeriesMovies(int userId)
     {
         try
         {
@@ -190,7 +217,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             using var command = connection.CreateCommand();
             command.CommandText = """
                 SELECT DISTINCT ON (m.seriesid)
-                    m.id, m.title, m.posterpath, m.releaseyear, ms.title,
+                    m.id, m.title, COALESCE(NULLIF(m.posterpath, '-'), NULLIF(ms.posterpath, '-')) AS posterpath, m.releaseyear, ms.title,
                     (SELECT MAX(p.completed_at)
                      FROM user_media_progress p
                      JOIN movie fm ON fm.id = p.media_id
@@ -209,7 +236,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
                 """;
             command.Parameters.AddWithValue("userId", userId);
             using var reader = command.ExecuteReader();
-            var rows = new List<(DateTimeOffset At, string Id, object Item)>();
+            var rows = new List<(DateTimeOffset At, WatchNextPick Item)>();
             while (reader.Read())
             {
                 var year = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
@@ -219,11 +246,11 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
                 var item = WatchNextItem("movie", reader.GetInt32(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), "series", detail);
                 if (item is not null)
                 {
-                    rows.Add((at, item.Value.Id, item.Value.Item));
+                    rows.Add((at, item));
                 }
             }
 
-            return rows.OrderByDescending(row => row.At).Select(row => (row.Id, row.Item)).ToList();
+            return rows.OrderByDescending(row => row.At).Select(row => row.Item).ToList();
         }
         catch (PostgresException)
         {
@@ -231,7 +258,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         }
     }
 
-    private List<(string Id, object Item)> LoadListedUnfinished(int userId) =>
+    private List<WatchNextPick> LoadListedUnfinished(int userId) =>
         ReadWatchNextRows(
             userId,
             """
@@ -265,7 +292,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             """,
             "list");
 
-    private List<(string Id, object Item)> LoadVaultUnfinished(int userId) =>
+    private List<WatchNextPick> LoadVaultUnfinished(int userId) =>
         ReadWatchNextRows(
             userId,
             """
@@ -284,7 +311,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             """,
             "vault");
 
-    private List<(string Id, object Item)> ReadWatchNextRows(int userId, string sql, string reason)
+    private List<WatchNextPick> ReadWatchNextRows(int userId, string sql, string reason)
     {
         try
         {
@@ -293,7 +320,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             command.CommandText = sql;
             command.Parameters.AddWithValue("userId", userId);
             using var reader = command.ExecuteReader();
-            var items = new List<(string Id, object Item)>();
+            var items = new List<WatchNextPick>();
             while (reader.Read())
             {
                 var year = reader.IsDBNull(4) ? (int?)null : Convert.ToInt32(reader.GetValue(4));
@@ -306,7 +333,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
                     year is int value && value > 0 ? value.ToString() : null);
                 if (item is not null)
                 {
-                    items.Add(item.Value);
+                    items.Add(item);
                 }
             }
 
@@ -318,7 +345,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         }
     }
 
-    private static List<(string Id, object Item)> ShuffleWatchNext(List<(string Id, object Item)> items, int userId)
+    private static List<WatchNextPick> ShuffleWatchNext(List<WatchNextPick> items, int userId)
     {
         var seed = (uint)(userId * 10_000 + DateTime.UtcNow.Year * 400 + DateTime.UtcNow.Month * 32 + DateTime.UtcNow.Day);
         if (seed == 0)
@@ -336,7 +363,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         return items;
     }
 
-    private static (string Id, object Item)? WatchNextItem(string kind, int mediaId, string title, string? posterPath, string reason, string? detail)
+    private static WatchNextPick? WatchNextItem(string kind, int mediaId, string title, string? posterPath, string reason, string? detail)
     {
         var name = title.Trim();
         if (mediaId < 1 || name.Length < 1)
@@ -346,17 +373,10 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
 
         var path = (posterPath ?? string.Empty).Trim();
         var poster = path.StartsWith('/') && path.Length <= 160 && !path.Contains("..", StringComparison.Ordinal) ? path : null;
-        var id = $"{kind}:{mediaId}";
-        return (id, new
-        {
-            id,
-            title = name,
-            kind,
-            reason,
-            detail = string.IsNullOrWhiteSpace(detail) ? null : detail,
-            posterPath = poster
-        });
+        return new WatchNextPick($"{kind}:{mediaId}", name, kind, reason, string.IsNullOrWhiteSpace(detail) ? null : detail, poster);
     }
+
+    private sealed record WatchNextPick(string Id, string Title, string Kind, string Reason, string? Detail, string? PosterPath);
 
     private static int? ParseWatchYear(int? year)
     {
