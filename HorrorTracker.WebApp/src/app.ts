@@ -3522,6 +3522,10 @@ async function shareFinishedTitle(root: HTMLElement, entry: CatalogEntry): Promi
       year: entry.releaseYear,
       kind: entry.kind,
       displayName: state.user?.displayName ?? "",
+      seriesTitle: entry.seriesTitle,
+      totalTime: entry.totalTime,
+      keywords: entry.keywords,
+      avatar: state.user?.avatar,
     });
     return shareStoryImage(blob, storyFilename(entry.title));
   });
@@ -3535,11 +3539,16 @@ async function shareFinishedRecap(root: HTMLElement): Promise<void> {
   await runStoryShare(root, async () => {
     const stats = buildHorrorStats(state.entries, state.finishedIds, true, state.franchises);
     const hoursLabel = stats.yours?.time.find((item) => item.label === "Hours survived")?.value ?? "0 hr";
+    const allNighters = Number(stats.yours?.extras.find((item) => item.label === "All-nighters survived")?.value);
+    const longestNight = stats.yours?.extras.find((item) => item.label === "Your longest night")?.value;
     const blob = await renderRecapStoryCard({
       hoursLabel,
       finishedCount: finishedTitleCount(state.entries, state.finishedIds),
       titles: recapTitlesFromCatalog(state.entries, state.recentIds),
       displayName: state.user?.displayName ?? "",
+      ...(Number.isFinite(allNighters) && allNighters > 0 ? { allNighters } : {}),
+      ...(longestNight ? { longestNight } : {}),
+      avatar: state.user?.avatar,
     });
     return shareStoryImage(blob, storyFilename("nights"));
   });

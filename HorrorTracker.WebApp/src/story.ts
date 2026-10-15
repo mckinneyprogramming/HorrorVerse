@@ -1,12 +1,20 @@
-import { MEDIA_KINDS, type CatalogEntry, type MediaKind } from "./catalog";
+import { formatRuntime, MEDIA_KINDS, type CatalogEntry, type MediaKind } from "./catalog";
+import { keywordsMatchTag, LIBRARY_TAGS } from "./tags";
 
 export const STORY_WIDTH = 1080;
 export const STORY_HEIGHT = 1920;
+
+const SAFE_TOP = 280;
+const SAFE_BOTTOM = 280;
+const MARGIN = 96;
+const TITLE_KICKERS = ["Survived", "Another night in the vault", "Made it through"] as const;
 
 export interface TitleStoryCopy {
   kicker: string;
   title: string;
   meta: string;
+  series?: string;
+  tag?: string;
   byline: string;
 }
 
@@ -14,6 +22,7 @@ export interface RecapStoryCopy {
   heading: string;
   hours: string;
   count: string;
+  extras: string[];
   titles: string[];
   empty: boolean;
 }
@@ -22,19 +31,48 @@ export function kindLabel(kind: MediaKind): string {
   return MEDIA_KINDS.find((item) => item.id === kind)?.label ?? kind;
 }
 
+export function titleKicker(title: string): string {
+  const value = title.trim();
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash += value.charCodeAt(index);
+  }
+
+  return TITLE_KICKERS[hash % TITLE_KICKERS.length];
+}
+
+export function storyTag(keywords: string[] | undefined): string | undefined {
+  const tag = LIBRARY_TAGS.find((item) => keywordsMatchTag(keywords, item.id));
+  return tag?.label;
+}
+
 export function titleStoryCopy(input: {
   title: string;
   year?: number;
   kind: MediaKind;
   displayName: string;
+  seriesTitle?: string;
+  totalTime?: number;
+  keywords?: string[];
 }): TitleStoryCopy {
   const title = input.title.trim() || "Untitled";
-  const meta = [input.year && input.year > 0 ? String(input.year) : "", kindLabel(input.kind)].filter(Boolean).join(" · ");
+  const runtime = formatRuntime(input.totalTime);
+  const meta = [
+    input.year && input.year > 0 ? String(input.year) : "",
+    kindLabel(input.kind),
+    runtime ?? "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const series = input.kind === "series" ? undefined : input.seriesTitle?.trim();
+  const tag = storyTag(input.keywords);
   const name = input.displayName.trim() || "a survivor";
   return {
-    kicker: "Survived",
+    kicker: titleKicker(title),
     title,
     meta,
+    ...(series ? { series } : {}),
+    ...(tag ? { tag } : {}),
     byline: `Watched by ${name}`,
   };
 }
@@ -43,6 +81,8 @@ export function recapStoryCopy(input: {
   hoursLabel: string;
   finishedCount: number;
   titles: string[];
+  allNighters?: number;
+  longestNight?: string;
 }): RecapStoryCopy {
   const titles = input.titles.map((title) => title.trim()).filter(Boolean).slice(0, 5);
   const empty = input.finishedCount < 1 && titles.length < 1;
@@ -51,9 +91,20 @@ export function recapStoryCopy(input: {
       heading: "Your nights",
       hours: input.hoursLabel.trim() || "0 hr",
       count: "Mark a title finished to start your nights.",
+      extras: [],
       titles: [],
       empty: true,
     };
+  }
+
+  const extras: string[] = [];
+  if (input.allNighters && input.allNighters > 0) {
+    extras.push(input.allNighters === 1 ? "1 all-nighter" : `${input.allNighters} all-nighters`);
+  }
+
+  const longest = input.longestNight?.trim();
+  if (longest) {
+    extras.push(`Longest night · ${longest}`);
   }
 
   const count = input.finishedCount === 1 ? "1 title survived" : `${Math.max(input.finishedCount, titles.length)} titles survived`;
@@ -61,6 +112,7 @@ export function recapStoryCopy(input: {
     heading: "Your nights",
     hours: input.hoursLabel.trim() || "0 hr",
     count,
+    extras: extras.slice(0, 2),
     titles,
     empty: false,
   };
@@ -103,8 +155,14 @@ export async function renderTitleStoryCard(input: {
   year?: number;
   kind: MediaKind;
   displayName: string;
+  seriesTitle?: string;
+  totalTime?: number;
+  keywords?: string[];
+  avatar?: string;
 }): Promise<Blob> {
-  return renderStoryCard((ctx) => paintTitleStory(ctx, titleStoryCopy(input)));
+  const copy = titleStoryCopy(input);
+  const avatar = await loadAvatar(input.avatar);
+  return renderStoryCard((ctx) => paintTitleStory(ctx, copy, avatar));
 }
 
 export async function renderRecapStoryCard(input: {
@@ -112,8 +170,13 @@ export async function renderRecapStoryCard(input: {
   finishedCount: number;
   titles: string[];
   displayName: string;
+  allNighters?: number;
+  longestNight?: string;
+  avatar?: string;
 }): Promise<Blob> {
-  return renderStoryCard((ctx) => paintRecapStory(ctx, recapStoryCopy(input), input.displayName.trim() || "a survivor"));
+  const copy = recapStoryCopy(input);
+  const avatar = await loadAvatar(input.avatar);
+  return renderStoryCard((ctx) => paintRecapStory(ctx, copy, input.displayName.trim() || "a survivor", avatar));
 }
 
 async function renderStoryCard(paint: (ctx: CanvasRenderingContext2D) => void): Promise<Blob> {
@@ -134,69 +197,165 @@ async function renderStoryCard(paint: (ctx: CanvasRenderingContext2D) => void): 
 function paintStoryBackdrop(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = "#0a0a0a";
   ctx.fillRect(0, 0, STORY_WIDTH, STORY_HEIGHT);
-  const glow = ctx.createRadialGradient(STORY_WIDTH / 2, 280, 40, STORY_WIDTH / 2, 200, 900);
-  glow.addColorStop(0, "rgba(183, 28, 28, 0.42)");
+  const glow = ctx.createRadialGradient(STORY_WIDTH / 2, SAFE_TOP + 80, 20, STORY_WIDTH / 2, SAFE_TOP, 820);
+  glow.addColorStop(0, "rgba(183, 28, 28, 0.38)");
   glow.addColorStop(1, "rgba(10, 10, 10, 0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, STORY_WIDTH, STORY_HEIGHT);
+  paintVignette(ctx);
   ctx.fillStyle = "#dc143c";
-  ctx.fillRect(96, 120, 120, 6);
+  ctx.fillRect(MARGIN, SAFE_TOP, 88, 5);
   ctx.fillStyle = "#f5f5f5";
-  ctx.font = '700 54px "Cinzel", "Palatino Linotype", Palatino, serif';
-  ctx.fillText("HorrorVerse", 96, 210);
+  ctx.font = '700 42px "Cinzel", "Palatino Linotype", Palatino, serif';
+  ctx.fillText("HorrorVerse", MARGIN, SAFE_TOP + 72);
 }
 
-function paintTitleStory(ctx: CanvasRenderingContext2D, copy: TitleStoryCopy): void {
+function paintVignette(ctx: CanvasRenderingContext2D): void {
+  const top = ctx.createLinearGradient(0, 0, 0, SAFE_TOP);
+  top.addColorStop(0, "rgba(0, 0, 0, 0.62)");
+  top.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = top;
+  ctx.fillRect(0, 0, STORY_WIDTH, SAFE_TOP);
+
+  const bottom = ctx.createLinearGradient(0, STORY_HEIGHT - SAFE_BOTTOM, 0, STORY_HEIGHT);
+  bottom.addColorStop(0, "rgba(0, 0, 0, 0)");
+  bottom.addColorStop(1, "rgba(0, 0, 0, 0.7)");
+  ctx.fillStyle = bottom;
+  ctx.fillRect(0, STORY_HEIGHT - SAFE_BOTTOM, STORY_WIDTH, SAFE_BOTTOM);
+}
+
+function paintTitleStory(ctx: CanvasRenderingContext2D, copy: TitleStoryCopy, avatar?: CanvasImageSource): void {
+  const contentWidth = STORY_WIDTH - MARGIN * 2;
   ctx.fillStyle = "#dc143c";
-  ctx.font = '600 36px "Source Sans 3", "Segoe UI", sans-serif';
-  ctx.fillText(copy.kicker.toUpperCase(), 96, 520);
+  ctx.font = '600 28px "Source Sans 3", "Segoe UI", sans-serif';
+  ctx.fillText(copy.kicker.toUpperCase(), MARGIN, SAFE_TOP + 220);
+
   ctx.fillStyle = "#f5f5f5";
-  ctx.font = '700 72px "Cinzel", "Palatino Linotype", Palatino, serif';
-  let y = 640;
-  for (const line of wrapText(ctx, copy.title, STORY_WIDTH - 192)) {
-    ctx.fillText(line, 96, y);
-    y += 88;
+  ctx.font = '700 88px "Cinzel", "Palatino Linotype", Palatino, serif';
+  let y = SAFE_TOP + 360;
+  for (const line of wrapText(ctx, copy.title, contentWidth, 4)) {
+    ctx.fillText(line, MARGIN, y);
+    y += 102;
   }
 
+  y += 12;
   if (copy.meta) {
     ctx.fillStyle = "#b0b0b0";
-    ctx.font = '400 32px "Source Sans 3", "Segoe UI", sans-serif';
-    ctx.fillText(copy.meta, 96, y + 24);
+    ctx.font = '400 30px "Source Sans 3", "Segoe UI", sans-serif';
+    ctx.fillText(copy.meta, MARGIN, y);
+    y += 52;
   }
 
-  ctx.fillStyle = "#757575";
-  ctx.font = '400 28px "Source Sans 3", "Segoe UI", sans-serif';
-  ctx.fillText(copy.byline, 96, STORY_HEIGHT - 160);
+  if (copy.series) {
+    ctx.fillStyle = "#b0b0b0";
+    ctx.font = '400 28px "Source Sans 3", "Segoe UI", sans-serif';
+    ctx.fillText(copy.series, MARGIN, y);
+    y += 48;
+  }
+
+  if (copy.tag) {
+    paintTagChip(ctx, copy.tag, MARGIN, y + 8);
+  }
+
+  paintByline(ctx, copy.byline, avatar);
 }
 
-function paintRecapStory(ctx: CanvasRenderingContext2D, copy: RecapStoryCopy, displayName: string): void {
+function paintRecapStory(
+  ctx: CanvasRenderingContext2D,
+  copy: RecapStoryCopy,
+  displayName: string,
+  avatar?: CanvasImageSource,
+): void {
+  const contentWidth = STORY_WIDTH - MARGIN * 2;
   ctx.fillStyle = "#dc143c";
-  ctx.font = '600 36px "Source Sans 3", "Segoe UI", sans-serif';
-  ctx.fillText(copy.heading.toUpperCase(), 96, 460);
-  ctx.fillStyle = "#f5f5f5";
-  ctx.font = '700 72px "Cinzel", "Palatino Linotype", Palatino, serif';
-  ctx.fillText(copy.hours, 96, 580);
-  ctx.fillStyle = "#b0b0b0";
-  ctx.font = '400 32px "Source Sans 3", "Segoe UI", sans-serif';
-  ctx.fillText(copy.count, 96, 660);
+  ctx.font = '600 28px "Source Sans 3", "Segoe UI", sans-serif';
+  ctx.fillText(copy.heading.toUpperCase(), MARGIN, SAFE_TOP + 220);
 
-  let y = 780;
   ctx.fillStyle = "#f5f5f5";
-  ctx.font = '500 40px "Cinzel", "Palatino Linotype", Palatino, serif';
-  for (const title of copy.titles) {
-    for (const line of wrapText(ctx, title, STORY_WIDTH - 192)) {
-      ctx.fillText(line, 96, y);
-      y += 56;
-    }
-    y += 18;
+  ctx.font = '700 96px "Cinzel", "Palatino Linotype", Palatino, serif';
+  ctx.fillText(copy.hours, MARGIN, SAFE_TOP + 360);
+
+  ctx.fillStyle = "#b0b0b0";
+  ctx.font = '400 30px "Source Sans 3", "Segoe UI", sans-serif';
+  ctx.fillText(copy.count, MARGIN, SAFE_TOP + 430);
+
+  let y = SAFE_TOP + 520;
+  ctx.fillStyle = "#f5f5f5";
+  ctx.font = '400 28px "Source Sans 3", "Segoe UI", sans-serif';
+  for (const extra of copy.extras) {
+    ctx.fillText(extra, MARGIN, y);
+    y += 46;
   }
 
-  ctx.fillStyle = "#757575";
-  ctx.font = '400 28px "Source Sans 3", "Segoe UI", sans-serif';
-  ctx.fillText(`Watched by ${displayName}`, 96, STORY_HEIGHT - 160);
+  y += 28;
+  ctx.font = '500 36px "Cinzel", "Palatino Linotype", Palatino, serif';
+  copy.titles.forEach((title, index) => {
+    const label = `${String(index + 1).padStart(2, "0")}  ${title}`;
+    for (const line of wrapText(ctx, label, contentWidth, 2)) {
+      ctx.fillText(line, MARGIN, y);
+      y += 52;
+    }
+    y += 10;
+  });
+
+  paintByline(ctx, `Watched by ${displayName}`, avatar);
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+function paintTagChip(ctx: CanvasRenderingContext2D, label: string, x: number, y: number): void {
+  ctx.font = '600 24px "Source Sans 3", "Segoe UI", sans-serif';
+  const width = ctx.measureText(label).width + 36;
+  ctx.strokeStyle = "#b71c1c";
+  ctx.lineWidth = 2;
+  roundRect(ctx, x, y - 28, width, 44, 22);
+  ctx.stroke();
+  ctx.fillStyle = "#dc143c";
+  ctx.fillText(label, x + 18, y);
+}
+
+function paintByline(ctx: CanvasRenderingContext2D, byline: string, avatar?: CanvasImageSource): void {
+  const y = STORY_HEIGHT - SAFE_BOTTOM - 24;
+  let textX = MARGIN;
+  if (avatar) {
+    const size = 72;
+    const cx = MARGIN + size / 2;
+    const cy = y - 8;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(avatar, MARGIN, cy - size / 2, size, size);
+    ctx.restore();
+    ctx.strokeStyle = "#dc143c";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    textX = MARGIN + size + 22;
+  }
+
+  ctx.fillStyle = "#b0b0b0";
+  ctx.font = '400 28px "Source Sans 3", "Segoe UI", sans-serif';
+  ctx.fillText(byline, textX, y);
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length < 1) {
     return [text];
@@ -213,16 +372,30 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 
     lines.push(current);
     current = word;
-    if (lines.length >= 5) {
+    if (lines.length >= maxLines) {
       break;
     }
   }
 
-  if (current && lines.length < 6) {
+  if (current && lines.length < maxLines) {
     lines.push(current);
   }
 
   return lines.length > 0 ? lines : [text];
+}
+
+async function loadAvatar(avatar: string | undefined): Promise<CanvasImageSource | undefined> {
+  const src = avatar?.trim();
+  if (!src || typeof Image === "undefined") {
+    return undefined;
+  }
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(undefined);
+    image.src = src;
+  });
 }
 
 async function waitForFonts(): Promise<void> {
