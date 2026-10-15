@@ -3737,9 +3737,9 @@ function applyProgress(progress: UserProgress): void {
   state.recentPosters = progress.recentPosters;
   state.undatedIds = progress.undatedIds;
   state.watchedYears = progress.watchedYears;
-  state.watchNext = progress.watchNext;
+  state.watchNext = progress.watchNext ?? [];
   const filledPosters: Record<string, string> = { ...progress.recentPosters };
-  for (const item of progress.watchNext) {
+  for (const item of state.watchNext) {
     if (item.posterPath && !filledPosters[item.id]) {
       filledPosters[item.id] = item.posterPath;
     }

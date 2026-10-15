@@ -211,7 +211,7 @@ async function loadProgress(
     undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
     watchedYears,
     recentPosters: await postersForRecentProgress(connectionString, user.id),
-    watchNext: await loadWatchNext(connectionString, user.id),
+    watchNext: await loadWatchNext(connectionString, user.id).catch(() => []),
   };
 }
 

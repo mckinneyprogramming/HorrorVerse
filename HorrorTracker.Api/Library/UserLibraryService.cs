@@ -100,8 +100,20 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             undatedIds,
             watchedYears,
             recentPosters,
-            watchNext = LoadWatchNext(userId)
+            watchNext = LoadWatchNextSafe(userId)
         };
+    }
+
+    private List<object> LoadWatchNextSafe(int userId)
+    {
+        try
+        {
+            return LoadWatchNext(userId);
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     private List<object> LoadWatchNext(int userId)
@@ -126,32 +138,14 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         Add(LoadListedUnfinished(userId));
         Add(ShuffleWatchNext(LoadVaultUnfinished(userId), userId));
 
-        Dictionary<string, string> posters = [];
-        var missing = picked.Where(item => item.PosterPath is null).Select(item => item.Id).ToList();
-        if (missing.Count > 0)
+        return picked.Select(item => (object)new
         {
-            try
-            {
-                posters = tmdb.PostersForRecentAsync(missing, CancellationToken.None).GetAwaiter().GetResult();
-            }
-            catch
-            {
-                posters = [];
-            }
-        }
-
-        return picked.Select(item =>
-        {
-            var poster = item.PosterPath ?? (posters.TryGetValue(item.Id, out var path) ? path : null);
-            return (object)new
-            {
-                id = item.Id,
-                title = item.Title,
-                kind = item.Kind,
-                reason = item.Reason,
-                detail = item.Detail,
-                posterPath = poster
-            };
+            id = item.Id,
+            title = item.Title,
+            kind = item.Kind,
+            reason = item.Reason,
+            detail = item.Detail,
+            posterPath = item.PosterPath
         }).ToList();
     }
 
@@ -296,18 +290,33 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         ReadWatchNextRows(
             userId,
             """
-            SELECT 'movie' AS kind, id, title, posterpath, releaseyear FROM movie m
-            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
+            (
+              SELECT 'movie' AS kind, id, title, posterpath, releaseyear FROM movie m
+              WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
+              ORDER BY id
+              LIMIT 20
+            )
             UNION ALL
-            SELECT 'documentary', id, title, posterpath, releaseyear FROM documentary d
-            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'documentary' AND p.media_id = d.id)
+            (
+              SELECT 'documentary', id, title, posterpath, releaseyear FROM documentary d
+              WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'documentary' AND p.media_id = d.id)
+              ORDER BY id
+              LIMIT 20
+            )
             UNION ALL
-            SELECT 'show', id, title, posterpath, releaseyear FROM show s
-            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
+            (
+              SELECT 'show', id, title, posterpath, releaseyear FROM show s
+              WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
+              ORDER BY id
+              LIMIT 20
+            )
             UNION ALL
-            SELECT 'book', id, title, NULL, releaseyear FROM book b
-            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'book' AND p.media_id = b.id)
-            LIMIT 80
+            (
+              SELECT 'book', id, title, NULL, releaseyear FROM book b
+              WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'book' AND p.media_id = b.id)
+              ORDER BY id
+              LIMIT 20
+            )
             """,
             "vault");
 

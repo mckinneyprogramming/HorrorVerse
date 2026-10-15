@@ -440,16 +440,7 @@ async function loadWatchNext(connectionString, userId) {
     loadListedUnfinished(connectionString, userId),
     loadVaultUnfinished(connectionString, userId)
   ]);
-  const picked = pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
-  return Promise.all(picked.map((item) => attachPoster(connectionString, item)));
-}
-async function attachPoster(connectionString, item) {
-  if (item.posterPath) {
-    return item;
-  }
-  const mediaId = Number(item.id.split(":")[1]);
-  const posterPath = await ensurePoster(connectionString, item.kind, mediaId);
-  return posterPath ? { ...item, posterPath } : item;
+  return pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
 }
 async function loadNextEpisodes(connectionString, userId) {
   try {
@@ -590,30 +581,45 @@ async function loadVaultUnfinished(connectionString, userId) {
   try {
     const rows = await queryRows(
       connectionString,
-      `SELECT 'movie' AS kind, id, title, posterpath, releaseyear FROM movie m
-       WHERE NOT EXISTS (
-         SELECT 1 FROM user_media_progress p
-         WHERE p.user_id = $1 AND p.media_kind = 'movie' AND p.media_id = m.id
+      `(
+         SELECT 'movie' AS kind, id, title, posterpath, releaseyear FROM movie m
+         WHERE NOT EXISTS (
+           SELECT 1 FROM user_media_progress p
+           WHERE p.user_id = $1 AND p.media_kind = 'movie' AND p.media_id = m.id
+         )
+         ORDER BY id
+         LIMIT 20
        )
        UNION ALL
-       SELECT 'documentary', id, title, posterpath, releaseyear FROM documentary d
-       WHERE NOT EXISTS (
-         SELECT 1 FROM user_media_progress p
-         WHERE p.user_id = $1 AND p.media_kind = 'documentary' AND p.media_id = d.id
+       (
+         SELECT 'documentary', id, title, posterpath, releaseyear FROM documentary d
+         WHERE NOT EXISTS (
+           SELECT 1 FROM user_media_progress p
+           WHERE p.user_id = $1 AND p.media_kind = 'documentary' AND p.media_id = d.id
+         )
+         ORDER BY id
+         LIMIT 20
        )
        UNION ALL
-       SELECT 'show', id, title, posterpath, releaseyear FROM show s
-       WHERE NOT EXISTS (
-         SELECT 1 FROM user_media_progress p
-         WHERE p.user_id = $1 AND p.media_kind = 'show' AND p.media_id = s.id
+       (
+         SELECT 'show', id, title, posterpath, releaseyear FROM show s
+         WHERE NOT EXISTS (
+           SELECT 1 FROM user_media_progress p
+           WHERE p.user_id = $1 AND p.media_kind = 'show' AND p.media_id = s.id
+         )
+         ORDER BY id
+         LIMIT 20
        )
        UNION ALL
-       SELECT 'book', id, title, NULL, releaseyear FROM book b
-       WHERE NOT EXISTS (
-         SELECT 1 FROM user_media_progress p
-         WHERE p.user_id = $1 AND p.media_kind = 'book' AND p.media_id = b.id
-       )
-       LIMIT 80`,
+       (
+         SELECT 'book', id, title, NULL, releaseyear FROM book b
+         WHERE NOT EXISTS (
+           SELECT 1 FROM user_media_progress p
+           WHERE p.user_id = $1 AND p.media_kind = 'book' AND p.media_id = b.id
+         )
+         ORDER BY id
+         LIMIT 20
+       )`,
       [userId]
     );
     return rows.map((row) => toItem(row.kind, row.id, row.title, row.posterpath, "vault", yearDetail(row.releaseyear))).filter((item) => item !== void 0);
@@ -827,7 +833,7 @@ async function loadProgress(connectionString, user) {
     undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
     watchedYears,
     recentPosters: await postersForRecentProgress(connectionString, user.id),
-    watchNext: await loadWatchNext(connectionString, user.id)
+    watchNext: await loadWatchNext(connectionString, user.id).catch(() => [])
   };
 }
 function progressId(row) {
