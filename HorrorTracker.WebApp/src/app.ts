@@ -56,6 +56,7 @@ import {
   type PersonCard,
 } from "./people";
 import { fetchWatch, type WatchOffer } from "./watch";
+import { buildAchievements, type Achievement } from "./achievements";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowEpisode, type ShowGuide } from "./shows";
 import { importHorrorVault, syncVault, type HorrorImportKind, type HorrorImportProgress } from "./sync";
@@ -280,7 +281,8 @@ export function mountApp(root: HTMLElement): void {
       state.view = "library";
       state.filter = filter === "all" || (filter && isMediaKind(filter)) ? filter : "all";
       state.libraryQuery = target.dataset.query ?? "";
-      state.libraryTag = "";
+      const tag = target.dataset.tag ?? "";
+      state.libraryTag = isLibraryTagId(tag) ? tag : "";
       if (target.dataset.franchises === "1") {
         state.franchisesCollapsed = false;
       }
@@ -1869,6 +1871,7 @@ function renderHome(): string {
     </section>
     ${renderWatchNext()}
     ${renderHomeRecents()}
+    ${renderAchievements()}
     ${renderFunStats()}
     <section class="kinds">
       <button class="kind-card" type="button" data-action="view" data-view="upcoming">
@@ -2010,6 +2013,53 @@ function renderHomeRecents(): string {
           .join("")}
       </div>
     </section>
+  `;
+}
+
+function renderAchievements(): string {
+  const achievements = buildAchievements({
+    entries: state.entries,
+    finishedIds: state.user ? state.finishedIds : [],
+    franchises: state.franchises,
+    listCount: state.user ? state.lists.length : 0,
+    yearCount: state.user ? Object.keys(state.watchedYears).length : 0,
+  });
+  const earned = achievements.filter((item) => item.earned).length;
+  return `
+    <section class="achievements" aria-label="Badges">
+      <h2>Badges</h2>
+      ${
+        state.user
+          ? `<p>${
+              earned > 0
+                ? `${earned} of ${achievements.length} earned. Survive more titles to unlock the rest.`
+                : "Survive titles, finish a series, or make a list to start unlocking lore."
+            }</p>`
+          : `<p class="fun-stats-note"><button type="button" data-action="view" data-view="account">Sign in</button> to earn badges as you survive the vault.</p>`
+      }
+      <div class="achievement-grid">${achievements.map((item) => renderAchievement(item)).join("")}</div>
+    </section>
+  `;
+}
+
+function renderAchievement(achievement: Achievement): string {
+  const canOpen = Boolean(achievement.filter || achievement.tag || achievement.openFranchises || achievement.openLists);
+  const attrs = achievement.openLists
+    ? `data-action="view" data-view="lists"`
+    : canOpen
+      ? `data-action="stat-open" data-filter="${escapeHtml(achievement.filter ?? "all")}" data-query=""${
+          achievement.openFranchises ? ' data-franchises="1"' : ""
+        }${achievement.tag ? ` data-tag="${escapeHtml(achievement.tag)}"` : ""}`
+      : "";
+  const tag = canOpen ? "button" : "article";
+  const progress =
+    achievement.earned ? "Earned" : achievement.target > 1 ? `${achievement.current} / ${achievement.target}` : "Locked";
+  return `
+    <${tag} class="achievement${achievement.earned ? " is-earned" : ""}"${canOpen ? ` type="button" ${attrs}` : ""}>
+      <strong>${escapeHtml(achievement.name)}</strong>
+      <span>${escapeHtml(achievement.hint)}</span>
+      <em>${escapeHtml(progress)}</em>
+    </${tag}>
   `;
 }
 
@@ -2829,6 +2879,7 @@ function renderAccount(): string {
         </form>
         <button class="ghost-btn" type="button" data-action="logout" ${state.authBusy ? "disabled" : ""}>Sign out</button>
       </section>
+      ${renderAchievements()}
       ${state.user.isAdmin ? renderVaultImport() : ""}
       ${stats.yours ? renderStatGroup("Your nights", "Hours you've marked finished, plus the titles that linger.", stats.yours) : ""}
       ${renderRecapShare()}
