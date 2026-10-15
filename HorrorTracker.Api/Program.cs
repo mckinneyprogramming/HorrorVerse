@@ -127,9 +127,9 @@ app.MapPost("/api/tmdb", async (TmdbImportRequest body, HttpContext http, AuthSe
 app.MapGet("/api/sync", async (string? id, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
     await WriteCatalogSyncAsync(http, auth, (force) => tmdb.SyncAsync(id, force, http.RequestAborted)));
 app.MapGet("/api/progress", (HttpContext http, AuthService auth, UserLibraryService library) =>
-    WriteSignedIn(http, auth, user => Results.Json(new { ids = library.GetCompletedIds(user) })));
+    WriteSignedIn(http, auth, user => Results.Json(library.GetProgress(user))));
 app.MapPatch("/api/progress", (ProgressWriteRequest body, HttpContext http, AuthService auth, UserLibraryService library) =>
-    WriteSignedIn(http, auth, user => Results.Json(new { ids = library.SetCompleted(user, body) })));
+    WriteSignedIn(http, auth, user => Results.Json(library.SetCompleted(user, body))));
 app.MapGet("/api/lists", (HttpContext http, AuthService auth, UserLibraryService library) =>
     WriteSignedIn(http, auth, user => Results.Json(new { lists = library.GetLists(user) })));
 app.MapPost("/api/lists", (ListWriteRequest body, HttpContext http, AuthService auth, UserLibraryService library) =>

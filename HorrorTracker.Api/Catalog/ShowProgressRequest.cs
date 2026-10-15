@@ -7,4 +7,6 @@ public sealed class ShowProgressRequest
     public int? SeasonId { get; set; }
     public int? EpisodeId { get; set; }
     public bool Completed { get; set; }
+    public bool Dated { get; set; } = true;
+    public int? Year { get; set; }
 }

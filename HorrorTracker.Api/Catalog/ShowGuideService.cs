@@ -58,7 +58,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
             throw new InvalidOperationException("Choose a show, season, or episode to mark.");
         }
 
-        SyncShowProgress(user.Id, showId);
+        SyncShowProgress(user.Id, showId, request.Dated, request.Dated ? ParseWatchYear(request.Year) : null);
         return LoadGuide(user.Id, showId);
     }
 
@@ -261,6 +261,12 @@ public sealed class ShowGuideService(IConfiguration configuration)
         SyncShowProgress(userId, showId);
     }
 
+    private static int? ParseWatchYear(int? year)
+    {
+        var last = DateTime.UtcNow.Year + 1;
+        return year is >= 1888 && year <= last ? year : null;
+    }
+
     private void SetAllShowEpisodes(int userId, int showId, bool completed)
     {
         using var connection = OpenConnection();
@@ -299,7 +305,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
         return numbers;
     }
 
-    private void SyncShowProgress(int userId, int showId)
+    private void SyncShowProgress(int userId, int showId, bool dated = true, int? year = null)
     {
         using var connection = OpenConnection();
         using var totals = connection.CreateCommand();
@@ -330,7 +336,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
         progress.CommandText = complete
             ? """
                 INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-                VALUES (@userId, 'show', @showId, NOW())
+                VALUES (@userId, 'show', @showId, CASE WHEN @dated THEN COALESCE(@completedAt, NOW()) ELSE NULL END)
                 ON CONFLICT (user_id, media_kind, media_id)
                 DO UPDATE SET completed_at = EXCLUDED.completed_at
                 """
@@ -340,6 +346,10 @@ public sealed class ShowGuideService(IConfiguration configuration)
                 """;
         progress.Parameters.AddWithValue("userId", userId);
         progress.Parameters.AddWithValue("showId", showId);
+        progress.Parameters.AddWithValue("dated", dated);
+        progress.Parameters.AddWithValue("completedAt", year is int value
+            ? new DateTime(value, 7, 1, 12, 0, 0, DateTimeKind.Utc)
+            : DBNull.Value);
         try
         {
             progress.ExecuteNonQuery();

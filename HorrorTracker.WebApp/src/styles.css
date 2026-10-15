@@ -1144,6 +1144,10 @@ code {
   gap: 10px;
 }
 
+.sheet [data-when-year] {
+  margin-top: 8px;
+}
+
 .sheet-actions .primary-btn,
 .sheet-actions .ghost-btn {
   margin-top: 18px;

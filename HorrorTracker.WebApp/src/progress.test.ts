@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { canMarkEarlier } from "./progress";
+import { readWatchedYears } from "./progress";
 
-describe("canMarkEarlier", () => {
-  it("is available until a title is finished without a date", () => {
-    expect(canMarkEarlier([], "show:1")).toBe(true);
-    expect(canMarkEarlier(["movie:2"], "show:1")).toBe(true);
-    expect(canMarkEarlier(["show:1"], "show:1")).toBe(false);
+describe("readWatchedYears", () => {
+  it("keeps integer years keyed by catalog id", () => {
+    expect(readWatchedYears({ watchedYears: { "show:1": 2020, "movie:2": 1996.5 } })).toEqual({
+      "show:1": 2020,
+    });
+    expect(readWatchedYears({})).toEqual({});
   });
 });

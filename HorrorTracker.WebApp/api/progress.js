@@ -215,6 +215,30 @@ function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That titl
   return { kind, mediaId };
 }
 
+// lib/watch-year.ts
+var FIRST_YEAR = 1888;
+function parseWatchYear(value, now = /* @__PURE__ */ new Date()) {
+  const year = typeof value === "number" ? value : Number(String(value ?? "").trim());
+  const last = now.getUTCFullYear() + 1;
+  if (!Number.isInteger(year) || year < FIRST_YEAR || year > last) {
+    return void 0;
+  }
+  return year;
+}
+function watchTimestamp(year) {
+  return `${year}-07-01T12:00:00.000Z`;
+}
+function yearFromCompletedAt(value) {
+  if (value == null || value === "") {
+    return void 0;
+  }
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (!Number.isFinite(date.getTime())) {
+    return void 0;
+  }
+  return date.getUTCFullYear();
+}
+
 // lib/tmdb.ts
 function asId(row, key = "id") {
   return asPositiveInt(row?.[key]);
@@ -243,8 +267,9 @@ async function PATCH(request) {
     const body = await request.json().catch(() => ({}));
     const { kind, mediaId } = parseCatalogId(body.id, LIBRARY_MEDIA_KINDS);
     const dated = body.dated !== false;
+    const year = dated ? parseWatchYear(body.year) : void 0;
     if (body.completed) {
-      await upsertProgress(connectionString, user.id, kind, mediaId, dated);
+      await upsertProgress(connectionString, user.id, kind, mediaId, dated, year);
     } else {
       await execute(
         connectionString,
@@ -253,38 +278,57 @@ async function PATCH(request) {
       );
     }
     if (kind === "series") {
-      await cascadeSeriesMovies(connectionString, user.id, mediaId, Boolean(body.completed), dated);
+      await cascadeSeriesMovies(connectionString, user.id, mediaId, Boolean(body.completed), dated, year);
     } else if (kind === "movie") {
-      await syncSeriesForMovie(connectionString, user.id, mediaId, dated);
+      await syncSeriesForMovie(connectionString, user.id, mediaId, dated, year);
     }
     return Response.json(await loadProgress(connectionString, user));
   } catch (error) {
     return jsonError(error, { log: "User library request failed.", fallback: "Could not update your library.", unavailable: "Library unavailable." });
   }
 }
-async function upsertProgress(connectionString, userId, kind, mediaId, dated) {
+async function upsertProgress(connectionString, userId, kind, mediaId, dated, year) {
+  if (!dated) {
+    await execute(
+      connectionString,
+      `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+       VALUES ($1, $2, $3, NULL)
+       ON CONFLICT (user_id, media_kind, media_id)
+       DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+      [userId, kind, mediaId]
+    );
+    return;
+  }
+  if (year) {
+    await execute(
+      connectionString,
+      `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+       VALUES ($1, $2, $3, $4::timestamptz)
+       ON CONFLICT (user_id, media_kind, media_id)
+       DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+      [userId, kind, mediaId, watchTimestamp(year)]
+    );
+    return;
+  }
   await execute(
     connectionString,
     `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-     VALUES ($1, $2, $3, CASE WHEN $4 THEN NOW() ELSE NULL END)
+     VALUES ($1, $2, $3, NOW())
      ON CONFLICT (user_id, media_kind, media_id)
      DO UPDATE SET completed_at = EXCLUDED.completed_at`,
-    [userId, kind, mediaId, dated]
+    [userId, kind, mediaId]
   );
 }
-async function cascadeSeriesMovies(connectionString, userId, seriesId, completed, dated) {
+async function cascadeSeriesMovies(connectionString, userId, seriesId, completed, dated, year) {
   try {
     if (completed) {
-      await execute(
-        connectionString,
-        `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-         SELECT $1, 'movie', id, CASE WHEN $3 THEN NOW() ELSE NULL END
-         FROM movie
-         WHERE seriesid = $2
-         ON CONFLICT (user_id, media_kind, media_id)
-         DO UPDATE SET completed_at = EXCLUDED.completed_at`,
-        [userId, seriesId, dated]
-      );
+      const movies = await queryRows(connectionString, "SELECT id FROM movie WHERE seriesid = $1", [seriesId]);
+      for (const row of movies) {
+        const movieId = asId(row);
+        if (movieId) {
+          await upsertProgress(connectionString, userId, "movie", movieId, dated, year);
+        }
+      }
       return;
     }
     await execute(
@@ -298,7 +342,7 @@ async function cascadeSeriesMovies(connectionString, userId, seriesId, completed
   } catch {
   }
 }
-async function syncSeriesForMovie(connectionString, userId, movieId, dated) {
+async function syncSeriesForMovie(connectionString, userId, movieId, dated, year) {
   try {
     const seriesId = asId((await queryRows(connectionString, "SELECT seriesid FROM movie WHERE id = $1", [movieId]))[0], "seriesid");
     if (!seriesId) {
@@ -316,7 +360,7 @@ async function syncSeriesForMovie(connectionString, userId, movieId, dated) {
     const total = Number(rows[0]?.total) || 0;
     const finished = Number(rows[0]?.finished) || 0;
     if (total > 0 && finished >= total) {
-      await upsertProgress(connectionString, userId, "series", seriesId, dated);
+      await upsertProgress(connectionString, userId, "series", seriesId, dated, year);
       return;
     }
     await execute(
@@ -342,10 +386,18 @@ async function loadProgress(connectionString, user) {
      LIMIT 8`,
     [user.id]
   );
+  const watchedYears = {};
+  for (const row of rows) {
+    const year = yearFromCompletedAt(row.completed_at);
+    if (year) {
+      watchedYears[progressId(row)] = year;
+    }
+  }
   return {
     ids: rows.map(progressId),
     recentIds: recent.map(progressId),
-    undatedIds: rows.filter((row) => row.completed_at == null).map(progressId)
+    undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
+    watchedYears
   };
 }
 function progressId(row) {

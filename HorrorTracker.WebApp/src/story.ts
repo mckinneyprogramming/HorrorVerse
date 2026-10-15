@@ -46,6 +46,11 @@ export function storyTag(keywords: string[] | undefined): string | undefined {
   return tag?.label;
 }
 
+export function watchedByline(displayName: string, watchedIn?: number): string {
+  const name = displayName.trim() || "a survivor";
+  return watchedIn ? `Watched in ${watchedIn} by ${name}` : `Watched by ${name}`;
+}
+
 export function titleStoryCopy(input: {
   title: string;
   year?: number;
@@ -54,6 +59,7 @@ export function titleStoryCopy(input: {
   seriesTitle?: string;
   totalTime?: number;
   keywords?: string[];
+  watchedIn?: number;
 }): TitleStoryCopy {
   const title = input.title.trim() || "Untitled";
   const runtime = formatRuntime(input.totalTime);
@@ -66,14 +72,13 @@ export function titleStoryCopy(input: {
     .join(" · ");
   const series = input.kind === "series" ? undefined : input.seriesTitle?.trim();
   const tag = storyTag(input.keywords);
-  const name = input.displayName.trim() || "a survivor";
   return {
     kicker: titleKicker(title),
     title,
     meta,
     ...(series ? { series } : {}),
     ...(tag ? { tag } : {}),
-    byline: `Watched by ${name}`,
+    byline: watchedByline(input.displayName, input.watchedIn),
   };
 }
 
@@ -158,6 +163,7 @@ export async function renderTitleStoryCard(input: {
   seriesTitle?: string;
   totalTime?: number;
   keywords?: string[];
+  watchedIn?: number;
   avatar?: string;
 }): Promise<Blob> {
   const copy = titleStoryCopy(input);

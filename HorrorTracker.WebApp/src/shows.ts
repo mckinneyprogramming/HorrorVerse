@@ -44,9 +44,14 @@ export async function setSeasonProgress(seasonId: number, completed: boolean): P
 export async function setShowProgress(
   showId: number,
   completed: boolean,
-  options: { dated?: boolean } = {},
+  options: { dated?: boolean; year?: number } = {},
 ): Promise<ShowGuide> {
-  return writeGuide({ id: `show:${showId}`, completed, dated: options.dated !== false });
+  return writeGuide({
+    id: `show:${showId}`,
+    completed,
+    dated: options.dated !== false,
+    ...(options.year !== undefined ? { year: options.year } : {}),
+  });
 }
 
 async function writeGuide(body: {
@@ -55,6 +60,7 @@ async function writeGuide(body: {
   seasonId?: number;
   completed: boolean;
   dated?: boolean;
+  year?: number;
 }): Promise<ShowGuide> {
   const response = await fetch("/api/shows", {
     method: "PATCH",

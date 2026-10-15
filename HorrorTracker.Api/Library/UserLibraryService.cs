@@ -24,6 +24,13 @@ public sealed class UserLibraryService(IConfiguration configuration)
         return GetCompletedIds(user.Id);
     }
 
+    public object GetProgress(AuthUserDto user)
+    {
+        EnsureSchema();
+        SeedAdminProgressIfEmpty(user);
+        return LoadProgress(user.Id);
+    }
+
     public IReadOnlyList<string> GetCompletedIds(int userId)
     {
         EnsureSchema();
@@ -45,10 +52,64 @@ public sealed class UserLibraryService(IConfiguration configuration)
         return ids;
     }
 
-    public IReadOnlyList<string> SetCompleted(AuthUserDto user, ProgressWriteRequest request)
+    private object LoadProgress(int userId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT media_kind, media_id, completed_at
+            FROM user_media_progress
+            WHERE user_id = @userId
+            """;
+        command.Parameters.AddWithValue("userId", userId);
+        using var reader = command.ExecuteReader();
+        var ids = new List<string>();
+        var undatedIds = new List<string>();
+        var dated = new List<(string Id, DateTimeOffset At)>();
+        var watchedYears = new Dictionary<string, int>();
+        while (reader.Read())
+        {
+            var id = $"{reader.GetString(0)}:{reader.GetInt32(1)}";
+            ids.Add(id);
+            if (reader.IsDBNull(2))
+            {
+                undatedIds.Add(id);
+                continue;
+            }
+
+            var completedAt = reader.GetFieldValue<DateTimeOffset>(2);
+            dated.Add((id, completedAt));
+            watchedYears[id] = completedAt.UtcDateTime.Year;
+        }
+
+        return new
+        {
+            ids,
+            recentIds = dated.OrderByDescending(item => item.At).ThenBy(item => item.Id).Take(8).Select(item => item.Id).ToList(),
+            undatedIds,
+            watchedYears
+        };
+    }
+
+    private static int? ParseWatchYear(int? year)
+    {
+        var last = DateTime.UtcNow.Year + 1;
+        return year is >= 1888 && year <= last ? year : null;
+    }
+
+    private static void AddCompletedAt(NpgsqlCommand command, bool dated, int? year)
+    {
+        command.Parameters.AddWithValue("dated", dated);
+        command.Parameters.AddWithValue("completedAt", year is int value
+            ? new DateTime(value, 7, 1, 12, 0, 0, DateTimeKind.Utc)
+            : DBNull.Value);
+    }
+
+    public object SetCompleted(AuthUserDto user, ProgressWriteRequest request)
     {
         EnsureSchema();
         var (kind, mediaId) = ParseCatalogId(request.Id);
+        var year = request.Dated ? ParseWatchYear(request.Year) : null;
 
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
@@ -56,7 +117,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
         {
             command.CommandText = """
                 INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-                VALUES (@userId, @kind, @mediaId, NOW())
+                VALUES (@userId, @kind, @mediaId, CASE WHEN @dated THEN COALESCE(@completedAt, NOW()) ELSE NULL END)
                 ON CONFLICT (user_id, media_kind, media_id)
                 DO UPDATE SET completed_at = EXCLUDED.completed_at
                 """;
@@ -72,17 +133,18 @@ public sealed class UserLibraryService(IConfiguration configuration)
         command.Parameters.AddWithValue("userId", user.Id);
         command.Parameters.AddWithValue("kind", kind);
         command.Parameters.AddWithValue("mediaId", mediaId);
+        AddCompletedAt(command, request.Dated, year);
         command.ExecuteNonQuery();
         if (kind == "series")
         {
-            CascadeSeriesMovies(user.Id, mediaId, request.Completed);
+            CascadeSeriesMovies(user.Id, mediaId, request.Completed, request.Dated, year);
         }
         else if (kind == "movie")
         {
-            SyncSeriesForMovie(user.Id, mediaId);
+            SyncSeriesForMovie(user.Id, mediaId, request.Dated, year);
         }
 
-        return GetCompletedIds(user);
+        return LoadProgress(user.Id);
     }
 
     public IReadOnlyList<UserListDto> GetLists(AuthUserDto user) =>
@@ -491,6 +553,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
                 seeded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
             ALTER TABLE user_list ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private';
+            ALTER TABLE user_media_progress ALTER COLUMN completed_at DROP NOT NULL;
             """;
         command.ExecuteNonQuery();
     }
@@ -564,7 +627,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
         }
     }
 
-    private void CascadeSeriesMovies(int userId, int seriesId, bool completed)
+    private void CascadeSeriesMovies(int userId, int seriesId, bool completed, bool dated, int? year)
     {
         try
         {
@@ -573,7 +636,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
             command.CommandText = completed
                 ? """
                     INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-                    SELECT @userId, 'movie', id, NOW()
+                    SELECT @userId, 'movie', id, CASE WHEN @dated THEN COALESCE(@completedAt, NOW()) ELSE NULL END
                     FROM movie
                     WHERE seriesid = @seriesId
                     ON CONFLICT (user_id, media_kind, media_id)
@@ -587,6 +650,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
                     """;
             command.Parameters.AddWithValue("userId", userId);
             command.Parameters.AddWithValue("seriesId", seriesId);
+            AddCompletedAt(command, dated, year);
             command.ExecuteNonQuery();
         }
         catch (PostgresException)
@@ -595,7 +659,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
         }
     }
 
-    private void SyncSeriesForMovie(int userId, int movieId)
+    private void SyncSeriesForMovie(int userId, int movieId, bool dated, int? year)
     {
         try
         {
@@ -637,7 +701,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
             progress.CommandText = total > 0 && finished >= total
                 ? """
                     INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-                    VALUES (@userId, 'series', @seriesId, NOW())
+                    VALUES (@userId, 'series', @seriesId, CASE WHEN @dated THEN COALESCE(@completedAt, NOW()) ELSE NULL END)
                     ON CONFLICT (user_id, media_kind, media_id)
                     DO UPDATE SET completed_at = EXCLUDED.completed_at
                     """
@@ -647,6 +711,7 @@ public sealed class UserLibraryService(IConfiguration configuration)
                     """;
             progress.Parameters.AddWithValue("userId", userId);
             progress.Parameters.AddWithValue("seriesId", resolved);
+            AddCompletedAt(progress, dated, year);
             progress.ExecuteNonQuery();
         }
         catch (PostgresException)

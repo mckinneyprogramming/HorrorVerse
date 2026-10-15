@@ -257,6 +257,20 @@ function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That titl
   return { kind, mediaId };
 }
 
+// lib/watch-year.ts
+var FIRST_YEAR = 1888;
+function parseWatchYear(value, now = /* @__PURE__ */ new Date()) {
+  const year = typeof value === "number" ? value : Number(String(value ?? "").trim());
+  const last = now.getUTCFullYear() + 1;
+  if (!Number.isInteger(year) || year < FIRST_YEAR || year > last) {
+    return void 0;
+  }
+  return year;
+}
+function watchTimestamp(year) {
+  return `${year}-07-01T12:00:00.000Z`;
+}
+
 // api-src/shows.ts
 var runtime = "nodejs";
 var maxDuration = 60;
@@ -289,6 +303,7 @@ async function PATCH(request) {
     const body = await request.json().catch(() => ({}));
     const completed = Boolean(body.completed);
     const dated = body.dated !== false;
+    const year = dated ? parseWatchYear(body.year) : void 0;
     let showId;
     if (Number.isInteger(body.episodeId) && (body.episodeId ?? 0) > 0) {
       showId = await getEpisodeShowId(connectionString, Number(body.episodeId));
@@ -308,7 +323,7 @@ async function PATCH(request) {
     } else {
       throw new ShowError("Choose a show, season, or episode to mark.", 400);
     }
-    await syncShowProgress(connectionString, userId, showId, dated);
+    await syncShowProgress(connectionString, userId, showId, dated, year);
     return Response.json(await loadGuide(connectionString, userId, showId));
   } catch (error) {
     return jsonError(error, { log: "Show guide request failed.", fallback: "Could not load that show." });
@@ -582,7 +597,7 @@ async function setSeasonCompleted(connectionString, userId, seasonId, completed)
     [userId, seasonId]
   );
 }
-async function syncShowProgress(connectionString, userId, showId, dated = true) {
+async function syncShowProgress(connectionString, userId, showId, dated = true, year) {
   const rows = await queryRows(
     connectionString,
     `SELECT
@@ -600,13 +615,35 @@ async function syncShowProgress(connectionString, userId, showId, dated = true) 
   const finished = Number(rows[0]?.finished) || 0;
   const complete = total > 0 && missing === 0 && finished >= total;
   if (complete) {
+    if (!dated) {
+      await execute(
+        connectionString,
+        `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+         VALUES ($1, 'show', $2, NULL)
+         ON CONFLICT (user_id, media_kind, media_id)
+         DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+        [userId, showId]
+      );
+      return;
+    }
+    if (year) {
+      await execute(
+        connectionString,
+        `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
+         VALUES ($1, 'show', $2, $3::timestamptz)
+         ON CONFLICT (user_id, media_kind, media_id)
+         DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+        [userId, showId, watchTimestamp(year)]
+      );
+      return;
+    }
     await execute(
       connectionString,
       `INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at)
-       VALUES ($1, 'show', $2, CASE WHEN $3 THEN NOW() ELSE NULL END)
+       VALUES ($1, 'show', $2, NOW())
        ON CONFLICT (user_id, media_kind, media_id)
        DO UPDATE SET completed_at = EXCLUDED.completed_at`,
-      [userId, showId, dated]
+      [userId, showId]
     );
     return;
   }

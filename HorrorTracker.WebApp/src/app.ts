@@ -19,7 +19,7 @@ import {
   updateProfile,
   type AuthUser,
 } from "./auth";
-import { canMarkEarlier, fetchProgress, setProgress, type UserProgress } from "./progress";
+import { fetchProgress, setProgress, type UserProgress } from "./progress";
 import { shareStoryImage } from "./share";
 import {
   finishedTitleCount,
@@ -107,6 +107,8 @@ interface AppState {
   finishedIds: string[];
   recentIds: string[];
   undatedIds: string[];
+  watchedYears: Record<string, number>;
+  whenPicker: CatalogEntry | null;
   shareBusy: boolean;
   shareMessage: string;
   shareError: boolean;
@@ -171,6 +173,8 @@ const state: AppState = {
   finishedIds: [],
   recentIds: [],
   undatedIds: [],
+  watchedYears: {},
+  whenPicker: null,
   shareBusy: false,
   shareMessage: "",
   shareError: false,
@@ -612,6 +616,8 @@ export function mountApp(root: HTMLElement): void {
       state.finishedIds = [];
       state.recentIds = [];
       state.undatedIds = [];
+      state.watchedYears = {};
+      state.whenPicker = null;
       state.shareMessage = "";
       state.shareError = false;
       state.lists = [];
@@ -661,22 +667,35 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
-    if (action === "mark-earlier") {
+    if (action === "open-when") {
       const entry = state.entries.find((item) => item.id === target.dataset.id);
-      if (!state.user || !entry || state.catalogBusy || !canMarkEarlier(state.undatedIds, entry.id)) {
+      if (!state.user || !entry) {
         return;
       }
 
-      await saveUserLibrary(root, async () => {
-        if (entry.kind === "show") {
-          const guide = await setShowProgress(entry.mediaId, true, { dated: false });
-          state.showGuides[guide.showId] = guide;
-          applyProgress(await fetchProgress());
-          return;
-        }
+      state.watchSheet = null;
+      state.listPicker = null;
+      state.franchiseListPicker = null;
+      state.sheet = null;
+      closeFranchiseSheets();
+      state.whenPicker = entry;
+      render(root);
+      return;
+    }
 
-        applyProgress(await setProgress(entry.id, true, { dated: false }));
-      });
+    if (action === "close-when") {
+      state.whenPicker = null;
+      render(root);
+      return;
+    }
+
+    if (action === "when-now" || action === "when-undated") {
+      const entry = state.whenPicker;
+      if (!state.user || !entry || state.catalogBusy) {
+        return;
+      }
+
+      await markFinishedWhen(root, entry, { dated: action === "when-now" });
       return;
     }
 
@@ -1219,6 +1238,26 @@ export function mountApp(root: HTMLElement): void {
   });
 
   root.addEventListener("submit", async (event) => {
+    const whenForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-when-year]");
+    if (!whenForm) {
+      return;
+    }
+
+    event.preventDefault();
+    const entry = state.whenPicker;
+    if (!state.user || !entry || state.catalogBusy) {
+      return;
+    }
+
+    const year = Number(new FormData(whenForm).get("year"));
+    if (!Number.isInteger(year)) {
+      return;
+    }
+
+    await markFinishedWhen(root, entry, { dated: true, year });
+  });
+
+  root.addEventListener("submit", async (event) => {
     const peopleForm = (event.target as HTMLElement).closest<HTMLFormElement>("[data-people-search]");
     if (!peopleForm) {
       return;
@@ -1453,6 +1492,8 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.finishedIds = [];
     state.recentIds = [];
     state.undatedIds = [];
+    state.watchedYears = {};
+    state.whenPicker = null;
     state.lists = [];
     state.listPicker = null;
     state.franchiseListPicker = null;
@@ -1471,6 +1512,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
       state.finishedIds = [];
       state.recentIds = [];
       state.undatedIds = [];
+      state.watchedYears = {};
       state.lists = [];
     }
 
@@ -1602,6 +1644,7 @@ function closeFranchiseSheets(): void {
   state.franchiseAdd = null;
   state.franchiseQuery = "";
   state.franchiseMessage = "";
+  state.whenPicker = null;
 }
 
 function restoreFranchiseSearch(root: HTMLElement, start: number | null = null, end: number | null = null): void {
@@ -1706,7 +1749,8 @@ function render(root: HTMLElement): void {
       ${state.franchisePicker && state.user?.isAdmin ? renderFranchisePicker() : ""}
       ${state.franchiseAdd !== null && state.user?.isAdmin ? renderFranchiseAddSheet() : ""}
       ${state.watchSheet && state.user ? renderWatchSheet() : ""}
-      ${!state.sheet && !state.listPicker && state.franchiseListPicker === null && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && canPromptUpdate() ? renderUpdateBanner() : ""}
+      ${state.whenPicker && state.user ? renderWhenSheet() : ""}
+      ${!state.sheet && !state.listPicker && state.franchiseListPicker === null && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && !state.whenPicker && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
@@ -3001,7 +3045,7 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
         <button class="ghost-btn" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${done ? "Unmark show" : "Mark show"}</button>
         ${renderWatchButton(entry)}
         ${renderShareButton(entry)}
-        ${renderEarlierButton(entry)}
+        ${renderWhenButton(entry)}
         ${
           options.listId === undefined
             ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -3120,7 +3164,7 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franc
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>
       ${renderWatchButton(entry)}
       ${renderShareButton(entry)}
-      ${renderEarlierButton(entry)}
+      ${renderWhenButton(entry)}
       ${
         signedIn
           ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" aria-label="Add ${escapeHtml(entry.title)} to a list" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -3504,6 +3548,25 @@ function applyProgress(progress: UserProgress): void {
   state.finishedIds = progress.ids;
   state.recentIds = progress.recentIds;
   state.undatedIds = progress.undatedIds;
+  state.watchedYears = progress.watchedYears;
+}
+
+async function markFinishedWhen(
+  root: HTMLElement,
+  entry: CatalogEntry,
+  options: { dated: boolean; year?: number },
+): Promise<void> {
+  await saveUserLibrary(root, async () => {
+    if (entry.kind === "show") {
+      const guide = await setShowProgress(entry.mediaId, true, options);
+      state.showGuides[guide.showId] = guide;
+      applyProgress(await fetchProgress());
+    } else {
+      applyProgress(await setProgress(entry.id, true, options));
+    }
+
+    state.whenPicker = null;
+  });
 }
 
 function renderShareButton(entry: CatalogEntry): string {
@@ -3514,16 +3577,14 @@ function renderShareButton(entry: CatalogEntry): string {
   return `<button class="entry-watch entry-share" type="button" data-action="share-title" data-id="${escapeHtml(entry.id)}" aria-label="Share ${escapeHtml(entry.title)} to Instagram Stories" ${state.shareBusy || state.catalogBusy ? "disabled" : ""}>Share</button>`;
 }
 
-function renderEarlierButton(entry: CatalogEntry): string {
-  if (!state.user || !canMarkEarlier(state.undatedIds, entry.id)) {
+function renderWhenButton(entry: CatalogEntry): string {
+  if (!state.user) {
     return "";
   }
 
-  const label = isFinished(entry) ? "No date" : "Before";
-  const hint = isFinished(entry)
-    ? `Forget the watch date for ${entry.title} so it is not recent`
-    : `Mark ${entry.title} as watched earlier, without a date`;
-  return `<button class="entry-watch" type="button" data-action="mark-earlier" data-id="${escapeHtml(entry.id)}" aria-label="${escapeHtml(hint)}" ${state.catalogBusy ? "disabled" : ""}>${label}</button>`;
+  const year = state.watchedYears[entry.id];
+  const label = state.undatedIds.includes(entry.id) ? "No date" : year ? String(year) : "When";
+  return `<button class="entry-watch" type="button" data-action="open-when" data-id="${escapeHtml(entry.id)}" aria-label="Set when you watched ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>${label}</button>`;
 }
 
 function renderShareStatus(): string {
@@ -3564,6 +3625,7 @@ async function shareFinishedTitle(root: HTMLElement, entry: CatalogEntry): Promi
       seriesTitle: entry.seriesTitle,
       totalTime: entry.totalTime,
       keywords: entry.keywords,
+      ...(state.watchedYears[entry.id] ? { watchedIn: state.watchedYears[entry.id] } : {}),
       avatar: state.user?.avatar,
     });
     return shareStoryImage(blob, storyFilename(entry.title));
@@ -3756,6 +3818,37 @@ async function loadWatchOffer(root: HTMLElement, id: string): Promise<void> {
 
   state.watchBusy = false;
   render(root);
+}
+
+function renderWhenSheet(): string {
+  const entry = state.whenPicker;
+  if (!entry) {
+    return "";
+  }
+
+  const year = state.watchedYears[entry.id] ?? new Date().getFullYear();
+  const last = new Date().getUTCFullYear() + 1;
+  return `
+    <div class="sheet-backdrop" data-action="close-when"></div>
+    <div class="sheet" role="dialog" aria-label="When you watched">
+      <h2>When</h2>
+      <p class="fine-print">${escapeHtml(entry.title)}</p>
+      <div class="sheet-actions">
+        <button class="primary-btn" type="button" data-action="when-now" ${state.catalogBusy ? "disabled" : ""}>Just now</button>
+        <button class="ghost-btn" type="button" data-action="when-undated" ${state.catalogBusy ? "disabled" : ""}>No date</button>
+      </div>
+      <form data-when-year>
+        <label>
+          Year
+          <input name="year" type="number" min="1888" max="${last}" step="1" value="${year}" required />
+        </label>
+        <div class="sheet-actions">
+          <button class="primary-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>Save year</button>
+          <button class="ghost-btn" type="button" data-action="close-when">Cancel</button>
+        </div>
+      </form>
+    </div>
+  `;
 }
 
 function renderWatchSheet(): string {

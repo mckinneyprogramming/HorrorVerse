@@ -2,6 +2,7 @@ export interface UserProgress {
   ids: string[];
   recentIds: string[];
   undatedIds: string[];
+  watchedYears: Record<string, number>;
 }
 
 export async function fetchProgress(): Promise<UserProgress> {
@@ -24,12 +25,17 @@ export async function fetchProgressIds(): Promise<string[]> {
 export async function setProgress(
   id: string,
   completed: boolean,
-  options: { dated?: boolean } = {},
+  options: { dated?: boolean; year?: number } = {},
 ): Promise<UserProgress> {
   const response = await fetch("/api/progress", {
     method: "PATCH",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id, completed, dated: options.dated !== false }),
+    body: JSON.stringify({
+      id,
+      completed,
+      dated: options.dated !== false,
+      ...(options.year !== undefined ? { year: options.year } : {}),
+    }),
   });
 
   if (!response.ok) {
@@ -39,8 +45,24 @@ export async function setProgress(
   return readProgress(await response.json());
 }
 
-export function canMarkEarlier(undatedIds: readonly string[], id: string): boolean {
-  return !undatedIds.includes(id);
+export function readWatchedYears(payload: unknown): Record<string, number> {
+  if (typeof payload !== "object" || payload === null || !("watchedYears" in payload)) {
+    return {};
+  }
+
+  const value = (payload as { watchedYears: unknown }).watchedYears;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {};
+  }
+
+  const years: Record<string, number> = {};
+  for (const [id, year] of Object.entries(value)) {
+    if (typeof year === "number" && Number.isInteger(year)) {
+      years[id] = year;
+    }
+  }
+
+  return years;
 }
 
 function readProgress(payload: unknown): UserProgress {
@@ -48,6 +70,7 @@ function readProgress(payload: unknown): UserProgress {
     ids: readIds(payload, "ids"),
     recentIds: readIds(payload, "recentIds"),
     undatedIds: readIds(payload, "undatedIds"),
+    watchedYears: readWatchedYears(payload),
   };
 }
 
@@ -65,7 +88,7 @@ function readIds(payload: unknown, key: "ids" | "recentIds" | "undatedIds"): str
 }
 
 function emptyProgress(): UserProgress {
-  return { ids: [], recentIds: [], undatedIds: [] };
+  return { ids: [], recentIds: [], undatedIds: [], watchedYears: {} };
 }
 
 async function readError(response: Response, label: string): Promise<string> {

@@ -8,6 +8,7 @@ import {
   storyTag,
   titleKicker,
   titleStoryCopy,
+  watchedByline,
 } from "./story";
 
 const scream: CatalogEntry = {
@@ -62,6 +63,18 @@ describe("titleStoryCopy", () => {
 
   it("does not repeat the title as a series on series cards", () => {
     expect(titleStoryCopy({ title: "Alien", kind: "series", displayName: "Riley", seriesTitle: "Alien" }).series).toBeUndefined();
+  });
+
+  it("names the watch year on the byline", () => {
+    expect(titleStoryCopy({ title: "Ratched", kind: "show", displayName: "Riley", watchedIn: 2020 }).byline).toBe(
+      "Watched in 2020 by Riley",
+    );
+  });
+});
+
+describe("watchedByline", () => {
+  it("falls back to a nameless survivor", () => {
+    expect(watchedByline("  ")).toBe("Watched by a survivor");
   });
 });
 
