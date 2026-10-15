@@ -273,6 +273,16 @@ function parseWatchYear(value, now = /* @__PURE__ */ new Date()) {
 function watchTimestamp(year) {
   return `${year}-07-01T12:00:00.000Z`;
 }
+function yearFromCompletedAt(value) {
+  if (value == null || value === "") {
+    return void 0;
+  }
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (!Number.isFinite(date.getTime())) {
+    return void 0;
+  }
+  return date.getUTCFullYear();
+}
 
 // api-src/shows.ts
 var runtime = "nodejs";
@@ -310,7 +320,7 @@ async function PATCH(request) {
     let showId;
     if (Number.isInteger(body.episodeId) && (body.episodeId ?? 0) > 0) {
       showId = await getEpisodeShowId(connectionString, Number(body.episodeId));
-      await setEpisodeCompleted(connectionString, userId, Number(body.episodeId), completed);
+      await setEpisodeCompleted(connectionString, userId, Number(body.episodeId), completed, dated, year);
     } else if (Number.isInteger(body.seasonId) && (body.seasonId ?? 0) > 0) {
       const season = await getSeasonRef(connectionString, Number(body.seasonId));
       showId = season.showId;
@@ -333,16 +343,6 @@ async function PATCH(request) {
   }
 }
 async function loadGuide(connectionString, userId, showId) {
-  const completed = new Set(
-    (await queryRows(
-      connectionString,
-      `SELECT p.episode_id AS id
-       FROM user_episode_progress p
-       JOIN show_episode e ON e.id = p.episode_id
-       WHERE p.user_id = $1 AND e.show_id = $2`,
-      [userId, showId]
-    )).map((row) => Number(row.id)).filter((id) => Number.isInteger(id) && id > 0)
-  );
   const seasonRows = await queryRows(
     connectionString,
     `SELECT s.id, s.season_number, s.title,
@@ -355,7 +355,7 @@ async function loadGuide(connectionString, userId, showId) {
   const seasons = [];
   for (const row of seasonRows) {
     const seasonId = Number(row.id);
-    const episodes = await loadEpisodes(connectionString, seasonId, completed);
+    const episodes = await loadEpisodes(connectionString, seasonId, userId);
     const episodeCount = Number(row.episode_count) || episodes.length;
     seasons.push({
       id: seasonId,
@@ -369,25 +369,29 @@ async function loadGuide(connectionString, userId, showId) {
   }
   return { id: `show:${showId}`, showId, seasons };
 }
-async function loadEpisodes(connectionString, seasonId, completed) {
+async function loadEpisodes(connectionString, seasonId, userId) {
   const rows = await queryRows(
     connectionString,
-    `SELECT id, episode_number, title, runtime, air_date
-     FROM show_episode
-     WHERE season_id = $1
-     ORDER BY episode_number`,
-    [seasonId]
+    `SELECT e.id, e.episode_number, e.title, e.runtime, e.air_date, p.episode_id AS progress_id, p.completed_at
+     FROM show_episode e
+     LEFT JOIN user_episode_progress p ON p.episode_id = e.id AND p.user_id = $2
+     WHERE e.season_id = $1
+     ORDER BY e.episode_number`,
+    [seasonId, userId]
   );
   return rows.map((row) => {
-    const id = Number(row.id);
     const year = yearFrom(row.air_date);
+    const completed = row.progress_id != null;
+    const watchedYear = yearFromCompletedAt(row.completed_at);
     return {
-      id,
+      id: Number(row.id),
       episodeNumber: Number(row.episode_number),
       title: String(row.title ?? ""),
       runtime: Number(row.runtime) || 0,
       ...year ? { year } : {},
-      completed: completed.has(id)
+      completed,
+      ...completed && !watchedYear ? { undated: true } : {},
+      ...watchedYear ? { watchedYear } : {}
     };
   });
 }
@@ -437,6 +441,7 @@ async function ensureSchema(connectionString) {
       PRIMARY KEY (user_id, episode_id)
     )`
   );
+  await execute(connectionString, "ALTER TABLE user_episode_progress ALTER COLUMN completed_at DROP NOT NULL");
 }
 async function ensureShowExists(connectionString, showId) {
   const rows = await queryRows(connectionString, "SELECT id FROM show WHERE id = $1", [showId]);
@@ -566,14 +571,15 @@ async function setShowCompleted(connectionString, userId, showId, completed) {
     [userId, showId]
   );
 }
-async function setEpisodeCompleted(connectionString, userId, episodeId, completed) {
+async function setEpisodeCompleted(connectionString, userId, episodeId, completed, dated = true, year) {
   if (completed) {
     await execute(
       connectionString,
       `INSERT INTO user_episode_progress (user_id, episode_id, completed_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (user_id, episode_id) DO NOTHING`,
-      [userId, episodeId]
+       VALUES ($1, $2, CASE WHEN $3 THEN COALESCE($4::timestamptz, NOW()) ELSE NULL END)
+       ON CONFLICT (user_id, episode_id)
+       DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+      [userId, episodeId, dated, year ? watchTimestamp(year) : null]
     );
     return;
   }

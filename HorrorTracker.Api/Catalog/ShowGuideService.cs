@@ -31,7 +31,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
         int showId;
         if (request.EpisodeId is int episodeId)
         {
-            SetEpisodeCompleted(user.Id, episodeId, request.Completed);
+            SetEpisodeCompleted(user.Id, episodeId, request.Completed, request.Dated, request.Dated ? ParseWatchYear(request.Year) : null);
             showId = GetEpisodeShowId(episodeId);
         }
         else if (request.SeasonId is int seasonId)
@@ -112,7 +112,6 @@ public sealed class ShowGuideService(IConfiguration configuration)
 
     private object LoadGuide(int userId, int showId)
     {
-        var completed = LoadCompletedEpisodeIds(userId, showId);
         var seasons = new List<object>();
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
@@ -133,7 +132,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
 
         foreach (var season in seasonRows)
         {
-            var episodes = LoadEpisodes(season.Id, completed);
+            var episodes = LoadEpisodes(season.Id, userId);
             seasons.Add(new
             {
                 id = season.Id,
@@ -149,71 +148,78 @@ public sealed class ShowGuideService(IConfiguration configuration)
         return new { id = $"show:{showId}", showId, seasons };
     }
 
-    private List<EpisodeDto> LoadEpisodes(int seasonId, HashSet<int> completed)
+    private List<EpisodeDto> LoadEpisodes(int seasonId, int userId)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, episode_number, title, runtime, air_date
-            FROM show_episode
-            WHERE season_id = @seasonId
-            ORDER BY episode_number
+            SELECT e.id, e.episode_number, e.title, e.runtime, e.air_date, p.episode_id, p.completed_at
+            FROM show_episode e
+            LEFT JOIN user_episode_progress p ON p.episode_id = e.id AND p.user_id = @userId
+            WHERE e.season_id = @seasonId
+            ORDER BY e.episode_number
             """;
         command.Parameters.AddWithValue("seasonId", seasonId);
+        command.Parameters.AddWithValue("userId", userId);
         using var reader = command.ExecuteReader();
         var episodes = new List<EpisodeDto>();
         while (reader.Read())
         {
-            var episodeId = reader.GetInt32(0);
             DateOnly? airDate = reader.IsDBNull(4) ? null : DateOnly.FromDateTime(reader.GetDateTime(4));
+            var completed = !reader.IsDBNull(5);
+            int? watchedYear = null;
+            var undated = false;
+            if (completed)
+            {
+                if (reader.IsDBNull(6))
+                {
+                    undated = true;
+                }
+                else
+                {
+                    watchedYear = reader.GetFieldValue<DateTimeOffset>(6).UtcDateTime.Year;
+                }
+            }
+
             episodes.Add(new EpisodeDto(
-                episodeId,
+                reader.GetInt32(0),
                 reader.GetInt32(1),
                 reader.GetString(2),
                 reader.GetDecimal(3),
                 airDate?.Year,
-                completed.Contains(episodeId)));
+                completed,
+                watchedYear,
+                undated));
         }
 
         return episodes;
     }
 
-    private HashSet<int> LoadCompletedEpisodeIds(int userId, int showId)
+    private void SetEpisodeCompleted(int userId, int episodeId, bool completed, bool dated = true, int? year = null)
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT p.episode_id
-            FROM user_episode_progress p
-            JOIN show_episode e ON e.id = p.episode_id
-            WHERE p.user_id = @userId AND e.show_id = @showId
-            """;
-        command.Parameters.AddWithValue("userId", userId);
-        command.Parameters.AddWithValue("showId", showId);
-        using var reader = command.ExecuteReader();
-        var ids = new HashSet<int>();
-        while (reader.Read())
+        if (completed)
         {
-            ids.Add(reader.GetInt32(0));
-        }
-
-        return ids;
-    }
-
-    private void SetEpisodeCompleted(int userId, int episodeId, bool completed)
-    {
-        using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = completed
-            ? """
+            command.CommandText = """
                 INSERT INTO user_episode_progress (user_id, episode_id, completed_at)
-                VALUES (@userId, @episodeId, NOW())
-                ON CONFLICT (user_id, episode_id) DO NOTHING
-                """
-            : """
+                VALUES (@userId, @episodeId, CASE WHEN @dated THEN COALESCE(@completedAt, NOW()) ELSE NULL END)
+                ON CONFLICT (user_id, episode_id)
+                DO UPDATE SET completed_at = EXCLUDED.completed_at
+                """;
+            command.Parameters.AddWithValue("dated", dated);
+            command.Parameters.AddWithValue("completedAt", year is int value
+                ? new DateTime(value, 7, 1, 12, 0, 0, DateTimeKind.Utc)
+                : DBNull.Value);
+        }
+        else
+        {
+            command.CommandText = """
                 DELETE FROM user_episode_progress
                 WHERE user_id = @userId AND episode_id = @episodeId
                 """;
+        }
+
         command.Parameters.AddWithValue("userId", userId);
         command.Parameters.AddWithValue("episodeId", episodeId);
         command.ExecuteNonQuery();
@@ -555,6 +561,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
                 episode_id INTEGER NOT NULL,
                 completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 PRIMARY KEY (user_id, episode_id));
+            ALTER TABLE user_episode_progress ALTER COLUMN completed_at DROP NOT NULL;
             """;
         command.ExecuteNonQuery();
     }
@@ -678,5 +685,5 @@ public sealed class ShowGuideService(IConfiguration configuration)
         return showId;
     }
 
-    private sealed record EpisodeDto(int Id, int EpisodeNumber, string Title, decimal Runtime, int? Year, bool Completed);
+    private sealed record EpisodeDto(int Id, int EpisodeNumber, string Title, decimal Runtime, int? Year, bool Completed, int? WatchedYear, bool Undated);
 }

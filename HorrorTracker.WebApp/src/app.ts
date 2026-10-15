@@ -57,7 +57,7 @@ import {
 } from "./people";
 import { fetchWatch, type WatchOffer } from "./watch";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
-import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowGuide } from "./shows";
+import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowEpisode, type ShowGuide } from "./shows";
 import { importHorrorVault, syncVault, type HorrorImportKind, type HorrorImportProgress } from "./sync";
 import { isLibraryTagId, keywordsMatchTag, presentLibraryTags } from "./tags";
 import {
@@ -111,6 +111,7 @@ interface AppState {
   undatedIds: string[];
   watchedYears: Record<string, number>;
   whenPicker: CatalogEntry | null;
+  whenEpisode: { showId: number; episode: ShowEpisode } | null;
   shareBusy: boolean;
   shareMessage: string;
   shareError: boolean;
@@ -178,6 +179,7 @@ const state: AppState = {
   undatedIds: [],
   watchedYears: {},
   whenPicker: null,
+  whenEpisode: null,
   shareBusy: false,
   shareMessage: "",
   shareError: false,
@@ -622,6 +624,7 @@ export function mountApp(root: HTMLElement): void {
       state.undatedIds = [];
       state.watchedYears = {};
       state.whenPicker = null;
+      state.whenEpisode = null;
       state.shareMessage = "";
       state.shareError = false;
       state.lists = [];
@@ -682,24 +685,55 @@ export function mountApp(root: HTMLElement): void {
       state.franchiseListPicker = null;
       state.sheet = null;
       closeFranchiseSheets();
+      state.whenEpisode = null;
       state.whenPicker = entry;
+      render(root);
+      return;
+    }
+
+    if (action === "open-when-episode") {
+      const showId = Number(target.dataset.showId);
+      const episodeId = Number(target.dataset.episodeId);
+      const episode = findShowEpisode(showId, episodeId);
+      if (!state.user || !episode) {
+        return;
+      }
+
+      state.watchSheet = null;
+      state.listPicker = null;
+      state.franchiseListPicker = null;
+      state.sheet = null;
+      closeFranchiseSheets();
+      state.whenPicker = null;
+      state.whenEpisode = { showId, episode };
       render(root);
       return;
     }
 
     if (action === "close-when") {
       state.whenPicker = null;
+      state.whenEpisode = null;
       render(root);
       return;
     }
 
     if (action === "when-now" || action === "when-undated") {
+      const options = { dated: action === "when-now" };
+      if (state.whenEpisode) {
+        if (!state.user || state.catalogBusy) {
+          return;
+        }
+
+        await markFinishedWhenEpisode(root, state.whenEpisode, options);
+        return;
+      }
+
       const entry = state.whenPicker;
       if (!state.user || !entry || state.catalogBusy) {
         return;
       }
 
-      await markFinishedWhen(root, entry, { dated: action === "when-now" });
+      await markFinishedWhen(root, entry, options);
       return;
     }
 
@@ -1248,13 +1282,18 @@ export function mountApp(root: HTMLElement): void {
     }
 
     event.preventDefault();
-    const entry = state.whenPicker;
-    if (!state.user || !entry || state.catalogBusy) {
+    const year = Number(new FormData(whenForm).get("year"));
+    if (!state.user || state.catalogBusy || !Number.isInteger(year)) {
       return;
     }
 
-    const year = Number(new FormData(whenForm).get("year"));
-    if (!Number.isInteger(year)) {
+    if (state.whenEpisode) {
+      await markFinishedWhenEpisode(root, state.whenEpisode, { dated: true, year });
+      return;
+    }
+
+    const entry = state.whenPicker;
+    if (!entry) {
       return;
     }
 
@@ -1499,6 +1538,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.undatedIds = [];
     state.watchedYears = {};
     state.whenPicker = null;
+    state.whenEpisode = null;
     state.lists = [];
     state.listPicker = null;
     state.franchiseListPicker = null;
@@ -1651,6 +1691,7 @@ function closeFranchiseSheets(): void {
   state.franchiseQuery = "";
   state.franchiseMessage = "";
   state.whenPicker = null;
+  state.whenEpisode = null;
 }
 
 function restoreFranchiseSearch(root: HTMLElement, start: number | null = null, end: number | null = null): void {
@@ -1755,8 +1796,8 @@ function render(root: HTMLElement): void {
       ${state.franchisePicker && state.user?.isAdmin ? renderFranchisePicker() : ""}
       ${state.franchiseAdd !== null && state.user?.isAdmin ? renderFranchiseAddSheet() : ""}
       ${state.watchSheet && state.user ? renderWatchSheet() : ""}
-      ${state.whenPicker && state.user ? renderWhenSheet() : ""}
-      ${!state.sheet && !state.listPicker && state.franchiseListPicker === null && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && !state.whenPicker && canPromptUpdate() ? renderUpdateBanner() : ""}
+      ${whenSheetOpen() && state.user ? renderWhenSheet() : ""}
+      ${!state.sheet && !state.listPicker && state.franchiseListPicker === null && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && !whenSheetOpen() && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
@@ -3150,14 +3191,14 @@ function renderShowSeasons(showId: number, guide: ShowGuide | undefined): string
               seasonDone ? "Clear season" : "Mark season"
             }</button>
           </div>
-          ${open ? renderShowEpisodes(season.loaded, season.episodes) : ""}
+          ${open ? renderShowEpisodes(showId, season.loaded, season.episodes) : ""}
         </details>
       `;
     })
     .join("");
 }
 
-function renderShowEpisodes(loaded: boolean, episodes: ShowGuide["seasons"][number]["episodes"]): string {
+function renderShowEpisodes(showId: number, loaded: boolean, episodes: ShowGuide["seasons"][number]["episodes"]): string {
   if (!loaded) {
     return `<p class="empty">Loading episodes…</p>`;
   }
@@ -3178,6 +3219,7 @@ function renderShowEpisodes(loaded: boolean, episodes: ShowGuide["seasons"][numb
               ${details ? `<em>${escapeHtml(details)}</em>` : ""}
             </span>
           </button>
+          ${renderEpisodeWhenButton(showId, episode)}
         </li>
       `;
     })
@@ -3497,6 +3539,7 @@ function renderListItem(entry: CatalogEntry, listId: number, nested = false): st
         </span>
       </button>
       ${renderWatchButton(entry)}
+      ${renderWhenButton(entry)}
       <button class="entry-remove" type="button" data-action="toggle-list-item" data-list-id="${listId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
     </li>
   `;
@@ -3629,6 +3672,21 @@ async function markFinishedWhen(
     }
 
     state.whenPicker = null;
+    state.whenEpisode = null;
+  });
+}
+
+async function markFinishedWhenEpisode(
+  root: HTMLElement,
+  target: { showId: number; episode: ShowEpisode },
+  options: { dated: boolean; year?: number },
+): Promise<void> {
+  await saveUserLibrary(root, async () => {
+    const guide = await setEpisodeProgress(target.episode.id, true, options);
+    state.showGuides[guide.showId] = guide;
+    applyProgress(await fetchProgress());
+    state.whenPicker = null;
+    state.whenEpisode = null;
   });
 }
 
@@ -3648,6 +3706,35 @@ function renderWhenButton(entry: CatalogEntry): string {
   const year = state.watchedYears[entry.id];
   const label = state.undatedIds.includes(entry.id) ? "No date" : year ? String(year) : "When";
   return `<button class="entry-watch" type="button" data-action="open-when" data-id="${escapeHtml(entry.id)}" aria-label="Set when you watched ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>${label}</button>`;
+}
+
+function renderEpisodeWhenButton(showId: number, episode: ShowEpisode): string {
+  if (!state.user) {
+    return "";
+  }
+
+  const label = episode.undated ? "No date" : episode.watchedYear ? String(episode.watchedYear) : "When";
+  return `<button class="entry-watch" type="button" data-action="open-when-episode" data-show-id="${showId}" data-episode-id="${episode.id}" aria-label="Set when you watched ${escapeHtml(episode.title)}" ${state.catalogBusy ? "disabled" : ""}>${label}</button>`;
+}
+
+function findShowEpisode(showId: number, episodeId: number): ShowEpisode | undefined {
+  const guide = state.showGuides[showId];
+  if (!guide) {
+    return undefined;
+  }
+
+  for (const season of guide.seasons) {
+    const episode = season.episodes.find((item) => item.id === episodeId);
+    if (episode) {
+      return episode;
+    }
+  }
+
+  return undefined;
+}
+
+function whenSheetOpen(): boolean {
+  return Boolean(state.whenPicker || state.whenEpisode);
 }
 
 function renderPoster(path: string | undefined): string {
@@ -3899,18 +3986,21 @@ async function loadWatchOffer(root: HTMLElement, id: string): Promise<void> {
 }
 
 function renderWhenSheet(): string {
-  const entry = state.whenPicker;
-  if (!entry) {
+  const title = state.whenPicker?.title
+    ?? (state.whenEpisode ? `${state.whenEpisode.episode.episodeNumber}. ${state.whenEpisode.episode.title}` : "");
+  if (!title) {
     return "";
   }
 
-  const year = state.watchedYears[entry.id] ?? new Date().getFullYear();
+  const year = state.whenPicker
+    ? (state.watchedYears[state.whenPicker.id] ?? new Date().getFullYear())
+    : (state.whenEpisode?.episode.watchedYear ?? new Date().getFullYear());
   const last = new Date().getUTCFullYear() + 1;
   return `
     <div class="sheet-backdrop" data-action="close-when"></div>
     <div class="sheet" role="dialog" aria-label="When you watched">
       <h2>When</h2>
-      <p class="fine-print">${escapeHtml(entry.title)}</p>
+      <p class="fine-print">${escapeHtml(title)}</p>
       <div class="sheet-actions">
         <button class="primary-btn" type="button" data-action="when-now" ${state.catalogBusy ? "disabled" : ""}>Just now</button>
         <button class="ghost-btn" type="button" data-action="when-undated" ${state.catalogBusy ? "disabled" : ""}>No date</button>

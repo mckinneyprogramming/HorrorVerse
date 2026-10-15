@@ -5,6 +5,8 @@ export interface ShowEpisode {
   runtime: number;
   year?: number;
   completed: boolean;
+  watchedYear?: number;
+  undated?: boolean;
 }
 
 export interface ShowSeason {
@@ -33,8 +35,17 @@ export async function fetchShowGuide(showId: number, season?: number): Promise<S
   return readGuide(response);
 }
 
-export async function setEpisodeProgress(episodeId: number, completed: boolean): Promise<ShowGuide> {
-  return writeGuide({ episodeId, completed });
+export async function setEpisodeProgress(
+  episodeId: number,
+  completed: boolean,
+  options: { dated?: boolean; year?: number } = {},
+): Promise<ShowGuide> {
+  return writeGuide({
+    episodeId,
+    completed,
+    dated: options.dated !== false,
+    ...(options.year !== undefined ? { year: options.year } : {}),
+  });
 }
 
 export async function setSeasonProgress(seasonId: number, completed: boolean): Promise<ShowGuide> {
