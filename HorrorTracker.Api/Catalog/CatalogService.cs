@@ -22,7 +22,7 @@ public sealed class CatalogService(
         items.AddRange(seriesList.Select(MapSeries));
         items.AddRange(Read(() => documentaries.GetAll().Select(MapDocumentary), "documentaries"));
         items.AddRange(ReadShows());
-        items.AddRange(ReadOptionalTable("SELECT Id, Title, Read, ReleaseYear FROM Book", "book"));
+        items.AddRange(ReadBooks());
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Listened, ReleaseYear FROM Podcast", "podcast"));
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Played, ReleaseYear FROM Game", "game"));
         return AttachPosters(AttachKeywords(items));
@@ -218,6 +218,72 @@ public sealed class CatalogService(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Optional catalog table for {Kind} is unavailable.", "show");
+            return [];
+        }
+    }
+
+    private IEnumerable<CatalogItemDto> ReadBooks()
+    {
+        EnsureOptionalTables("book");
+        var connectionString = ResolveConnectionString(configuration);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var connection = new NpgsqlConnection(connectionString);
+            connection.Open();
+            using var command = new NpgsqlCommand(
+                "SELECT Id, Title, Read, ReleaseYear, Pages, Author, Description, CoverUrl, Isbn, Publisher FROM Book",
+                connection);
+            using var reader = command.ExecuteReader();
+            var items = new List<CatalogItemDto>();
+            while (reader.Read())
+            {
+                var mediaId = reader.GetInt32(0);
+                var title = reader.GetString(1);
+                var completed = !reader.IsDBNull(2) && reader.GetBoolean(2);
+                var year = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                var pages = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4));
+                var author = reader.IsDBNull(5) ? null : reader.GetString(5);
+                var description = reader.IsDBNull(6) ? null : reader.GetString(6);
+                var cover = reader.IsDBNull(7) ? null : reader.GetString(7);
+                var isbn = reader.IsDBNull(8) ? null : reader.GetString(8);
+                var publisher = reader.IsDBNull(9) ? null : reader.GetString(9);
+                if (cover is not null && !System.Text.RegularExpressions.Regex.IsMatch(cover, @"^https://covers\.openlibrary\.org/b/id/\d+-M\.jpg$"))
+                {
+                    cover = null;
+                }
+
+                items.Add(new CatalogItemDto(
+                    $"book:{mediaId}",
+                    mediaId,
+                    title,
+                    "book",
+                    completed,
+                    null,
+                    year > 0 ? year : null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    pages > 0 ? pages : null,
+                    string.IsNullOrWhiteSpace(author) ? null : author,
+                    string.IsNullOrWhiteSpace(description) ? null : description,
+                    cover,
+                    string.IsNullOrWhiteSpace(isbn) ? null : isbn,
+                    string.IsNullOrWhiteSpace(publisher) ? null : publisher));
+            }
+
+            return items;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Optional catalog table for {Kind} is unavailable.", "book");
             return [];
         }
     }
@@ -475,7 +541,13 @@ public sealed class CatalogService(
                     Pages INTEGER NOT NULL,
                     PartOfSeries BOOLEAN NOT NULL,
                     ReleaseYear INTEGER NOT NULL,
-                    Read BOOLEAN NOT NULL)
+                    Read BOOLEAN NOT NULL);
+                ALTER TABLE Book ADD COLUMN IF NOT EXISTS OpenLibraryId TEXT;
+                ALTER TABLE Book ADD COLUMN IF NOT EXISTS Author TEXT;
+                ALTER TABLE Book ADD COLUMN IF NOT EXISTS Description TEXT;
+                ALTER TABLE Book ADD COLUMN IF NOT EXISTS Isbn TEXT;
+                ALTER TABLE Book ADD COLUMN IF NOT EXISTS Publisher TEXT;
+                ALTER TABLE Book ADD COLUMN IF NOT EXISTS CoverUrl TEXT;
                 """
         };
         command.ExecuteNonQuery();

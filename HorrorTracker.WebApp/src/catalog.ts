@@ -35,6 +35,12 @@ export interface CatalogEntry {
   numberOfSeasons?: number;
   keywords?: string[];
   posterPath?: string;
+  pages?: number;
+  author?: string;
+  description?: string;
+  coverUrl?: string;
+  isbn?: string;
+  publisher?: string;
 }
 
 export function isMediaKind(value: string): value is MediaKind {
@@ -138,6 +144,12 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
   const numberOfSeasons = optionalPositiveNumber(entry.numberOfSeasons);
   const keywords = readKeywords(value);
   const posterPath = parsePosterPath(entry.posterPath ?? (value as { PosterPath?: unknown }).PosterPath);
+  const pages = optionalPositiveNumber(entry.pages ?? (value as { Pages?: unknown }).Pages);
+  const author = optionalText(entry.author ?? (value as { Author?: unknown }).Author);
+  const description = optionalText(entry.description ?? (value as { Description?: unknown }).Description);
+  const coverUrl = openLibraryCover(entry.coverUrl ?? (value as { CoverUrl?: unknown }).CoverUrl);
+  const isbn = optionalText(entry.isbn ?? (value as { Isbn?: unknown }).Isbn);
+  const publisher = optionalText(entry.publisher ?? (value as { Publisher?: unknown }).Publisher);
 
   return {
     id: entry.id,
@@ -153,6 +165,12 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
     ...(numberOfSeasons !== undefined ? { numberOfSeasons } : {}),
     ...(keywords.length > 0 ? { keywords } : {}),
     ...(posterPath ? { posterPath } : {}),
+    ...(pages !== undefined ? { pages } : {}),
+    ...(author ? { author } : {}),
+    ...(description ? { description } : {}),
+    ...(coverUrl ? { coverUrl } : {}),
+    ...(isbn ? { isbn } : {}),
+    ...(publisher ? { publisher } : {}),
   };
 }
 
@@ -206,8 +224,34 @@ function optionalText(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+export function openLibraryCover(value: unknown): string | undefined {
+  const url = String(value ?? "").trim();
+  return /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url) ? url : undefined;
+}
+
 export function movieDetailLine(entry: CatalogEntry): string | undefined {
-  if (entry.kind === "book" || entry.kind === "podcast" || entry.kind === "game") {
+  if (entry.kind === "book") {
+    const parts: string[] = [];
+    if (entry.author) {
+      parts.push(entry.author);
+    }
+
+    if (entry.releaseYear) {
+      parts.push(String(entry.releaseYear));
+    }
+
+    if (entry.pages) {
+      parts.push(entry.pages === 1 ? "1 page" : `${entry.pages} pages`);
+    }
+
+    if (entry.publisher) {
+      parts.push(entry.publisher);
+    }
+
+    return parts.length > 0 ? parts.join(" · ") : undefined;
+  }
+
+  if (entry.kind === "podcast" || entry.kind === "game") {
     return entry.releaseYear ? String(entry.releaseYear) : undefined;
   }
 

@@ -5,6 +5,7 @@ void "restore-standalone-tmdb";
 import { upsertShowSeasons } from "../lib/catalog";
 import { parsePosterPath, proxyTmdbPoster, savePoster } from "../lib/poster";
 import { importMovie, importSeries } from "../lib/import-tmdb";
+import { importOpenLibraryBook, searchOpenLibrary } from "../lib/open-library";
 import { saveDocumentaryKeywords, saveShowKeywords } from "../lib/keywords";
 import {
   execute,
@@ -45,7 +46,11 @@ export async function GET(request: Request) {
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
     if (query.length < 2) {
-      throw new TmdbError("Enter at least two characters to search TMDb.", 400);
+      throw new TmdbError(kind === "book" ? "Enter at least two characters to search Open Library." : "Enter at least two characters to search TMDb.", 400);
+    }
+
+    if (kind === "book") {
+      return Response.json({ results: await searchOpenLibrary(query) });
     }
 
     const results =
@@ -66,8 +71,12 @@ export async function POST(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
     await requireSessionUser(request, connectionString);
-    const body = (await request.json().catch(() => ({}))) as { kind?: string; tmdbId?: number };
+    const body = (await request.json().catch(() => ({}))) as { kind?: string; tmdbId?: number; sourceId?: string };
     const kind = normalizeTmdbKind(body.kind ?? "movie");
+    if (kind === "book") {
+      return Response.json(await importOpenLibraryBook(connectionString, String(body.sourceId ?? "")));
+    }
+
     const tmdbId = Number(body.tmdbId);
     if (!Number.isInteger(tmdbId) || tmdbId < 1) {
       throw new TmdbError("Choose a TMDb title to add.", 400);
@@ -312,7 +321,7 @@ async function insertShow(
 
 function normalizeTmdbKind(kind: string): string {
   const value = kind.trim().toLowerCase();
-  if (value === "movie" || value === "series" || value === "documentary" || value === "show") {
+  if (value === "movie" || value === "series" || value === "documentary" || value === "show" || value === "book") {
     return value;
   }
 

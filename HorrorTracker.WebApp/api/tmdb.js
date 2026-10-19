@@ -677,10 +677,285 @@ async function refreshSeriesTotals(connectionString, seriesId) {
   );
 }
 
+// lib/open-library.ts
+var USER_AGENT = "HorrorVerse/1.0 (https://horrorverse.vercel.app)";
+var MAX_RESULTS = 8;
+var MAX_SUBJECTS = 12;
+function parseWorkId(value) {
+  const raw = String(value ?? "").trim();
+  const key = raw.startsWith("/works/") ? raw.slice("/works/".length) : raw;
+  return /^OL\d+W$/.test(key) ? key : void 0;
+}
+function openLibraryCoverUrl(coverId) {
+  const id = Number(coverId);
+  if (!Number.isInteger(id) || id < 1) {
+    return void 0;
+  }
+  return `https://covers.openlibrary.org/b/id/${id}-M.jpg`;
+}
+function parseOpenLibrarySearch(payload) {
+  const docs = docsOf(payload);
+  const hits = [];
+  for (const doc of docs) {
+    if (hits.length >= MAX_RESULTS) {
+      break;
+    }
+    const sourceId = parseWorkId(doc.key);
+    const title = cleanText(doc.title, 200);
+    if (!sourceId || !title) {
+      continue;
+    }
+    const author = joinNames(doc.author_name, 180);
+    const subjects = namesOf(doc.subject).slice(0, 3);
+    const overview = [author, subjects.join(", ")].filter(Boolean).join(" \xB7 ");
+    const year = yearOf(doc.first_publish_year);
+    const coverUrl = openLibraryCoverUrl(doc.cover_i);
+    hits.push({
+      sourceId,
+      title,
+      ...year ? { year } : {},
+      ...overview ? { overview } : {},
+      ...coverUrl ? { coverUrl } : {}
+    });
+  }
+  return hits;
+}
+function parseOpenLibraryWork(workId, work, searchDoc) {
+  const sourceId = parseWorkId(workId);
+  const record = asRecord2(work);
+  const doc = asRecord2(searchDoc);
+  const title = titled(cleanText(record?.title, 160), cleanText(doc?.title, 160), cleanText(record?.subtitle ?? doc?.subtitle, 80));
+  if (!sourceId || !title) {
+    return void 0;
+  }
+  const author = joinNames(doc?.author_name, 180);
+  const year = yearOf(doc?.first_publish_year) ?? 0;
+  const pages = positiveInt(doc?.number_of_pages_median) ?? 0;
+  const description = cleanText(descriptionOf(record?.description), 4e3);
+  const isbn = pickIsbn(doc?.isbn);
+  const publisher = namesOf(doc?.publisher)[0];
+  const coverUrl = openLibraryCoverUrl(doc?.cover_i) ?? openLibraryCoverUrl(firstOf(record?.covers));
+  const subjects = uniqueNames([...namesOf(record?.subjects), ...namesOf(doc?.subject)]).slice(0, MAX_SUBJECTS);
+  return {
+    sourceId,
+    title,
+    year,
+    pages,
+    subjects,
+    ...author ? { author } : {},
+    ...description ? { description } : {},
+    ...isbn ? { isbn } : {},
+    ...publisher ? { publisher: publisher.slice(0, 200) } : {},
+    ...coverUrl ? { coverUrl } : {}
+  };
+}
+async function searchOpenLibrary(query) {
+  const payload = await openLibraryJson(
+    `/search.json?q=${encodeURIComponent(query)}&limit=${MAX_RESULTS}&fields=key,title,subtitle,author_name,first_publish_year,cover_i,subject`
+  );
+  return parseOpenLibrarySearch(payload);
+}
+async function importOpenLibraryBook(connectionString, workId) {
+  const sourceId = parseWorkId(workId);
+  if (!sourceId) {
+    throw new HttpError("Choose an Open Library book to add.", 400);
+  }
+  await ensureBookColumns(connectionString);
+  const [work, search] = await Promise.all([
+    openLibraryJson(`/works/${sourceId}.json`),
+    openLibraryJson(
+      `/search.json?q=${encodeURIComponent(`key:/works/${sourceId}`)}&limit=1&fields=title,subtitle,author_name,first_publish_year,cover_i,number_of_pages_median,isbn,publisher,subject`
+    )
+  ]);
+  const book = parseOpenLibraryWork(sourceId, work, docsOf(search)[0]);
+  if (!book) {
+    throw new HttpError("Open Library did not return that book.", 502);
+  }
+  const existing = await queryRows(connectionString, "SELECT id FROM book WHERE openlibraryid = $1 LIMIT 1", [book.sourceId]);
+  const existingId = asId(existing[0]);
+  const bookId = existingId ?? await insertBook(connectionString, book);
+  await updateBook(connectionString, bookId, book);
+  await saveBookSubjects(connectionString, bookId, book.subjects);
+  return { added: existingId ? 0 : 1, id: `book:${bookId}` };
+}
+async function insertBook(connectionString, book) {
+  const rows = await queryRows(
+    connectionString,
+    `INSERT INTO book (title, seriesid, pages, partofseries, releaseyear, read, openlibraryid)
+     VALUES ($1, NULL, $2, FALSE, $3, FALSE, $4)
+     RETURNING id`,
+    [book.title, book.pages, book.year, book.sourceId]
+  );
+  const id = asId(rows[0]);
+  if (!id) {
+    throw new HttpError("Could not save that book.", 500);
+  }
+  return id;
+}
+async function updateBook(connectionString, bookId, book) {
+  await execute(
+    connectionString,
+    `UPDATE book
+     SET title = $2,
+         pages = CASE WHEN $3 > 0 THEN $3 ELSE pages END,
+         releaseyear = CASE WHEN $4 > 0 THEN $4 ELSE releaseyear END,
+         openlibraryid = $5,
+         author = $6,
+         description = $7,
+         isbn = $8,
+         publisher = $9,
+         coverurl = $10
+     WHERE id = $1`,
+    [
+      bookId,
+      book.title,
+      book.pages,
+      book.year,
+      book.sourceId,
+      book.author ?? null,
+      book.description ?? null,
+      book.isbn ?? null,
+      book.publisher ?? null,
+      book.coverUrl ?? null
+    ]
+  );
+}
+async function saveBookSubjects(connectionString, bookId, subjects) {
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS media_keyword (
+      media_kind TEXT NOT NULL,
+      media_id INTEGER NOT NULL,
+      tmdb_keyword_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      PRIMARY KEY (media_kind, media_id, tmdb_keyword_id)
+    )`
+  );
+  await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = 'book' AND media_id = $1", [bookId]);
+  for (const subject of subjects) {
+    await execute(
+      connectionString,
+      `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
+       VALUES ('book', $1, $2, $3)
+       ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO UPDATE SET name = EXCLUDED.name`,
+      [bookId, subjectKey(subject), subject]
+    );
+  }
+}
+async function ensureBookColumns(connectionString) {
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS book (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      seriesid INTEGER,
+      pages INTEGER NOT NULL,
+      partofseries BOOLEAN NOT NULL,
+      releaseyear INTEGER NOT NULL,
+      read BOOLEAN NOT NULL
+    )`
+  );
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS openlibraryid TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS author TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS description TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS isbn TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS publisher TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS coverurl TEXT");
+}
+function subjectKey(name) {
+  let hash = 0;
+  for (const char of name.toLowerCase()) {
+    hash = hash * 33 + char.charCodeAt(0) >>> 0;
+  }
+  return hash % 2e9 || 1;
+}
+async function openLibraryJson(path) {
+  const response = await fetch(`https://openlibrary.org${path}`, {
+    headers: { accept: "application/json", "user-agent": USER_AGENT }
+  });
+  if (!response.ok) {
+    throw new HttpError("Could not reach Open Library.", 502);
+  }
+  return response.json();
+}
+function docsOf(payload) {
+  const record = asRecord2(payload);
+  return Array.isArray(record?.docs) ? record.docs.map(asRecord2).filter((doc) => Boolean(doc)) : [];
+}
+function asRecord2(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : void 0;
+}
+function descriptionOf(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+  const record = asRecord2(value);
+  return typeof record?.value === "string" ? record.value : "";
+}
+function titled(workTitle, searchTitle, subtitle) {
+  const title = workTitle || searchTitle;
+  if (!title) {
+    return void 0;
+  }
+  if (!subtitle || title.toLowerCase().includes(subtitle.toLowerCase())) {
+    return title;
+  }
+  const combined = `${title}: ${subtitle}`;
+  return combined.length <= 200 ? combined : title;
+}
+function joinNames(value, max) {
+  const names = namesOf(value);
+  if (names.length < 1) {
+    return void 0;
+  }
+  return names.slice(0, 4).join(", ").slice(0, max);
+}
+function namesOf(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return uniqueNames(value.map((item) => cleanText(item, 80)).filter((item) => Boolean(item)));
+}
+function uniqueNames(names) {
+  const seen = /* @__PURE__ */ new Set();
+  const unique = [];
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    unique.push(name);
+  }
+  return unique;
+}
+function pickIsbn(value) {
+  const isbns = namesOf(value).map((isbn) => isbn.replace(/[^0-9X]/gi, ""));
+  return isbns.find((isbn) => isbn.length === 13) ?? isbns.find((isbn) => isbn.length === 10);
+}
+function yearOf(value) {
+  const year = Number(value);
+  return Number.isInteger(year) && year >= 1 && year <= 3e3 ? year : void 0;
+}
+function positiveInt(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : void 0;
+}
+function firstOf(value) {
+  return Array.isArray(value) ? value[0] : void 0;
+}
+function cleanText(value, max) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return void 0;
+  }
+  return text.length > max ? text.slice(0, max).trim() : text;
+}
+
 // api-src/tmdb.ts
 var runtime = "nodejs";
 var maxDuration = 60;
-var MAX_RESULTS = 8;
+var MAX_RESULTS2 = 8;
 var MAX_COLLECTION_CANDIDATES = 16;
 async function GET(request) {
   try {
@@ -694,7 +969,10 @@ async function GET(request) {
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
     if (query.length < 2) {
-      throw new TmdbError("Enter at least two characters to search TMDb.", 400);
+      throw new TmdbError(kind === "book" ? "Enter at least two characters to search Open Library." : "Enter at least two characters to search TMDb.", 400);
+    }
+    if (kind === "book") {
+      return Response.json({ results: await searchOpenLibrary(query) });
     }
     const results = kind === "series" ? await searchCollections(query) : kind === "show" ? await searchShows(query) : kind === "documentary" ? await searchDocumentaries(query) : await searchMovies(query);
     return Response.json({ results });
@@ -708,6 +986,9 @@ async function POST(request) {
     await requireSessionUser(request, connectionString);
     const body = await request.json().catch(() => ({}));
     const kind = normalizeTmdbKind(body.kind ?? "movie");
+    if (kind === "book") {
+      return Response.json(await importOpenLibraryBook(connectionString, String(body.sourceId ?? "")));
+    }
     const tmdbId = Number(body.tmdbId);
     if (!Number.isInteger(tmdbId) || tmdbId < 1) {
       throw new TmdbError("Choose a TMDb title to add.", 400);
@@ -720,7 +1001,7 @@ async function POST(request) {
 }
 async function searchMovies(query) {
   const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) && !isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS).map((item) => ({
+  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) && !isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS2).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.title ?? "").trim(),
     year: yearFrom(item.release_date),
@@ -729,7 +1010,7 @@ async function searchMovies(query) {
 }
 async function searchDocumentaries(query) {
   const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS).map((item) => ({
+  return asResults(payload).filter((item) => isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS2).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.title ?? "").trim(),
     year: yearFrom(item.release_date),
@@ -740,7 +1021,7 @@ async function searchCollections(query) {
   const payload = await tmdbJson(`/search/collection?query=${encodeURIComponent(query)}`);
   const hits = [];
   for (const item of asResults(payload).slice(0, MAX_COLLECTION_CANDIDATES)) {
-    if (hits.length >= MAX_RESULTS) {
+    if (hits.length >= MAX_RESULTS2) {
       break;
     }
     const tmdbId = Number(item.id);
@@ -761,7 +1042,7 @@ async function searchCollections(query) {
 }
 async function searchShows(query) {
   const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) || isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS).map((item) => ({
+  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) || isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS2).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.name ?? "").trim(),
     year: yearFrom(item.first_air_date),
@@ -891,7 +1172,7 @@ async function insertShow(connectionString, title, totalTime, episodes, seasons,
 }
 function normalizeTmdbKind(kind) {
   const value = kind.trim().toLowerCase();
-  if (value === "movie" || value === "series" || value === "documentary" || value === "show") {
+  if (value === "movie" || value === "series" || value === "documentary" || value === "show" || value === "book") {
     return value;
   }
   throw new TmdbError("TMDb can add movies, series, documentaries, and TV shows.", 400);

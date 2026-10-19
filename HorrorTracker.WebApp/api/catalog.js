@@ -137,6 +137,28 @@ function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That titl
   return { kind, mediaId };
 }
 
+// lib/open-library.ts
+async function ensureBookColumns(connectionString) {
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS book (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      seriesid INTEGER,
+      pages INTEGER NOT NULL,
+      partofseries BOOLEAN NOT NULL,
+      releaseyear INTEGER NOT NULL,
+      read BOOLEAN NOT NULL
+    )`
+  );
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS openlibraryid TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS author TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS description TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS isbn TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS publisher TEXT");
+  await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS coverurl TEXT");
+}
+
 // lib/poster.ts
 var MAX_POSTER_BYTES = 8 * 1024 * 1024;
 var posterSchema;
@@ -223,6 +245,7 @@ async function loadCatalog() {
     throw new Error("DATABASE_URL is not configured.");
   }
   await ensureOptionalTables(connectionString, "show");
+  await ensureOptionalTables(connectionString, "book");
   await ensurePosterSchema(connectionString);
   const items = [
     ...await readTable(
@@ -263,7 +286,12 @@ async function loadCatalog() {
       "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath FROM show",
       "show"
     ),
-    ...await readOptional(connectionString, "SELECT id, title, read AS completed, releaseyear FROM book", "book"),
+    ...await readOptional(
+      connectionString,
+      `SELECT id, title, read AS completed, releaseyear, pages, author, description, coverurl, isbn, publisher
+       FROM book`,
+      "book"
+    ),
     ...await readOptional(connectionString, "SELECT id, title, listened AS completed, releaseyear FROM podcast", "podcast"),
     ...await readOptional(connectionString, "SELECT id, title, played AS completed, releaseyear FROM game", "game")
   ];
@@ -406,18 +434,7 @@ async function ensureOptionalTables(connectionString, kind) {
     await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS releaseyear INTEGER");
   }
   if (kind === "book") {
-    await execute(
-      connectionString,
-      `CREATE TABLE IF NOT EXISTS book (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        seriesid INTEGER,
-        pages INTEGER NOT NULL,
-        partofseries BOOLEAN NOT NULL,
-        releaseyear INTEGER NOT NULL,
-        read BOOLEAN NOT NULL
-      )`
-    );
+    await ensureBookColumns(connectionString);
   }
   if (kind === "podcast") {
     await execute(
@@ -661,12 +678,43 @@ function mapRows(rows, kind) {
     if (posterPath) {
       item.posterPath = posterPath;
     }
+    const pages = asFiniteNumber(row.pages);
+    const author = asNonEmptyString(row.author);
+    const description = asNonEmptyString(row.description);
+    const coverUrl = openLibraryCover(row.coverurl ?? row.coverUrl);
+    const isbn = asNonEmptyString(row.isbn);
+    const publisher = asNonEmptyString(row.publisher);
+    if (pages !== void 0 && pages > 0) {
+      item.pages = pages;
+    }
+    if (author) {
+      item.author = author;
+    }
+    if (description) {
+      item.description = description;
+    }
+    if (coverUrl) {
+      item.coverUrl = coverUrl;
+    }
+    if (isbn) {
+      item.isbn = isbn;
+    }
+    if (publisher) {
+      item.publisher = publisher;
+    }
     return item;
   });
 }
 function asFiniteNumber(value) {
   const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() !== "" ? Number(value) : Number.NaN;
   return Number.isFinite(parsed) ? parsed : void 0;
+}
+function openLibraryCover(value) {
+  const url = String(value ?? "").trim();
+  if (!/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url)) {
+    return void 0;
+  }
+  return url;
 }
 function asNonEmptyString(value) {
   if (typeof value !== "string") {

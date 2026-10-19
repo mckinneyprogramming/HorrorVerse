@@ -824,8 +824,22 @@ export function mountApp(root: HTMLElement): void {
     }
 
     if (action === "import-tmdb" && state.user) {
+      const sourceId = target.dataset.sourceId ?? "";
       const tmdbId = Number(target.dataset.tmdbId);
-      if (!canUseTmdbSheet() || state.catalogBusy || !Number.isInteger(tmdbId)) {
+      if (!canUseTmdbSheet() || state.catalogBusy) {
+        return;
+      }
+
+      if (state.sheetKind === "book") {
+        if (!/^OL\d+W$/.test(sourceId)) {
+          return;
+        }
+
+        await saveCatalogChange(root, () => importTmdb("book", sourceId));
+        return;
+      }
+
+      if (!Number.isInteger(tmdbId)) {
         return;
       }
 
@@ -3286,7 +3300,7 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
   return `
     <details class="list-series-group show-guide${done ? " is-done" : ""}"${open ? " open" : ""}>
       <summary data-action="toggle-show" data-show-id="${showId}">
-        ${renderPoster(entry.posterPath)}
+        ${renderPoster(entry.posterPath, entry.coverUrl)}
         <span class="mark" aria-hidden="true"></span>
         <span class="list-series-label">
           <strong>${escapeHtml(entry.title)}</strong>
@@ -3407,11 +3421,12 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franc
   const signedIn = Boolean(state.user);
   const done = isFinished(entry);
   const body = `
-    ${renderPoster(entry.posterPath)}
+    ${renderPoster(entry.posterPath, entry.coverUrl)}
     <span class="mark" aria-hidden="true"></span>
     <span class="entry-copy">
       <strong>${escapeHtml(entry.title)}</strong>
       ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
+      ${renderBookBlurb(entry)}
     </span>
   `;
 
@@ -3691,11 +3706,12 @@ function renderListItem(entry: CatalogEntry, listId: number, nested = false): st
   return `
     <li class="entry${isFinished(entry) ? " is-done" : ""}${nested ? " is-nested" : ""}">
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
-        ${renderPoster(entry.posterPath)}
+        ${renderPoster(entry.posterPath, entry.coverUrl)}
         <span class="mark" aria-hidden="true"></span>
         <span class="entry-copy">
           <strong>${escapeHtml(entry.title)}</strong>
           ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
+          ${renderBookBlurb(entry)}
         </span>
       </button>
       ${renderWatchButton(entry)}
@@ -3923,8 +3939,17 @@ function whenSheetOpen(): boolean {
   return Boolean(state.whenPicker || state.whenEpisode);
 }
 
-function renderPoster(path: string | undefined): string {
-  const url = posterUrl(path);
+function renderBookBlurb(entry: CatalogEntry): string {
+  if (entry.kind !== "book" || !entry.description) {
+    return "";
+  }
+
+  const text = entry.description.length > 180 ? `${entry.description.slice(0, 177).trim()}…` : entry.description;
+  return `<span class="entry-blurb">${escapeHtml(text)}</span>`;
+}
+
+function renderPoster(path: string | undefined, coverUrl?: string): string {
+  const url = coverUrl || posterUrl(path);
   if (!url) {
     return "";
   }
@@ -4036,7 +4061,6 @@ function renderSheet(): string {
   const editing = state.sheet.mode === "edit";
   const entry = state.sheet.entry;
   const selectedKind = editing ? (entry?.kind ?? "movie") : state.sheetKind;
-  const tmdbEnabled = !editing && usesTmdb(selectedKind);
 
   return `
     <div class="sheet-backdrop" data-action="close-sheet"></div>
@@ -4055,8 +4079,8 @@ function renderSheet(): string {
             </label>
           `
       }
-      ${tmdbEnabled ? `${renderTmdbSearch(selectedKind)}<p class="tmdb-or">Or enter it yourself</p>` : ""}
-      ${!editing && isManualKind(selectedKind) ? `<p class="fine-print">Type the title. Books, podcasts, and games stay in the vault without a TMDb lookup.</p>` : ""}
+      ${canLookup(selectedKind) && !editing ? `${renderTmdbSearch(selectedKind)}<p class="tmdb-or">Or enter it yourself</p>` : ""}
+      ${!editing && (selectedKind === "podcast" || selectedKind === "game") ? `<p class="fine-print">Type the title. Podcasts and games stay in the vault without a lookup.</p>` : ""}
       <form data-catalog-form="${state.sheet.mode}">
         <label>
           Title
@@ -4110,18 +4134,22 @@ function renderTmdbSheet(): string {
 function renderTmdbSearch(selectedKind: MediaKind): string {
   return `
     <form data-tmdb-form>
-      ${renderSearchKindRadios({
-        name: "tmdb-kind",
-        selected: selectedKind,
-        disabled: state.catalogBusy,
-        sheetKind: true,
-      })}
+      ${
+        usesTmdb(selectedKind)
+          ? renderSearchKindRadios({
+              name: "tmdb-kind",
+              selected: selectedKind,
+              disabled: state.catalogBusy,
+              sheetKind: true,
+            })
+          : ""
+      }
       <label>
-        Search TMDb
+        ${selectedKind === "book" ? "Search Open Library" : "Search TMDb"}
         <input name="q" type="search" value="${escapeHtml(state.tmdbQuery)}" maxlength="120" placeholder="${tmdbPlaceholder(selectedKind)}" autocomplete="off" ${state.catalogBusy ? "disabled" : ""} />
       </label>
       <p class="fine-print">${tmdbHint(selectedKind)}</p>
-      <button class="primary-btn tmdb-search-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Working…" : "Search TMDb"}</button>
+      <button class="primary-btn tmdb-search-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Working…" : selectedKind === "book" ? "Search Open Library" : "Search TMDb"}</button>
     </form>
     ${
       state.tmdbResults.length > 0
@@ -4129,9 +4157,12 @@ function renderTmdbSearch(selectedKind: MediaKind): string {
             .map(
               (hit) => `
                 <li>
-                  <button class="tmdb-hit" type="button" data-action="import-tmdb" data-tmdb-id="${hit.tmdbId}" ${state.catalogBusy ? "disabled" : ""}>
-                    <strong>${escapeHtml(hit.title)}${hit.year ? ` (${hit.year})` : ""}</strong>
-                    ${hit.overview ? `<em>${escapeHtml(hit.overview)}</em>` : ""}
+                  <button class="tmdb-hit" type="button" data-action="import-tmdb" data-tmdb-id="${hit.tmdbId ?? ""}" data-source-id="${escapeHtml(hit.sourceId ?? "")}" ${state.catalogBusy ? "disabled" : ""}>
+                    ${hit.coverUrl ? `<img src="${escapeHtml(hit.coverUrl)}" alt="" width="40" height="60" />` : ""}
+                    <span>
+                      <strong>${escapeHtml(hit.title)}${hit.year ? ` (${hit.year})` : ""}</strong>
+                      ${hit.overview ? `<em>${escapeHtml(hit.overview)}</em>` : ""}
+                    </span>
                   </button>
                 </li>
               `,
@@ -4140,10 +4171,6 @@ function renderTmdbSearch(selectedKind: MediaKind): string {
         : ""
     }
   `;
-}
-
-function isManualKind(kind: MediaKind): boolean {
-  return kind === "book" || kind === "podcast" || kind === "game";
 }
 
 function catalogFinishedLabel(kind: MediaKind): string {
@@ -4160,6 +4187,10 @@ function catalogFinishedLabel(kind: MediaKind): string {
   }
 
   return "Watched in catalog";
+}
+
+function canLookup(kind: MediaKind): boolean {
+  return usesTmdb(kind) || kind === "book";
 }
 
 function usesTmdb(kind: MediaKind): boolean {
@@ -4297,7 +4328,7 @@ function renderWatchOffer(offer: WatchOffer): string {
 }
 
 function canUseTmdbSheet(): boolean {
-  if (!state.sheet || !usesTmdb(state.sheetKind)) {
+  if (!state.sheet || !canLookup(state.sheetKind)) {
     return false;
   }
 
@@ -4332,6 +4363,8 @@ function tmdbPlaceholder(kind: MediaKind): string {
       return "American Horror Story";
     case "documentary":
       return "Living with Chucky";
+    case "book":
+      return "It";
     default:
       return "Scream";
   }
@@ -4345,6 +4378,8 @@ function tmdbHint(kind: MediaKind): string {
       return "Horror, thriller, mystery, sci-fi, fantasy, and documentary TV — including miniseries. Films with the same title stay on Movies or Documentaries.";
     case "documentary":
       return "Film documentaries TMDb tags as documentary, such as Living with Chucky. TV documentary miniseries are under TV Shows.";
+    case "book":
+      return "Author, year, pages, cover, description, and subjects from Open Library.";
     default:
       return "Horror, thriller, mystery, sci-fi, and fantasy feature films. Documentaries and TV shows stay on those radios.";
   }

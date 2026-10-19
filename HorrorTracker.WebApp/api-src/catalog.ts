@@ -3,6 +3,7 @@ export const maxDuration = 30;
 void "restore-standalone-catalog";
 
 import { parseCatalogId } from "../lib/catalog-id";
+import { ensureBookColumns } from "../lib/open-library";
 import { ensurePosterSchema, parsePosterPath } from "../lib/poster";
 import {
   execute,
@@ -30,6 +31,12 @@ interface CatalogItem {
   numberOfSeasons?: number;
   keywords?: string[];
   posterPath?: string;
+  pages?: number;
+  author?: string;
+  description?: string;
+  coverUrl?: string;
+  isbn?: string;
+  publisher?: string;
 }
 
 export async function GET() {
@@ -90,6 +97,7 @@ async function loadCatalog(): Promise<CatalogItem[]> {
   }
 
   await ensureOptionalTables(connectionString, "show");
+  await ensureOptionalTables(connectionString, "book");
   await ensurePosterSchema(connectionString);
   const items = [
     ...(await readTable(
@@ -130,7 +138,12 @@ async function loadCatalog(): Promise<CatalogItem[]> {
       "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath FROM show",
       "show",
     )),
-    ...(await readOptional(connectionString, "SELECT id, title, read AS completed, releaseyear FROM book", "book")),
+    ...(await readOptional(
+      connectionString,
+      `SELECT id, title, read AS completed, releaseyear, pages, author, description, coverurl, isbn, publisher
+       FROM book`,
+      "book",
+    )),
     ...(await readOptional(connectionString, "SELECT id, title, listened AS completed, releaseyear FROM podcast", "podcast")),
     ...(await readOptional(connectionString, "SELECT id, title, played AS completed, releaseyear FROM game", "game")),
   ];
@@ -312,18 +325,7 @@ async function ensureOptionalTables(connectionString: string, kind: string): Pro
   }
 
   if (kind === "book") {
-    await execute(
-      connectionString,
-      `CREATE TABLE IF NOT EXISTS book (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        seriesid INTEGER,
-        pages INTEGER NOT NULL,
-        partofseries BOOLEAN NOT NULL,
-        releaseyear INTEGER NOT NULL,
-        read BOOLEAN NOT NULL
-      )`,
-    );
+    await ensureBookColumns(connectionString);
   }
 
   if (kind === "podcast") {
@@ -629,6 +631,36 @@ function mapRows(rows: Record<string, unknown>[], kind: string): CatalogItem[] {
       item.posterPath = posterPath;
     }
 
+    const pages = asFiniteNumber(row.pages);
+    const author = asNonEmptyString(row.author);
+    const description = asNonEmptyString(row.description);
+    const coverUrl = openLibraryCover(row.coverurl ?? row.coverUrl);
+    const isbn = asNonEmptyString(row.isbn);
+    const publisher = asNonEmptyString(row.publisher);
+    if (pages !== undefined && pages > 0) {
+      item.pages = pages;
+    }
+
+    if (author) {
+      item.author = author;
+    }
+
+    if (description) {
+      item.description = description;
+    }
+
+    if (coverUrl) {
+      item.coverUrl = coverUrl;
+    }
+
+    if (isbn) {
+      item.isbn = isbn;
+    }
+
+    if (publisher) {
+      item.publisher = publisher;
+    }
+
     return item;
   });
 }
@@ -636,6 +668,15 @@ function mapRows(rows: Record<string, unknown>[], kind: string): CatalogItem[] {
 function asFiniteNumber(value: unknown): number | undefined {
   const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() !== "" ? Number(value) : Number.NaN;
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function openLibraryCover(value: unknown): string | undefined {
+  const url = String(value ?? "").trim();
+  if (!/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url)) {
+    return undefined;
+  }
+
+  return url;
 }
 
 function asNonEmptyString(value: unknown): string | undefined {

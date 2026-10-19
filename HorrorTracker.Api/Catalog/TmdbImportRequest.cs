@@ -4,4 +4,5 @@ public sealed class TmdbImportRequest
 {
     public string? Kind { get; set; }
     public int TmdbId { get; set; }
+    public string? SourceId { get; set; }
 }

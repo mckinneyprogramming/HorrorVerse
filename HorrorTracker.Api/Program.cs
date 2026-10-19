@@ -35,6 +35,7 @@ builder.Services.AddScoped<WatchCatalogService>();
 builder.Services.AddScoped<FranchiseCatalogService>();
 builder.Services.AddScoped<UpcomingCatalogService>();
 builder.Services.AddScoped<TmdbCatalogService>();
+builder.Services.AddScoped<OpenLibraryCatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserLibraryService>();
 builder.Services.AddScoped<SocialService>();
@@ -120,13 +121,18 @@ app.MapPatch("/api/shows", async (ShowProgressRequest body, HttpContext http, Au
     await WriteSignedInUserAsync(http, auth, user => shows.SetProgressAsync(user, body, http.RequestAborted)));
 app.MapGet("/api/watch", async (string? id, HttpContext http, AuthService auth, WatchCatalogService watch) =>
     await WriteSignedInAsync(http, auth, async () => Results.Json(await watch.GetAsync(id, http.RequestAborted))));
-app.MapGet("/api/tmdb", async (string? kind, string? q, string? poster, string? size, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
+app.MapGet("/api/tmdb", async (string? kind, string? q, string? poster, string? size, HttpContext http, AuthService auth, TmdbCatalogService tmdb, OpenLibraryCatalogService books) =>
     await WriteSignedInAsync(http, auth, async () =>
         string.IsNullOrWhiteSpace(poster)
-            ? Results.Json(await tmdb.SearchAsync(kind, q, http.RequestAborted))
+            ? string.Equals(kind, "book", StringComparison.OrdinalIgnoreCase)
+                ? Results.Json(await books.SearchAsync(q, http.RequestAborted))
+                : Results.Json(await tmdb.SearchAsync(kind, q, http.RequestAborted))
             : await tmdb.ProxyPosterAsync(poster, size, http.RequestAborted)));
-app.MapPost("/api/tmdb", async (TmdbImportRequest body, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
-    await WriteSignedInAsync(http, auth, async () => Results.Json(await tmdb.ImportAsync(body, http.RequestAborted))));
+app.MapPost("/api/tmdb", async (TmdbImportRequest body, HttpContext http, AuthService auth, TmdbCatalogService tmdb, OpenLibraryCatalogService books) =>
+    await WriteSignedInAsync(http, auth, async () =>
+        string.Equals(body.Kind, "book", StringComparison.OrdinalIgnoreCase)
+            ? Results.Json(await books.ImportAsync(body.SourceId, http.RequestAborted))
+            : Results.Json(await tmdb.ImportAsync(body, http.RequestAborted))));
 app.MapGet("/api/sync", async (string? id, HttpContext http, AuthService auth, TmdbCatalogService tmdb) =>
     await WriteCatalogSyncAsync(http, auth, (force) => tmdb.SyncAsync(id, force, http.RequestAborted)));
 app.MapGet("/api/progress", (HttpContext http, AuthService auth, UserLibraryService library) =>

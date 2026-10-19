@@ -18,6 +18,14 @@ describe("movieDetailLine", () => {
   it("shows the year for a typed-in book, podcast, or game", () => {
     const book: CatalogEntry = { id: "book:1", mediaId: 1, title: "Night Shift", kind: "book", completed: false, releaseYear: 1978 };
     expect(movieDetailLine(book)).toBe("1978");
+    expect(
+      movieDetailLine({
+        ...book,
+        author: "Stephen King",
+        pages: 326,
+        publisher: "Doubleday",
+      }),
+    ).toBe("Stephen King · 1978 · 326 pages · Doubleday");
     expect(movieDetailLine({ ...book, kind: "podcast", releaseYear: undefined })).toBeUndefined();
   });
 });
