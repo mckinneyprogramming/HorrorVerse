@@ -899,6 +899,31 @@ button.entry-toggle {
   line-height: 1;
 }
 
+.entry-score {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.entry-score-mark {
+  width: 28px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.entry-score-mark.is-on {
+  color: var(--text);
+  background: var(--blood);
+  border-color: var(--blood-bright);
+}
+
 .entry-edit,
 .entry-list,
 .entry-franchise,

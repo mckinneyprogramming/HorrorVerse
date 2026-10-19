@@ -20,7 +20,7 @@ import {
   updateProfile,
   type AuthUser,
 } from "./auth";
-import { fetchProgress, setProgress, type UserProgress, type WatchNextItem } from "./progress";
+import { fetchProgress, setProgress, setScore, type UserProgress, type WatchNextItem } from "./progress";
 import { shareStoryImage } from "./share";
 import {
   finishedTitleCount,
@@ -111,6 +111,7 @@ interface AppState {
   recentPosters: Record<string, string>;
   undatedIds: string[];
   watchedYears: Record<string, number>;
+  scores: Record<string, number>;
   watchNext: WatchNextItem[];
   whenPicker: CatalogEntry | null;
   whenEpisode: { showId: number; episode: ShowEpisode } | null;
@@ -180,6 +181,7 @@ const state: AppState = {
   recentPosters: {},
   undatedIds: [],
   watchedYears: {},
+  scores: {},
   watchNext: [],
   whenPicker: null,
   whenEpisode: null,
@@ -627,6 +629,7 @@ export function mountApp(root: HTMLElement): void {
       state.recentPosters = {};
       state.undatedIds = [];
       state.watchedYears = {};
+      state.scores = {};
       state.watchNext = [];
       state.whenPicker = null;
       state.whenEpisode = null;
@@ -854,6 +857,20 @@ export function mountApp(root: HTMLElement): void {
         }
 
         applyProgress(await setProgress(entry.id, completed));
+      });
+      return;
+    }
+
+    if (action === "set-score") {
+      const entry = state.entries.find((item) => item.id === target.dataset.id);
+      const score = Number(target.dataset.score);
+      if (!state.user || !entry || !isFinished(entry) || state.catalogBusy || !Number.isInteger(score) || score < 1 || score > 5) {
+        return;
+      }
+
+      const next = state.scores[entry.id] === score ? null : score;
+      await saveUserLibrary(root, async () => {
+        applyProgress(await setScore(entry.id, next));
       });
       return;
     }
@@ -1542,6 +1559,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.recentPosters = {};
     state.undatedIds = [];
     state.watchedYears = {};
+    state.scores = {};
     state.watchNext = [];
     state.whenPicker = null;
     state.whenEpisode = null;
@@ -1565,6 +1583,7 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
       state.recentPosters = {};
       state.undatedIds = [];
       state.watchedYears = {};
+      state.scores = {};
       state.watchNext = [];
       state.lists = [];
     }
@@ -3280,6 +3299,7 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
         ${renderWatchButton(entry)}
         ${renderShareButton(entry)}
         ${renderWhenButton(entry)}
+        ${renderScore(entry)}
         ${
           options.listId === undefined
             ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -3401,6 +3421,7 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franc
       ${renderWatchButton(entry)}
       ${renderShareButton(entry)}
       ${renderWhenButton(entry)}
+      ${renderScore(entry)}
       ${
         signedIn
           ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" aria-label="Add ${escapeHtml(entry.title)} to a list" ${state.catalogBusy ? "disabled" : ""}>List</button>`
@@ -3679,6 +3700,7 @@ function renderListItem(entry: CatalogEntry, listId: number, nested = false): st
       </button>
       ${renderWatchButton(entry)}
       ${renderWhenButton(entry)}
+      ${renderScore(entry)}
       <button class="entry-remove" type="button" data-action="toggle-list-item" data-list-id="${listId}" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>×</button>
     </li>
   `;
@@ -3788,6 +3810,7 @@ function applyProgress(progress: UserProgress): void {
   state.recentPosters = progress.recentPosters;
   state.undatedIds = progress.undatedIds;
   state.watchedYears = progress.watchedYears;
+  state.scores = progress.scores ?? {};
   state.watchNext = progress.watchNext ?? [];
   const filledPosters: Record<string, string> = { ...progress.recentPosters };
   for (const item of state.watchNext) {
@@ -3843,6 +3866,22 @@ function renderShareButton(entry: CatalogEntry): string {
   }
 
   return `<button class="entry-watch entry-share" type="button" data-action="share-title" data-id="${escapeHtml(entry.id)}" aria-label="Share ${escapeHtml(entry.title)} to Instagram Stories" ${state.shareBusy || state.catalogBusy ? "disabled" : ""}>Share</button>`;
+}
+
+function renderScore(entry: CatalogEntry): string {
+  if (!state.user || !isFinished(entry)) {
+    return "";
+  }
+
+  const current = state.scores[entry.id] ?? 0;
+  const buttons = [1, 2, 3, 4, 5]
+    .map((score) => {
+      const on = score <= current ? " is-on" : "";
+      const pressed = score === current ? "true" : "false";
+      return `<button class="entry-score-mark${on}" type="button" data-action="set-score" data-id="${escapeHtml(entry.id)}" data-score="${score}" aria-label="Score ${escapeHtml(entry.title)} ${score} of 5" aria-pressed="${pressed}" ${state.catalogBusy ? "disabled" : ""}>${score}</button>`;
+    })
+    .join("");
+  return `<div class="entry-score" role="group" aria-label="Score ${escapeHtml(entry.title)}">${buttons}</div>`;
 }
 
 function renderWhenButton(entry: CatalogEntry): string {

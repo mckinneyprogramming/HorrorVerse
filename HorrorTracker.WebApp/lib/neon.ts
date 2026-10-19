@@ -126,6 +126,7 @@ export async function ensureUserLibrarySchema(connectionString: string): Promise
       )`,
   );
   await execute(connectionString, "ALTER TABLE user_media_progress ALTER COLUMN completed_at DROP NOT NULL");
+  await execute(connectionString, "ALTER TABLE user_media_progress ADD COLUMN IF NOT EXISTS score SMALLINT");
   await execute(
     connectionString,
     `CREATE TABLE IF NOT EXISTS user_list (

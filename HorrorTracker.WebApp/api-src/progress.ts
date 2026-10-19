@@ -31,8 +31,13 @@ export async function PATCH(request: Request) {
   try {
     const connectionString = requireDatabaseUrl();
     const user = await requireUser(request, connectionString);
-    const body = (await request.json().catch(() => ({}))) as { id?: string; completed?: boolean; dated?: boolean; year?: number };
+    const body = (await request.json().catch(() => ({}))) as { id?: string; completed?: boolean; dated?: boolean; year?: number; score?: number | null };
     const { kind, mediaId } = parseCatalogId(body.id, LIBRARY_MEDIA_KINDS);
+    if ("score" in body) {
+      await setTitleScore(connectionString, user.id, kind, mediaId, body.score);
+      return Response.json(await loadProgress(connectionString, user));
+    }
+
     const dated = body.dated !== false;
     const year = dated ? parseWatchYear(body.year) : undefined;
     if (body.completed) {
@@ -54,6 +59,32 @@ export async function PATCH(request: Request) {
     return Response.json(await loadProgress(connectionString, user));
   } catch (error) {
     return neonJsonError(error, { log: "User library request failed.", fallback: "Could not update your library.", unavailable: "Library unavailable." });
+  }
+}
+
+async function setTitleScore(
+  connectionString: string,
+  userId: number,
+  kind: string,
+  mediaId: number,
+  value: unknown,
+): Promise<void> {
+  await ensureUserLibrarySchema(connectionString);
+  const score = value == null || value === "" ? null : Number(value);
+  if (score !== null && (!Number.isInteger(score) || score < 1 || score > 5)) {
+    throw new HttpError("Score a finished title from 1 to 5.", 400);
+  }
+
+  const rows = await queryRows(
+    connectionString,
+    `UPDATE user_media_progress
+     SET score = $4
+     WHERE user_id = $1 AND media_kind = $2 AND media_id = $3
+     RETURNING media_id`,
+    [userId, kind, mediaId, score],
+  );
+  if (rows.length < 1) {
+    throw new HttpError("Mark that title finished before scoring it.", 400);
   }
 }
 
@@ -179,13 +210,14 @@ async function loadProgress(
   recentIds: string[];
   undatedIds: string[];
   watchedYears: Record<string, number>;
+  scores: Record<string, number>;
   recentPosters: Record<string, string>;
   watchNext: WatchNextItem[];
 }> {
   await seedAdminProgressIfNeeded(connectionString, user);
   const rows = await queryRows(
     connectionString,
-    "SELECT media_kind, media_id, completed_at FROM user_media_progress WHERE user_id = $1",
+    "SELECT media_kind, media_id, completed_at, score FROM user_media_progress WHERE user_id = $1",
     [user.id],
   );
   const recent = await queryRows(
@@ -197,10 +229,17 @@ async function loadProgress(
     [user.id],
   );
   const watchedYears: Record<string, number> = {};
+  const scores: Record<string, number> = {};
   for (const row of rows) {
+    const id = progressId(row);
     const year = yearFromCompletedAt(row.completed_at);
     if (year) {
-      watchedYears[progressId(row)] = year;
+      watchedYears[id] = year;
+    }
+
+    const score = Number(row.score);
+    if (Number.isInteger(score) && score >= 1 && score <= 5) {
+      scores[id] = score;
     }
   }
 
@@ -215,6 +254,7 @@ async function loadProgress(
     recentIds,
     undatedIds: rows.filter((row) => row.completed_at == null).map(progressId),
     watchedYears,
+    scores,
     recentPosters: Object.fromEntries(recentIds.flatMap((id) => (homePosters[id] ? [[id, homePosters[id]]] : []))),
     watchNext: watchNext.map((item) => {
       const posterPath = item.posterPath ?? homePosters[item.id];

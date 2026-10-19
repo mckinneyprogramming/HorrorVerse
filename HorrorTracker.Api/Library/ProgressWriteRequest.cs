@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace HorrorTracker.Api.Library;
 
 public sealed class ProgressWriteRequest
@@ -6,4 +8,5 @@ public sealed class ProgressWriteRequest
     public bool Completed { get; set; }
     public bool Dated { get; set; } = true;
     public int? Year { get; set; }
+    public JsonElement? Score { get; set; }
 }

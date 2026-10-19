@@ -1,3 +1,4 @@
+using System.Text.Json;
 using HorrorTracker.Api.Auth;
 using HorrorTracker.Api.Catalog;
 using Npgsql;
@@ -57,7 +58,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT media_kind, media_id, completed_at
+            SELECT media_kind, media_id, completed_at, score
             FROM user_media_progress
             WHERE user_id = @userId
             """;
@@ -67,10 +68,20 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         var undatedIds = new List<string>();
         var dated = new List<(string Id, DateTimeOffset At)>();
         var watchedYears = new Dictionary<string, int>();
+        var scores = new Dictionary<string, int>();
         while (reader.Read())
         {
             var id = $"{reader.GetString(0)}:{reader.GetInt32(1)}";
             ids.Add(id);
+            if (!reader.IsDBNull(3))
+            {
+                var score = Convert.ToInt32(reader.GetValue(3));
+                if (score is >= 1 and <= 5)
+                {
+                    scores[id] = score;
+                }
+            }
+
             if (reader.IsDBNull(2))
             {
                 undatedIds.Add(id);
@@ -101,6 +112,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             recentIds,
             undatedIds,
             watchedYears,
+            scores,
             recentPosters = recentIds.Where(homePosters.ContainsKey).ToDictionary(id => id, id => homePosters[id]),
             watchNext = watchNext.Select(item => (object)new
             {
@@ -402,10 +414,42 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             : DBNull.Value);
     }
 
+    private void SetScore(int userId, string kind, int mediaId, JsonElement score)
+    {
+        int? value = score.ValueKind switch
+        {
+            JsonValueKind.Null => null,
+            JsonValueKind.Number when score.TryGetInt32(out var parsed) && parsed is >= 1 and <= 5 => parsed,
+            _ => throw new InvalidOperationException("Score a finished title from 1 to 5."),
+        };
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE user_media_progress
+            SET score = @score
+            WHERE user_id = @userId AND media_kind = @kind AND media_id = @mediaId
+            """;
+        command.Parameters.AddWithValue("score", value is int rated ? rated : DBNull.Value);
+        command.Parameters.AddWithValue("userId", userId);
+        command.Parameters.AddWithValue("kind", kind);
+        command.Parameters.AddWithValue("mediaId", mediaId);
+        if (command.ExecuteNonQuery() < 1)
+        {
+            throw new InvalidOperationException("Mark that title finished before scoring it.");
+        }
+    }
+
     public object SetCompleted(AuthUserDto user, ProgressWriteRequest request)
     {
         EnsureSchema();
         var (kind, mediaId) = ParseCatalogId(request.Id);
+        if (request.Score is JsonElement score)
+        {
+            SetScore(user.Id, kind, mediaId, score);
+            return LoadProgress(user.Id);
+        }
+
         var year = request.Dated ? ParseWatchYear(request.Year) : null;
 
         using var connection = OpenConnection();
@@ -851,6 +895,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             );
             ALTER TABLE user_list ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private';
             ALTER TABLE user_media_progress ALTER COLUMN completed_at DROP NOT NULL;
+            ALTER TABLE user_media_progress ADD COLUMN IF NOT EXISTS score SMALLINT;
             """;
         command.ExecuteNonQuery();
     }

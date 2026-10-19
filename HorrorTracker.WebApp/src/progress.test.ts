@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readRecentPosters, readWatchNext, readWatchedYears } from "./progress";
+import { readRecentPosters, readScores, readWatchNext, readWatchedYears } from "./progress";
 
 describe("readWatchedYears", () => {
   it("keeps integer years keyed by catalog id", () => {
@@ -31,6 +31,15 @@ describe("readWatchNext", () => {
       },
     ]);
     expect(readWatchNext({})).toEqual([]);
+  });
+});
+
+describe("readScores", () => {
+  it("keeps scores from 1 to 5", () => {
+    expect(readScores({ scores: { "movie:1": 4, "show:2": 0, "book:3": 6, "movie:4": 2.5 } })).toEqual({
+      "movie:1": 4,
+    });
+    expect(readScores({})).toEqual({});
   });
 });
 
