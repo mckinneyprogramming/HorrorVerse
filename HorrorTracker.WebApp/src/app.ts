@@ -75,7 +75,7 @@ import {
 } from "./franchises";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
-type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install";
+type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install" | "stats";
 type UpcomingPane = "films" | "shows";
 type LibraryFilter = MediaKind | "all";
 type LoadStatus = "loading" | "ready" | "error";
@@ -1826,6 +1826,7 @@ function render(root: HTMLElement): void {
         ${state.view === "upcoming" ? renderUpcomingPage() : ""}
         ${state.view === "lists" ? renderLists() : ""}
         ${state.view === "account" ? renderAccount() : ""}
+        ${state.view === "stats" ? renderStatsPage() : ""}
         ${state.view === "profile" ? renderPersonProfile() : ""}
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
@@ -1905,8 +1906,12 @@ function renderHome(): string {
     ${renderWatchNext()}
     ${renderHomeRecents()}
     ${renderAchievements()}
-    ${renderFunStats()}
     <section class="kinds">
+      <button class="kind-card" type="button" data-action="view" data-view="stats">
+        <span class="kind-count">#</span>
+        <span class="kind-label">The numbers</span>
+        <span class="kind-hint">Hours, longest nights, oldest titles, and the rest of the vault.</span>
+      </button>
       <button class="kind-card" type="button" data-action="view" data-view="upcoming">
         <span class="kind-count">${upcomingCount() || (state.upcomingStatus === "loading" ? "…" : "0")}</span>
         <span class="kind-label">Upcoming</span>
@@ -2096,20 +2101,28 @@ function renderAchievement(achievement: Achievement): string {
   `;
 }
 
+function renderStatsPage(): string {
+  return `
+    <header class="page-head">
+      <h1>The numbers</h1>
+      <p>${
+        state.user
+          ? "Your hours first, then the whole HorrorVerse."
+          : "How long the vault runs, plus the longest nights and oldest shadows."
+      }</p>
+    </header>
+    ${renderFunStats()}
+  `;
+}
+
 function renderFunStats(): string {
   if (state.entries.length < 1) {
-    return "";
+    return `<p class="empty">The vault is still opening.</p>`;
   }
 
   const stats = buildHorrorStats(state.entries, state.finishedIds, Boolean(state.user), state.franchises);
   return `
     <section class="fun-stats" aria-label="Time and vault stats">
-      <h2>The numbers</h2>
-      <p>${
-        state.user
-          ? "Your hours first, then the whole HorrorVerse — longest films, oldest titles, and nights in the vault."
-          : "The whole HorrorVerse: how long the vault runs, plus the longest nights and oldest shadows."
-      }</p>
       ${
         stats.yours
           ? renderStatGroup("Yours", "Runtime you've marked finished and the nights that were yours.", stats.yours)
@@ -2877,7 +2890,6 @@ function compareByYearThenId(left: CatalogEntry, right: CatalogEntry): number {
 
 function renderAccount(): string {
   if (state.user) {
-    const stats = buildHorrorStats(state.entries, state.finishedIds, true, state.franchises);
     return `
       <header class="page-head">
         <h1>Account</h1>
@@ -2913,8 +2925,11 @@ function renderAccount(): string {
         <button class="ghost-btn" type="button" data-action="logout" ${state.authBusy ? "disabled" : ""}>Sign out</button>
       </section>
       ${renderAchievements()}
+      <button class="kind-card account-numbers" type="button" data-action="view" data-view="stats">
+        <span class="kind-label">The numbers</span>
+        <span class="kind-hint">Your hours, then the longest nights and oldest titles in the vault.</span>
+      </button>
       ${state.user.isAdmin ? renderVaultImport() : ""}
-      ${stats.yours ? renderStatGroup("Your nights", "Hours you've marked finished, plus the titles that linger.", stats.yours) : ""}
       ${renderRecapShare()}
       ${renderPeopleSection()}
     `;

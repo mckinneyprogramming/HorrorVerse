@@ -574,6 +574,11 @@ button.fun-stat:focus-visible {
   border-color: var(--crimson);
 }
 
+.account-numbers {
+  width: 100%;
+  margin: 0 0 28px;
+}
+
 .kind-count {
   font-family: var(--font-display);
   font-size: 1.3rem;
