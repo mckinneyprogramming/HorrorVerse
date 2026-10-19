@@ -35,6 +35,16 @@ describe("parseOpenLibrarySearch", () => {
       },
     ]);
   });
+
+  it("lists horror subjects ahead of other matches", () => {
+    const hits = parseOpenLibrarySearch({
+      docs: [
+        { key: "/works/OL1W", title: "It", subject: ["Cooking"] },
+        { key: "/works/OL2W", title: "It", subject: ["Ghost stories"] },
+      ],
+    });
+    expect(hits.map((hit) => hit.sourceId)).toEqual(["OL2W", "OL1W"]);
+  });
 });
 
 describe("parseOpenLibraryWork", () => {

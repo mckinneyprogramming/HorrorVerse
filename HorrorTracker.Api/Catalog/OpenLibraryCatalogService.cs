@@ -18,14 +18,14 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
         }
 
         var payload = await GetJsonAsync(
-            $"/search.json?q={Uri.EscapeDataString(text)}&limit=8&fields=key,title,author_name,first_publish_year,cover_i,subject",
+            $"/search.json?q={Uri.EscapeDataString(text)}&limit=20&fields=key,title,author_name,first_publish_year,cover_i,subject",
             cancellationToken);
-        var hits = new List<object>();
+        var hits = new List<(int Rank, object Hit)>();
         if (payload.TryGetProperty("docs", out var docs) && docs.ValueKind == JsonValueKind.Array)
         {
             foreach (var doc in docs.EnumerateArray())
             {
-                if (hits.Count >= 8 || !TryWorkId(doc, "key", out var sourceId))
+                if (!TryWorkId(doc, "key", out var sourceId))
                 {
                     continue;
                 }
@@ -36,21 +36,23 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
                     continue;
                 }
 
+                var subjects = Names(doc, "subject").ToList();
                 var author = Join(doc, "author_name", 180);
-                var subjects = Names(doc, "subject").Take(3);
-                var overview = string.Join(" · ", new[] { author, string.Join(", ", subjects) }.Where(part => !string.IsNullOrWhiteSpace(part)));
-                hits.Add(new
-                {
-                    sourceId,
-                    title,
-                    year = Year(doc, "first_publish_year"),
-                    overview = string.IsNullOrWhiteSpace(overview) ? null : overview,
-                    coverUrl = CoverUrl(doc, "cover_i")
-                });
+                var overview = string.Join(" · ", new[] { author, string.Join(", ", subjects.Take(3)) }.Where(part => !string.IsNullOrWhiteSpace(part)));
+                hits.Add((
+                    subjects.Any(subject => HorrorSubjectPattern().IsMatch(subject)) ? 0 : 1,
+                    new
+                    {
+                        sourceId,
+                        title,
+                        year = Year(doc, "first_publish_year"),
+                        overview = string.IsNullOrWhiteSpace(overview) ? null : overview,
+                        coverUrl = CoverUrl(doc, "cover_i")
+                    }));
             }
         }
 
-        return new { results = hits };
+        return new { results = hits.OrderBy(hit => hit.Rank).Take(8).Select(hit => hit.Hit) };
     }
 
     public async Task<object> ImportAsync(string? sourceId, CancellationToken cancellationToken)
@@ -450,4 +452,7 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
 
     [GeneratedRegex(@"^OL\d+W$")]
     private static partial Regex WorkIdPattern();
+
+    [GeneratedRegex(@"horror|ghost|haunt|vampire|zombie|werewolf|witch|demon|occult|supernatural|gothic|monster|paranormal|lovecraft", RegexOptions.IgnoreCase)]
+    private static partial Regex HorrorSubjectPattern();
 }

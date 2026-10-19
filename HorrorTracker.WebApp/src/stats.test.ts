@@ -57,6 +57,15 @@ describe("buildHorrorStats", () => {
     expect(stat(stats.yours!, "Oldest you've survived")?.value).toBe("1996");
   });
 
+  it("counts pages in the vault and pages marked read", () => {
+    const book: CatalogEntry = { id: "book:1", mediaId: 1, title: "It", kind: "book", completed: false, pages: 1138 };
+    const unread: CatalogEntry = { id: "book:2", mediaId: 2, title: "Carrie", kind: "book", completed: false, pages: 199 };
+    const stats = buildHorrorStats([book, unread], ["book:1"], true);
+
+    expect(stat(stats.vault, "Pages in the vault")?.value).toBe("1,337");
+    expect(stat(stats.yours!, "Pages read")?.value).toBe("1,138");
+  });
+
   it("handles an empty vault", () => {
     const stats = buildHorrorStats([], [], true);
 

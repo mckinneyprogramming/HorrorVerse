@@ -91,6 +91,16 @@ export function buildHorrorStats(
     });
   }
 
+  const vaultPages = sumPages(entries.filter((entry) => entry.kind === "book"));
+  if (vaultPages > 0) {
+    vault.time.push({
+      value: formatPages(vaultPages),
+      label: "Pages in the vault",
+      hint: "Books with a listed page count.",
+      filter: "book",
+    });
+  }
+
   if (vaultDecade) {
     vault.extras.push({
       value: `${vaultDecade.year}s`,
@@ -133,6 +143,16 @@ export function buildHorrorStats(
     extras: [],
     kinds: personalKindStats(documentaries, shows, finished),
   };
+
+  const readPages = sumPages(entries.filter((entry) => entry.kind === "book" && finished.has(entry.id)));
+  if (readPages > 0) {
+    yours.time.push({
+      value: formatPages(readPages),
+      label: "Pages read",
+      hint: "Finished books with a page count.",
+      filter: "book",
+    });
+  }
 
   if (longestYours) {
     yours.extras.push({
@@ -405,6 +425,14 @@ function isTimed(entry: CatalogEntry): boolean {
 function minutesOf(entry: CatalogEntry): number {
   const minutes = entry.totalTime;
   return typeof minutes === "number" && Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
+}
+
+function sumPages(entries: CatalogEntry[]): number {
+  return entries.reduce((total, entry) => total + (entry.pages && entry.pages > 0 ? entry.pages : 0), 0);
+}
+
+function formatPages(pages: number): string {
+  return pages.toLocaleString("en-US");
 }
 
 function sumMinutes(entries: CatalogEntry[]): number {

@@ -2059,7 +2059,7 @@ function renderWatchNext(): string {
 
 function renderWatchNextFeatured(item: WatchNextItem): string {
   const entry = state.entries.find((catalog) => catalog.id === item.id);
-  const art = posterUrl(item.posterPath ?? entry?.posterPath, "w185");
+  const art = homeArt(entry, item.posterPath);
   const watchable = canWatchKind(item.kind);
   return `
     <article class="watch-next-card">
@@ -2087,7 +2087,7 @@ function renderWatchNextFeatured(item: WatchNextItem): string {
 
 function renderWatchNextPoster(item: WatchNextItem): string {
   const entry = state.entries.find((catalog) => catalog.id === item.id);
-  const art = posterUrl(item.posterPath ?? entry?.posterPath, "w185");
+  const art = homeArt(entry, item.posterPath);
   return `
     <button class="home-recent" type="button" data-action="stat-open" data-filter="${escapeHtml(item.kind)}" data-query="${escapeHtml(item.title)}" aria-label="${escapeHtml(item.title)}">
       ${
@@ -2134,7 +2134,7 @@ function renderHomeRecents(): string {
       <div class="home-recents-strip">
         ${recents
           .map((entry) => {
-            const art = posterUrl(entry.posterPath ?? state.recentPosters[entry.id], "w185");
+            const art = homeArt(entry, state.recentPosters[entry.id]);
             return `
               <button class="home-recent" type="button" data-action="stat-open" data-query="${escapeHtml(entry.title)}" aria-label="${escapeHtml(entry.title)}">
                 ${
@@ -4104,6 +4104,10 @@ function renderBookBlurb(entry: CatalogEntry): string {
 
   const text = entry.description.length > 180 ? `${entry.description.slice(0, 177).trim()}…` : entry.description;
   return `<span class="entry-blurb">${escapeHtml(text)}</span>`;
+}
+
+function homeArt(entry: { posterPath?: string; coverUrl?: string } | undefined, posterPath?: string): string | undefined {
+  return entry?.coverUrl || posterUrl(posterPath ?? entry?.posterPath, "w185");
 }
 
 function renderPoster(path: string | undefined, coverUrl?: string): string {

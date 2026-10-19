@@ -3,6 +3,8 @@ import { asId } from "./tmdb";
 
 const USER_AGENT = "HorrorVerse/1.0 (https://horrorverse.vercel.app)";
 const MAX_RESULTS = 8;
+const SEARCH_POOL = 20;
+const HORROR_SUBJECT = /horror|ghost|haunt|vampire|zombie|werewolf|witch|demon|occult|supernatural|gothic|monster|paranormal|lovecraft/i;
 const MAX_SUBJECTS = 12;
 
 export interface OpenLibraryHit {
@@ -43,33 +45,36 @@ export function openLibraryCoverUrl(coverId: unknown): string | undefined {
 
 export function parseOpenLibrarySearch(payload: unknown): OpenLibraryHit[] {
   const docs = docsOf(payload);
-  const hits: OpenLibraryHit[] = [];
-  for (const doc of docs) {
-    if (hits.length >= MAX_RESULTS) {
-      break;
-    }
-
+  const hits: { horror: boolean; index: number; hit: OpenLibraryHit }[] = [];
+  docs.forEach((doc, index) => {
     const sourceId = parseWorkId(doc.key);
     const title = cleanText(doc.title, 200);
     if (!sourceId || !title) {
-      continue;
+      return;
     }
 
     const author = joinNames(doc.author_name, 180);
-    const subjects = namesOf(doc.subject).slice(0, 3);
-    const overview = [author, subjects.join(", ")].filter(Boolean).join(" · ");
+    const subjects = namesOf(doc.subject);
+    const overview = [author, subjects.slice(0, 3).join(", ")].filter(Boolean).join(" · ");
     const year = yearOf(doc.first_publish_year);
     const coverUrl = openLibraryCoverUrl(doc.cover_i);
     hits.push({
-      sourceId,
-      title,
-      ...(year ? { year } : {}),
-      ...(overview ? { overview } : {}),
-      ...(coverUrl ? { coverUrl } : {}),
+      horror: subjects.some((subject) => HORROR_SUBJECT.test(subject)),
+      index,
+      hit: {
+        sourceId,
+        title,
+        ...(year ? { year } : {}),
+        ...(overview ? { overview } : {}),
+        ...(coverUrl ? { coverUrl } : {}),
+      },
     });
-  }
+  });
 
-  return hits;
+  return hits
+    .sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index)
+    .slice(0, MAX_RESULTS)
+    .map((item) => item.hit);
 }
 
 export function parseOpenLibraryWork(workId: string, work: unknown, searchDoc: unknown): OpenLibraryBook | undefined {
@@ -105,7 +110,7 @@ export function parseOpenLibraryWork(workId: string, work: unknown, searchDoc: u
 
 export async function searchOpenLibrary(query: string): Promise<OpenLibraryHit[]> {
   const payload = await openLibraryJson(
-    `/search.json?q=${encodeURIComponent(query)}&limit=${MAX_RESULTS}&fields=key,title,subtitle,author_name,first_publish_year,cover_i,subject`,
+    `/search.json?q=${encodeURIComponent(query)}&limit=${SEARCH_POOL}&fields=key,title,subtitle,author_name,first_publish_year,cover_i,subject`,
   );
   return parseOpenLibrarySearch(payload);
 }

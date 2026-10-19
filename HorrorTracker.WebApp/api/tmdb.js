@@ -680,6 +680,8 @@ async function refreshSeriesTotals(connectionString, seriesId) {
 // lib/open-library.ts
 var USER_AGENT = "HorrorVerse/1.0 (https://horrorverse.vercel.app)";
 var MAX_RESULTS = 8;
+var SEARCH_POOL = 20;
+var HORROR_SUBJECT = /horror|ghost|haunt|vampire|zombie|werewolf|witch|demon|occult|supernatural|gothic|monster|paranormal|lovecraft/i;
 var MAX_SUBJECTS = 12;
 function parseWorkId(value) {
   const raw = String(value ?? "").trim();
@@ -696,29 +698,30 @@ function openLibraryCoverUrl(coverId) {
 function parseOpenLibrarySearch(payload) {
   const docs = docsOf(payload);
   const hits = [];
-  for (const doc of docs) {
-    if (hits.length >= MAX_RESULTS) {
-      break;
-    }
+  docs.forEach((doc, index) => {
     const sourceId = parseWorkId(doc.key);
     const title = cleanText(doc.title, 200);
     if (!sourceId || !title) {
-      continue;
+      return;
     }
     const author = joinNames(doc.author_name, 180);
-    const subjects = namesOf(doc.subject).slice(0, 3);
-    const overview = [author, subjects.join(", ")].filter(Boolean).join(" \xB7 ");
+    const subjects = namesOf(doc.subject);
+    const overview = [author, subjects.slice(0, 3).join(", ")].filter(Boolean).join(" \xB7 ");
     const year = yearOf(doc.first_publish_year);
     const coverUrl = openLibraryCoverUrl(doc.cover_i);
     hits.push({
-      sourceId,
-      title,
-      ...year ? { year } : {},
-      ...overview ? { overview } : {},
-      ...coverUrl ? { coverUrl } : {}
+      horror: subjects.some((subject) => HORROR_SUBJECT.test(subject)),
+      index,
+      hit: {
+        sourceId,
+        title,
+        ...year ? { year } : {},
+        ...overview ? { overview } : {},
+        ...coverUrl ? { coverUrl } : {}
+      }
     });
-  }
-  return hits;
+  });
+  return hits.sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index).slice(0, MAX_RESULTS).map((item) => item.hit);
 }
 function parseOpenLibraryWork(workId, work, searchDoc) {
   const sourceId = parseWorkId(workId);
@@ -751,7 +754,7 @@ function parseOpenLibraryWork(workId, work, searchDoc) {
 }
 async function searchOpenLibrary(query) {
   const payload = await openLibraryJson(
-    `/search.json?q=${encodeURIComponent(query)}&limit=${MAX_RESULTS}&fields=key,title,subtitle,author_name,first_publish_year,cover_i,subject`
+    `/search.json?q=${encodeURIComponent(query)}&limit=${SEARCH_POOL}&fields=key,title,subtitle,author_name,first_publish_year,cover_i,subject`
   );
   return parseOpenLibrarySearch(payload);
 }
