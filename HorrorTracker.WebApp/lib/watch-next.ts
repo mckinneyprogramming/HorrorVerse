@@ -57,6 +57,14 @@ export async function loadWatchNext(connectionString: string, userId: number): P
   return pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
 }
 
+export async function loadReadNext(connectionString: string, userId: number): Promise<WatchNextItem[]> {
+  const [listed, vault] = await Promise.all([
+    loadListedBooks(connectionString, userId),
+    loadVaultBooks(connectionString, userId),
+  ]);
+  return pickWatchNext({ episodes: [], series: [], listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
+}
+
 async function loadNextEpisodes(connectionString: string, userId: number): Promise<WatchNextItem[]> {
   try {
     const rows = await queryRows(
@@ -185,16 +193,7 @@ async function loadListedUnfinished(connectionString: string, userId: number): P
            SELECT 1 FROM user_media_progress p
            WHERE p.user_id = $1 AND p.media_kind = 'show' AND p.media_id = s.id
          )
-       UNION ALL
-       SELECT 'book', b.id, b.title, NULL, b.releaseyear
-       FROM user_list_item i
-       JOIN user_list l ON l.id = i.list_id
-       JOIN book b ON b.id = i.media_id
-       WHERE l.user_id = $1 AND i.media_kind = 'book'
-         AND NOT EXISTS (
-           SELECT 1 FROM user_media_progress p
-           WHERE p.user_id = $1 AND p.media_kind = 'book' AND p.media_id = b.id
-         )`,
+       `,
       [userId],
     );
     return rows
@@ -238,16 +237,51 @@ async function loadVaultUnfinished(connectionString: string, userId: number): Pr
          ORDER BY id
          LIMIT 20
        )
-       UNION ALL
-       (
-         SELECT 'book', id, title, NULL, releaseyear FROM book b
-         WHERE NOT EXISTS (
+       `,
+      [userId],
+    );
+    return rows
+      .map((row) => toItem(row.kind, row.id, row.title, row.posterpath, "vault", yearDetail(row.releaseyear)))
+      .filter((item): item is WatchNextItem => item !== undefined);
+  } catch {
+    return [];
+  }
+}
+
+async function loadListedBooks(connectionString: string, userId: number): Promise<WatchNextItem[]> {
+  try {
+    const rows = await queryRows(
+      connectionString,
+      `SELECT 'book' AS kind, b.id, b.title, NULL AS posterpath, b.releaseyear
+       FROM user_list_item i
+       JOIN user_list l ON l.id = i.list_id
+       JOIN book b ON b.id = i.media_id
+       WHERE l.user_id = $1 AND i.media_kind = 'book'
+         AND NOT EXISTS (
            SELECT 1 FROM user_media_progress p
            WHERE p.user_id = $1 AND p.media_kind = 'book' AND p.media_id = b.id
-         )
-         ORDER BY id
-         LIMIT 20
-       )`,
+         )`,
+      [userId],
+    );
+    return rows
+      .map((row) => toItem(row.kind, row.id, row.title, row.posterpath, "list", yearDetail(row.releaseyear)))
+      .filter((item): item is WatchNextItem => item !== undefined);
+  } catch {
+    return [];
+  }
+}
+
+async function loadVaultBooks(connectionString: string, userId: number): Promise<WatchNextItem[]> {
+  try {
+    const rows = await queryRows(
+      connectionString,
+      `SELECT 'book' AS kind, id, title, NULL AS posterpath, releaseyear FROM book b
+       WHERE NOT EXISTS (
+         SELECT 1 FROM user_media_progress p
+         WHERE p.user_id = $1 AND p.media_kind = 'book' AND p.media_id = b.id
+       )
+       ORDER BY id
+       LIMIT 20`,
       [userId],
     );
     return rows

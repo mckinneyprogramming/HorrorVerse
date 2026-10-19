@@ -34,6 +34,17 @@ describe("pickWatchNext", () => {
     ).toEqual(["show:1", "movie:9"]);
   });
 
+  it("fills read next from listed books before vault books", () => {
+    expect(
+      pickWatchNext({
+        episodes: [],
+        series: [],
+        listed: [item("book:1", "list", "It")],
+        vault: [item("book:2", "vault", "Carrie")],
+      }).map((pick) => pick.title),
+    ).toEqual(["It", "Carrie"]);
+  });
+
   it("keeps vault order stable for the same seed", () => {
     const vault = [item("movie:1", "vault"), item("movie:2", "vault"), item("movie:3", "vault"), item("movie:4", "vault")];
     const first = pickWatchNext({ episodes: [], series: [], listed: [], vault }, 3, 42).map((pick) => pick.id);

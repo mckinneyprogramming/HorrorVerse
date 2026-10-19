@@ -20,6 +20,7 @@ export interface UserProgress {
   scores: Record<string, number>;
   recentPosters: Record<string, string>;
   watchNext: WatchNextItem[];
+  readNext: WatchNextItem[];
 }
 
 export async function fetchProgress(): Promise<UserProgress> {
@@ -125,15 +126,16 @@ function readProgress(payload: unknown): UserProgress {
     scores: readScores(payload),
     recentPosters: readRecentPosters(payload),
     watchNext: readWatchNext(payload),
+    readNext: readWatchNext(payload, "readNext"),
   };
 }
 
-export function readWatchNext(payload: unknown): WatchNextItem[] {
-  if (typeof payload !== "object" || payload === null || !("watchNext" in payload)) {
+export function readWatchNext(payload: unknown, key: "watchNext" | "readNext" = "watchNext"): WatchNextItem[] {
+  if (typeof payload !== "object" || payload === null || !(key in payload)) {
     return [];
   }
 
-  const value = (payload as { watchNext: unknown }).watchNext;
+  const value = (payload as Record<string, unknown>)[key];
   if (!Array.isArray(value)) {
     return [];
   }
@@ -209,7 +211,7 @@ function readIds(payload: unknown, key: "ids" | "recentIds" | "undatedIds"): str
 }
 
 function emptyProgress(): UserProgress {
-  return { ids: [], recentIds: [], undatedIds: [], watchedYears: {}, scores: {}, recentPosters: {}, watchNext: [] };
+  return { ids: [], recentIds: [], undatedIds: [], watchedYears: {}, scores: {}, recentPosters: {}, watchNext: [], readNext: [] };
 }
 
 async function readError(response: Response, label: string): Promise<string> {

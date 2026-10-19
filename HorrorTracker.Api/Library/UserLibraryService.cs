@@ -93,9 +93,10 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             watchedYears[id] = completedAt.UtcDateTime.Year;
         }
 
-        var recentIds = dated.OrderByDescending(item => item.At).ThenBy(item => item.Id).Take(8).Select(item => item.Id).ToList();
+        var recentIds = dated.OrderByDescending(item => item.At).ThenBy(item => item.Id).Take(48).Select(item => item.Id).ToList();
         var watchNext = LoadWatchNextSafe(userId);
-        var homeIds = recentIds.Concat(watchNext.Select(item => item.Id)).Distinct(StringComparer.Ordinal).ToList();
+        var readNext = LoadReadNextSafe(userId);
+        var homeIds = recentIds.Take(8).Concat(watchNext.Select(item => item.Id)).Concat(readNext.Select(item => item.Id)).Distinct(StringComparer.Ordinal).ToList();
         Dictionary<string, string> homePosters;
         try
         {
@@ -115,6 +116,15 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             scores,
             recentPosters = recentIds.Where(homePosters.ContainsKey).ToDictionary(id => id, id => homePosters[id]),
             watchNext = watchNext.Select(item => (object)new
+            {
+                id = item.Id,
+                title = item.Title,
+                kind = item.Kind,
+                reason = item.Reason,
+                detail = item.Detail,
+                posterPath = item.PosterPath ?? (homePosters.TryGetValue(item.Id, out var path) ? path : null)
+            }).ToList(),
+            readNext = readNext.Select(item => (object)new
             {
                 id = item.Id,
                 title = item.Title,
@@ -159,6 +169,58 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         Add(LoadNextSeriesMovies(userId));
         Add(LoadListedUnfinished(userId));
         Add(ShuffleWatchNext(LoadVaultUnfinished(userId), userId));
+        return picked;
+    }
+
+    private List<WatchNextPick> LoadReadNextSafe(int userId)
+    {
+        try
+        {
+            return LoadReadNext(userId);
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private List<WatchNextPick> LoadReadNext(int userId)
+    {
+        var picked = new List<WatchNextPick>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        void Add(IEnumerable<WatchNextPick> items)
+        {
+            foreach (var item in items)
+            {
+                if (picked.Count >= 6 || !seen.Add(item.Id))
+                {
+                    continue;
+                }
+
+                picked.Add(item);
+            }
+        }
+
+        Add(ReadWatchNextRows(
+            userId,
+            """
+            SELECT 'book' AS kind, b.id, b.title, NULL, b.releaseyear
+            FROM user_list_item i
+            JOIN user_list l ON l.id = i.list_id
+            JOIN book b ON b.id = i.media_id
+            WHERE l.user_id = @userId AND i.media_kind = 'book'
+              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'book' AND p.media_id = b.id)
+            """,
+            "list"));
+        Add(ShuffleWatchNext(ReadWatchNextRows(
+            userId,
+            """
+            SELECT 'book' AS kind, id, title, NULL, releaseyear FROM book b
+            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'book' AND p.media_id = b.id)
+            ORDER BY id
+            LIMIT 20
+            """,
+            "vault"), userId));
         return picked;
     }
 
@@ -289,13 +351,6 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             JOIN show s ON s.id = i.media_id
             WHERE l.user_id = @userId AND i.media_kind = 'show'
               AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
-            UNION ALL
-            SELECT 'book', b.id, b.title, NULL, b.releaseyear
-            FROM user_list_item i
-            JOIN user_list l ON l.id = i.list_id
-            JOIN book b ON b.id = i.media_id
-            WHERE l.user_id = @userId AND i.media_kind = 'book'
-              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'book' AND p.media_id = b.id)
             """,
             "list");
 
@@ -320,13 +375,6 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             (
               SELECT 'show', id, title, posterpath, releaseyear FROM show s
               WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
-              ORDER BY id
-              LIMIT 20
-            )
-            UNION ALL
-            (
-              SELECT 'book', id, title, NULL, releaseyear FROM book b
-              WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'book' AND p.media_id = b.id)
               ORDER BY id
               LIMIT 20
             )

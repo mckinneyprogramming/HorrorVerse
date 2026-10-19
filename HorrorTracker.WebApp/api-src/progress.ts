@@ -4,7 +4,7 @@ export const maxDuration = 30;
 import { LIBRARY_MEDIA_KINDS, parseCatalogId } from "../lib/catalog-id";
 import { parseWatchYear, watchTimestamp, yearFromCompletedAt } from "../lib/watch-year";
 import { postersForCatalogIds } from "../lib/poster";
-import { loadWatchNext, type WatchNextItem } from "../lib/watch-next";
+import { loadReadNext, loadWatchNext, type WatchNextItem } from "../lib/watch-next";
 import { asId } from "../lib/tmdb";
 import {
   ensureUserLibrarySchema,
@@ -225,7 +225,7 @@ async function loadProgress(
     `SELECT media_kind, media_id FROM user_media_progress
      WHERE user_id = $1 AND completed_at IS NOT NULL
      ORDER BY completed_at DESC, media_kind, media_id
-     LIMIT 8`,
+     LIMIT 48`,
     [user.id],
   );
   const watchedYears: Record<string, number> = {};
@@ -244,10 +244,14 @@ async function loadProgress(
   }
 
   const recentIds = recent.map(progressId);
-  const watchNext = await loadWatchNext(connectionString, user.id).catch(() => []);
+  const [watchNext, readNext] = await Promise.all([
+    loadWatchNext(connectionString, user.id).catch(() => []),
+    loadReadNext(connectionString, user.id).catch(() => []),
+  ]);
   const homePosters = await postersForCatalogIds(connectionString, [
-    ...recentIds,
+    ...recentIds.slice(0, 8),
     ...watchNext.map((item) => item.id),
+    ...readNext.map((item) => item.id),
   ]);
   return {
     ids: rows.map(progressId),
@@ -256,11 +260,16 @@ async function loadProgress(
     watchedYears,
     scores,
     recentPosters: Object.fromEntries(recentIds.flatMap((id) => (homePosters[id] ? [[id, homePosters[id]]] : []))),
-    watchNext: watchNext.map((item) => {
-      const posterPath = item.posterPath ?? homePosters[item.id];
-      return posterPath && !item.posterPath ? { ...item, posterPath } : item;
-    }),
+    watchNext: withHomePoster(watchNext, homePosters),
+    readNext: withHomePoster(readNext, homePosters),
   };
+}
+
+function withHomePoster(items: WatchNextItem[], homePosters: Record<string, string>): WatchNextItem[] {
+  return items.map((item) => {
+    const posterPath = item.posterPath ?? homePosters[item.id];
+    return posterPath && !item.posterPath ? { ...item, posterPath } : item;
+  });
 }
 
 function progressId(row: Record<string, unknown>): string {

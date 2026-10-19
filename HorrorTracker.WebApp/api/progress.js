@@ -438,6 +438,13 @@ async function loadWatchNext(connectionString, userId) {
   ]);
   return pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
 }
+async function loadReadNext(connectionString, userId) {
+  const [listed, vault] = await Promise.all([
+    loadListedBooks(connectionString, userId),
+    loadVaultBooks(connectionString, userId)
+  ]);
+  return pickWatchNext({ episodes: [], series: [], listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
+}
 async function loadNextEpisodes(connectionString, userId) {
   try {
     const rows = await queryRows(
@@ -556,16 +563,7 @@ async function loadListedUnfinished(connectionString, userId) {
            SELECT 1 FROM user_media_progress p
            WHERE p.user_id = $1 AND p.media_kind = 'show' AND p.media_id = s.id
          )
-       UNION ALL
-       SELECT 'book', b.id, b.title, NULL, b.releaseyear
-       FROM user_list_item i
-       JOIN user_list l ON l.id = i.list_id
-       JOIN book b ON b.id = i.media_id
-       WHERE l.user_id = $1 AND i.media_kind = 'book'
-         AND NOT EXISTS (
-           SELECT 1 FROM user_media_progress p
-           WHERE p.user_id = $1 AND p.media_kind = 'book' AND p.media_id = b.id
-         )`,
+       `,
       [userId]
     );
     return rows.map((row) => toItem(row.kind, row.id, row.title, row.posterpath, "list", yearDetail(row.releaseyear))).filter((item) => item !== void 0);
@@ -606,16 +604,45 @@ async function loadVaultUnfinished(connectionString, userId) {
          ORDER BY id
          LIMIT 20
        )
-       UNION ALL
-       (
-         SELECT 'book', id, title, NULL, releaseyear FROM book b
-         WHERE NOT EXISTS (
+       `,
+      [userId]
+    );
+    return rows.map((row) => toItem(row.kind, row.id, row.title, row.posterpath, "vault", yearDetail(row.releaseyear))).filter((item) => item !== void 0);
+  } catch {
+    return [];
+  }
+}
+async function loadListedBooks(connectionString, userId) {
+  try {
+    const rows = await queryRows(
+      connectionString,
+      `SELECT 'book' AS kind, b.id, b.title, NULL AS posterpath, b.releaseyear
+       FROM user_list_item i
+       JOIN user_list l ON l.id = i.list_id
+       JOIN book b ON b.id = i.media_id
+       WHERE l.user_id = $1 AND i.media_kind = 'book'
+         AND NOT EXISTS (
            SELECT 1 FROM user_media_progress p
            WHERE p.user_id = $1 AND p.media_kind = 'book' AND p.media_id = b.id
-         )
-         ORDER BY id
-         LIMIT 20
-       )`,
+         )`,
+      [userId]
+    );
+    return rows.map((row) => toItem(row.kind, row.id, row.title, row.posterpath, "list", yearDetail(row.releaseyear))).filter((item) => item !== void 0);
+  } catch {
+    return [];
+  }
+}
+async function loadVaultBooks(connectionString, userId) {
+  try {
+    const rows = await queryRows(
+      connectionString,
+      `SELECT 'book' AS kind, id, title, NULL AS posterpath, releaseyear FROM book b
+       WHERE NOT EXISTS (
+         SELECT 1 FROM user_media_progress p
+         WHERE p.user_id = $1 AND p.media_kind = 'book' AND p.media_id = b.id
+       )
+       ORDER BY id
+       LIMIT 20`,
       [userId]
     );
     return rows.map((row) => toItem(row.kind, row.id, row.title, row.posterpath, "vault", yearDetail(row.releaseyear))).filter((item) => item !== void 0);
@@ -834,7 +861,7 @@ async function loadProgress(connectionString, user) {
     `SELECT media_kind, media_id FROM user_media_progress
      WHERE user_id = $1 AND completed_at IS NOT NULL
      ORDER BY completed_at DESC, media_kind, media_id
-     LIMIT 8`,
+     LIMIT 48`,
     [user.id]
   );
   const watchedYears = {};
@@ -851,10 +878,14 @@ async function loadProgress(connectionString, user) {
     }
   }
   const recentIds = recent.map(progressId);
-  const watchNext = await loadWatchNext(connectionString, user.id).catch(() => []);
+  const [watchNext, readNext] = await Promise.all([
+    loadWatchNext(connectionString, user.id).catch(() => []),
+    loadReadNext(connectionString, user.id).catch(() => [])
+  ]);
   const homePosters = await postersForCatalogIds(connectionString, [
-    ...recentIds,
-    ...watchNext.map((item) => item.id)
+    ...recentIds.slice(0, 8),
+    ...watchNext.map((item) => item.id),
+    ...readNext.map((item) => item.id)
   ]);
   return {
     ids: rows.map(progressId),
@@ -863,11 +894,15 @@ async function loadProgress(connectionString, user) {
     watchedYears,
     scores,
     recentPosters: Object.fromEntries(recentIds.flatMap((id) => homePosters[id] ? [[id, homePosters[id]]] : [])),
-    watchNext: watchNext.map((item) => {
-      const posterPath = item.posterPath ?? homePosters[item.id];
-      return posterPath && !item.posterPath ? { ...item, posterPath } : item;
-    })
+    watchNext: withHomePoster(watchNext, homePosters),
+    readNext: withHomePoster(readNext, homePosters)
   };
+}
+function withHomePoster(items, homePosters) {
+  return items.map((item) => {
+    const posterPath = item.posterPath ?? homePosters[item.id];
+    return posterPath && !item.posterPath ? { ...item, posterPath } : item;
+  });
 }
 function progressId(row) {
   return `${String(row.media_kind)}:${Number(row.media_id)}`;

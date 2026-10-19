@@ -223,6 +223,10 @@ h1 {
   font-size: 1.05rem;
 }
 
+.recent-filters {
+  margin: 0 0 12px;
+}
+
 .home-recents-strip {
   display: flex;
   gap: 10px;

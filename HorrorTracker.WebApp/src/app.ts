@@ -114,6 +114,8 @@ interface AppState {
   watchedYears: Record<string, number>;
   scores: Record<string, number>;
   watchNext: WatchNextItem[];
+  readNext: WatchNextItem[];
+  recentKind: "all" | MediaKind;
   whenPicker: CatalogEntry | null;
   whenEpisode: { showId: number; episode: ShowEpisode } | null;
   shareBusy: boolean;
@@ -186,6 +188,8 @@ const state: AppState = {
   watchedYears: {},
   scores: {},
   watchNext: [],
+  readNext: [],
+  recentKind: "all",
   whenPicker: null,
   whenEpisode: null,
   shareBusy: false,
@@ -347,6 +351,13 @@ export function mountApp(root: HTMLElement): void {
       resetLibraryPages();
       render(root);
       root.querySelector<HTMLInputElement>("[data-library-search]")?.focus();
+      return;
+    }
+
+    if (action === "recent-kind") {
+      const kind = target.dataset.kind ?? "all";
+      state.recentKind = kind === "all" || (isMediaKind(kind) && kind !== "series") ? kind : "all";
+      render(root);
       return;
     }
 
@@ -661,6 +672,8 @@ export function mountApp(root: HTMLElement): void {
       state.watchedYears = {};
       state.scores = {};
       state.watchNext = [];
+      state.readNext = [];
+      state.recentKind = "all";
       state.whenPicker = null;
       state.whenEpisode = null;
       state.shareMessage = "";
@@ -1607,6 +1620,8 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.watchedYears = {};
     state.scores = {};
     state.watchNext = [];
+    state.readNext = [];
+    state.recentKind = "all";
     state.whenPicker = null;
     state.whenEpisode = null;
     state.lists = [];
@@ -1631,6 +1646,8 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
       state.watchedYears = {};
       state.scores = {};
       state.watchNext = [];
+      state.readNext = [];
+      state.recentKind = "all";
       state.lists = [];
     }
 
@@ -2001,6 +2018,7 @@ function renderHome(): string {
       </article>
     </section>
     ${renderWatchNext()}
+    ${renderReadNext()}
     ${renderHomeRecents()}
     ${renderAchievements()}
     <section class="kinds">
@@ -2034,19 +2052,27 @@ function renderHome(): string {
 }
 
 function renderWatchNext(): string {
-  if (!state.user || state.watchNext.length < 1) {
+  return renderNextShelf("Watch next", "Continue a started night, or pick something still waiting.", state.watchNext);
+}
+
+function renderReadNext(): string {
+  return renderNextShelf("Read next", "A book still waiting on a list, or one from the vault.", state.readNext);
+}
+
+function renderNextShelf(title: string, hint: string, items: WatchNextItem[]): string {
+  if (!state.user || items.length < 1) {
     return "";
   }
 
-  const [featured, ...more] = state.watchNext;
+  const [featured, ...more] = items;
   if (!featured) {
     return "";
   }
 
   return `
-    <section class="watch-next" aria-label="Watch next">
-      <h2>Watch next</h2>
-      <p>Continue a started night, or pick something still waiting.</p>
+    <section class="watch-next" aria-label="${escapeHtml(title)}">
+      <h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(hint)}</p>
       ${renderWatchNextFeatured(featured)}
       ${
         more.length > 0
@@ -2120,18 +2146,39 @@ function renderHomeRecents(): string {
     return "";
   }
 
-  const recents = state.recentIds
+  const finished = state.recentIds
     .map((id) => state.entries.find((entry) => entry.id === id))
-    .filter((entry): entry is CatalogEntry => entry !== undefined && entry.kind !== "series")
-    .slice(0, 8);
-  if (recents.length < 1) {
+    .filter((entry): entry is CatalogEntry => entry !== undefined && entry.kind !== "series");
+  if (finished.length < 1) {
     return "";
   }
+
+  const recents = finished.filter((entry) => state.recentKind === "all" || entry.kind === state.recentKind).slice(0, 8);
+  const filters = [
+    { id: "all", label: "All" },
+    { id: "movie", label: "Films" },
+    { id: "show", label: "Shows" },
+    { id: "documentary", label: "Docs" },
+    { id: "book", label: "Books" },
+    { id: "podcast", label: "Podcasts" },
+    { id: "game", label: "Games" },
+  ];
 
   return `
     <section class="home-recents" aria-label="Recently survived">
       <h2>Recently survived</h2>
-      <div class="home-recents-strip">
+      <div class="chips recent-filters" role="tablist" aria-label="Recently survived type">
+        ${filters
+          .map(
+            (filter) =>
+              `<button class="chip${state.recentKind === filter.id ? " is-active" : ""}" type="button" data-action="recent-kind" data-kind="${filter.id}">${filter.label}</button>`,
+          )
+          .join("")}
+      </div>
+      ${
+        recents.length < 1
+          ? `<p class="empty">Nothing finished in that type yet.</p>`
+          : `<div class="home-recents-strip">
         ${recents
           .map((entry) => {
             const art = homeArt(entry, state.recentPosters[entry.id]);
@@ -2146,7 +2193,8 @@ function renderHomeRecents(): string {
             `;
           })
           .join("")}
-      </div>
+      </div>`
+      }
     </section>
   `;
 }
@@ -3986,8 +4034,9 @@ function applyProgress(progress: UserProgress): void {
   state.watchedYears = progress.watchedYears;
   state.scores = progress.scores ?? {};
   state.watchNext = progress.watchNext ?? [];
+  state.readNext = progress.readNext ?? [];
   const filledPosters: Record<string, string> = { ...progress.recentPosters };
-  for (const item of state.watchNext) {
+  for (const item of [...state.watchNext, ...state.readNext]) {
     if (item.posterPath && !filledPosters[item.id]) {
       filledPosters[item.id] = item.posterPath;
     }
