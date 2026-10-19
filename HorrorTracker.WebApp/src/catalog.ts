@@ -11,7 +11,14 @@ export const MEDIA_KINDS = [
 export type MediaKind = (typeof MEDIA_KINDS)[number]["id"];
 
 export const WRITABLE_KINDS = MEDIA_KINDS.filter(
-  (kind) => kind.id === "movie" || kind.id === "series" || kind.id === "show" || kind.id === "documentary" || kind.id === "book",
+  (kind) =>
+    kind.id === "movie" ||
+    kind.id === "series" ||
+    kind.id === "show" ||
+    kind.id === "documentary" ||
+    kind.id === "book" ||
+    kind.id === "podcast" ||
+    kind.id === "game",
 );
 
 export interface CatalogEntry {
@@ -200,6 +207,10 @@ function optionalText(value: unknown): string | undefined {
 }
 
 export function movieDetailLine(entry: CatalogEntry): string | undefined {
+  if (entry.kind === "book" || entry.kind === "podcast" || entry.kind === "game") {
+    return entry.releaseYear ? String(entry.releaseYear) : undefined;
+  }
+
   if (entry.kind !== "movie" && entry.kind !== "documentary" && entry.kind !== "show") {
     return undefined;
   }

@@ -171,7 +171,7 @@ async function applyPosterSchema(connectionString) {
 // api-src/catalog.ts
 var runtime = "nodejs";
 var maxDuration = 30;
-var CATALOG_KINDS = ["movie", "series", "documentary", "show", "book"];
+var CATALOG_KINDS = ["movie", "series", "documentary", "show", "book", "podcast", "game"];
 async function GET() {
   try {
     return Response.json(await loadCatalog());
@@ -263,7 +263,9 @@ async function loadCatalog() {
       "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath FROM show",
       "show"
     ),
-    ...await readOptional(connectionString, "SELECT id, title, read AS completed FROM book", "book")
+    ...await readOptional(connectionString, "SELECT id, title, read AS completed, releaseyear FROM book", "book"),
+    ...await readOptional(connectionString, "SELECT id, title, listened AS completed, releaseyear FROM podcast", "podcast"),
+    ...await readOptional(connectionString, "SELECT id, title, played AS completed, releaseyear FROM game", "game")
   ];
   return attachKeywords(connectionString, items);
 }
@@ -417,6 +419,28 @@ async function ensureOptionalTables(connectionString, kind) {
       )`
     );
   }
+  if (kind === "podcast") {
+    await execute(
+      connectionString,
+      `CREATE TABLE IF NOT EXISTS podcast (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        releaseyear INTEGER NOT NULL,
+        listened BOOLEAN NOT NULL
+      )`
+    );
+  }
+  if (kind === "game") {
+    await execute(
+      connectionString,
+      `CREATE TABLE IF NOT EXISTS game (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        releaseyear INTEGER NOT NULL,
+        played BOOLEAN NOT NULL
+      )`
+    );
+  }
 }
 function insertSql(kind) {
   switch (kind) {
@@ -435,6 +459,12 @@ function insertSql(kind) {
     case "book":
       return `INSERT INTO book (title, seriesid, pages, partofseries, releaseyear, read)
               VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, read AS completed`;
+    case "podcast":
+      return `INSERT INTO podcast (title, releaseyear, listened)
+              VALUES ($1, $2, $3) RETURNING id, title, listened AS completed`;
+    case "game":
+      return `INSERT INTO game (title, releaseyear, played)
+              VALUES ($1, $2, $3) RETURNING id, title, played AS completed`;
     default:
       throw new CatalogError("That type cannot be stored yet.", 400);
   }
@@ -485,6 +515,16 @@ function existingIdSql(kind) {
               WHERE lower(title) = lower($1) AND releaseyear = $2
                 AND ($3 = 0 OR id <> $3)
               LIMIT 1`;
+    case "podcast":
+      return `SELECT id FROM podcast
+              WHERE lower(title) = lower($1) AND releaseyear = $2
+                AND ($3 = 0 OR id <> $3)
+              LIMIT 1`;
+    case "game":
+      return `SELECT id FROM game
+              WHERE lower(title) = lower($1) AND releaseyear = $2
+                AND ($3 = 0 OR id <> $3)
+              LIMIT 1`;
     default:
       throw new CatalogError("That type cannot be stored yet.", 400);
   }
@@ -493,7 +533,7 @@ async function currentYear(connectionString, kind, mediaId) {
   if (kind === "series") {
     return 0;
   }
-  const query = kind === "movie" ? "SELECT releaseyear FROM movie WHERE id = $1" : kind === "documentary" ? "SELECT releaseyear FROM documentary WHERE id = $1" : kind === "show" ? "SELECT releaseyear FROM show WHERE id = $1" : kind === "book" ? "SELECT releaseyear FROM book WHERE id = $1" : null;
+  const query = kind === "movie" ? "SELECT releaseyear FROM movie WHERE id = $1" : kind === "documentary" ? "SELECT releaseyear FROM documentary WHERE id = $1" : kind === "show" ? "SELECT releaseyear FROM show WHERE id = $1" : kind === "book" ? "SELECT releaseyear FROM book WHERE id = $1" : kind === "podcast" ? "SELECT releaseyear FROM podcast WHERE id = $1" : kind === "game" ? "SELECT releaseyear FROM game WHERE id = $1" : null;
   if (!query) {
     return 0;
   }
@@ -520,6 +560,9 @@ function insertParams(kind, title, body) {
       return [title, totalTime, Math.max(Number(body.totalEpisodes) || 0, 0), Math.max(Number(body.numberOfSeasons) || 0, 0), completed, year];
     case "book":
       return [title, null, Math.max(Number(body.pages) || 0, 0), false, year, completed];
+    case "podcast":
+    case "game":
+      return [title, year, completed];
     default:
       throw new CatalogError("That type cannot be stored yet.", 400);
   }
@@ -536,6 +579,10 @@ function updateSql(kind) {
       return "UPDATE show SET title = $1, watched = $2 WHERE id = $3 RETURNING id, title, watched AS completed";
     case "book":
       return "UPDATE book SET title = $1, read = $2 WHERE id = $3 RETURNING id, title, read AS completed";
+    case "podcast":
+      return "UPDATE podcast SET title = $1, listened = $2 WHERE id = $3 RETURNING id, title, listened AS completed";
+    case "game":
+      return "UPDATE game SET title = $1, played = $2 WHERE id = $3 RETURNING id, title, played AS completed";
     default:
       throw new CatalogError("That type cannot be stored yet.", 400);
   }
@@ -552,13 +599,17 @@ function deleteSql(kind) {
       return "DELETE FROM show WHERE id = $1";
     case "book":
       return "DELETE FROM book WHERE id = $1";
+    case "podcast":
+      return "DELETE FROM podcast WHERE id = $1";
+    case "game":
+      return "DELETE FROM game WHERE id = $1";
     default:
       throw new CatalogError("That type cannot be stored yet.", 400);
   }
 }
 function normalizeKind(kind) {
   const value = (kind ?? "").trim().toLowerCase();
-  if (value === "movie" || value === "series" || value === "documentary" || value === "show" || value === "book") {
+  if (value === "movie" || value === "series" || value === "documentary" || value === "show" || value === "book" || value === "podcast" || value === "game") {
     return value;
   }
   throw new CatalogError("That type cannot be stored yet.", 400);

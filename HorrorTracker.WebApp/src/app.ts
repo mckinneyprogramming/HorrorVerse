@@ -4056,6 +4056,7 @@ function renderSheet(): string {
           `
       }
       ${tmdbEnabled ? `${renderTmdbSearch(selectedKind)}<p class="tmdb-or">Or enter it yourself</p>` : ""}
+      ${!editing && isManualKind(selectedKind) ? `<p class="fine-print">Type the title. Books, podcasts, and games stay in the vault without a TMDb lookup.</p>` : ""}
       <form data-catalog-form="${state.sheet.mode}">
         <label>
           Title
@@ -4078,7 +4079,7 @@ function renderSheet(): string {
         }
         <label class="sheet-check">
           <input name="completed" type="checkbox" ${entry?.completed ? "checked" : ""} />
-          Watched in catalog
+          ${escapeHtml(catalogFinishedLabel(selectedKind))}
         </label>
         <p class="fine-print">Used by the desktop apps. Your personal finished mark lives on the title in the library.</p>
         <div class="sheet-actions">
@@ -4139,6 +4140,26 @@ function renderTmdbSearch(selectedKind: MediaKind): string {
         : ""
     }
   `;
+}
+
+function isManualKind(kind: MediaKind): boolean {
+  return kind === "book" || kind === "podcast" || kind === "game";
+}
+
+function catalogFinishedLabel(kind: MediaKind): string {
+  if (kind === "book") {
+    return "Read in catalog";
+  }
+
+  if (kind === "podcast") {
+    return "Listened in catalog";
+  }
+
+  if (kind === "game") {
+    return "Played in catalog";
+  }
+
+  return "Watched in catalog";
 }
 
 function usesTmdb(kind: MediaKind): boolean {

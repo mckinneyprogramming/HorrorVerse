@@ -14,6 +14,12 @@ describe("movieDetailLine", () => {
   it("shows the air year for TV reboots with the same title", () => {
     expect(movieDetailLine(twilight2019)).toBe("2019");
   });
+
+  it("shows the year for a typed-in book, podcast, or game", () => {
+    const book: CatalogEntry = { id: "book:1", mediaId: 1, title: "Night Shift", kind: "book", completed: false, releaseYear: 1978 };
+    expect(movieDetailLine(book)).toBe("1978");
+    expect(movieDetailLine({ ...book, kind: "podcast", releaseYear: undefined })).toBeUndefined();
+  });
 });
 
 describe("posterUrl", () => {

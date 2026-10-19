@@ -22,7 +22,9 @@ public sealed class CatalogService(
         items.AddRange(seriesList.Select(MapSeries));
         items.AddRange(Read(() => documentaries.GetAll().Select(MapDocumentary), "documentaries"));
         items.AddRange(ReadShows());
-        items.AddRange(ReadOptionalTable("SELECT Id, Title, Read FROM Book", "book"));
+        items.AddRange(ReadOptionalTable("SELECT Id, Title, Read, ReleaseYear FROM Book", "book"));
+        items.AddRange(ReadOptionalTable("SELECT Id, Title, Listened, ReleaseYear FROM Podcast", "podcast"));
+        items.AddRange(ReadOptionalTable("SELECT Id, Title, Played, ReleaseYear FROM Game", "game"));
         return AttachPosters(AttachKeywords(items));
     }
 
@@ -241,7 +243,15 @@ public sealed class CatalogService(
                 var mediaId = reader.GetInt32(0);
                 var title = reader.GetString(1);
                 var completed = !reader.IsDBNull(2) && reader.GetBoolean(2);
-                items.Add(new CatalogItemDto($"{kind}:{mediaId}", mediaId, title, kind, completed));
+                var year = reader.FieldCount > 3 && !reader.IsDBNull(3) ? reader.GetInt32(3) : 0;
+                items.Add(new CatalogItemDto(
+                    $"{kind}:{mediaId}",
+                    mediaId,
+                    title,
+                    kind,
+                    completed,
+                    null,
+                    year > 0 ? year : null));
             }
 
             return items;
@@ -358,6 +368,18 @@ public sealed class CatalogService(
                   AND (@excludeId = 0 OR Id <> @excludeId)
                 LIMIT 1
                 """,
+            "podcast" => """
+                SELECT Id FROM Podcast
+                WHERE lower(Title) = lower(@title) AND ReleaseYear = @year
+                  AND (@excludeId = 0 OR Id <> @excludeId)
+                LIMIT 1
+                """,
+            "game" => """
+                SELECT Id FROM Game
+                WHERE lower(Title) = lower(@title) AND ReleaseYear = @year
+                  AND (@excludeId = 0 OR Id <> @excludeId)
+                LIMIT 1
+                """,
             _ => throw new InvalidOperationException("That type cannot be stored yet.")
         };
         command.Parameters.AddWithValue("title", title);
@@ -389,6 +411,8 @@ public sealed class CatalogService(
             "documentary" => "SELECT ReleaseYear FROM Documentary WHERE Id = @id",
             "show" => "SELECT ReleaseYear FROM Show WHERE Id = @id",
             "book" => "SELECT ReleaseYear FROM Book WHERE Id = @id",
+            "podcast" => "SELECT ReleaseYear FROM Podcast WHERE Id = @id",
+            "game" => "SELECT ReleaseYear FROM Game WHERE Id = @id",
             _ => throw new InvalidOperationException("That type cannot be stored yet.")
         };
         command.Parameters.AddWithValue("id", mediaId);
@@ -408,15 +432,16 @@ public sealed class CatalogService(
 
     private void EnsureOptionalTables(string kind)
     {
-        if (kind is not "show" and not "book")
+        if (kind is not "show" and not "book" and not "podcast" and not "game")
         {
             return;
         }
 
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = kind == "show"
-            ? """
+        command.CommandText = kind switch
+        {
+            "show" => """
                 CREATE TABLE IF NOT EXISTS Show (
                     Id SERIAL PRIMARY KEY,
                     Title TEXT NOT NULL,
@@ -427,8 +452,22 @@ public sealed class CatalogService(
                 ALTER TABLE Show ADD COLUMN IF NOT EXISTS TmdbId INTEGER;
                 ALTER TABLE Show ADD COLUMN IF NOT EXISTS ReleaseYear INTEGER;
                 ALTER TABLE Show ADD COLUMN IF NOT EXISTS PosterPath TEXT;
-                """
-            : """
+                """,
+            "podcast" => """
+                CREATE TABLE IF NOT EXISTS Podcast (
+                    Id SERIAL PRIMARY KEY,
+                    Title TEXT NOT NULL,
+                    ReleaseYear INTEGER NOT NULL,
+                    Listened BOOLEAN NOT NULL)
+                """,
+            "game" => """
+                CREATE TABLE IF NOT EXISTS Game (
+                    Id SERIAL PRIMARY KEY,
+                    Title TEXT NOT NULL,
+                    ReleaseYear INTEGER NOT NULL,
+                    Played BOOLEAN NOT NULL)
+                """,
+            _ => """
                 CREATE TABLE IF NOT EXISTS Book (
                     Id SERIAL PRIMARY KEY,
                     Title TEXT NOT NULL,
@@ -437,7 +476,8 @@ public sealed class CatalogService(
                     PartOfSeries BOOLEAN NOT NULL,
                     ReleaseYear INTEGER NOT NULL,
                     Read BOOLEAN NOT NULL)
-                """;
+                """
+        };
         command.ExecuteNonQuery();
     }
 
@@ -493,6 +533,10 @@ public sealed class CatalogService(
                 command.Parameters.AddWithValue("partOfSeries", false);
                 command.Parameters.AddWithValue("releaseYear", year);
                 break;
+            case "podcast":
+            case "game":
+                command.Parameters.AddWithValue("releaseYear", year);
+                break;
         }
     }
 
@@ -522,6 +566,16 @@ public sealed class CatalogService(
             INSERT INTO Book (Title, SeriesId, Pages, PartOfSeries, ReleaseYear, Read)
             VALUES (@title, @seriesId, @pages, @partOfSeries, @releaseYear, @completed)
             RETURNING Id, Title, Read
+            """,
+        "podcast" => """
+            INSERT INTO Podcast (Title, ReleaseYear, Listened)
+            VALUES (@title, @releaseYear, @completed)
+            RETURNING Id, Title, Listened
+            """,
+        "game" => """
+            INSERT INTO Game (Title, ReleaseYear, Played)
+            VALUES (@title, @releaseYear, @completed)
+            RETURNING Id, Title, Played
             """,
         _ => throw new InvalidOperationException("That type cannot be stored yet.")
     };
@@ -558,6 +612,18 @@ public sealed class CatalogService(
             WHERE Id = @id
             RETURNING Id, Title, Read
             """,
+        "podcast" => """
+            UPDATE Podcast
+            SET Title = @title, Listened = @completed
+            WHERE Id = @id
+            RETURNING Id, Title, Listened
+            """,
+        "game" => """
+            UPDATE Game
+            SET Title = @title, Played = @completed
+            WHERE Id = @id
+            RETURNING Id, Title, Played
+            """,
         _ => throw new InvalidOperationException("That type cannot be stored yet.")
     };
 
@@ -568,6 +634,8 @@ public sealed class CatalogService(
         "documentary" => "DELETE FROM Documentary WHERE Id = @id",
         "show" => "DELETE FROM Show WHERE Id = @id",
         "book" => "DELETE FROM Book WHERE Id = @id",
+        "podcast" => "DELETE FROM Podcast WHERE Id = @id",
+        "game" => "DELETE FROM Game WHERE Id = @id",
         _ => throw new InvalidOperationException("That type cannot be stored yet.")
     };
 
@@ -585,7 +653,7 @@ public sealed class CatalogService(
     private static string NormalizeKind(string? kind)
     {
         var value = (kind ?? string.Empty).Trim().ToLowerInvariant();
-        return value is "movie" or "series" or "documentary" or "show" or "book"
+        return value is "movie" or "series" or "documentary" or "show" or "book" or "podcast" or "game"
             ? value
             : throw new InvalidOperationException("That type cannot be stored yet.");
     }
