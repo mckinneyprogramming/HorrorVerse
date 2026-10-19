@@ -57,6 +57,7 @@ import {
 } from "./people";
 import { fetchWatch, type WatchOffer } from "./watch";
 import { buildAchievements, type Achievement } from "./achievements";
+import { formatPlace, parsePlace, type AppPlace } from "./history";
 import { buildHorrorStats, type FunStat, type StatGroup } from "./stats";
 import { fetchShowGuide, setEpisodeProgress, setSeasonProgress, setShowProgress, type ShowEpisode, type ShowGuide } from "./shows";
 import { importHorrorVault, syncVault, type HorrorImportKind, type HorrorImportProgress } from "./sync";
@@ -156,6 +157,7 @@ interface AppState {
   horrorImportStop: boolean;
   horrorImportStatus: string;
   badgeId: string | null;
+  profileId: number | null;
 }
 
 const state: AppState = {
@@ -227,18 +229,29 @@ const state: AppState = {
   horrorImportStop: false,
   horrorImportStatus: "",
   badgeId: null,
+  profileId: null,
 };
+
+let suppressHistory = true;
 
 const LIBRARY_PAGE_SIZE = 20;
 let pendingAvatar: string | null | undefined;
 
 export function mountApp(root: HTMLElement): void {
+  applyPlace(parsePlace(window.location.pathname, window.location.search));
+  suppressHistory = true;
   render(root);
+  window.addEventListener("popstate", () => {
+    void restorePlace(root);
+  });
   onInstallAvailabilityChange(() => render(root));
   void refreshCatalog(root);
   void refreshUpcoming(root);
   void (async () => {
     await refreshUser(root);
+    if (state.view === "profile" && state.profileId && state.profilePerson?.id !== state.profileId) {
+      await openPerson(root, state.profileId);
+    }
     if (state.user) {
       await applyVaultRefresh(root);
     }
@@ -1477,6 +1490,7 @@ export function mountApp(root: HTMLElement): void {
     if (search) {
       state.libraryQuery = search.value;
       resetLibraryPages();
+      suppressHistory = true;
       const start = search.selectionStart;
       const end = search.selectionEnd;
       render(root);
@@ -1638,11 +1652,13 @@ async function refreshSocial(): Promise<void> {
 }
 
 async function openPerson(root: HTMLElement, userId: number): Promise<void> {
+  state.profileId = userId;
   state.socialBusy = true;
   state.socialMessage = "";
   render(root);
   try {
     state.profilePerson = await fetchPerson(userId);
+    state.profileId = userId;
     state.view = "profile";
   } catch (error) {
     state.socialMessage = error instanceof Error ? error.message : "Could not open that profile.";
@@ -1868,6 +1884,68 @@ function render(root: HTMLElement): void {
       </nav>
     </div>
   `;
+  commitHistory();
+}
+
+function placeFromState(): AppPlace {
+  return {
+    view: state.view,
+    filter: state.filter,
+    query: state.libraryQuery,
+    tag: state.libraryTag,
+    franchisesOpen: state.view === "library" && !state.franchisesCollapsed,
+    profileId: state.view === "profile" ? state.profileId : null,
+  };
+}
+
+function applyPlace(place: AppPlace): void {
+  state.view = place.view;
+  state.filter = place.filter;
+  state.libraryQuery = place.query;
+  state.libraryTag = place.tag;
+  if (place.view === "library") {
+    state.franchisesCollapsed = !place.franchisesOpen;
+  }
+  state.profileId = place.profileId;
+  if (place.view !== "profile") {
+    state.profilePerson = null;
+  }
+  state.badgeId = null;
+  state.sheet = null;
+  state.listPicker = null;
+  state.franchiseListPicker = null;
+  state.watchSheet = null;
+  state.whenPicker = null;
+  state.whenEpisode = null;
+  closeFranchiseSheets();
+  resetLibraryPages();
+}
+
+function commitHistory(): void {
+  const place = placeFromState();
+  const next = formatPlace(place);
+  const current = `${window.location.pathname}${window.location.search}`;
+  if (next !== current) {
+    if (suppressHistory) {
+      window.history.replaceState(place, "", next);
+    } else {
+      window.history.pushState(place, "", next);
+    }
+  }
+  suppressHistory = false;
+}
+
+async function restorePlace(root: HTMLElement): Promise<void> {
+  const place = parsePlace(window.location.pathname, window.location.search);
+  suppressHistory = true;
+  applyPlace(place);
+  render(root);
+  if (place.view === "account" && state.user) {
+    void refreshSocial();
+  }
+  if (place.view === "profile" && place.profileId && state.profilePerson?.id !== place.profileId) {
+    await openPerson(root, place.profileId);
+  }
 }
 
 function renderUpdateBanner(): string {
