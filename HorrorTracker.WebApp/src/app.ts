@@ -155,6 +155,7 @@ interface AppState {
   horrorImportKind: HorrorImportKind | null;
   horrorImportStop: boolean;
   horrorImportStatus: string;
+  badgeId: string | null;
 }
 
 const state: AppState = {
@@ -225,6 +226,7 @@ const state: AppState = {
   horrorImportKind: null,
   horrorImportStop: false,
   horrorImportStatus: "",
+  badgeId: null,
 };
 
 const LIBRARY_PAGE_SIZE = 20;
@@ -250,6 +252,7 @@ export function mountApp(root: HTMLElement): void {
 
     const action = target.dataset.action;
     if (action === "view") {
+      state.badgeId = null;
       state.view = target.dataset.view as View;
       if (state.view === "account") {
         state.profilePerson = null;
@@ -278,7 +281,21 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
+    if (action === "open-badge") {
+      const achievement = currentAchievements().find((item) => item.id === target.dataset.badge && item.earned);
+      state.badgeId = achievement ? achievement.id : null;
+      render(root);
+      return;
+    }
+
+    if (action === "close-badge") {
+      state.badgeId = null;
+      render(root);
+      return;
+    }
+
     if (action === "stat-open") {
+      state.badgeId = null;
       const filter = target.dataset.filter;
       state.view = "library";
       state.filter = filter === "all" || (filter && isMediaKind(filter)) ? filter : "all";
@@ -643,6 +660,7 @@ export function mountApp(root: HTMLElement): void {
       state.authMessage = "";
       state.horrorImportKind = null;
       state.horrorImportStatus = "";
+      state.badgeId = null;
       render(root);
       return;
     }
@@ -1838,7 +1856,8 @@ function render(root: HTMLElement): void {
       ${state.franchiseAdd !== null && state.user?.isAdmin ? renderFranchiseAddSheet() : ""}
       ${state.watchSheet && state.user ? renderWatchSheet() : ""}
       ${whenSheetOpen() && state.user ? renderWhenSheet() : ""}
-      ${!state.sheet && !state.listPicker && state.franchiseListPicker === null && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && !whenSheetOpen() && canPromptUpdate() ? renderUpdateBanner() : ""}
+      ${state.badgeId ? renderBadgeSheet() : ""}
+      ${!state.sheet && !state.badgeId && !state.listPicker && state.franchiseListPicker === null && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && !whenSheetOpen() && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
         ${dockButton("home", "Home", homeIcon())}
         ${dockButton("library", "Library", libraryIcon())}
@@ -2054,14 +2073,20 @@ function renderHomeRecents(): string {
   `;
 }
 
-function renderAchievements(): string {
-  const achievements = buildAchievements({
+function currentAchievements(): Achievement[] {
+  return buildAchievements({
     entries: state.entries,
     finishedIds: state.user ? state.finishedIds : [],
     franchises: state.franchises,
+    lists: state.user ? state.lists.map((list) => ({ id: list.id, name: list.name })) : [],
     listCount: state.user ? state.lists.length : 0,
+    watchedYears: state.user ? state.watchedYears : {},
     yearCount: state.user ? Object.keys(state.watchedYears).length : 0,
   });
+}
+
+function renderAchievements(): string {
+  const achievements = currentAchievements();
   const earned = achievements.filter((item) => item.earned).length;
   return `
     <section class="achievements" aria-label="Badges">
@@ -2081,23 +2106,63 @@ function renderAchievements(): string {
 }
 
 function renderAchievement(achievement: Achievement): string {
-  const canOpen = Boolean(achievement.filter || achievement.tag || achievement.openFranchises || achievement.openLists);
-  const attrs = achievement.openLists
-    ? `data-action="view" data-view="lists"`
-    : canOpen
-      ? `data-action="stat-open" data-filter="${escapeHtml(achievement.filter ?? "all")}" data-query=""${
-          achievement.openFranchises ? ' data-franchises="1"' : ""
-        }${achievement.tag ? ` data-tag="${escapeHtml(achievement.tag)}"` : ""}`
-      : "";
-  const tag = canOpen ? "button" : "article";
   const progress =
     achievement.earned ? "Earned" : achievement.target > 1 ? `${achievement.current} / ${achievement.target}` : "Locked";
+  if (!achievement.earned) {
+    return `
+      <article class="achievement">
+        <strong>${escapeHtml(achievement.name)}</strong>
+        <span>${escapeHtml(achievement.hint)}</span>
+        <em>${escapeHtml(progress)}</em>
+      </article>
+    `;
+  }
+
   return `
-    <${tag} class="achievement${achievement.earned ? " is-earned" : ""}"${canOpen ? ` type="button" ${attrs}` : ""}>
+    <button class="achievement is-earned" type="button" data-action="open-badge" data-badge="${escapeHtml(achievement.id)}">
       <strong>${escapeHtml(achievement.name)}</strong>
       <span>${escapeHtml(achievement.hint)}</span>
       <em>${escapeHtml(progress)}</em>
-    </${tag}>
+    </button>
+  `;
+}
+
+function renderBadgeSheet(): string {
+  const achievement = currentAchievements().find((item) => item.id === state.badgeId && item.earned);
+  if (!achievement) {
+    return "";
+  }
+
+  const credits =
+    achievement.credits.length > 0
+      ? `<ul class="badge-credits">${achievement.credits.map((credit) => renderBadgeCredit(credit)).join("")}</ul>`
+      : `<p class="empty">Nothing in the vault still matches this badge.</p>`;
+  return `
+    <div class="sheet-backdrop" data-action="close-badge"></div>
+    <div class="sheet badge-sheet">
+      <h2>${escapeHtml(achievement.name)}</h2>
+      <p>${escapeHtml(achievement.hint)}</p>
+      ${credits}
+      <div class="sheet-actions">
+        <button class="ghost-btn" type="button" data-action="close-badge">Close</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderBadgeCredit(credit: Achievement["credits"][number]): string {
+  const attrs = credit.openLists
+    ? `data-action="view" data-view="lists"`
+    : credit.openFranchises
+      ? `data-action="stat-open" data-filter="all" data-query="" data-franchises="1"`
+      : `data-action="stat-open" data-filter="${escapeHtml(credit.filter ?? "all")}" data-query="${escapeHtml(credit.title)}"`;
+  return `
+    <li>
+      <button class="badge-credit" type="button" ${attrs}>
+        <strong>${escapeHtml(credit.title)}</strong>
+        ${credit.detail ? `<em>${escapeHtml(credit.detail)}</em>` : ""}
+      </button>
+    </li>
   `;
 }
 

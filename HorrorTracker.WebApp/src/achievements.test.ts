@@ -57,13 +57,15 @@ const dawn: CatalogEntry = {
   keywords: ["zombie"],
 };
 
-function badge(id: string, finishedIds: string[], extra: Parameters<typeof buildAchievements>[0] = { entries: [], finishedIds: [] }) {
+function badge(id: string, finishedIds: string[], extra: Partial<Parameters<typeof buildAchievements>[0]> = {}) {
   return buildAchievements({
-    entries: extra.entries.length > 0 ? extra.entries : [scream, aliens, alien3, alienSeries, night, dawn],
+    entries: extra.entries && extra.entries.length > 0 ? extra.entries : [scream, aliens, alien3, alienSeries, night, dawn],
     finishedIds,
     franchises: extra.franchises,
     listCount: extra.listCount,
+    lists: extra.lists,
     yearCount: extra.yearCount,
+    watchedYears: extra.watchedYears,
   }).find((item) => item.id === id);
 }
 
@@ -111,5 +113,24 @@ describe("buildAchievements", () => {
     expect(badge("all-nighter", ["movie:9"], { entries: [longNight] })?.earned).toBe(true);
     expect(badge("all-nighter", ["movie:1"])?.earned).toBe(false);
     expect(badge("all-nighter", ["movie:1"])?.current).toBe(1);
+  });
+
+  it("lists the finished titles, series, franchises, lists, and years that earned a badge", () => {
+    expect(badge("first-blood", ["movie:1"])?.credits.map((item) => item.title)).toEqual(["Scream"]);
+    expect(badge("dark-scholar", ["book:1"])?.credits.map((item) => item.detail)).toEqual(["Book"]);
+    const collector = badge("the-collector", ["movie:2", "movie:3"]);
+    expect(collector?.credits.map((item) => item.title)).toEqual(["Alien", "Alien 3", "Aliens"]);
+    const franchises = [{ id: 1, name: "Alien", items: ["series:10", "movie:2", "movie:3"] }];
+    const killer = badge("franchise-killer", ["series:10", "movie:2", "movie:3"], {
+      entries: [aliens, alien3, alienSeries],
+      franchises,
+    });
+    expect(killer?.credits.map((item) => item.title)).toEqual(["Alien", "Alien", "Alien 3", "Aliens"]);
+    expect(badge("the-curator", [], { entries: [scream], lists: [{ id: 4, name: "October" }] })?.credits[0]?.title).toBe(
+      "October",
+    );
+    expect(
+      badge("when-it-happened", [], { entries: [scream], watchedYears: { "movie:1": 1996 } })?.credits[0]?.detail,
+    ).toBe("1996");
   });
 });
