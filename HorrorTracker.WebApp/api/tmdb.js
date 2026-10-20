@@ -803,14 +803,14 @@ async function ensureGameColumns(connectionString) {
       title TEXT NOT NULL,
       releaseyear INTEGER NOT NULL,
       played BOOLEAN NOT NULL
-    );
-    ALTER TABLE game ADD COLUMN IF NOT EXISTS igdbid INTEGER;
-    ALTER TABLE game ADD COLUMN IF NOT EXISTS description TEXT;
-    ALTER TABLE game ADD COLUMN IF NOT EXISTS coverurl TEXT;
-    ALTER TABLE game ADD COLUMN IF NOT EXISTS developer TEXT;
-    ALTER TABLE game ADD COLUMN IF NOT EXISTS publisher TEXT;
-    ALTER TABLE game ADD COLUMN IF NOT EXISTS platforms TEXT;`
+    )`
   );
+  await execute(connectionString, "ALTER TABLE game ADD COLUMN IF NOT EXISTS igdbid INTEGER");
+  await execute(connectionString, "ALTER TABLE game ADD COLUMN IF NOT EXISTS description TEXT");
+  await execute(connectionString, "ALTER TABLE game ADD COLUMN IF NOT EXISTS coverurl TEXT");
+  await execute(connectionString, "ALTER TABLE game ADD COLUMN IF NOT EXISTS developer TEXT");
+  await execute(connectionString, "ALTER TABLE game ADD COLUMN IF NOT EXISTS publisher TEXT");
+  await execute(connectionString, "ALTER TABLE game ADD COLUMN IF NOT EXISTS platforms TEXT");
 }
 async function insertGame(connectionString, game) {
   const rows = await queryRows(
