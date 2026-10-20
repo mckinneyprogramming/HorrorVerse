@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { igdbCoverUrl, parseIgdbGame, parseIgdbId, parseIgdbSearch } from "./igdb";
+import { igdbCoverUrl, normalizeIgdbCoverUrl, parseIgdbGame, parseIgdbId, parseIgdbSearch } from "./igdb";
 
 describe("parseIgdbId", () => {
   it("keeps positive numeric IGDB ids", () => {
     expect(parseIgdbId("1942")).toBe("1942");
     expect(parseIgdbId("0")).toBeUndefined();
     expect(parseIgdbId("OL1W")).toBeUndefined();
+  });
+});
+
+describe("igdbCoverUrl", () => {
+  it("builds the Cloudinary-style IGDB cover path and rewrites legacy URLs", () => {
+    expect(igdbCoverUrl("co1r74")).toBe("https://images.igdb.com/igdb/image/upload/t_cover_big/co1r74.jpg");
+    expect(normalizeIgdbCoverUrl("https://images.igdb.com/igdb/image/t_cover_big/co1r74.jpg")).toBe(
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co1r74.jpg",
+    );
   });
 });
 

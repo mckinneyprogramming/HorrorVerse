@@ -385,7 +385,7 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
         }
 
         var id = image.GetString() ?? string.Empty;
-        return CoverIdPattern().IsMatch(id) ? $"https://images.igdb.com/igdb/image/t_cover_big/{id}.jpg" : null;
+        return CoverIdPattern().IsMatch(id) ? $"https://images.igdb.com/igdb/image/upload/t_cover_big/{id}.jpg" : null;
     }
 
     private static int? Year(JsonElement element)

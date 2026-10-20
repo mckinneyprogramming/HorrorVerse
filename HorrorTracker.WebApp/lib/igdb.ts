@@ -39,7 +39,18 @@ export function igdbCoverUrl(imageId: unknown): string | undefined {
     return undefined;
   }
 
-  return `https://images.igdb.com/igdb/image/t_cover_big/${id}.jpg`;
+  return `https://images.igdb.com/igdb/image/upload/t_cover_big/${id}.jpg`;
+}
+
+/** Accept current IGDB cover URLs and rewrite the pre-/upload/ form stored by an earlier build. */
+export function normalizeIgdbCoverUrl(value: unknown): string | undefined {
+  const url = String(value ?? "").trim();
+  if (/^https:\/\/images\.igdb\.com\/igdb\/image\/upload\/t_cover_big\/[A-Za-z0-9_-]+\.jpg$/.test(url)) {
+    return url;
+  }
+
+  const legacy = /^https:\/\/images\.igdb\.com\/igdb\/image\/t_cover_big\/([A-Za-z0-9_-]+)\.jpg$/.exec(url);
+  return legacy ? igdbCoverUrl(legacy[1]) : undefined;
 }
 
 export function parseIgdbSearch(payload: unknown): IgdbHit[] {

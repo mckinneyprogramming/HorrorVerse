@@ -692,7 +692,7 @@ function igdbCoverUrl(imageId) {
   if (!/^[A-Za-z0-9_-]+$/.test(id) || id.length > 80) {
     return void 0;
   }
-  return `https://images.igdb.com/igdb/image/t_cover_big/${id}.jpg`;
+  return `https://images.igdb.com/igdb/image/upload/t_cover_big/${id}.jpg`;
 }
 function parseIgdbSearch(payload) {
   if (!Array.isArray(payload)) {

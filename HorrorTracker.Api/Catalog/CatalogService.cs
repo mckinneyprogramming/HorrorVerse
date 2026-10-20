@@ -317,10 +317,7 @@ public sealed class CatalogService(
                 var developer = reader.IsDBNull(6) ? null : reader.GetString(6);
                 var publisher = reader.IsDBNull(7) ? null : reader.GetString(7);
                 var platforms = reader.IsDBNull(8) ? null : reader.GetString(8);
-                if (cover is not null && !System.Text.RegularExpressions.Regex.IsMatch(cover, @"^https://images\.igdb\.com/igdb/image/t_cover_big/[A-Za-z0-9_-]+\.jpg$"))
-                {
-                    cover = null;
-                }
+                cover = NormalizeIgdbCover(cover);
 
                 items.Add(new CatalogItemDto(
                     $"game:{mediaId}",
@@ -812,5 +809,24 @@ public sealed class CatalogService(
         }
 
         return value;
+    }
+
+    private static string? NormalizeIgdbCover(string? cover)
+    {
+        if (string.IsNullOrWhiteSpace(cover))
+        {
+            return null;
+        }
+
+        var url = cover.Trim();
+        if (System.Text.RegularExpressions.Regex.IsMatch(url, @"^https://images\.igdb\.com/igdb/image/upload/t_cover_big/[A-Za-z0-9_-]+\.jpg$"))
+        {
+            return url;
+        }
+
+        var legacy = System.Text.RegularExpressions.Regex.Match(url, @"^https://images\.igdb\.com/igdb/image/t_cover_big/([A-Za-z0-9_-]+)\.jpg$");
+        return legacy.Success
+            ? $"https://images.igdb.com/igdb/image/upload/t_cover_big/{legacy.Groups[1].Value}.jpg"
+            : null;
     }
 }

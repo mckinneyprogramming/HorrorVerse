@@ -236,14 +236,16 @@ export function openLibraryCover(value: unknown): string | undefined {
 
 export function allowedCover(value: unknown): string | undefined {
   const url = String(value ?? "").trim();
-  if (
-    /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url) ||
-    /^https:\/\/images\.igdb\.com\/igdb\/image\/t_cover_big\/[A-Za-z0-9_-]+\.jpg$/.test(url)
-  ) {
+  if (/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url)) {
     return url;
   }
 
-  return undefined;
+  if (/^https:\/\/images\.igdb\.com\/igdb\/image\/upload\/t_cover_big\/[A-Za-z0-9_-]+\.jpg$/.test(url)) {
+    return url;
+  }
+
+  const legacy = /^https:\/\/images\.igdb\.com\/igdb\/image\/t_cover_big\/([A-Za-z0-9_-]+)\.jpg$/.exec(url);
+  return legacy ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${legacy[1]}.jpg` : undefined;
 }
 
 export function movieDetailLine(entry: CatalogEntry): string | undefined {

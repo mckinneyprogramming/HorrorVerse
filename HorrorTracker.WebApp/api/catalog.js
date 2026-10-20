@@ -735,10 +735,14 @@ function asFiniteNumber(value) {
 }
 function allowedCover(value) {
   const url = String(value ?? "").trim();
-  if (/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url) || /^https:\/\/images\.igdb\.com\/igdb\/image\/t_cover_big\/[A-Za-z0-9_-]+\.jpg$/.test(url)) {
+  if (/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url)) {
     return url;
   }
-  return void 0;
+  if (/^https:\/\/images\.igdb\.com\/igdb\/image\/upload\/t_cover_big\/[A-Za-z0-9_-]+\.jpg$/.test(url)) {
+    return url;
+  }
+  const legacy = /^https:\/\/images\.igdb\.com\/igdb\/image\/t_cover_big\/([A-Za-z0-9_-]+)\.jpg$/.exec(url);
+  return legacy ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${legacy[1]}.jpg` : void 0;
 }
 function asNonEmptyString(value) {
   if (typeof value !== "string") {

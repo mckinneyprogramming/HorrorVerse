@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { movieDetailLine, posterUrl, type CatalogEntry } from "./catalog";
+import { allowedCover, movieDetailLine, posterUrl, type CatalogEntry } from "./catalog";
 
 const twilight2019: CatalogEntry = {
   id: "show:4",
@@ -33,5 +33,16 @@ describe("movieDetailLine", () => {
 describe("posterUrl", () => {
   it("builds a TMDb thumbnail URL", () => {
     expect(posterUrl("/abc123.jpg", "w185")).toBe("https://image.tmdb.org/t/p/w185/abc123.jpg");
+  });
+});
+
+describe("allowedCover", () => {
+  it("rewrites legacy IGDB cover URLs to include /upload/", () => {
+    expect(allowedCover("https://images.igdb.com/igdb/image/t_cover_big/co1r74.jpg")).toBe(
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co1r74.jpg",
+    );
+    expect(allowedCover("https://images.igdb.com/igdb/image/upload/t_cover_big/co1r74.jpg")).toBe(
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co1r74.jpg",
+    );
   });
 });
