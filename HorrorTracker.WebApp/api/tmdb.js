@@ -677,10 +677,304 @@ async function refreshSeriesTotals(connectionString, seriesId) {
   );
 }
 
-// lib/open-library.ts
-var USER_AGENT = "HorrorVerse/1.0 (https://horrorverse.vercel.app)";
+// lib/igdb.ts
 var MAX_RESULTS = 8;
 var SEARCH_POOL = 20;
+var HORROR_NAME = /horror|survival horror/i;
+var TOKEN_SKEW_MS = 6e4;
+var cachedToken;
+function parseIgdbId(value) {
+  const raw = String(value ?? "").trim();
+  return /^\d+$/.test(raw) && Number(raw) >= 1 ? raw : void 0;
+}
+function igdbCoverUrl(imageId) {
+  const id = String(imageId ?? "").trim();
+  if (!/^[A-Za-z0-9_-]+$/.test(id) || id.length > 80) {
+    return void 0;
+  }
+  return `https://images.igdb.com/igdb/image/t_cover_big/${id}.jpg`;
+}
+function parseIgdbSearch(payload) {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+  const hits = [];
+  payload.forEach((row, index) => {
+    const record = asRecord2(row);
+    const sourceId = parseIgdbId(record?.id);
+    const title = cleanText(record?.name, 200);
+    if (!sourceId || !title) {
+      return;
+    }
+    const genres = namedList(record?.genres);
+    const themes = namedList(record?.themes);
+    const platforms = namedList(record?.platforms).slice(0, 3);
+    const overview = [genres.slice(0, 2).join(", "), platforms.join(", ")].filter(Boolean).join(" \xB7 ");
+    const year = yearFromUnix(record?.first_release_date);
+    const cover = asRecord2(record?.cover);
+    const coverUrl = igdbCoverUrl(cover?.image_id);
+    hits.push({
+      horror: [...genres, ...themes].some((name) => HORROR_NAME.test(name)),
+      index,
+      hit: {
+        sourceId,
+        title,
+        ...year ? { year } : {},
+        ...overview ? { overview } : {},
+        ...coverUrl ? { coverUrl } : {}
+      }
+    });
+  });
+  return hits.sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index).slice(0, MAX_RESULTS).map((item) => item.hit);
+}
+function parseIgdbGame(payload) {
+  const record = Array.isArray(payload) ? asRecord2(payload[0]) : asRecord2(payload);
+  const sourceId = parseIgdbId(record?.id);
+  const title = cleanText(record?.name, 200);
+  if (!sourceId || !title) {
+    return void 0;
+  }
+  const companies = Array.isArray(record?.involved_companies) ? record.involved_companies : [];
+  const developers = [];
+  const publishers = [];
+  for (const company of companies) {
+    const row = asRecord2(company);
+    const name = cleanText(asRecord2(row?.company)?.name, 120);
+    if (!name) {
+      continue;
+    }
+    if (row?.developer) {
+      developers.push(name);
+    }
+    if (row?.publisher) {
+      publishers.push(name);
+    }
+  }
+  const genres = uniqueNames([...namedList(record?.genres), ...namedList(record?.themes)]).slice(0, 12);
+  const platforms = namedList(record?.platforms).slice(0, 8).join(", ");
+  const coverUrl = igdbCoverUrl(asRecord2(record?.cover)?.image_id);
+  const description = cleanText(record?.summary, 4e3);
+  return {
+    sourceId,
+    title,
+    year: yearFromUnix(record?.first_release_date) ?? 0,
+    genres,
+    ...description ? { description } : {},
+    ...coverUrl ? { coverUrl } : {},
+    ...developers[0] ? { developer: developers.slice(0, 3).join(", ").slice(0, 180) } : {},
+    ...publishers[0] ? { publisher: publishers.slice(0, 3).join(", ").slice(0, 180) } : {},
+    ...platforms ? { platforms: platforms.slice(0, 200) } : {}
+  };
+}
+async function searchIgdb(query) {
+  const text = escapeIgdbString(query.trim());
+  const payload = await igdbPost(
+    "games",
+    `search "${text}"; fields name,summary,first_release_date,cover.image_id,genres.name,themes.name,platforms.name; limit ${SEARCH_POOL};`
+  );
+  return parseIgdbSearch(payload);
+}
+async function importIgdbGame(connectionString, sourceId) {
+  const id = parseIgdbId(sourceId);
+  if (!id) {
+    throw new HttpError("Choose an IGDB game to add.", 400);
+  }
+  await ensureGameColumns(connectionString);
+  const payload = await igdbPost(
+    "games",
+    `where id = ${id}; fields name,summary,first_release_date,cover.image_id,genres.name,themes.name,platforms.name,involved_companies.company.name,involved_companies.developer,involved_companies.publisher; limit 1;`
+  );
+  const game = parseIgdbGame(payload);
+  if (!game) {
+    throw new HttpError("IGDB did not return that game.", 502);
+  }
+  const existing = await queryRows(connectionString, "SELECT id FROM game WHERE igdbid = $1 LIMIT 1", [Number(game.sourceId)]);
+  const existingId = asId(existing[0]);
+  const gameId = existingId ?? await insertGame(connectionString, game);
+  await updateGame(connectionString, gameId, game);
+  await saveGameGenres(connectionString, gameId, game.genres);
+  return { added: existingId ? 0 : 1, id: `game:${gameId}` };
+}
+async function ensureGameColumns(connectionString) {
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS game (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      releaseyear INTEGER NOT NULL,
+      played BOOLEAN NOT NULL
+    );
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS igdbid INTEGER;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS description TEXT;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS coverurl TEXT;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS developer TEXT;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS publisher TEXT;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS platforms TEXT;`
+  );
+}
+async function insertGame(connectionString, game) {
+  const rows = await queryRows(
+    connectionString,
+    `INSERT INTO game (title, releaseyear, played, igdbid)
+     VALUES ($1, $2, FALSE, $3)
+     RETURNING id`,
+    [game.title, game.year, Number(game.sourceId)]
+  );
+  const id = asId(rows[0]);
+  if (!id) {
+    throw new HttpError("Could not save that game.", 500);
+  }
+  return id;
+}
+async function updateGame(connectionString, gameId, game) {
+  await execute(
+    connectionString,
+    `UPDATE game
+     SET title = $2,
+         releaseyear = CASE WHEN $3 > 0 THEN $3 ELSE releaseyear END,
+         igdbid = $4,
+         description = $5,
+         coverurl = $6,
+         developer = $7,
+         publisher = $8,
+         platforms = $9
+     WHERE id = $1`,
+    [
+      gameId,
+      game.title,
+      game.year,
+      Number(game.sourceId),
+      game.description ?? null,
+      game.coverUrl ?? null,
+      game.developer ?? null,
+      game.publisher ?? null,
+      game.platforms ?? null
+    ]
+  );
+}
+async function saveGameGenres(connectionString, gameId, genres) {
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS media_keyword (
+      media_kind TEXT NOT NULL,
+      media_id INTEGER NOT NULL,
+      tmdb_keyword_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      PRIMARY KEY (media_kind, media_id, tmdb_keyword_id)
+    )`
+  );
+  await execute(connectionString, "DELETE FROM media_keyword WHERE media_kind = 'game' AND media_id = $1", [gameId]);
+  for (const name of genres) {
+    await execute(
+      connectionString,
+      `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
+       VALUES ('game', $1, $2, $3)
+       ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO UPDATE SET name = EXCLUDED.name`,
+      [gameId, subjectKey(name), name]
+    );
+  }
+}
+async function igdbPost(endpoint, body) {
+  const token = await twitchToken();
+  const clientId = requireIgdbClientId();
+  const response = await fetch(`https://api.igdb.com/v4/${endpoint}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Client-ID": clientId,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "text/plain"
+    },
+    body
+  });
+  if (!response.ok) {
+    throw new HttpError("Could not reach IGDB.", 502);
+  }
+  return response.json().catch(() => {
+    throw new HttpError("Could not reach IGDB.", 502);
+  });
+}
+async function twitchToken() {
+  if (cachedToken && cachedToken.expiresAt > Date.now() + TOKEN_SKEW_MS) {
+    return cachedToken.value;
+  }
+  const clientId = requireIgdbClientId();
+  const clientSecret = process.env.IGDB_CLIENT_SECRET?.trim();
+  if (!clientSecret) {
+    throw new HttpError("IGDB_CLIENT_SECRET is not configured.", 503);
+  }
+  const response = await fetch(
+    `https://id.twitch.tv/oauth2/token?client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}&grant_type=client_credentials`,
+    { method: "POST" }
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.access_token) {
+    throw new HttpError("Could not authenticate with IGDB.", 502);
+  }
+  const expiresIn = typeof payload.expires_in === "number" && payload.expires_in > 0 ? payload.expires_in : 3600;
+  cachedToken = { value: payload.access_token, expiresAt: Date.now() + expiresIn * 1e3 };
+  return payload.access_token;
+}
+function requireIgdbClientId() {
+  const clientId = process.env.IGDB_CLIENT_ID?.trim();
+  if (!clientId) {
+    throw new HttpError("IGDB_CLIENT_ID is not configured.", 503);
+  }
+  return clientId;
+}
+function namedList(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((item) => cleanText(asRecord2(item)?.name, 80)).filter((name) => Boolean(name));
+}
+function uniqueNames(names) {
+  const seen = /* @__PURE__ */ new Set();
+  const result = [];
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(name);
+  }
+  return result;
+}
+function yearFromUnix(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 1) {
+    return void 0;
+  }
+  const year = new Date(seconds * 1e3).getUTCFullYear();
+  return year >= 1 && year <= 3e3 ? year : void 0;
+}
+function cleanText(value, max) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return void 0;
+  }
+  return text.length > max ? text.slice(0, max).trim() : text;
+}
+function escapeIgdbString(value) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+function subjectKey(name) {
+  let hash = 0;
+  for (const character of name.toLowerCase()) {
+    hash = hash * 33 + character.charCodeAt(0) >>> 0;
+  }
+  const key = hash % 2e9;
+  return key === 0 ? 1 : key;
+}
+function asRecord2(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : void 0;
+}
+
+// lib/open-library.ts
+var USER_AGENT = "HorrorVerse/1.0 (https://horrorverse.vercel.app)";
+var MAX_RESULTS2 = 8;
+var SEARCH_POOL2 = 20;
 var HORROR_SUBJECT = /horror|ghost|haunt|vampire|zombie|werewolf|witch|demon|occult|supernatural|gothic|monster|paranormal|lovecraft/i;
 var MAX_SUBJECTS = 12;
 function parseWorkId(value) {
@@ -700,7 +994,7 @@ function parseOpenLibrarySearch(payload) {
   const hits = [];
   docs.forEach((doc, index) => {
     const sourceId = parseWorkId(doc.key);
-    const title = cleanText(doc.title, 200);
+    const title = cleanText2(doc.title, 200);
     if (!sourceId || !title) {
       return;
     }
@@ -721,24 +1015,24 @@ function parseOpenLibrarySearch(payload) {
       }
     });
   });
-  return hits.sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index).slice(0, MAX_RESULTS).map((item) => item.hit);
+  return hits.sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index).slice(0, MAX_RESULTS2).map((item) => item.hit);
 }
 function parseOpenLibraryWork(workId, work, searchDoc) {
   const sourceId = parseWorkId(workId);
-  const record = asRecord2(work);
-  const doc = asRecord2(searchDoc);
-  const title = titled(cleanText(record?.title, 160), cleanText(doc?.title, 160), cleanText(record?.subtitle ?? doc?.subtitle, 80));
+  const record = asRecord3(work);
+  const doc = asRecord3(searchDoc);
+  const title = titled(cleanText2(record?.title, 160), cleanText2(doc?.title, 160), cleanText2(record?.subtitle ?? doc?.subtitle, 80));
   if (!sourceId || !title) {
     return void 0;
   }
   const author = joinNames(doc?.author_name, 180);
   const year = yearOf(doc?.first_publish_year) ?? 0;
   const pages = positiveInt(doc?.number_of_pages_median) ?? 0;
-  const description = cleanText(descriptionOf(record?.description), 4e3);
+  const description = cleanText2(descriptionOf(record?.description), 4e3);
   const isbn = pickIsbn(doc?.isbn);
   const publisher = namesOf(doc?.publisher)[0];
   const coverUrl = openLibraryCoverUrl(doc?.cover_i) ?? openLibraryCoverUrl(firstOf(record?.covers));
-  const subjects = uniqueNames([...namesOf(record?.subjects), ...namesOf(doc?.subject)]).slice(0, MAX_SUBJECTS);
+  const subjects = uniqueNames2([...namesOf(record?.subjects), ...namesOf(doc?.subject)]).slice(0, MAX_SUBJECTS);
   return {
     sourceId,
     title,
@@ -754,7 +1048,7 @@ function parseOpenLibraryWork(workId, work, searchDoc) {
 }
 async function searchOpenLibrary(query) {
   const payload = await openLibraryJson(
-    `/search.json?q=${encodeURIComponent(query)}&limit=${SEARCH_POOL}&fields=key,title,subtitle,author_name,first_publish_year,cover_i,subject`
+    `/search.json?q=${encodeURIComponent(query)}&limit=${SEARCH_POOL2}&fields=key,title,subtitle,author_name,first_publish_year,cover_i,subject`
   );
   return parseOpenLibrarySearch(payload);
 }
@@ -841,7 +1135,7 @@ async function saveBookSubjects(connectionString, bookId, subjects) {
       `INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name)
        VALUES ('book', $1, $2, $3)
        ON CONFLICT (media_kind, media_id, tmdb_keyword_id) DO UPDATE SET name = EXCLUDED.name`,
-      [bookId, subjectKey(subject), subject]
+      [bookId, subjectKey2(subject), subject]
     );
   }
 }
@@ -865,7 +1159,7 @@ async function ensureBookColumns(connectionString) {
   await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS publisher TEXT");
   await execute(connectionString, "ALTER TABLE book ADD COLUMN IF NOT EXISTS coverurl TEXT");
 }
-function subjectKey(name) {
+function subjectKey2(name) {
   let hash = 0;
   for (const char of name.toLowerCase()) {
     hash = hash * 33 + char.charCodeAt(0) >>> 0;
@@ -882,17 +1176,17 @@ async function openLibraryJson(path) {
   return response.json();
 }
 function docsOf(payload) {
-  const record = asRecord2(payload);
-  return Array.isArray(record?.docs) ? record.docs.map(asRecord2).filter((doc) => Boolean(doc)) : [];
+  const record = asRecord3(payload);
+  return Array.isArray(record?.docs) ? record.docs.map(asRecord3).filter((doc) => Boolean(doc)) : [];
 }
-function asRecord2(value) {
+function asRecord3(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : void 0;
 }
 function descriptionOf(value) {
   if (typeof value === "string") {
     return value;
   }
-  const record = asRecord2(value);
+  const record = asRecord3(value);
   return typeof record?.value === "string" ? record.value : "";
 }
 function titled(workTitle, searchTitle, subtitle) {
@@ -917,9 +1211,9 @@ function namesOf(value) {
   if (!Array.isArray(value)) {
     return [];
   }
-  return uniqueNames(value.map((item) => cleanText(item, 80)).filter((item) => Boolean(item)));
+  return uniqueNames2(value.map((item) => cleanText2(item, 80)).filter((item) => Boolean(item)));
 }
-function uniqueNames(names) {
+function uniqueNames2(names) {
   const seen = /* @__PURE__ */ new Set();
   const unique = [];
   for (const name of names) {
@@ -947,7 +1241,7 @@ function positiveInt(value) {
 function firstOf(value) {
   return Array.isArray(value) ? value[0] : void 0;
 }
-function cleanText(value, max) {
+function cleanText2(value, max) {
   const text = String(value ?? "").replace(/\s+/g, " ").trim();
   if (!text) {
     return void 0;
@@ -958,7 +1252,7 @@ function cleanText(value, max) {
 // api-src/tmdb.ts
 var runtime = "nodejs";
 var maxDuration = 60;
-var MAX_RESULTS2 = 8;
+var MAX_RESULTS3 = 8;
 var MAX_COLLECTION_CANDIDATES = 16;
 async function GET(request) {
   try {
@@ -972,10 +1266,16 @@ async function GET(request) {
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
     if (query.length < 2) {
-      throw new TmdbError(kind === "book" ? "Enter at least two characters to search Open Library." : "Enter at least two characters to search TMDb.", 400);
+      throw new TmdbError(
+        kind === "book" ? "Enter at least two characters to search Open Library." : kind === "game" ? "Enter at least two characters to search IGDB." : "Enter at least two characters to search TMDb.",
+        400
+      );
     }
     if (kind === "book") {
       return Response.json({ results: await searchOpenLibrary(query) });
+    }
+    if (kind === "game") {
+      return Response.json({ results: await searchIgdb(query) });
     }
     const results = kind === "series" ? await searchCollections(query) : kind === "show" ? await searchShows(query) : kind === "documentary" ? await searchDocumentaries(query) : await searchMovies(query);
     return Response.json({ results });
@@ -992,6 +1292,9 @@ async function POST(request) {
     if (kind === "book") {
       return Response.json(await importOpenLibraryBook(connectionString, String(body.sourceId ?? "")));
     }
+    if (kind === "game") {
+      return Response.json(await importIgdbGame(connectionString, String(body.sourceId ?? "")));
+    }
     const tmdbId = Number(body.tmdbId);
     if (!Number.isInteger(tmdbId) || tmdbId < 1) {
       throw new TmdbError("Choose a TMDb title to add.", 400);
@@ -1004,7 +1307,7 @@ async function POST(request) {
 }
 async function searchMovies(query) {
   const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) && !isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS2).map((item) => ({
+  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) && !isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS3).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.title ?? "").trim(),
     year: yearFrom(item.release_date),
@@ -1013,7 +1316,7 @@ async function searchMovies(query) {
 }
 async function searchDocumentaries(query) {
   const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS2).map((item) => ({
+  return asResults(payload).filter((item) => isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS3).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.title ?? "").trim(),
     year: yearFrom(item.release_date),
@@ -1024,7 +1327,7 @@ async function searchCollections(query) {
   const payload = await tmdbJson(`/search/collection?query=${encodeURIComponent(query)}`);
   const hits = [];
   for (const item of asResults(payload).slice(0, MAX_COLLECTION_CANDIDATES)) {
-    if (hits.length >= MAX_RESULTS2) {
+    if (hits.length >= MAX_RESULTS3) {
       break;
     }
     const tmdbId = Number(item.id);
@@ -1045,7 +1348,7 @@ async function searchCollections(query) {
 }
 async function searchShows(query) {
   const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) || isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS2).map((item) => ({
+  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) || isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS3).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.name ?? "").trim(),
     year: yearFrom(item.first_air_date),
@@ -1175,10 +1478,10 @@ async function insertShow(connectionString, title, totalTime, episodes, seasons,
 }
 function normalizeTmdbKind(kind) {
   const value = kind.trim().toLowerCase();
-  if (value === "movie" || value === "series" || value === "documentary" || value === "show" || value === "book") {
+  if (value === "movie" || value === "series" || value === "documentary" || value === "show" || value === "book" || value === "game") {
     return value;
   }
-  throw new TmdbError("TMDb can add movies, series, documentaries, and TV shows.", 400);
+  throw new TmdbError("Choose a supported title type to search.", 400);
 }
 var TmdbError = class extends HttpError {
 };

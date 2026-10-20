@@ -5,6 +5,7 @@ void "restore-standalone-tmdb";
 import { upsertShowSeasons } from "../lib/catalog";
 import { parsePosterPath, proxyTmdbPoster, savePoster } from "../lib/poster";
 import { importMovie, importSeries } from "../lib/import-tmdb";
+import { importIgdbGame, searchIgdb } from "../lib/igdb";
 import { importOpenLibraryBook, searchOpenLibrary } from "../lib/open-library";
 import { saveDocumentaryKeywords, saveShowKeywords } from "../lib/keywords";
 import {
@@ -46,11 +47,22 @@ export async function GET(request: Request) {
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
     if (query.length < 2) {
-      throw new TmdbError(kind === "book" ? "Enter at least two characters to search Open Library." : "Enter at least two characters to search TMDb.", 400);
+      throw new TmdbError(
+        kind === "book"
+          ? "Enter at least two characters to search Open Library."
+          : kind === "game"
+            ? "Enter at least two characters to search IGDB."
+            : "Enter at least two characters to search TMDb.",
+        400,
+      );
     }
 
     if (kind === "book") {
       return Response.json({ results: await searchOpenLibrary(query) });
+    }
+
+    if (kind === "game") {
+      return Response.json({ results: await searchIgdb(query) });
     }
 
     const results =
@@ -75,6 +87,10 @@ export async function POST(request: Request) {
     const kind = normalizeTmdbKind(body.kind ?? "movie");
     if (kind === "book") {
       return Response.json(await importOpenLibraryBook(connectionString, String(body.sourceId ?? "")));
+    }
+
+    if (kind === "game") {
+      return Response.json(await importIgdbGame(connectionString, String(body.sourceId ?? "")));
     }
 
     const tmdbId = Number(body.tmdbId);
@@ -321,11 +337,18 @@ async function insertShow(
 
 function normalizeTmdbKind(kind: string): string {
   const value = kind.trim().toLowerCase();
-  if (value === "movie" || value === "series" || value === "documentary" || value === "show" || value === "book") {
+  if (
+    value === "movie" ||
+    value === "series" ||
+    value === "documentary" ||
+    value === "show" ||
+    value === "book" ||
+    value === "game"
+  ) {
     return value;
   }
 
-  throw new TmdbError("TMDb can add movies, series, documentaries, and TV shows.", 400);
+  throw new TmdbError("Choose a supported title type to search.", 400);
 }
 
 class TmdbError extends HttpError {}

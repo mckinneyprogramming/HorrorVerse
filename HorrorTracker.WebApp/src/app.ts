@@ -883,6 +883,15 @@ export function mountApp(root: HTMLElement): void {
         return;
       }
 
+      if (state.sheetKind === "game") {
+        if (!/^\d+$/.test(sourceId)) {
+          return;
+        }
+
+        await saveCatalogChange(root, () => importTmdb("game", sourceId));
+        return;
+      }
+
       if (!Number.isInteger(tmdbId)) {
         return;
       }
@@ -4147,7 +4156,7 @@ function whenSheetOpen(): boolean {
 }
 
 function renderBookBlurb(entry: CatalogEntry): string {
-  if (entry.kind !== "book" || !entry.description) {
+  if ((entry.kind !== "book" && entry.kind !== "game") || !entry.description) {
     return "";
   }
 
@@ -4291,7 +4300,7 @@ function renderSheet(): string {
           `
       }
       ${canLookup(selectedKind) && !editing ? `${renderTmdbSearch(selectedKind)}<p class="tmdb-or">Or enter it yourself</p>` : ""}
-      ${!editing && (selectedKind === "podcast" || selectedKind === "game") ? `<p class="fine-print">Type the title. Podcasts and games stay in the vault without a lookup.</p>` : ""}
+      ${!editing && selectedKind === "podcast" ? `<p class="fine-print">Type the title. Podcasts stay in the vault without a lookup until Podcast Index is connected.</p>` : ""}
       <form data-catalog-form="${state.sheet.mode}">
         <label>
           Title
@@ -4356,11 +4365,11 @@ function renderTmdbSearch(selectedKind: MediaKind): string {
           : ""
       }
       <label>
-        ${selectedKind === "book" ? "Search Open Library" : "Search TMDb"}
+        ${searchLabel(selectedKind)}
         <input name="q" type="search" value="${escapeHtml(state.tmdbQuery)}" maxlength="120" placeholder="${tmdbPlaceholder(selectedKind)}" autocomplete="off" ${state.catalogBusy ? "disabled" : ""} />
       </label>
       <p class="fine-print">${tmdbHint(selectedKind)}</p>
-      <button class="primary-btn tmdb-search-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Working…" : selectedKind === "book" ? "Search Open Library" : "Search TMDb"}</button>
+      <button class="primary-btn tmdb-search-btn" type="submit" ${state.catalogBusy ? "disabled" : ""}>${state.catalogBusy ? "Working…" : searchLabel(selectedKind)}</button>
     </form>
     ${
       state.tmdbResults.length > 0
@@ -4401,7 +4410,19 @@ function catalogFinishedLabel(kind: MediaKind): string {
 }
 
 function canLookup(kind: MediaKind): boolean {
-  return usesTmdb(kind) || kind === "book";
+  return usesTmdb(kind) || kind === "book" || kind === "game";
+}
+
+function searchLabel(kind: MediaKind): string {
+  if (kind === "book") {
+    return "Search Open Library";
+  }
+
+  if (kind === "game") {
+    return "Search IGDB";
+  }
+
+  return "Search TMDb";
 }
 
 function usesTmdb(kind: MediaKind): boolean {
@@ -4576,6 +4597,8 @@ function tmdbPlaceholder(kind: MediaKind): string {
       return "Living with Chucky";
     case "book":
       return "It";
+    case "game":
+      return "Resident Evil";
     default:
       return "Scream";
   }
@@ -4591,6 +4614,8 @@ function tmdbHint(kind: MediaKind): string {
       return "Film documentaries TMDb tags as documentary, such as Living with Chucky. TV documentary miniseries are under TV Shows.";
     case "book":
       return "Author, year, pages, cover, description, and subjects from Open Library.";
+    case "game":
+      return "Developer, year, platforms, cover, description, and genres from IGDB. Horror matches are listed first.";
     default:
       return "Horror, thriller, mystery, sci-fi, and fantasy feature films. Documentaries and TV shows stay on those radios.";
   }

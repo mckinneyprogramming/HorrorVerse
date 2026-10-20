@@ -24,7 +24,7 @@ public sealed class CatalogService(
         items.AddRange(ReadShows());
         items.AddRange(ReadBooks());
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Listened, ReleaseYear FROM Podcast", "podcast"));
-        items.AddRange(ReadOptionalTable("SELECT Id, Title, Played, ReleaseYear FROM Game", "game"));
+        items.AddRange(ReadGames());
         return AttachPosters(AttachKeywords(items));
     }
 
@@ -288,6 +288,73 @@ public sealed class CatalogService(
         }
     }
 
+    private IEnumerable<CatalogItemDto> ReadGames()
+    {
+        EnsureOptionalTables("game");
+        var connectionString = ResolveConnectionString(configuration);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var connection = new NpgsqlConnection(connectionString);
+            connection.Open();
+            using var command = new NpgsqlCommand(
+                "SELECT Id, Title, Played, ReleaseYear, Description, CoverUrl, Developer, Publisher, Platforms FROM Game",
+                connection);
+            using var reader = command.ExecuteReader();
+            var items = new List<CatalogItemDto>();
+            while (reader.Read())
+            {
+                var mediaId = reader.GetInt32(0);
+                var title = reader.GetString(1);
+                var completed = !reader.IsDBNull(2) && reader.GetBoolean(2);
+                var year = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                var description = reader.IsDBNull(4) ? null : reader.GetString(4);
+                var cover = reader.IsDBNull(5) ? null : reader.GetString(5);
+                var developer = reader.IsDBNull(6) ? null : reader.GetString(6);
+                var publisher = reader.IsDBNull(7) ? null : reader.GetString(7);
+                var platforms = reader.IsDBNull(8) ? null : reader.GetString(8);
+                if (cover is not null && !System.Text.RegularExpressions.Regex.IsMatch(cover, @"^https://images\.igdb\.com/igdb/image/t_cover_big/[A-Za-z0-9_-]+\.jpg$"))
+                {
+                    cover = null;
+                }
+
+                items.Add(new CatalogItemDto(
+                    $"game:{mediaId}",
+                    mediaId,
+                    title,
+                    "game",
+                    completed,
+                    null,
+                    year > 0 ? year : null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    string.IsNullOrWhiteSpace(description) ? null : description,
+                    cover,
+                    null,
+                    string.IsNullOrWhiteSpace(publisher) ? null : publisher,
+                    string.IsNullOrWhiteSpace(developer) ? null : developer,
+                    string.IsNullOrWhiteSpace(platforms) ? null : platforms));
+            }
+
+            return items;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Optional catalog table for {Kind} is unavailable.", "game");
+            return [];
+        }
+    }
+
     private IEnumerable<CatalogItemDto> ReadOptionalTable(string sql, string kind)
     {
         var connectionString = ResolveConnectionString(configuration);
@@ -531,7 +598,13 @@ public sealed class CatalogService(
                     Id SERIAL PRIMARY KEY,
                     Title TEXT NOT NULL,
                     ReleaseYear INTEGER NOT NULL,
-                    Played BOOLEAN NOT NULL)
+                    Played BOOLEAN NOT NULL);
+                ALTER TABLE Game ADD COLUMN IF NOT EXISTS IgdbId INTEGER;
+                ALTER TABLE Game ADD COLUMN IF NOT EXISTS Description TEXT;
+                ALTER TABLE Game ADD COLUMN IF NOT EXISTS CoverUrl TEXT;
+                ALTER TABLE Game ADD COLUMN IF NOT EXISTS Developer TEXT;
+                ALTER TABLE Game ADD COLUMN IF NOT EXISTS Publisher TEXT;
+                ALTER TABLE Game ADD COLUMN IF NOT EXISTS Platforms TEXT;
                 """,
             _ => """
                 CREATE TABLE IF NOT EXISTS Book (

@@ -50,19 +50,21 @@ function readHit(value: unknown): TmdbHit | null {
   const sourceId = String(record.sourceId ?? record.SourceId ?? "").trim();
   const title = String(record.title ?? record.Title ?? "").trim();
   const hasTmdbId = Number.isInteger(tmdbId) && tmdbId >= 1;
-  if ((!hasTmdbId && !/^OL\d+W$/.test(sourceId)) || title.length < 1) {
+  if ((!hasTmdbId && !/^OL\d+W$/.test(sourceId) && !/^\d+$/.test(sourceId)) || title.length < 1) {
     return null;
   }
 
   const yearValue = Number(record.year ?? record.Year);
   const overview = String(record.overview ?? record.Overview ?? "").trim();
   const coverUrl = String(record.coverUrl ?? record.CoverUrl ?? "").trim();
+  const allowedCover =
+    coverUrl.startsWith("https://covers.openlibrary.org/") || coverUrl.startsWith("https://images.igdb.com/");
   return {
     ...(hasTmdbId ? { tmdbId } : {}),
     ...(sourceId ? { sourceId } : {}),
     title,
     ...(Number.isInteger(yearValue) && yearValue >= 1 && yearValue <= 3000 ? { year: yearValue } : {}),
     ...(overview ? { overview } : {}),
-    ...(coverUrl.startsWith("https://covers.openlibrary.org/") ? { coverUrl } : {}),
+    ...(allowedCover ? { coverUrl } : {}),
   };
 }

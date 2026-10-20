@@ -3,6 +3,7 @@ export const maxDuration = 30;
 void "restore-standalone-catalog";
 
 import { parseCatalogId } from "../lib/catalog-id";
+import { ensureGameColumns } from "../lib/igdb";
 import { ensureBookColumns } from "../lib/open-library";
 import { ensurePosterSchema, parsePosterPath } from "../lib/poster";
 import {
@@ -33,6 +34,8 @@ interface CatalogItem {
   posterPath?: string;
   pages?: number;
   author?: string;
+  developer?: string;
+  platforms?: string;
   description?: string;
   coverUrl?: string;
   isbn?: string;
@@ -145,7 +148,12 @@ async function loadCatalog(): Promise<CatalogItem[]> {
       "book",
     )),
     ...(await readOptional(connectionString, "SELECT id, title, listened AS completed, releaseyear FROM podcast", "podcast")),
-    ...(await readOptional(connectionString, "SELECT id, title, played AS completed, releaseyear FROM game", "game")),
+    ...(await readOptional(
+      connectionString,
+      `SELECT id, title, played AS completed, releaseyear, description, coverurl, developer, publisher, platforms
+       FROM game`,
+      "game",
+    )),
   ];
   return attachKeywords(connectionString, items);
 }
@@ -341,15 +349,7 @@ async function ensureOptionalTables(connectionString: string, kind: string): Pro
   }
 
   if (kind === "game") {
-    await execute(
-      connectionString,
-      `CREATE TABLE IF NOT EXISTS game (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        releaseyear INTEGER NOT NULL,
-        played BOOLEAN NOT NULL
-      )`,
-    );
+    await ensureGameColumns(connectionString);
   }
 }
 
@@ -634,15 +634,25 @@ function mapRows(rows: Record<string, unknown>[], kind: string): CatalogItem[] {
     const pages = asFiniteNumber(row.pages);
     const author = asNonEmptyString(row.author);
     const description = asNonEmptyString(row.description);
-    const coverUrl = openLibraryCover(row.coverurl ?? row.coverUrl);
+    const coverUrl = allowedCover(row.coverurl ?? row.coverUrl);
     const isbn = asNonEmptyString(row.isbn);
     const publisher = asNonEmptyString(row.publisher);
+    const developer = asNonEmptyString(row.developer);
+    const platforms = asNonEmptyString(row.platforms);
     if (pages !== undefined && pages > 0) {
       item.pages = pages;
     }
 
     if (author) {
       item.author = author;
+    }
+
+    if (developer) {
+      item.developer = developer;
+    }
+
+    if (platforms) {
+      item.platforms = platforms;
     }
 
     if (description) {
@@ -670,13 +680,16 @@ function asFiniteNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function openLibraryCover(value: unknown): string | undefined {
+function allowedCover(value: unknown): string | undefined {
   const url = String(value ?? "").trim();
-  if (!/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url)) {
-    return undefined;
+  if (
+    /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url) ||
+    /^https:\/\/images\.igdb\.com\/igdb\/image\/t_cover_big\/[A-Za-z0-9_-]+\.jpg$/.test(url)
+  ) {
+    return url;
   }
 
-  return url;
+  return undefined;
 }
 
 function asNonEmptyString(value: unknown): string | undefined {

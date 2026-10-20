@@ -19,4 +19,6 @@ public sealed record CatalogItemDto(
     string? Description = null,
     string? CoverUrl = null,
     string? Isbn = null,
-    string? Publisher = null);
+    string? Publisher = null,
+    string? Developer = null,
+    string? Platforms = null);

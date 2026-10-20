@@ -37,6 +37,8 @@ export interface CatalogEntry {
   posterPath?: string;
   pages?: number;
   author?: string;
+  developer?: string;
+  platforms?: string;
   description?: string;
   coverUrl?: string;
   isbn?: string;
@@ -146,8 +148,10 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
   const posterPath = parsePosterPath(entry.posterPath ?? (value as { PosterPath?: unknown }).PosterPath);
   const pages = optionalPositiveNumber(entry.pages ?? (value as { Pages?: unknown }).Pages);
   const author = optionalText(entry.author ?? (value as { Author?: unknown }).Author);
+  const developer = optionalText(entry.developer ?? (value as { Developer?: unknown }).Developer);
+  const platforms = optionalText(entry.platforms ?? (value as { Platforms?: unknown }).Platforms);
   const description = optionalText(entry.description ?? (value as { Description?: unknown }).Description);
-  const coverUrl = openLibraryCover(entry.coverUrl ?? (value as { CoverUrl?: unknown }).CoverUrl);
+  const coverUrl = allowedCover(entry.coverUrl ?? (value as { CoverUrl?: unknown }).CoverUrl);
   const isbn = optionalText(entry.isbn ?? (value as { Isbn?: unknown }).Isbn);
   const publisher = optionalText(entry.publisher ?? (value as { Publisher?: unknown }).Publisher);
 
@@ -167,6 +171,8 @@ function readCatalogEntry(value: unknown): CatalogEntry | null {
     ...(posterPath ? { posterPath } : {}),
     ...(pages !== undefined ? { pages } : {}),
     ...(author ? { author } : {}),
+    ...(developer ? { developer } : {}),
+    ...(platforms ? { platforms } : {}),
     ...(description ? { description } : {}),
     ...(coverUrl ? { coverUrl } : {}),
     ...(isbn ? { isbn } : {}),
@@ -225,8 +231,19 @@ function optionalText(value: unknown): string | undefined {
 }
 
 export function openLibraryCover(value: unknown): string | undefined {
+  return allowedCover(value);
+}
+
+export function allowedCover(value: unknown): string | undefined {
   const url = String(value ?? "").trim();
-  return /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url) ? url : undefined;
+  if (
+    /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url) ||
+    /^https:\/\/images\.igdb\.com\/igdb\/image\/t_cover_big\/[A-Za-z0-9_-]+\.jpg$/.test(url)
+  ) {
+    return url;
+  }
+
+  return undefined;
 }
 
 export function movieDetailLine(entry: CatalogEntry): string | undefined {
@@ -251,7 +268,24 @@ export function movieDetailLine(entry: CatalogEntry): string | undefined {
     return parts.length > 0 ? parts.join(" · ") : undefined;
   }
 
-  if (entry.kind === "podcast" || entry.kind === "game") {
+  if (entry.kind === "game") {
+    const parts: string[] = [];
+    if (entry.developer) {
+      parts.push(entry.developer);
+    }
+
+    if (entry.releaseYear) {
+      parts.push(String(entry.releaseYear));
+    }
+
+    if (entry.platforms) {
+      parts.push(entry.platforms);
+    }
+
+    return parts.length > 0 ? parts.join(" · ") : undefined;
+  }
+
+  if (entry.kind === "podcast") {
     return entry.releaseYear ? String(entry.releaseYear) : undefined;
   }
 

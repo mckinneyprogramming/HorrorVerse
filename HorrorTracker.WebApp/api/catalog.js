@@ -137,6 +137,25 @@ function parseCatalogId(id, allowed = LIBRARY_MEDIA_KINDS, notFound = "That titl
   return { kind, mediaId };
 }
 
+// lib/igdb.ts
+async function ensureGameColumns(connectionString) {
+  await execute(
+    connectionString,
+    `CREATE TABLE IF NOT EXISTS game (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      releaseyear INTEGER NOT NULL,
+      played BOOLEAN NOT NULL
+    );
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS igdbid INTEGER;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS description TEXT;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS coverurl TEXT;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS developer TEXT;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS publisher TEXT;
+    ALTER TABLE game ADD COLUMN IF NOT EXISTS platforms TEXT;`
+  );
+}
+
 // lib/open-library.ts
 async function ensureBookColumns(connectionString) {
   await execute(
@@ -293,7 +312,12 @@ async function loadCatalog() {
       "book"
     ),
     ...await readOptional(connectionString, "SELECT id, title, listened AS completed, releaseyear FROM podcast", "podcast"),
-    ...await readOptional(connectionString, "SELECT id, title, played AS completed, releaseyear FROM game", "game")
+    ...await readOptional(
+      connectionString,
+      `SELECT id, title, played AS completed, releaseyear, description, coverurl, developer, publisher, platforms
+       FROM game`,
+      "game"
+    )
   ];
   return attachKeywords(connectionString, items);
 }
@@ -448,15 +472,7 @@ async function ensureOptionalTables(connectionString, kind) {
     );
   }
   if (kind === "game") {
-    await execute(
-      connectionString,
-      `CREATE TABLE IF NOT EXISTS game (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        releaseyear INTEGER NOT NULL,
-        played BOOLEAN NOT NULL
-      )`
-    );
+    await ensureGameColumns(connectionString);
   }
 }
 function insertSql(kind) {
@@ -681,14 +697,22 @@ function mapRows(rows, kind) {
     const pages = asFiniteNumber(row.pages);
     const author = asNonEmptyString(row.author);
     const description = asNonEmptyString(row.description);
-    const coverUrl = openLibraryCover(row.coverurl ?? row.coverUrl);
+    const coverUrl = allowedCover(row.coverurl ?? row.coverUrl);
     const isbn = asNonEmptyString(row.isbn);
     const publisher = asNonEmptyString(row.publisher);
+    const developer = asNonEmptyString(row.developer);
+    const platforms = asNonEmptyString(row.platforms);
     if (pages !== void 0 && pages > 0) {
       item.pages = pages;
     }
     if (author) {
       item.author = author;
+    }
+    if (developer) {
+      item.developer = developer;
+    }
+    if (platforms) {
+      item.platforms = platforms;
     }
     if (description) {
       item.description = description;
@@ -709,12 +733,12 @@ function asFiniteNumber(value) {
   const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() !== "" ? Number(value) : Number.NaN;
   return Number.isFinite(parsed) ? parsed : void 0;
 }
-function openLibraryCover(value) {
+function allowedCover(value) {
   const url = String(value ?? "").trim();
-  if (!/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url)) {
-    return void 0;
+  if (/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(url) || /^https:\/\/images\.igdb\.com\/igdb\/image\/t_cover_big\/[A-Za-z0-9_-]+\.jpg$/.test(url)) {
+    return url;
   }
-  return url;
+  return void 0;
 }
 function asNonEmptyString(value) {
   if (typeof value !== "string") {
