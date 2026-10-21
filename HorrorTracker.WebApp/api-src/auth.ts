@@ -297,6 +297,11 @@ export async function verifyPassword(password: string, stored: string): Promise<
 }
 
 async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+  // Node aborts the process when this count does not fit in a signed 32-bit integer.
+  if (iterations > 2_000_000) {
+    throw new Error("Password hash iterations are out of range.");
+  }
+
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
     { name: "PBKDF2", hash: "SHA-256", salt, iterations },
