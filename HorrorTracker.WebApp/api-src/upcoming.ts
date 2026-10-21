@@ -28,6 +28,10 @@ interface UpcomingTitle {
 
 let cache: { expires: number; films: UpcomingTitle[]; shows: UpcomingTitle[] } | null = null;
 
+export function upcomingFailure(error: unknown): string {
+  return error instanceof Error ? error.message : "Could not load upcoming titles.";
+}
+
 export async function GET() {
   try {
     const today = isoDate(utcToday());
@@ -37,7 +41,7 @@ export async function GET() {
       shows: schedule.shows.filter((item) => item.releaseDate >= today),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not load upcoming titles.";
+    const message = upcomingFailure(error);
     const status = message.includes("TMDBKey") ? 503 : 502;
     return Response.json({ error: message }, { status });
   }
@@ -173,7 +177,7 @@ async function collectEpisodeShowIds(today: Date): Promise<number[]> {
   return [...ids];
 }
 
-async function collectIds(path: string, maxPages: number, ids: Set<number>, requireHorror: boolean): Promise<void> {
+export async function collectIds(path: string, maxPages: number, ids: Set<number>, requireHorror: boolean): Promise<void> {
   let pages = 1;
   for (let page = 1; page <= pages && page <= maxPages && ids.size < MAX_TV_DETAILS; page += 1) {
     const separator = path.includes("?") ? "&" : "?";
@@ -317,7 +321,7 @@ function parseDate(value: string): Date | undefined {
     return undefined;
   }
 
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  const date = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 

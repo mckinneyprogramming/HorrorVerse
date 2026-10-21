@@ -33,13 +33,12 @@ It’s more than a tracker — it’s an evolving **horror universe** where your
 
 | Layer | Purpose |
 |-------|----------|
-| **Windows Forms UI** | Desktop tracker against the PostgreSQL catalog. |
 | **Web App (PWA)** | TypeScript app in `HorrorTracker.WebApp` that installs to a phone home screen. |
 | **Web API** | `HorrorTracker.Api` reads the PostgreSQL catalog for the PWA. |
 | **PostgreSQL Database** | Stores user data, horror entries, achievements, and relationships. |
 | **TMDB API (via TMDbLib)** | Fetches real-time horror content metadata. |
 | **C# & .NET** | Core logic and application framework. |
-| **Serilog + Seq** | Local API and WinForms logging (rolling files, optional Seq). |
+| **Serilog + Seq** | Local API logging (rolling files, optional Seq). |
 | **Vercel Runtime Logs** | Production PWA function errors (`console.error` in `HorrorTracker.WebApp/api`). |
 
 ### 🗃 Database Entities
@@ -57,7 +56,7 @@ It’s more than a tracker — it’s an evolving **horror universe** where your
 
 ## 📱 Web app
 
-The MAUI project is gone. Phone and tablet use is the TypeScript PWA in `HorrorTracker.WebApp`. It reads the catalog through `HorrorTracker.Api`.
+Phone and tablet use is the TypeScript PWA in `HorrorTracker.WebApp`. It reads the catalog through `HorrorTracker.Api`.
 
 ```bash
 # terminal 1
@@ -70,19 +69,19 @@ npm install
 npm run dev
 ```
 
-Set `HorrorVerseDb` to your PostgreSQL connection string (same variable the WinForms app uses). Vite proxies `/api` to `http://localhost:5116`.
+Set `HorrorVerseDb` to your PostgreSQL connection string. Vite proxies `/api` to `http://localhost:5116`.
 
 For a phone home-screen app that reads the live database, host **one HTTPS origin** that serves both the webpage and `/api` (the API project does that in production). See [`HorrorTracker.Api/README.md`](HorrorTracker.Api/README.md). `localhost` on the phone is the phone, not this PC.
 
 ## Logging
 
-Local API and WinForms write rolling files and, when `LoggerUrl` is set, also send events to Seq. Run Seq on this PC if you want the live viewer:
+The local API writes rolling files and, when `LoggerUrl` is set, also sends events to Seq. Run Seq on this PC if you want the live viewer:
 
 ```bash
 docker run --name seq -d --restart unless-stopped -e ACCEPT_EULA=Y -p 5341:80 datalust/seq
 ```
 
-Then set `LoggerUrl` to `http://localhost:5341` (WinForms already has this in App.config). Files still write if Seq is not running. Do not point Vercel functions at Seq.
+Then set `LoggerUrl` to `http://localhost:5341`. Files still write if Seq is not running. Do not point Vercel functions at Seq.
 
 Production PWA errors stay in Vercel. From the repo root (or `HorrorTracker.WebApp`):
 

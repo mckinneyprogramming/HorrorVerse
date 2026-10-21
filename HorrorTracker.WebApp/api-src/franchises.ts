@@ -191,6 +191,7 @@ async function addSeriesMovies(connectionString: string, franchiseId: number, se
     );
   } catch {
     // Movie table or series links may not be available.
+    return;
   }
 }
 
@@ -236,7 +237,7 @@ function normalizeName(name: string | undefined): string {
   return value;
 }
 
-function duplicateNameError(error: unknown): Error {
+export function duplicateNameError(error: unknown): Error {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("franchise_name_idx") || message.includes("duplicate key")) {
     return new FranchiseError("A franchise with that name already exists.", 400);

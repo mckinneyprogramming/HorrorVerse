@@ -133,4 +133,76 @@ describe("buildAchievements", () => {
       badge("when-it-happened", [], { entries: [scream], watchedYears: { "movie:1": 1996 } })?.credits[0]?.detail,
     ).toBe("1996");
   });
+
+  it("covers kind, runtime, franchise, and series edges", () => {
+    const doc: CatalogEntry = { id: "documentary:1", mediaId: 1, title: "Cropsey", kind: "documentary", completed: false, totalTime: 30 };
+    const show: CatalogEntry = { id: "show:1", mediaId: 1, title: "Zone", kind: "show", completed: false, totalTime: 90, keywords: ["vampire"] };
+    const podcast: CatalogEntry = { id: "podcast:1", mediaId: 1, title: "Lore", kind: "podcast", completed: false, keywords: ["vampire"] };
+    const game: CatalogEntry = { id: "game:1", mediaId: 1, title: "Silent Hill", kind: "game", completed: false, keywords: ["zombie"], totalTime: 0 };
+    const short: CatalogEntry = { id: "movie:30", mediaId: 30, title: "Short", kind: "movie", completed: false, totalTime: 30 };
+    const exact: CatalogEntry = { id: "movie:120", mediaId: 120, title: "Exact", kind: "movie", completed: false, totalTime: 120 };
+    const broken: CatalogEntry = { id: "movie:inf", mediaId: 99, title: "Broken", kind: "movie", completed: false, totalTime: Number.POSITIVE_INFINITY };
+    const emptyTime: CatalogEntry = { id: "movie:empty", mediaId: 98, title: "Empty", kind: "movie", completed: false };
+    const lone: CatalogEntry = { id: "series:80", mediaId: 80, title: "Lone", kind: "series", completed: false };
+    const twinA: CatalogEntry = { id: "movie:a", mediaId: 70, title: "Twin", kind: "movie", completed: false, keywords: ["slasher"] };
+    const twinB: CatalogEntry = { id: "movie:b", mediaId: 71, title: "Twin", kind: "movie", completed: false };
+    const entries = [doc, show, podcast, game, short, exact, broken, emptyTime, lone, twinA, twinB, night];
+    const finished = entries.map((entry) => entry.id);
+    const achievements = buildAchievements({
+      entries,
+      finishedIds: finished,
+      franchises: [
+        { id: 1, name: "Solo", items: ["documentary:1"] },
+        { id: 2, name: "Missing", items: ["missing", "documentary:1"] },
+        { id: 3, name: "Pair", items: ["documentary:1", "show:1"] },
+        { id: 4, name: "Open", items: ["documentary:1", "podcast:1", "game:1"] },
+      ],
+      lists: [
+        { id: 2, name: "October" },
+        { id: 1, name: "October" },
+      ],
+      watchedYears: { "documentary:1": 2019, "missing": 0 },
+    });
+
+    expect(achievements.find((item) => item.id === "the-record")?.earned).toBe(true);
+    expect(achievements.find((item) => item.id === "season-finale")?.earned).toBe(true);
+    expect(achievements.find((item) => item.id === "nightwalker")?.credits.map((credit) => credit.detail)).toEqual([
+      "Podcast",
+      "TV show",
+    ]);
+    expect(achievements.find((item) => item.id === "all-nighter")?.credits.map((credit) => credit.detail)).toEqual(
+      expect.arrayContaining(["30 min", "1 hr 30 min", "2 hr"]),
+    );
+    expect(achievements.find((item) => item.id === "franchise-killer")?.credits.map((credit) => credit.title)).toEqual([
+      "Cropsey",
+      "Cropsey",
+      "Lore",
+      "Open",
+      "Pair",
+      "Silent Hill",
+      "Zone",
+    ]);
+    expect(achievements.find((item) => item.id === "the-collector")?.earned).toBe(true);
+    expect(achievements.find((item) => item.id === "first-blood")?.credits.map((credit) => credit.title)).toEqual([
+      "Broken",
+      "Empty",
+      "Exact",
+      "Short",
+      "Twin",
+      "Twin",
+    ]);
+    expect(achievements.find((item) => item.id === "the-curator")?.current).toBe(1);
+    expect(achievements.find((item) => item.id === "when-it-happened")?.earned).toBe(true);
+
+    expect(
+      buildAchievements({ entries: [lone], finishedIds: [], lists: [{ id: 1, name: "Only" }] }).find((item) => item.id === "the-curator")
+        ?.earned,
+    ).toBe(true);
+    expect(buildAchievements({ entries: [scream], finishedIds: [], listCount: -2 }).find((item) => item.id === "the-curator")?.current).toBe(
+      0,
+    );
+    expect(
+      buildAchievements({ entries: [scream], finishedIds: ["series:10"] }).find((item) => item.id === "the-collector")?.earned,
+    ).toBe(false);
+  });
 });

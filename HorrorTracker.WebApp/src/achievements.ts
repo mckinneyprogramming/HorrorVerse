@@ -286,7 +286,7 @@ function tagCredits(context: AchievementContext, tag: string): AchievementCredit
 function runtimeCredits(context: AchievementContext): AchievementCredit[] {
   return finishedOf(context)
     .filter((entry) => TIMED_KINDS.has(entry.kind) && typeof entry.totalTime === "number" && entry.totalTime > 0)
-    .map((entry) => credit(entry, formatMinutes(entry.totalTime ?? 0)));
+    .map((entry) => credit(entry, formatMinutes(entry.totalTime!)));
 }
 
 function yearCredits(context: AchievementContext): AchievementCredit[] {

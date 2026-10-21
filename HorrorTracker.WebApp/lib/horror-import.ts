@@ -85,7 +85,7 @@ async function importFilmBatch(connectionString: string): Promise<HorrorImportPr
     cursor = { fromYear: windows[0].fromYear, page: 1, index: 0, done: false };
   }
 
-  const window = windows.find((item) => item.fromYear === cursor.fromYear) ?? windows[0];
+  const window = windows.find((item) => item.fromYear === cursor.fromYear)!;
   const payload = await tmdbJson(
     `/discover/movie?include_adult=false&include_video=false&language=en-US&page=${cursor.page}` +
       `&sort_by=primary_release_date.asc&with_genres=${HORROR_GENRE}` +
@@ -121,7 +121,7 @@ async function importFilmBatch(connectionString: string): Promise<HorrorImportPr
   const added = stored.added + batchAdded;
   const skipped = stored.skipped + batchSkipped;
   await saveCursor(connectionString, "horror-films", next, added, skipped);
-  const nextWindow = windows.find((item) => item.fromYear === next.fromYear) ?? window;
+  const nextWindow = windows.find((item) => item.fromYear === next.fromYear)!;
   return {
     import: "horror-films",
     done: next.done,

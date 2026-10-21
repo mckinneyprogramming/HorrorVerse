@@ -144,7 +144,7 @@ async function registerUser(
       throw error;
     }
 
-    const message = error instanceof Error ? error.message : "";
+    const message = errorText(error);
     if (/duplicate|unique/i.test(message)) {
       throw new AuthError("An account with that email already exists.", 409);
     }
@@ -171,11 +171,7 @@ async function loginUser(
     throw new AuthError("Invalid email or password.", 401);
   }
 
-  const user = await syncAdmin(connectionString, mapUser(row));
-  if (!user) {
-    throw new AuthError("Invalid email or password.", 401);
-  }
-
+  const user = denyMissingUser(await syncAdmin(connectionString, mapUser(row)));
   return { user, token: await createSession(connectionString, user.id) };
 }
 
@@ -254,13 +250,28 @@ async function ensureSchema(connectionString: string): Promise<void> {
   await execute(connectionString, "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS avatar TEXT");
 }
 
-async function hashPassword(password: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
+export function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : "";
+}
+
+export function denyMissingUser(user: AuthUser | null): AuthUser {
+  if (!user) {
+    throw new AuthError("Invalid email or password.", 401);
+  }
+
+  return user;
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  return hashPasswordWithSalt(password, crypto.getRandomValues(new Uint8Array(16)));
+}
+
+export async function hashPasswordWithSalt(password: string, salt: Uint8Array): Promise<string> {
   const hash = await pbkdf2(password, salt, PBKDF2_ITERATIONS);
   return `pbkdf2$sha256$${PBKDF2_ITERATIONS}$${bufferToBase64(salt)}$${bufferToBase64(hash)}`;
 }
 
-async function verifyPassword(password: string, stored: string): Promise<boolean> {
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const parts = stored.split("$");
   if (parts.length !== 5 || parts[0] !== "pbkdf2" || parts[1] !== "sha256") {
     return false;

@@ -328,10 +328,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
         totals.Parameters.AddWithValue("showId", showId);
         totals.Parameters.AddWithValue("userId", userId);
         using var reader = totals.ExecuteReader();
-        if (!reader.Read())
-        {
-            return;
-        }
+        reader.Read();
 
         var total = Convert.ToInt32(reader.GetInt64(0));
         var missing = Convert.ToInt32(reader.GetInt64(1));
@@ -594,7 +591,7 @@ public sealed class ShowGuideService(IConfiguration configuration)
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT Title FROM Show WHERE Id = @id";
         command.Parameters.AddWithValue("id", showId);
-        return Convert.ToString(command.ExecuteScalar()) ?? string.Empty;
+        return Convert.ToString(command.ExecuteScalar())!;
     }
 
     private int? ReadShowYear(int showId)

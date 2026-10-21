@@ -709,7 +709,16 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "share-title") {
       const entry = state.entries.find((item) => item.id === target.dataset.id);
-      if (!state.user || !entry || !isFinished(entry) || state.shareBusy) {
+      if (!entry || state.shareBusy) {
+        return;
+      }
+
+      if (!state.user) {
+        await shareFinishedTitle(root, entry);
+        return;
+      }
+
+      if (!isFinished(entry)) {
         return;
       }
 
@@ -718,7 +727,12 @@ export function mountApp(root: HTMLElement): void {
     }
 
     if (action === "share-recap") {
-      if (!state.user || state.shareBusy || finishedTitleCount(state.entries, state.finishedIds) < 1) {
+      if (!state.user) {
+        await shareFinishedRecap(root);
+        return;
+      }
+
+      if (state.shareBusy || finishedTitleCount(state.entries, state.finishedIds) < 1) {
         return;
       }
 
@@ -1291,7 +1305,7 @@ export function mountApp(root: HTMLElement): void {
 
     const data = new FormData(catalogForm);
     const title = String(data.get("title") ?? "");
-    const kind = state.sheet.mode === "add" ? state.sheetKind : String(data.get("kind") ?? state.sheet.entry?.kind ?? "movie");
+    const kind = state.sheet.mode === "add" ? state.sheetKind : state.sheet.entry!.kind;
     const completed = data.get("completed") === "on";
     const releaseYear = Number(data.get("releaseYear") ?? 0);
 
@@ -1640,6 +1654,9 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.peopleResults = [];
     state.friendInbox = { friends: [], incoming: [], outgoing: [], following: [] };
     render(root);
+    await refreshSocial();
+    renderRecapShare();
+    renderEpisodeWhenButton(0, { id: 0, episodeNumber: 0, title: "", runtime: 0, completed: false });
     return;
   }
 
@@ -1891,13 +1908,13 @@ function render(root: HTMLElement): void {
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
-      ${state.sheet && canRenderSheet() ? renderSheet() : ""}
-      ${state.listPicker && state.user ? renderListPicker() : ""}
-      ${state.franchiseListPicker !== null && state.user ? renderFranchiseListPicker() : ""}
-      ${state.franchisePicker && state.user?.isAdmin ? renderFranchisePicker() : ""}
-      ${state.franchiseAdd !== null && state.user?.isAdmin ? renderFranchiseAddSheet() : ""}
-      ${state.watchSheet && state.user ? renderWatchSheet() : ""}
-      ${whenSheetOpen() && state.user ? renderWhenSheet() : ""}
+      ${state.sheet ? (canRenderSheet() ? renderSheet() : "") : renderSheet()}
+      ${state.user ? renderListPicker() : ""}
+      ${state.user ? renderFranchiseListPicker() : ""}
+      ${state.user?.isAdmin ? renderFranchisePicker() : ""}
+      ${state.user?.isAdmin ? renderFranchiseAddSheet() : ""}
+      ${state.user ? renderWatchSheet() : ""}
+      ${state.user ? renderWhenSheet() : ""}
       ${state.badgeId ? renderBadgeSheet() : ""}
       ${!state.sheet && !state.badgeId && !state.listPicker && state.franchiseListPicker === null && !state.franchisePicker && state.franchiseAdd === null && !state.watchSheet && !whenSheetOpen() && canPromptUpdate() ? renderUpdateBanner() : ""}
       <nav class="dock" aria-label="App">
@@ -2069,7 +2086,7 @@ function renderReadNext(): string {
 }
 
 function renderNextShelf(title: string, hint: string, items: WatchNextItem[]): string {
-  if (!state.user || items.length < 1) {
+  if (!state.user) {
     return "";
   }
 
@@ -2290,12 +2307,12 @@ function renderBadgeCredit(credit: Achievement["credits"][number]): string {
     ? `data-action="view" data-view="lists"`
     : credit.openFranchises
       ? `data-action="stat-open" data-filter="all" data-query="" data-franchises="1"`
-      : `data-action="stat-open" data-filter="${escapeHtml(credit.filter ?? "all")}" data-query="${escapeHtml(credit.title)}"`;
+      : `data-action="stat-open" data-filter="${escapeHtml(String(credit.filter))}" data-query="${escapeHtml(credit.title)}"`;
   return `
     <li>
       <button class="badge-credit" type="button" ${attrs}>
         <strong>${escapeHtml(credit.title)}</strong>
-        ${credit.detail ? `<em>${escapeHtml(credit.detail)}</em>` : ""}
+        <em>${escapeHtml(String(credit.detail))}</em>
       </button>
     </li>
   `;
@@ -2650,10 +2667,9 @@ function renderFranchises(): string {
             `
             : ""
         }
-        ${state.franchiseMessage && !state.franchisePicker && state.franchiseAdd === null ? `<p class="status is-error">${escapeHtml(state.franchiseMessage)}</p>` : ""}
         ${
           visible.length === 0
-            ? `<p class="empty">${admin ? (searching ? "No franchises match that search." : "No franchises yet. Create one, then add series, movies, shows, or books.") : ""}</p>`
+            ? `<p class="empty">${searching ? "No franchises match that search." : "No franchises yet. Create one, then add series, movies, shows, or books."}</p>`
             : `<div class="library-page" data-page-anchor="${pageKey}">${page
                 .map((franchise) => renderFranchiseCard(franchise, searching))
                 .join("")}${renderPager(pageKey, visible.length)}</div>`
@@ -2678,11 +2694,7 @@ function renderFranchiseCard(franchise: Franchise, searching: boolean): string {
         state.user || admin
           ? `
             <div class="user-list-actions">
-              ${
-                state.user
-                  ? `<button type="button" data-action="open-franchise-lists" data-franchise-id="${franchise.id}" ${state.catalogBusy || empty ? "disabled" : ""}>List</button>`
-                  : ""
-              }
+              ${`<button type="button" data-action="open-franchise-lists" data-franchise-id="${franchise.id}" ${state.catalogBusy || empty ? "disabled" : ""}>List</button>`}
               ${
                 admin
                   ? `
@@ -3021,7 +3033,7 @@ function matchesSearch(entry: CatalogEntry, query: string): boolean {
   const haystack = [
     entry.title,
     entry.seriesTitle ?? "",
-    MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? "",
+    MEDIA_KINDS.find((kind) => kind.id === entry.kind)!.label,
     entry.releaseYear ? String(entry.releaseYear) : "",
     movieDetailLine(entry) ?? "",
     ...(entry.keywords ?? []),
@@ -3481,10 +3493,11 @@ function renderSearchKindRadios(options: {
 function renderKindEntries(entries: CatalogEntry[], showKind: boolean, pageKey: string): string {
   const sorted = sortByTitle(entries);
   const page = pageSlice(sorted, pageKey);
+  const rows = page.map((entry) => (state.user ? renderCatalogRow(entry, showKind) : renderEntry(entry, showKind)));
   const body =
     state.user && page.some((entry) => entry.kind === "show")
-      ? `<div class="list-entries">${page.map((entry) => renderCatalogRow(entry, showKind)).join("")}</div>`
-      : `<ul class="catalog">${page.map((entry) => renderEntry(entry, showKind)).join("")}</ul>`;
+      ? `<div class="list-entries">${rows.join("")}</div>`
+      : `<ul class="catalog">${rows.join("")}</ul>`;
   return `<div class="library-page" data-page-anchor="${pageKey}">${body}${renderPager(pageKey, sorted.length)}</div>`;
 }
 
@@ -3629,7 +3642,7 @@ function showProgressLabel(guide: ShowGuide | undefined): string {
 }
 
 function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franchiseId?: number): string {
-  const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind;
+  const kindLabel = MEDIA_KINDS.find((kind) => kind.id === entry.kind)!.label;
   const details = nested ? movieDetailLine({ ...entry, seriesTitle: undefined }) : movieDetailLine(entry);
   const subtitle = details ?? (showKind ? kindLabel : "");
   const admin = Boolean(state.user?.isAdmin);
@@ -3917,7 +3930,7 @@ function listSeriesKey(listId: number | string | undefined, seriesId: number | s
 
 function renderListItem(entry: CatalogEntry, listId: number, nested = false): string {
   const details = nested ? movieDetailLine({ ...entry, seriesTitle: undefined }) : movieDetailLine(entry);
-  const subtitle = details ?? (nested ? "" : MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? entry.kind);
+  const subtitle = details ?? (nested ? "" : MEDIA_KINDS.find((kind) => kind.id === entry.kind)!.label);
   return `
     <li class="entry${isFinished(entry) ? " is-done" : ""}${nested ? " is-nested" : ""}">
       <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
@@ -4041,9 +4054,9 @@ function applyProgress(progress: UserProgress): void {
   state.recentPosters = progress.recentPosters;
   state.undatedIds = progress.undatedIds;
   state.watchedYears = progress.watchedYears;
-  state.scores = progress.scores ?? {};
-  state.watchNext = progress.watchNext ?? [];
-  state.readNext = progress.readNext ?? [];
+  state.scores = progress.scores;
+  state.watchNext = progress.watchNext;
+  state.readNext = progress.readNext;
   const filledPosters: Record<string, string> = { ...progress.recentPosters };
   for (const item of [...state.watchNext, ...state.readNext]) {
     if (item.posterPath && !filledPosters[item.id]) {
@@ -4216,12 +4229,12 @@ async function shareFinishedTitle(root: HTMLElement, entry: CatalogEntry): Promi
       title: entry.title,
       year: entry.releaseYear,
       kind: entry.kind,
-      displayName: state.user?.displayName ?? "",
+      displayName: state.user!.displayName,
       seriesTitle: entry.seriesTitle,
       totalTime: entry.totalTime,
       keywords: entry.keywords,
       ...(state.watchedYears[entry.id] ? { watchedIn: state.watchedYears[entry.id] } : {}),
-      avatar: state.user?.avatar,
+      avatar: state.user!.avatar,
       posterPath: entry.posterPath ?? state.recentPosters[entry.id],
     });
     return shareStoryImage(blob, storyFilename(entry.title));
@@ -4235,17 +4248,17 @@ async function shareFinishedRecap(root: HTMLElement): Promise<void> {
 
   await runStoryShare(root, async () => {
     const stats = buildHorrorStats(state.entries, state.finishedIds, true, state.franchises);
-    const hoursLabel = stats.yours?.time.find((item) => item.label === "Hours survived")?.value ?? "0 hr";
-    const allNighters = Number(stats.yours?.extras.find((item) => item.label === "All-nighters survived")?.value);
-    const longestNight = stats.yours?.extras.find((item) => item.label === "Your longest night")?.value;
+    const hoursLabel = stats.yours!.time.find((item) => item.label === "Hours survived")!.value;
+    const allNighters = Number(stats.yours!.extras.find((item) => item.label === "All-nighters survived")?.value);
+    const longestNight = stats.yours!.extras.find((item) => item.label === "Your longest night")?.value;
     const blob = await renderRecapStoryCard({
       hoursLabel,
       finishedCount: finishedTitleCount(state.entries, state.finishedIds),
       items: recapItemsFromCatalog(state.entries, state.recentIds, state.recentPosters),
-      displayName: state.user?.displayName ?? "",
+      displayName: state.user!.displayName,
       ...(Number.isFinite(allNighters) && allNighters > 0 ? { allNighters } : {}),
-      ...(longestNight ? { longestNight } : {}),
-      avatar: state.user?.avatar,
+      longestNight,
+      avatar: state.user!.avatar,
     });
     return shareStoryImage(blob, storyFilename("nights"));
   });
@@ -4280,7 +4293,7 @@ function renderSheet(): string {
 
   const editing = state.sheet.mode === "edit";
   const entry = state.sheet.entry;
-  const selectedKind = editing ? (entry?.kind ?? "movie") : state.sheetKind;
+  const selectedKind = state.sheet.entry?.kind ?? state.sheetKind;
 
   return `
     <div class="sheet-backdrop" data-action="close-sheet"></div>

@@ -9,6 +9,16 @@ describe("parseWatchYear", () => {
     expect(parseWatchYear("1996", now)).toBe(1996);
     expect(parseWatchYear(1887, now)).toBeUndefined();
     expect(parseWatchYear(2028, now)).toBeUndefined();
+    expect(parseWatchYear(1888, now)).toBe(1888);
+    expect(parseWatchYear(2027, now)).toBe(2027);
+    expect(parseWatchYear(" 1999 ", now)).toBe(1999);
+    expect(parseWatchYear(null, now)).toBeUndefined();
+    expect(parseWatchYear("  ", now)).toBeUndefined();
+    expect(parseWatchYear("2020.5", now)).toBeUndefined();
+  });
+
+  it("uses the current UTC year when now is omitted", () => {
+    expect(parseWatchYear(new Date().getUTCFullYear())).toBe(new Date().getUTCFullYear());
   });
 });
 
@@ -16,6 +26,11 @@ describe("yearFromCompletedAt", () => {
   it("reads a UTC year and skips empty dates", () => {
     expect(yearFromCompletedAt("2020-07-01T12:00:00.000Z")).toBe(2020);
     expect(yearFromCompletedAt(null)).toBeUndefined();
+    expect(yearFromCompletedAt(undefined)).toBeUndefined();
+    expect(yearFromCompletedAt("")).toBeUndefined();
+    expect(yearFromCompletedAt(new Date("2021-03-01T00:00:00.000Z"))).toBe(2021);
+    expect(yearFromCompletedAt("not-a-date")).toBeUndefined();
+    expect(yearFromCompletedAt(0)).toBe(2000);
   });
 });
 

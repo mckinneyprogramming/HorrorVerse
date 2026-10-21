@@ -117,7 +117,7 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
 
     private static async Task<JsonElement> GetJsonAsync(string path, CancellationToken cancellationToken)
     {
-        using var client = new HttpClient { BaseAddress = new Uri("https://openlibrary.org") };
+        using var client = new HttpClient(OutboundHttp.CreateHandler()) { BaseAddress = new Uri("https://openlibrary.org") };
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UserAgent);
         using var response = await client.GetAsync(path, cancellationToken);
@@ -138,7 +138,7 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
         command.CommandText = "SELECT Id FROM Book WHERE OpenLibraryId = @id LIMIT 1";
         command.Parameters.AddWithValue("id", sourceId);
         var value = command.ExecuteScalar();
-        return value is null or DBNull ? null : Convert.ToInt32(value);
+        return value is null ? null : Convert.ToInt32(value);
     }
 
     private int InsertBook(string title, int pages, int year, string sourceId)
@@ -409,7 +409,7 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
             return null;
         }
 
-        var text = string.Join(' ', (value.GetString() ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        var text = string.Join(' ', value.GetString()!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (text.Length < 1)
         {
             return null;

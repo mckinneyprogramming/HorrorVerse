@@ -5,7 +5,9 @@ namespace HorrorTracker.Api.Catalog;
 
 public sealed class KeywordCatalogService(IConfiguration configuration)
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
+    private static readonly HttpClient Http = new(OutboundHttp.CreateHandler()) { Timeout = TimeSpan.FromSeconds(20) };
+
+    internal static Action<int>? BeforeReplaceSeries;
 
     public void EnsureSchema()
     {
@@ -128,6 +130,7 @@ public sealed class KeywordCatalogService(IConfiguration configuration)
 
     public void ReplaceSeriesFromMovies(int seriesId)
     {
+        BeforeReplaceSeries?.Invoke(seriesId);
         try
         {
             ReplaceSeriesFromMoviesCore(seriesId);

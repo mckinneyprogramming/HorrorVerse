@@ -31,7 +31,7 @@ export function pickWatchNext(source: WatchNextSource, limit = WATCH_NEXT_LIMIT,
   const seen = new Set<string>();
   const add = (items: WatchNextItem[]): void => {
     for (const item of items) {
-      if (picked.length >= limit || seen.has(item.id) || !item.title) {
+      if (!item || picked.length >= limit || seen.has(item.id) || !item.title) {
         continue;
       }
 

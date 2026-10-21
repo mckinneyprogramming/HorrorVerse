@@ -9,7 +9,25 @@ on:
 
 jobs:
   build-and-analyze:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: horror
+          POSTGRES_PASSWORD: horror
+          POSTGRES_DB: HorrorTracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U horror -d HorrorTracker"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      HorrorVerseDb: Host=localhost;Username=horror;Password=horror;Database=HorrorTracker
+      ADMIN_EMAIL: ash@example.com
 
     steps:
       - name: Checkout repository
@@ -39,70 +57,74 @@ jobs:
         id: cache
         uses: actions/cache@v5
         with:
-          path: .\.sonar\scanner
+          path: .sonar/scanner
           key: ${{ runner.os }}-sonar-scanner
 
       - name: Install SonarScanner
         if: steps.cache.outputs.cache-hit != 'true'
-        shell: powershell
         run: |
-          New-Item -Path .\.sonar\scanner -ItemType Directory -Force
-          dotnet tool install dotnet-sonarscanner --tool-path .\.sonar\scanner
+          mkdir -p .sonar/scanner
+          dotnet tool install dotnet-sonarscanner --tool-path .sonar/scanner
+
+      - name: Require the HorrorVerse coverage gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "SONAR_TOKEN is missing. Add a SonarCloud token as the SONAR_TOKEN GitHub Actions secret."
+            exit 1
+          fi
+          gate="HorrorVerse Coverage"
+          auth=(-u "${SONAR_TOKEN}:")
+          code=$(curl -s -o /tmp/gate.json -w "%{http_code}" "${auth[@]}" -X POST \
+            "https://sonarcloud.io/api/qualitygates/create?organization=mckinneyprogramming&name=$(python3 -c 'import urllib.parse; print(urllib.parse.quote("HorrorVerse Coverage"))')")
+          if [ "$code" != "200" ]; then
+            echo "Quality gate create returned $code (it may already exist)."
+            cat /tmp/gate.json || true
+          fi
+          curl -fsS "${auth[@]}" -X POST \
+            --data-urlencode "gateName=${gate}" \
+            --data-urlencode "metric=coverage" \
+            --data-urlencode "op=LT" \
+            --data-urlencode "error=100" \
+            "https://sonarcloud.io/api/qualitygates/create_condition" || true
+          curl -fsS "${auth[@]}" -X POST \
+            --data-urlencode "organization=mckinneyprogramming" \
+            --data-urlencode "gateName=${gate}" \
+            --data-urlencode "projectKey=mckinneyprogramming_HorrorTracker" \
+            "https://sonarcloud.io/api/qualitygates/select"
 
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        shell: powershell
         run: |
-          $ErrorActionPreference = "Stop"
-
-          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
-            Write-Error "SONAR_TOKEN is missing. Add a SonarCloud token as the SONAR_TOKEN GitHub Actions secret (Settings > Secrets and variables > Actions)."
+          set -euo pipefail
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "SONAR_TOKEN is missing. Add a SonarCloud token as the SONAR_TOKEN GitHub Actions secret."
             exit 1
-          }
+          fi
 
-          & .\.sonar\scanner\dotnet-sonarscanner.exe begin `
-            /k:"mckinneyprogramming_HorrorTracker" `
-            /o:"mckinneyprogramming" `
-            /d:sonar.token="$env:SONAR_TOKEN" `
-            /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.scanner.scanAll=true `
-            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,**/coverage/**,**/TestResults/**,HorrorTracker.Api/wwwroot/**,HorrorTracker.WebApp/api/**" `
-            /d:sonar.coverage.exclusions="**/*Tests*/**,**/*.test.ts,**/vitest.config.ts" `
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" `
-            /d:sonar.javascript.lcov.reportPaths="HorrorTracker.WebApp/coverage/lcov.info"
+          .sonar/scanner/dotnet-sonarscanner begin \
+            /k:"mckinneyprogramming_HorrorTracker" \
+            /o:"mckinneyprogramming" \
+            /d:sonar.token="${SONAR_TOKEN}" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.scanner.scanAll=true \
+            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,**/coverage/**,**/TestResults/**,HorrorTracker.Api/wwwroot/**,HorrorTracker.WebApp/api/**" \
+            /d:sonar.coverage.exclusions="**/*Tests*/**,**/*.test.ts,**/*.spec.ts,**/e2e/**,**/playwright.config.ts,**/vitest.config.ts,**/test-helpers/**,**/stryker.config.json" \
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+            /d:sonar.javascript.lcov.reportPaths="HorrorTracker.WebApp/coverage/lcov.info" \
+            /d:sonar.qualitygate.wait=true
 
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Sonar begin command failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          }
-
-          if (!(Test-Path .sonarqube)) {
-            Write-Error "Sonar begin FAILED. .sonarqube folder not created."
-            exit 1
-          }
+          test -d .sonarqube
 
           dotnet test HorrorTracker.sln --collect:"XPlat Code Coverage" --results-directory TestResults --settings coverlet.runsettings
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "dotnet test failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          }
 
-          Push-Location HorrorTracker.WebApp
-          try {
-            npm ci
-            npm run bundle-api -- --check
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Vercel API bundles are stale. Run npm run bundle-api."
-              exit $LASTEXITCODE
-            }
-            npm run test:coverage
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Web unit tests failed with exit code $LASTEXITCODE"
-              exit $LASTEXITCODE
-            }
-          } finally {
-            Pop-Location
-          }
+          cd HorrorTracker.WebApp
+          npm ci
+          npm run bundle-api -- --check
+          npm run test:coverage
+          cd ..
 
-          & .\.sonar\scanner\dotnet-sonarscanner.exe end /d:sonar.token="$env:SONAR_TOKEN"
+          .sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"

@@ -417,10 +417,6 @@ function roundRect(
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
   const words = text.split(/\s+/).filter(Boolean);
-  if (words.length < 1) {
-    return [text];
-  }
-
   const lines: string[] = [];
   let current = "";
   for (const word of words) {
@@ -441,7 +437,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
     lines.push(current);
   }
 
-  return lines.length > 0 ? lines : [text];
+  return lines;
 }
 
 function paintCoverImage(

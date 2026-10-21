@@ -44,9 +44,9 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 DocumentaryQueries.DeleteDocumentary,
                 HorrorObjectsParameters.IdParameters(id),
-                RepositoryMessages.DeleteNotSuccess($"{Documentary.ToLower()}"),
-                RepositoryMessages.DeleteSuccess($"{Documentary}", id),
-                RepositoryMessages.DeleteError($"{Documentary.ToLower()}", id));
+                RepositoryMessages.DeleteNotSuccess(Documentary.ToLower()),
+                RepositoryMessages.DeleteSuccess(Documentary, id),
+                RepositoryMessages.DeleteError(Documentary.ToLower(), id));
         }
 
         /// <inheritdoc/>
@@ -56,8 +56,8 @@ namespace HorrorTracker.Data.Repositories
                 DocumentaryQueries.GetAllDocumentary,
                 null,
                 ModelDataReader.DocumentaryFunction(),
-                RepositoryMessages.GetAllSuccess($"{Documentaries.ToLower()}"),
-                RepositoryMessages.GetAllError($"{Documentaries.ToLower()}"));
+                RepositoryMessages.GetAllSuccess(Documentaries.ToLower()),
+                RepositoryMessages.GetAllError(Documentaries.ToLower()));
         }
 
         /// <inheritdoc/>
@@ -67,9 +67,9 @@ namespace HorrorTracker.Data.Repositories
                 DocumentaryQueries.GetDocumentaryByName,
                 HorrorObjectsParameters.GetByTitleParameters(title),
                 ModelDataReader.DocumentaryFunction(),
-                RepositoryMessages.GetByTitleSuccess($"{Documentary} '{title}'"),
-                RepositoryMessages.GetByTitleNotFound($"{Documentary} '{title}'"),
-                RepositoryMessages.GetByTitleError($"{Documentary.ToLower()}"));
+                RepositoryMessages.GetByTitleSuccess(Documentary + " '" + title + "'"),
+                RepositoryMessages.GetByTitleNotFound(Documentary + " '" + title + "'"),
+                RepositoryMessages.GetByTitleError(Documentary.ToLower()));
         }
 
         /// <inheritdoc/>
@@ -78,9 +78,9 @@ namespace HorrorTracker.Data.Repositories
             return ExecuteNonQuery(
                 DocumentaryQueries.UpdateDocumentary,
                 HorrorObjectsParameters.UpdateParameters(entity),
-                RepositoryMessages.UpdateNotSuccess($"{Documentary.ToLower()}"),
-                RepositoryMessages.UpdateSuccess($"{Documentary} '{entity.Title}'"),
-                RepositoryMessages.UpdateError($"{Documentary.ToLower()} '{entity.Title}'"));
+                RepositoryMessages.UpdateNotSuccess(Documentary.ToLower()),
+                RepositoryMessages.UpdateSuccess(Documentary + " '" + entity.Title + "'"),
+                RepositoryMessages.UpdateError(Documentary.ToLower() + " '" + entity.Title + "'"));
         }
 
         /// <inheritdoc/>
@@ -93,8 +93,8 @@ namespace HorrorTracker.Data.Repositories
                 query,
                 null,
                 ModelDataReader.DocumentaryFunction(),
-                RepositoryMessages.GetUnwatchedOrWatchedSuccess($"{type} {Documentaries.ToLower()}"),
-                RepositoryMessages.GetUnwatchedOrWatchedError($"{type} {Documentaries.ToLower()}"));
+                RepositoryMessages.GetUnwatchedOrWatchedSuccess(type + " " + Documentaries.ToLower()),
+                RepositoryMessages.GetUnwatchedOrWatchedError(type + " " + Documentaries.ToLower()));
         }
 
         /// <inheritdoc/>

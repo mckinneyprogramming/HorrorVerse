@@ -19,8 +19,16 @@ internal static class CatalogDb
         return connection;
     }
 
+    internal static Func<MovieDatabaseService>? TmdbClientFactory { get; set; }
+
     public static MovieDatabaseService CreateTmdbClient()
     {
+        var factory = TmdbClientFactory;
+        if (factory is not null)
+        {
+            return factory();
+        }
+
         var apiKey = Environment.GetEnvironmentVariable("TMDBKey");
         if (string.IsNullOrWhiteSpace(apiKey))
         {

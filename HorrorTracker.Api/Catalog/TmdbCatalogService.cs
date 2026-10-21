@@ -12,7 +12,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
     private const int DocumentaryGenre = 99;
     private static readonly HashSet<int> HorrorAdjacentGenres = [27, 53, 9648, 878, 14, 10765];
 
-    private static readonly HttpClient PosterHttp = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly HttpClient PosterHttp = new(OutboundHttp.CreateHandler()) { Timeout = TimeSpan.FromSeconds(15) };
     private static readonly HashSet<string> PosterSizes = ["w92", "w185", "w342", "w500", "w780"];
 
     public async Task<IResult> ProxyPosterAsync(string? poster, string? size, CancellationToken cancellationToken)
@@ -771,6 +771,13 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         command.ExecuteNonQuery();
     }
 
+    internal static bool VaultTimestampIsStale(object? value) => value switch
+    {
+        DateTime synced => DateTime.UtcNow - synced.ToUniversalTime() > TimeSpan.FromHours(6),
+        DateTimeOffset synced => DateTimeOffset.UtcNow - synced.ToUniversalTime() > TimeSpan.FromHours(6),
+        _ => true,
+    };
+
     private bool IsVaultStale()
     {
         try
@@ -778,13 +785,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             using var connection = OpenConnection();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT last_synced_at FROM catalog_sync WHERE id = 1";
-            var value = command.ExecuteScalar();
-            return value switch
-            {
-                DateTime synced => DateTime.UtcNow - synced.ToUniversalTime() > TimeSpan.FromHours(6),
-                DateTimeOffset synced => DateTimeOffset.UtcNow - synced.ToUniversalTime() > TimeSpan.FromHours(6),
-                _ => true,
-            };
+            return VaultTimestampIsStale(command.ExecuteScalar());
         }
         catch (PostgresException)
         {
@@ -865,7 +866,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT Title FROM MovieSeries WHERE Id = @id";
         command.Parameters.AddWithValue("id", seriesId);
-        return Convert.ToString(command.ExecuteScalar()) ?? string.Empty;
+        return Convert.ToString(command.ExecuteScalar())!;
     }
 
     private void SaveSeriesTmdbId(int seriesId, int tmdbId)
@@ -1233,7 +1234,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
             @"\s+Collection$",
             string.Empty,
             System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
-        return trimmed.Length > 0 ? trimmed : name.Trim();
+        return trimmed;
     }
 
     private static int? YearOf(DateTime? date) => date is { Year: >= 1888 and <= 3000 } value ? value.Year : null;

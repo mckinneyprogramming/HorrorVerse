@@ -8,9 +8,18 @@ describe("parseCatalogId", () => {
   });
 
   it("rejects invalid ids", () => {
-    expect(() => parseCatalogId("show")).toThrow(HttpError);
+    expect(() => parseCatalogId("show")).toThrowError(new HttpError("That title was not found.", 400));
     expect(() => parseCatalogId("book:0")).toThrow(HttpError);
     expect(() => parseCatalogId("alien:1")).toThrow(HttpError);
+    expect(() => parseCatalogId(null)).toThrow(HttpError);
+    expect(() => parseCatalogId(undefined)).toThrow(HttpError);
+    expect(() => parseCatalogId("movie:1:2")).toThrow(HttpError);
+    expect(() => parseCatalogId("movie:1.5")).toThrow(HttpError);
+    expect(() => parseCatalogId("movie:-3")).toThrow(HttpError);
+  });
+
+  it("trims and lowercases the kind", () => {
+    expect(parseCatalogId(" Show :4 ")).toEqual({ kind: "show", mediaId: 4 });
   });
 
   it("can return a custom status", () => {

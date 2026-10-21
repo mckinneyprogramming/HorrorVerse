@@ -1,0 +1,23 @@
+name: Deploy smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * *"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Check the live API
+        env:
+          SMOKE_URL: ${{ secrets.SMOKE_URL }}
+        run: node HorrorTracker.WebApp/scripts/smoke.mjs

@@ -118,7 +118,7 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
     private async Task<JsonElement> PostAsync(string endpoint, string body, CancellationToken cancellationToken)
     {
         var token = await TokenAsync(cancellationToken);
-        using var client = new HttpClient { BaseAddress = new Uri("https://api.igdb.com/v4/") };
+        using var client = new HttpClient(OutboundHttp.CreateHandler()) { BaseAddress = new Uri("https://api.igdb.com/v4/") };
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
         {
             Content = new StringContent(body, Encoding.UTF8, "text/plain")
@@ -153,7 +153,7 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
             throw new InvalidOperationException("IGDB_CLIENT_SECRET is not configured.");
         }
 
-        using var client = new HttpClient();
+        using var client = new HttpClient(OutboundHttp.CreateHandler());
         using var response = await client.PostAsync(
             $"https://id.twitch.tv/oauth2/token?client_id={Uri.EscapeDataString(ClientId())}&client_secret={Uri.EscapeDataString(secret)}&grant_type=client_credentials",
             null,
@@ -196,7 +196,7 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
         command.CommandText = "SELECT Id FROM Game WHERE IgdbId = @id LIMIT 1";
         command.Parameters.AddWithValue("id", int.Parse(sourceId));
         var value = command.ExecuteScalar();
-        return value is null or DBNull ? null : Convert.ToInt32(value);
+        return value is null ? null : Convert.ToInt32(value);
     }
 
     private int InsertGame(string title, int year, string sourceId)
@@ -406,7 +406,7 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
             return null;
         }
 
-        var text = string.Join(' ', (value.GetString() ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        var text = string.Join(' ', value.GetString()!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (text.Length < 1)
         {
             return null;

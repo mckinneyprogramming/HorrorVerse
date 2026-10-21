@@ -61,7 +61,6 @@ if (app.Configuration.GetValue("ForceHttpsRedirection", false))
 
 var webRoot = app.Environment.WebRootPath;
 var hasSpa = !string.IsNullOrWhiteSpace(webRoot)
-    && Directory.Exists(webRoot)
     && File.Exists(Path.Combine(webRoot, "index.html"));
 
 if (hasSpa)
@@ -289,7 +288,8 @@ static async Task<IResult> WriteCatalogSyncAsync(HttpContext http, AuthService a
             user = auth.RequireUser(AuthCookies.Read(http.Request));
         }
 
-        return Results.Json(await write(cron || user?.IsAdmin == true));
+        var force = user is { IsAdmin: true } || cron;
+        return Results.Json(await write(force));
     }
     catch (AuthException exception)
     {

@@ -354,7 +354,7 @@ function normalizeListName(name: string | undefined): string {
   return value;
 }
 
-function duplicateListError(error: unknown): Error {
+export function duplicateListError(error: unknown): Error {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("user_list_user_name_idx") || message.includes("duplicate key")) {
     return new LibraryError("You already have a list with that name.", 400);

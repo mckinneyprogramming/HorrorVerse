@@ -1,0 +1,10 @@
+{
+  "stryker-config": {
+    "solution": "../HorrorTracker.sln",
+    "project": "HorrorTracker.Api.csproj",
+    "mutate": ["**/Auth/PasswordHasher.cs"],
+    "reporters": ["progress", "html"],
+    "test-case-filter": "FullyQualifiedName~PasswordHasher",
+    "thresholds": { "high": 80, "low": 70, "break": 0 }
+  }
+}

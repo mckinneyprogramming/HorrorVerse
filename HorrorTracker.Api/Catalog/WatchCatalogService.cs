@@ -10,7 +10,7 @@ public sealed class WatchCatalogService(IConfiguration configuration, KeywordCat
     private const string Attribution = "JustWatch";
     private static readonly TimeSpan CacheFor = TimeSpan.FromHours(6);
     private static readonly ConcurrentDictionary<string, CacheEntry> Cache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
+    private static readonly HttpClient Http = new(OutboundHttp.CreateHandler()) { Timeout = TimeSpan.FromSeconds(20) };
 
     public async Task<WatchOfferDto> GetAsync(string? id, CancellationToken cancellationToken)
     {
@@ -223,7 +223,7 @@ public sealed class WatchCatalogService(IConfiguration configuration, KeywordCat
             return null;
         }
 
-        var text = value.GetString()?.Trim();
+        var text = value.GetString()!.Trim();
         return string.IsNullOrWhiteSpace(text) ? null : text;
     }
 

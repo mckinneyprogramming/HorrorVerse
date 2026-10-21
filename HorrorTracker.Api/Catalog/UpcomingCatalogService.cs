@@ -18,7 +18,7 @@ public sealed class UpcomingCatalogService
     private const string CacheKey = "horror-schedule";
     private static readonly TimeSpan CacheFor = TimeSpan.FromHours(6);
     private static readonly ConcurrentDictionary<string, CacheEntry> Cache = new(StringComparer.Ordinal);
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
+    private static readonly HttpClient Http = new(OutboundHttp.CreateHandler()) { Timeout = TimeSpan.FromSeconds(20) };
 
     public async Task<UpcomingScheduleDto> GetAsync(CancellationToken cancellationToken)
     {
@@ -311,23 +311,24 @@ public sealed class UpcomingCatalogService
             throw new InvalidOperationException("TMDBKey is not configured.");
         }
 
+        JsonDocument? document = null;
         try
         {
             var separator = path.Contains('?', StringComparison.Ordinal) ? "&" : "?";
             var url = $"https://api.themoviedb.org/3{path}{separator}api_key={Uri.EscapeDataString(apiKey)}";
             using var response = await Http.GetAsync(url, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
             {
-                return null;
+                await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             }
-
-            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         }
         catch (Exception exception) when (exception is not InvalidOperationException and not OperationCanceledException)
         {
             return null;
         }
+
+        return document;
     }
 
     private static IEnumerable<JsonElement> ReadResults(JsonElement root)
@@ -445,7 +446,7 @@ public sealed class UpcomingCatalogService
             return null;
         }
 
-        var text = value.GetString()?.Trim();
+        var text = value.GetString()!.Trim();
         return string.IsNullOrWhiteSpace(text) ? null : text;
     }
 

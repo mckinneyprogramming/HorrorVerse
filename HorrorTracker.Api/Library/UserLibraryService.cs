@@ -7,6 +7,7 @@ namespace HorrorTracker.Api.Library;
 
 public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalogService tmdb)
 {
+    internal static Func<DateTime>? Clock { get; set; }
     private static readonly HashSet<string> MediaKinds =
     [
         "movie",
@@ -122,7 +123,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
                 kind = item.Kind,
                 reason = item.Reason,
                 detail = item.Detail,
-                posterPath = item.PosterPath ?? (homePosters.TryGetValue(item.Id, out var path) ? path : null)
+                posterPath = HomePoster(item.PosterPath, item.Id, homePosters)
             }).ToList(),
             readNext = readNext.Select(item => (object)new
             {
@@ -131,7 +132,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
                 kind = item.Kind,
                 reason = item.Reason,
                 detail = item.Detail,
-                posterPath = item.PosterPath ?? (homePosters.TryGetValue(item.Id, out var path) ? path : null)
+                posterPath = HomePoster(item.PosterPath, item.Id, homePosters)
             }).ToList()
         };
     }
@@ -417,7 +418,8 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
 
     private static List<WatchNextPick> ShuffleWatchNext(List<WatchNextPick> items, int userId)
     {
-        var seed = (uint)(userId * 10_000 + DateTime.UtcNow.Year * 400 + DateTime.UtcNow.Month * 32 + DateTime.UtcNow.Day);
+        var now = Clock?.Invoke() ?? DateTime.UtcNow;
+        var seed = (uint)(userId * 10_000 + now.Year * 400 + now.Month * 32 + now.Day);
         if (seed == 0)
         {
             seed = 1;
@@ -431,6 +433,11 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
         }
 
         return items;
+    }
+
+    private static string? HomePoster(string? posterPath, string id, Dictionary<string, string> posters)
+    {
+        return posterPath ?? (posters.TryGetValue(id, out var path) ? path : null);
     }
 
     private static WatchNextPick? WatchNextItem(string kind, int mediaId, string title, string? posterPath, string reason, string? detail)
@@ -1079,10 +1086,7 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
             totals.Parameters.AddWithValue("seriesId", resolved);
             totals.Parameters.AddWithValue("userId", userId);
             using var reader = totals.ExecuteReader();
-            if (!reader.Read())
-            {
-                return;
-            }
+            reader.Read();
 
             var total = Convert.ToInt32(reader.GetInt64(0));
             var finished = Convert.ToInt32(reader.GetInt64(1));

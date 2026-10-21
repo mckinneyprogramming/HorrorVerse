@@ -198,7 +198,7 @@ public sealed class CatalogService(
                 var totalTime = reader.IsDBNull(3) ? 0m : reader.GetDecimal(3);
                 var episodes = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
                 var seasons = reader.IsDBNull(5) ? 0 : reader.GetInt32(5);
-                var year = reader.FieldCount > 6 && !reader.IsDBNull(6) ? reader.GetInt32(6) : 0;
+                var year = !reader.IsDBNull(6) ? reader.GetInt32(6) : 0;
                 items.Add(new CatalogItemDto(
                     $"show:{reader.GetInt32(0)}",
                     reader.GetInt32(0),
@@ -225,16 +225,9 @@ public sealed class CatalogService(
     private IEnumerable<CatalogItemDto> ReadBooks()
     {
         EnsureOptionalTables("book");
-        var connectionString = ResolveConnectionString(configuration);
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            return [];
-        }
-
         try
         {
-            using var connection = new NpgsqlConnection(connectionString);
-            connection.Open();
+            using var connection = OpenConnection();
             using var command = new NpgsqlCommand(
                 "SELECT Id, Title, Read, ReleaseYear, Pages, Author, Description, CoverUrl, Isbn, Publisher FROM Book",
                 connection);
@@ -291,16 +284,9 @@ public sealed class CatalogService(
     private IEnumerable<CatalogItemDto> ReadGames()
     {
         EnsureOptionalTables("game");
-        var connectionString = ResolveConnectionString(configuration);
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            return [];
-        }
-
         try
         {
-            using var connection = new NpgsqlConnection(connectionString);
-            connection.Open();
+            using var connection = OpenConnection();
             using var command = new NpgsqlCommand(
                 "SELECT Id, Title, Played, ReleaseYear, Description, CoverUrl, Developer, Publisher, Platforms FROM Game",
                 connection);
@@ -373,7 +359,7 @@ public sealed class CatalogService(
                 var mediaId = reader.GetInt32(0);
                 var title = reader.GetString(1);
                 var completed = !reader.IsDBNull(2) && reader.GetBoolean(2);
-                var year = reader.FieldCount > 3 && !reader.IsDBNull(3) ? reader.GetInt32(3) : 0;
+                var year = !reader.IsDBNull(3) ? reader.GetInt32(3) : 0;
                 items.Add(new CatalogItemDto(
                     $"{kind}:{mediaId}",
                     mediaId,

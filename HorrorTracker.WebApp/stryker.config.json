@@ -1,0 +1,15 @@
+{
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.config.ts" },
+  "mutate": [
+    "api-src/auth.ts:265-323",
+    "lib/catalog-id.ts",
+    "lib/watch-next.ts",
+    "src/stats.ts"
+  ],
+  "coverageAnalysis": "perTest",
+  "reporters": ["clear-text", "html"],
+  "htmlReporter": { "fileName": "reports/mutation.html" },
+  "thresholds": { "high": 80, "low": 70, "break": null },
+  "ignorePatterns": ["coverage", "dist", "api", "reports", "e2e"]
+}

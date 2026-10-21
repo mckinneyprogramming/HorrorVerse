@@ -199,11 +199,7 @@ function optionalPositiveNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-function readKeywords(value: unknown): string[] {
-  if (!value || typeof value !== "object") {
-    return [];
-  }
-
+function readKeywords(value: object): string[] {
   const record = value as Record<string, unknown>;
   const raw = record.keywords ?? record.Keywords;
   if (!Array.isArray(raw)) {

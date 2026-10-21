@@ -9,9 +9,10 @@ internal static class PasswordHasher
     private const int SaltSize = 16;
     private const int KeySize = 32;
 
-    public static string Hash(string password)
+    public static string Hash(string password) => HashWithSalt(password, RandomNumberGenerator.GetBytes(SaltSize));
+
+    public static string HashWithSalt(string password, byte[] salt)
     {
-        var salt = RandomNumberGenerator.GetBytes(SaltSize);
         var hash = Pbkdf2(password, salt);
         return $"pbkdf2$sha256${Iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
     }

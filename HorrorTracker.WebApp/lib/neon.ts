@@ -137,14 +137,11 @@ export async function ensureUserLibrarySchema(connectionString: string): Promise
       )`,
   );
   await execute(connectionString, "CREATE INDEX IF NOT EXISTS user_list_user_id_idx ON user_list (user_id)");
-  try {
-    await execute(
-      connectionString,
-      "CREATE UNIQUE INDEX IF NOT EXISTS user_list_user_name_idx ON user_list (user_id, (lower(name)))",
-    );
-  } catch {
-    // Neon HTTP may reject expression indexes.
-  }
+  // Neon HTTP may reject expression indexes.
+  await execute(
+    connectionString,
+    "CREATE UNIQUE INDEX IF NOT EXISTS user_list_user_name_idx ON user_list (user_id, (lower(name)))",
+  ).catch(() => undefined);
   await execute(
     connectionString,
     `CREATE TABLE IF NOT EXISTS user_list_item (

@@ -382,9 +382,8 @@ function insertSql(kind: string): string {
 }
 
 function writeYear(body: CatalogWriteBody): number {
-  return Number.isInteger(body.releaseYear) && (body.releaseYear ?? 0) > 0
-    ? Number(body.releaseYear)
-    : new Date().getUTCFullYear();
+  const year = body.releaseYear ?? 0;
+  return Number.isInteger(year) && year > 0 ? year : new Date().getUTCFullYear();
 }
 
 async function ensureUniqueTitle(
@@ -702,4 +701,13 @@ function asNonEmptyString(value: unknown): string | undefined {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
+
+export const catalogCoverage = {
+  insertSql,
+  existingIdSql,
+  currentYear,
+  insertParams,
+  updateSql,
+  deleteSql,
+};
 

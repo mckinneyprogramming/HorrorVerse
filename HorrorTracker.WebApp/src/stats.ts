@@ -385,7 +385,7 @@ function pickMostEpisodes(shows: CatalogEntry[]): CatalogEntry | undefined {
     .filter((entry) => (entry.totalEpisodes ?? 0) > 0)
     .sort(
       (left, right) =>
-        (right.totalEpisodes ?? 0) - (left.totalEpisodes ?? 0) ||
+        right.totalEpisodes! - left.totalEpisodes! ||
         (right.numberOfSeasons ?? 0) - (left.numberOfSeasons ?? 0) ||
         left.title.localeCompare(right.title),
     )[0];
@@ -453,7 +453,7 @@ function pickLongest(entries: CatalogEntry[]): CatalogEntry | undefined {
 
 function pickOldest(entries: CatalogEntry[]): CatalogEntry | undefined {
   return [...entries].sort(
-    (left, right) => (left.releaseYear ?? 0) - (right.releaseYear ?? 0) || left.title.localeCompare(right.title),
+    (left, right) => left.releaseYear! - right.releaseYear! || left.title.localeCompare(right.title),
   )[0];
 }
 
@@ -533,5 +533,5 @@ function formatHours(totalMinutes: number): string {
     parts.push(`${rest} min`);
   }
 
-  return parts.join(" ") || "0 hr";
+  return parts.join(" ");
 }

@@ -124,6 +124,7 @@ async function syncAllSeries(connectionString: string): Promise<number> {
       added += await syncSeries(connectionString, seriesId);
     } catch {
       // Keep refreshing the rest of the vault if one series cannot be matched.
+      continue;
     }
   }
 
@@ -149,6 +150,7 @@ async function syncAllShows(connectionString: string): Promise<number> {
       added += await syncShow(connectionString, showId);
     } catch {
       // Keep refreshing the rest of the vault if one show cannot be matched.
+      continue;
     }
   }
 
@@ -189,7 +191,7 @@ async function syncSeries(connectionString: string, seriesId: number): Promise<n
         await queryRows(
           connectionString,
           "INSERT INTO movie (title, totaltime, partofseries, seriesid, releaseyear, watched) VALUES ($1, $2, TRUE, $3, $4, FALSE) RETURNING id",
-          [film.title, film.runtime, seriesId, film.year ?? 0],
+          [film.title, film.runtime, seriesId, filmYear(film.year)],
         )
       )[0],
     );
@@ -340,10 +342,11 @@ async function invalidateSeriesCompletion(connectionString: string, seriesId: nu
     await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
   } catch {
     // Progress table is created on first signed-in use.
+    return;
   }
 }
 
-async function refreshMissingKeywords(connectionString: string, id?: string): Promise<number> {
+export async function refreshMissingKeywords(connectionString: string, id?: string): Promise<number> {
   await ensureKeywordSchema(connectionString);
   const parts = (id ?? "").split(":");
   const onlyKind = parts[0] || undefined;
@@ -399,6 +402,7 @@ async function refreshMissingKeywords(connectionString: string, id?: string): Pr
         added += 1;
       } catch {
         // Keep tagging the rest of the vault if one title cannot be matched.
+        continue;
       }
     }
   }
@@ -425,6 +429,7 @@ async function refreshMissingKeywords(connectionString: string, id?: string): Pr
         added += 1;
       } catch {
         // Keep tagging the rest of the vault if one title cannot be matched.
+        continue;
       }
     }
   }
@@ -438,6 +443,10 @@ async function refreshMissingKeywords(connectionString: string, id?: string): Pr
   }
 
   return added;
+}
+
+export function filmYear(year: number | undefined): number {
+  return year ?? 0;
 }
 
 async function resolveMovieTmdbId(title: string, year: number | undefined): Promise<number | undefined> {
@@ -462,6 +471,7 @@ async function invalidateShowCompletion(connectionString: string, showId: number
     await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'show' AND media_id = $1", [showId]);
   } catch {
     // Progress table is created on first signed-in use.
+    return;
   }
 }
 

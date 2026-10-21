@@ -119,11 +119,6 @@ public sealed class AuthService(IConfiguration configuration)
         var displayName = request.DisplayName is null
             ? user.DisplayName
             : NormalizeDisplayName(request.DisplayName, user.Email);
-        if (displayName.Length < 1)
-        {
-            throw new AuthException("Enter a display name.", StatusCodes.Status400BadRequest);
-        }
-
         var aboutMe = request.AboutMe is null ? user.AboutMe : NormalizeAboutMe(request.AboutMe);
         var avatar = request.Avatar is null ? user.Avatar : NormalizeAvatar(request.Avatar);
 
@@ -253,9 +248,9 @@ public sealed class AuthService(IConfiguration configuration)
             reader.FieldCount > 4 && !reader.IsDBNull(4) ? reader.GetString(4) : null,
             reader.FieldCount > 5 && !reader.IsDBNull(5) ? reader.GetString(5) : null);
 
-    private static string? NormalizeAboutMe(string? aboutMe)
+    private static string? NormalizeAboutMe(string aboutMe)
     {
-        var trimmed = (aboutMe ?? string.Empty).Trim();
+        var trimmed = aboutMe.Trim();
         if (trimmed.Length < 1)
         {
             return null;
@@ -264,9 +259,9 @@ public sealed class AuthService(IConfiguration configuration)
         return trimmed.Length <= 500 ? trimmed : trimmed[..500];
     }
 
-    private static string? NormalizeAvatar(string? avatar)
+    private static string? NormalizeAvatar(string avatar)
     {
-        var trimmed = (avatar ?? string.Empty).Trim();
+        var trimmed = avatar.Trim();
         if (trimmed.Length < 1)
         {
             return null;
