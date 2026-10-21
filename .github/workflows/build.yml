@@ -70,30 +70,73 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          set -euo pipefail
-          if [ -z "${SONAR_TOKEN}" ]; then
-            echo "SONAR_TOKEN is missing. Add a SonarCloud token as the SONAR_TOKEN GitHub Actions secret."
-            exit 1
-          fi
-          gate="HorrorVerse Coverage"
-          auth=(-u "${SONAR_TOKEN}:")
-          code=$(curl -s -o /tmp/gate.json -w "%{http_code}" "${auth[@]}" -X POST \
-            "https://sonarcloud.io/api/qualitygates/create?organization=mckinneyprogramming&name=$(python3 -c 'import urllib.parse; print(urllib.parse.quote("HorrorVerse Coverage"))')")
-          if [ "$code" != "200" ]; then
-            echo "Quality gate create returned $code (it may already exist)."
-            cat /tmp/gate.json || true
-          fi
-          curl -fsS "${auth[@]}" -X POST \
-            --data-urlencode "gateName=${gate}" \
-            --data-urlencode "metric=coverage" \
-            --data-urlencode "op=LT" \
-            --data-urlencode "error=100" \
-            "https://sonarcloud.io/api/qualitygates/create_condition" || true
-          curl -fsS "${auth[@]}" -X POST \
-            --data-urlencode "organization=mckinneyprogramming" \
-            --data-urlencode "gateName=${gate}" \
-            --data-urlencode "projectKey=mckinneyprogramming_HorrorTracker" \
-            "https://sonarcloud.io/api/qualitygates/select"
+          python3 - <<'PY'
+          import base64, json, os, urllib.error, urllib.parse, urllib.request
+
+          token = os.environ.get("SONAR_TOKEN", "")
+          if not token:
+              raise SystemExit("SONAR_TOKEN is missing. Add a SonarCloud token as the SONAR_TOKEN GitHub Actions secret.")
+
+          org = "mckinneyprogramming"
+          gate = "HorrorVerse Coverage"
+          project = "mckinneyprogramming_HorrorTracker"
+          auth = "Basic " + base64.b64encode(f"{token}:".encode()).decode()
+
+          def call(method, path, params):
+              url = "https://sonarcloud.io/api" + path + "?" + urllib.parse.urlencode(params)
+              request = urllib.request.Request(url, method=method)
+              request.add_header("Authorization", auth)
+              try:
+                  with urllib.request.urlopen(request) as response:
+                      raw = response.read().decode()
+                      return response.status, json.loads(raw) if raw else {}
+              except urllib.error.HTTPError as error:
+                  raw = error.read().decode()
+                  print(f"{method} {path} returned {error.code}: {raw}")
+                  return error.code, raw
+
+          status, body = call("GET", "/qualitygates/show", {"organization": org, "name": gate})
+          if status != 200:
+              status, body = call("POST", "/qualitygates/create", {"organization": org, "name": gate})
+              if status != 200:
+                  raise SystemExit(f"Could not create the {gate} quality gate.")
+
+          gate_id = body["id"]
+          status, shown = call("GET", "/qualitygates/show", {"organization": org, "id": gate_id})
+          if status != 200:
+              raise SystemExit(f"Could not read quality gate {gate_id}.")
+
+          coverage = next((item for item in shown.get("conditions", []) if item.get("metric") == "coverage"), None)
+          if coverage is None:
+              status, _ = call("POST", "/qualitygates/create_condition", {
+                  "organization": org,
+                  "gateId": gate_id,
+                  "metric": "coverage",
+                  "op": "LT",
+                  "error": "100",
+              })
+              if status != 200:
+                  raise SystemExit("Could not add the coverage condition.")
+          elif coverage.get("op") != "LT" or str(coverage.get("error")) != "100":
+              status, _ = call("POST", "/qualitygates/update_condition", {
+                  "organization": org,
+                  "id": coverage["id"],
+                  "metric": "coverage",
+                  "op": "LT",
+                  "error": "100",
+              })
+              if status != 200:
+                  raise SystemExit("Could not update the coverage condition.")
+
+          status, _ = call("POST", "/qualitygates/select", {
+              "organization": org,
+              "gateId": gate_id,
+              "projectKey": project,
+          })
+          if status not in (200, 204):
+              raise SystemExit("Could not select the coverage quality gate for this project.")
+          print(f"Selected quality gate {gate_id} ({gate}) for {project}.")
+          PY
 
       - name: Build and analyze
         env:
