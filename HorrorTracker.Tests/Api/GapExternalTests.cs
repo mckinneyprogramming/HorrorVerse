@@ -90,6 +90,7 @@ public class GapExternalTests
             Assert.NotNull(await tmdb.ImportAsync(new TmdbImportRequest { Kind = "documentary", TmdbId = 811 }, CancellationToken.None));
             script.Shows[821] = new TvShow { Id = 821, Name = $"Gap Show {stamp}", NumberOfEpisodes = 1, NumberOfSeasons = 1, FirstAirDate = new DateTime(2014, 1, 1), PosterPath = "/show.jpg", Seasons = [] };
             Assert.NotNull(await tmdb.ImportAsync(new TmdbImportRequest { Kind = "show", TmdbId = 821 }, CancellationToken.None));
+            Assert.NotNull(await tmdb.ImportAsync(new TmdbImportRequest { Kind = "show", TmdbId = 821 }, CancellationToken.None));
             await CoverageSupport.Exec(connectionString, $"INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched, releaseyear) VALUES ('Gap Show Title {stamp}', 0, 0, 0, FALSE, 2015)");
             script.Shows[822] = new TvShow { Id = 822, Name = $"Gap Show Title {stamp}", NumberOfEpisodes = 0, NumberOfSeasons = 0, FirstAirDate = null, PosterPath = null, Seasons = null };
             Assert.NotNull(await tmdb.ImportAsync(new TmdbImportRequest { Kind = "show", TmdbId = 822 }, CancellationToken.None));

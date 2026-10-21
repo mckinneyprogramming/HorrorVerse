@@ -12,13 +12,13 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "lib/**/*.test.ts", "api-src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "lib/**/*.test.ts", "api-src/**/*.test.ts", "scripts/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
       reportsDirectory: "./coverage",
-      include: ["src/**/*.ts", "lib/**/*.ts", "api-src/**/*.ts"],
-      exclude: ["src/**/*.test.ts", "lib/**/*.test.ts", "api-src/**/*.test.ts"],
+      include: ["src/**/*.ts", "lib/**/*.ts", "api-src/**/*.ts", "scripts/**/*.mjs"],
+      exclude: ["src/**/*.test.ts", "lib/**/*.test.ts", "api-src/**/*.test.ts", "scripts/**/*.test.ts"],
     },
   },
 });
