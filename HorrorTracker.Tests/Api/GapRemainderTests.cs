@@ -23,6 +23,8 @@ public class GapRemainderTests
             return;
         }
 
+        await CoverageSupport.EnsureVault(connectionString);
+
         var movies = new Dictionary<int, string> { [6] = "   ", [7] = "Halloween" };
         Gap.Call(typeof(CatalogService), "MapMovie", new Movie("Orphan", 0, false, null, 0, false, 1), movies);
         Gap.Call(typeof(CatalogService), "MapMovie", new Movie("Zero", 0, true, 0, 0, true, 2), movies);

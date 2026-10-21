@@ -22,6 +22,8 @@ public class RemainingBranchTests
             return;
         }
 
+        await CoverageSupport.EnsureVault(connectionString);
+
         var emptyConfig = new ConfigurationBuilder().Build();
         var previousDb = Environment.GetEnvironmentVariable("HorrorVerseDb");
         Environment.SetEnvironmentVariable("HorrorVerseDb", " ");

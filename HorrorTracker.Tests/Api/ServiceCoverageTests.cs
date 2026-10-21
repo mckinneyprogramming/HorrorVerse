@@ -27,6 +27,7 @@ public class ServiceCoverageTests
             return;
         }
 
+        await CoverageSupport.EnsureVault(connectionString);
         var stamp = Guid.NewGuid().ToString("N")[..8];
         var adminEmail = $"ash-{stamp}@example.com";
         var memberEmail = $"member-{stamp}@example.com";

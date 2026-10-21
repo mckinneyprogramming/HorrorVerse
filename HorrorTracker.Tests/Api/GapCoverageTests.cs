@@ -25,6 +25,8 @@ public class GapCoverageTests
             return;
         }
 
+        await CoverageSupport.EnsureVault(connectionString);
+
         var root = Directory.CreateTempSubdirectory("horrorverse-spa").FullName;
         await File.WriteAllTextAsync(Path.Combine(root, "index.html"), "<!doctype html><title>HorrorVerse</title>");
         var previousAdmin = Environment.GetEnvironmentVariable("ADMIN_EMAIL");
@@ -73,6 +75,8 @@ public class GapCoverageTests
         {
             return;
         }
+
+        await CoverageSupport.EnsureVault(connectionString);
 
         await using var factory = new WebApplicationFactory<Program>();
         await using var scope = factory.Services.CreateAsyncScope();
@@ -152,7 +156,8 @@ public class GapCoverageTests
         Assert.Throws<InvalidOperationException>(() => catalog.Delete("movie:99999999"));
         Assert.Throws<InvalidOperationException>(() => catalog.Delete("movie:0"));
         Assert.Throws<InvalidOperationException>(() => catalog.Delete("nope"));
-        catalog.Update(new CatalogWriteRequest { Id = $"podcast:1", Title = $"Gap Pod {stamp} renamed" });
+        var seededPodcast = await CoverageSupport.Scalar<int>(connectionString, $"SELECT id FROM podcast WHERE title = 'Gap Null Pod {stamp}'");
+        catalog.Update(new CatalogWriteRequest { Id = $"podcast:{seededPodcast}", Title = $"Gap Pod {stamp} renamed" });
         var podcastId = await CoverageSupport.Scalar<int>(connectionString, $"SELECT id FROM podcast WHERE title LIKE 'Gap Pod {stamp}%' ORDER BY id DESC LIMIT 1");
         catalog.Delete($"podcast:{podcastId}");
         Assert.Contains("upload", Gap.Call(typeof(CatalogService), "NormalizeIgdbCover", "https://images.igdb.com/igdb/image/upload/t_cover_big/abc.jpg") as string);
@@ -168,6 +173,8 @@ public class GapCoverageTests
         {
             return;
         }
+
+        await CoverageSupport.EnsureVault(connectionString);
 
         var previousKey = Environment.GetEnvironmentVariable("TMDBKey");
         var previousSend = OutboundHttp.Send;
@@ -322,6 +329,8 @@ public class GapCoverageTests
         {
             return;
         }
+
+        await CoverageSupport.EnsureVault(connectionString);
 
         var previousAdmin = Environment.GetEnvironmentVariable("ADMIN_EMAIL");
         var previousFactory = CatalogDb.TmdbClientFactory;

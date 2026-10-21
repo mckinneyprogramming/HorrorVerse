@@ -24,6 +24,7 @@ public class GapExternalTests
             return;
         }
 
+        await CoverageSupport.EnsureVault(connectionString);
         var previousKey = Environment.GetEnvironmentVariable("TMDBKey");
         var previousFactory = CatalogDb.TmdbClientFactory;
         Environment.SetEnvironmentVariable("TMDBKey", "test-key");
@@ -271,6 +272,7 @@ public class GapExternalTests
             return;
         }
 
+        await CoverageSupport.EnsureVault(connectionString);
         var previousSend = OutboundHttp.Send;
         var previousClient = Environment.GetEnvironmentVariable("IGDB_CLIENT_ID");
         var previousSecret = Environment.GetEnvironmentVariable("IGDB_CLIENT_SECRET");
