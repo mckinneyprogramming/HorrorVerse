@@ -677,8 +677,22 @@ async function refreshSeriesTotals(connectionString, seriesId) {
   );
 }
 
+// lib/search-hits.ts
+var SEARCH_RESULT_LIMIT = 8;
+function describedHit(sourceId, title, year, overview, coverUrl) {
+  return {
+    sourceId,
+    title,
+    ...year ? { year } : {},
+    ...overview ? { overview } : {},
+    ...coverUrl ? { coverUrl } : {}
+  };
+}
+function rankedHits(hits) {
+  return hits.sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index).slice(0, SEARCH_RESULT_LIMIT).map((item) => item.hit);
+}
+
 // lib/igdb.ts
-var MAX_RESULTS = 8;
 var SEARCH_POOL = 20;
 var HORROR_NAME = /horror|survival horror/i;
 var TOKEN_SKEW_MS = 6e4;
@@ -716,16 +730,10 @@ function parseIgdbSearch(payload) {
     hits.push({
       horror: [...genres, ...themes].some((name) => HORROR_NAME.test(name)),
       index,
-      hit: {
-        sourceId,
-        title,
-        ...year ? { year } : {},
-        ...overview ? { overview } : {},
-        ...coverUrl ? { coverUrl } : {}
-      }
+      hit: describedHit(sourceId, title, year, overview, coverUrl)
     });
   });
-  return hits.sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index).slice(0, MAX_RESULTS).map((item) => item.hit);
+  return rankedHits(hits);
 }
 function parseIgdbGame(payload) {
   const record = Array.isArray(payload) ? asRecord2(payload[0]) : asRecord2(payload);
@@ -973,7 +981,6 @@ function asRecord2(value) {
 
 // lib/open-library.ts
 var USER_AGENT = "HorrorVerse/1.0 (https://horrorverse.vercel.app)";
-var MAX_RESULTS2 = 8;
 var SEARCH_POOL2 = 20;
 var HORROR_SUBJECT = /horror|ghost|haunt|vampire|zombie|werewolf|witch|demon|occult|supernatural|gothic|monster|paranormal|lovecraft/i;
 var MAX_SUBJECTS = 12;
@@ -1006,16 +1013,10 @@ function parseOpenLibrarySearch(payload) {
     hits.push({
       horror: subjects.some((subject) => HORROR_SUBJECT.test(subject)),
       index,
-      hit: {
-        sourceId,
-        title,
-        ...year ? { year } : {},
-        ...overview ? { overview } : {},
-        ...coverUrl ? { coverUrl } : {}
-      }
+      hit: describedHit(sourceId, title, year, overview, coverUrl)
     });
   });
-  return hits.sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index).slice(0, MAX_RESULTS2).map((item) => item.hit);
+  return rankedHits(hits);
 }
 function parseOpenLibraryWork(workId, work, searchDoc) {
   const sourceId = parseWorkId(workId);
@@ -1252,7 +1253,7 @@ function cleanText2(value, max) {
 // api-src/tmdb.ts
 var runtime = "nodejs";
 var maxDuration = 60;
-var MAX_RESULTS3 = 8;
+var MAX_RESULTS = 8;
 var MAX_COLLECTION_CANDIDATES = 16;
 async function GET(request) {
   try {
@@ -1307,7 +1308,7 @@ async function POST(request) {
 }
 async function searchMovies(query) {
   const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) && !isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS3).map((item) => ({
+  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) && !isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.title ?? "").trim(),
     year: yearFrom(item.release_date),
@@ -1316,7 +1317,7 @@ async function searchMovies(query) {
 }
 async function searchDocumentaries(query) {
   const payload = await tmdbJson(`/search/movie?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS3).map((item) => ({
+  return asResults(payload).filter((item) => isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.title ?? "").trim(),
     year: yearFrom(item.release_date),
@@ -1327,7 +1328,7 @@ async function searchCollections(query) {
   const payload = await tmdbJson(`/search/collection?query=${encodeURIComponent(query)}`);
   const hits = [];
   for (const item of asResults(payload).slice(0, MAX_COLLECTION_CANDIDATES)) {
-    if (hits.length >= MAX_RESULTS3) {
+    if (hits.length >= MAX_RESULTS) {
       break;
     }
     const tmdbId = Number(item.id);
@@ -1348,7 +1349,7 @@ async function searchCollections(query) {
 }
 async function searchShows(query) {
   const payload = await tmdbJson(`/search/tv?query=${encodeURIComponent(query)}&include_adult=false`);
-  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) || isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS3).map((item) => ({
+  return asResults(payload).filter((item) => isHorrorAdjacent(item.genre_ids) || isDocumentary(item.genre_ids)).slice(0, MAX_RESULTS).map((item) => ({
     tmdbId: Number(item.id),
     title: String(item.name ?? "").trim(),
     year: yearFrom(item.first_air_date),
