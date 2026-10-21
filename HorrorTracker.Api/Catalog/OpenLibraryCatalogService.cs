@@ -30,7 +30,7 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
                     continue;
                 }
 
-                var title = Clean(doc, "title", 200);
+                var title = CatalogText.Clean(doc, "title", 200);
                 if (title is null)
                 {
                     continue;
@@ -71,7 +71,7 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
         await Task.WhenAll(workTask, searchTask);
         var work = workTask.Result;
         var doc = FirstDoc(searchTask.Result);
-        var title = Titled(Clean(work, "title", 160), doc is null ? null : Clean(doc.Value, "title", 160), Subtitle(work, doc));
+        var title = Titled(CatalogText.Clean(work, "title", 160), doc is null ? null : CatalogText.Clean(doc.Value, "title", 160), Subtitle(work, doc));
         if (title is null)
         {
             throw new InvalidOperationException("Open Library did not return that book.");
@@ -305,7 +305,7 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
 
     private static string? Subtitle(JsonElement work, JsonElement? doc)
     {
-        return Clean(work, "subtitle", 80) ?? (doc is { } edition ? Clean(edition, "subtitle", 80) : null);
+        return CatalogText.Clean(work, "subtitle", 80) ?? (doc is { } edition ? CatalogText.Clean(edition, "subtitle", 80) : null);
     }
 
     private static string? CleanDescription(JsonElement work)
@@ -400,22 +400,6 @@ public sealed partial class OpenLibraryCatalogService(IConfiguration configurati
         }
 
         return null;
-    }
-
-    private static string? Clean(JsonElement element, string name, int max)
-    {
-        if (!element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
-        {
-            return null;
-        }
-
-        var text = string.Join(' ', value.GetString()!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        if (text.Length < 1)
-        {
-            return null;
-        }
-
-        return text.Length > max ? text[..max].Trim() : text;
     }
 
     private static int? Year(JsonElement element, string name)

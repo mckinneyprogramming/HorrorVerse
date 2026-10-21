@@ -222,120 +222,115 @@ public sealed class CatalogService(
         }
     }
 
-    private IEnumerable<CatalogItemDto> ReadBooks()
-    {
-        EnsureOptionalTables("book");
-        try
-        {
-            using var connection = OpenConnection();
-            using var command = new NpgsqlCommand(
-                "SELECT Id, Title, Read, ReleaseYear, Pages, Author, Description, CoverUrl, Isbn, Publisher FROM Book",
-                connection);
-            using var reader = command.ExecuteReader();
-            var items = new List<CatalogItemDto>();
-            while (reader.Read())
+    private IEnumerable<CatalogItemDto> ReadBooks() =>
+        ReadOptionalRows(
+            "book",
+            "SELECT Id, Title, Read, ReleaseYear, Pages, Author, Description, CoverUrl, Isbn, Publisher FROM Book",
+            reader =>
             {
                 var mediaId = reader.GetInt32(0);
-                var title = reader.GetString(1);
-                var completed = !reader.IsDBNull(2) && reader.GetBoolean(2);
                 var year = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
                 var pages = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4));
-                var author = reader.IsDBNull(5) ? null : reader.GetString(5);
-                var description = reader.IsDBNull(6) ? null : reader.GetString(6);
                 var cover = reader.IsDBNull(7) ? null : reader.GetString(7);
-                var isbn = reader.IsDBNull(8) ? null : reader.GetString(8);
-                var publisher = reader.IsDBNull(9) ? null : reader.GetString(9);
                 if (cover is not null && !System.Text.RegularExpressions.Regex.IsMatch(cover, @"^https://covers\.openlibrary\.org/b/id/\d+-M\.jpg$"))
                 {
                     cover = null;
                 }
 
-                items.Add(new CatalogItemDto(
-                    $"book:{mediaId}",
-                    mediaId,
-                    title,
-                    "book",
-                    completed,
-                    null,
-                    year > 0 ? year : null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    pages > 0 ? pages : null,
-                    string.IsNullOrWhiteSpace(author) ? null : author,
-                    string.IsNullOrWhiteSpace(description) ? null : description,
-                    cover,
-                    string.IsNullOrWhiteSpace(isbn) ? null : isbn,
-                    string.IsNullOrWhiteSpace(publisher) ? null : publisher));
-            }
+                return BookItem(reader, mediaId, year, pages, cover);
+            });
 
-            return items;
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(exception, "Optional catalog table for {Kind} is unavailable.", "book");
-            return [];
-        }
-    }
+    private IEnumerable<CatalogItemDto> ReadGames() =>
+        ReadOptionalRows(
+            "game",
+            "SELECT Id, Title, Played, ReleaseYear, Description, CoverUrl, Developer, Publisher, Platforms FROM Game",
+            reader =>
+            {
+                var mediaId = reader.GetInt32(0);
+                var year = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                var cover = NormalizeIgdbCover(reader.IsDBNull(5) ? null : reader.GetString(5));
+                return GameItem(reader, mediaId, year, cover);
+            });
 
-    private IEnumerable<CatalogItemDto> ReadGames()
+    private List<CatalogItemDto> ReadOptionalRows(string kind, string sql, Func<NpgsqlDataReader, CatalogItemDto> map)
     {
-        EnsureOptionalTables("game");
+        EnsureOptionalTables(kind);
         try
         {
             using var connection = OpenConnection();
-            using var command = new NpgsqlCommand(
-                "SELECT Id, Title, Played, ReleaseYear, Description, CoverUrl, Developer, Publisher, Platforms FROM Game",
-                connection);
+            using var command = new NpgsqlCommand(sql, connection);
             using var reader = command.ExecuteReader();
             var items = new List<CatalogItemDto>();
             while (reader.Read())
             {
-                var mediaId = reader.GetInt32(0);
-                var title = reader.GetString(1);
-                var completed = !reader.IsDBNull(2) && reader.GetBoolean(2);
-                var year = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
-                var description = reader.IsDBNull(4) ? null : reader.GetString(4);
-                var cover = reader.IsDBNull(5) ? null : reader.GetString(5);
-                var developer = reader.IsDBNull(6) ? null : reader.GetString(6);
-                var publisher = reader.IsDBNull(7) ? null : reader.GetString(7);
-                var platforms = reader.IsDBNull(8) ? null : reader.GetString(8);
-                cover = NormalizeIgdbCover(cover);
-
-                items.Add(new CatalogItemDto(
-                    $"game:{mediaId}",
-                    mediaId,
-                    title,
-                    "game",
-                    completed,
-                    null,
-                    year > 0 ? year : null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    string.IsNullOrWhiteSpace(description) ? null : description,
-                    cover,
-                    null,
-                    string.IsNullOrWhiteSpace(publisher) ? null : publisher,
-                    string.IsNullOrWhiteSpace(developer) ? null : developer,
-                    string.IsNullOrWhiteSpace(platforms) ? null : platforms));
+                items.Add(map(reader));
             }
 
             return items;
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Optional catalog table for {Kind} is unavailable.", "game");
+            logger.LogWarning(exception, "Optional catalog table for {Kind} is unavailable.", kind);
             return [];
         }
+    }
+
+    private static CatalogItemDto BookItem(NpgsqlDataReader reader, int mediaId, int year, int pages, string? cover)
+    {
+        var author = reader.IsDBNull(5) ? null : reader.GetString(5);
+        var description = reader.IsDBNull(6) ? null : reader.GetString(6);
+        var isbn = reader.IsDBNull(8) ? null : reader.GetString(8);
+        var publisher = reader.IsDBNull(9) ? null : reader.GetString(9);
+        return new CatalogItemDto(
+            $"book:{mediaId}",
+            mediaId,
+            reader.GetString(1),
+            "book",
+            !reader.IsDBNull(2) && reader.GetBoolean(2),
+            null,
+            year > 0 ? year : null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            pages > 0 ? pages : null,
+            string.IsNullOrWhiteSpace(author) ? null : author,
+            string.IsNullOrWhiteSpace(description) ? null : description,
+            cover,
+            string.IsNullOrWhiteSpace(isbn) ? null : isbn,
+            string.IsNullOrWhiteSpace(publisher) ? null : publisher);
+    }
+
+    private static CatalogItemDto GameItem(NpgsqlDataReader reader, int mediaId, int year, string? cover)
+    {
+        var description = reader.IsDBNull(4) ? null : reader.GetString(4);
+        var developer = reader.IsDBNull(6) ? null : reader.GetString(6);
+        var publisher = reader.IsDBNull(7) ? null : reader.GetString(7);
+        var platforms = reader.IsDBNull(8) ? null : reader.GetString(8);
+        return new CatalogItemDto(
+            $"game:{mediaId}",
+            mediaId,
+            reader.GetString(1),
+            "game",
+            !reader.IsDBNull(2) && reader.GetBoolean(2),
+            null,
+            year > 0 ? year : null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            string.IsNullOrWhiteSpace(description) ? null : description,
+            cover,
+            null,
+            string.IsNullOrWhiteSpace(publisher) ? null : publisher,
+            string.IsNullOrWhiteSpace(developer) ? null : developer,
+            string.IsNullOrWhiteSpace(platforms) ? null : platforms);
     }
 
     private IEnumerable<CatalogItemDto> ReadOptionalTable(string sql, string kind)

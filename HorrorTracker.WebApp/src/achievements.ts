@@ -55,6 +55,20 @@ interface AchievementContext {
   tag: (id: string) => number;
 }
 
+function tagged(id: string, name: string, hint: string, earnedHint: string, tag: string, filter?: MediaKind): AchievementDefinition {
+  return {
+    id,
+    name,
+    hint,
+    earnedHint,
+    target: 1,
+    tag,
+    ...(filter ? { filter } : {}),
+    progress: (context) => context.tag(tag),
+    credits: (context) => tagCredits(context, tag),
+  };
+}
+
 interface AchievementDefinition {
   id: string;
   name: string;
@@ -159,37 +173,9 @@ const DEFINITIONS: AchievementDefinition[] = [
     progress: (context) => context.hours,
     credits: (context) => runtimeCredits(context),
   },
-  {
-    id: "first-cut",
-    name: "First Cut",
-    hint: "Finish a slasher.",
-    earnedHint: "A slasher marked finished.",
-    target: 1,
-    filter: "movie",
-    tag: "slasher",
-    progress: (context) => context.tag("slasher"),
-    credits: (context) => tagCredits(context, "slasher"),
-  },
-  {
-    id: "grave-raiser",
-    name: "Grave Raiser",
-    hint: "Finish a zombie title.",
-    earnedHint: "The dead walked, and you finished it.",
-    target: 1,
-    tag: "zombie",
-    progress: (context) => context.tag("zombie"),
-    credits: (context) => tagCredits(context, "zombie"),
-  },
-  {
-    id: "nightwalker",
-    name: "Nightwalker",
-    hint: "Finish a vampire title.",
-    earnedHint: "A vampire night survived.",
-    target: 1,
-    tag: "vampire",
-    progress: (context) => context.tag("vampire"),
-    credits: (context) => tagCredits(context, "vampire"),
-  },
+  tagged("first-cut", "First Cut", "Finish a slasher.", "A slasher marked finished.", "slasher", "movie"),
+  tagged("grave-raiser", "Grave Raiser", "Finish a zombie title.", "The dead walked, and you finished it.", "zombie"),
+  tagged("nightwalker", "Nightwalker", "Finish a vampire title.", "A vampire night survived.", "vampire"),
   {
     id: "the-curator",
     name: "The Curator",

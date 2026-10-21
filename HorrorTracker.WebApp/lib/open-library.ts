@@ -1,8 +1,8 @@
 import { execute, HttpError, queryRows } from "./neon";
+import { describedHit, rankedHits } from "./search-hits";
 import { asId } from "./tmdb";
 
 const USER_AGENT = "HorrorVerse/1.0 (https://horrorverse.vercel.app)";
-const MAX_RESULTS = 8;
 const SEARCH_POOL = 20;
 const HORROR_SUBJECT = /horror|ghost|haunt|vampire|zombie|werewolf|witch|demon|occult|supernatural|gothic|monster|paranormal|lovecraft/i;
 const MAX_SUBJECTS = 12;
@@ -61,20 +61,11 @@ export function parseOpenLibrarySearch(payload: unknown): OpenLibraryHit[] {
     hits.push({
       horror: subjects.some((subject) => HORROR_SUBJECT.test(subject)),
       index,
-      hit: {
-        sourceId,
-        title,
-        ...(year ? { year } : {}),
-        ...(overview ? { overview } : {}),
-        ...(coverUrl ? { coverUrl } : {}),
-      },
+      hit: describedHit(sourceId, title, year, overview, coverUrl),
     });
   });
 
-  return hits
-    .sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index)
-    .slice(0, MAX_RESULTS)
-    .map((item) => item.hit);
+  return rankedHits(hits);
 }
 
 export function parseOpenLibraryWork(workId: string, work: unknown, searchDoc: unknown): OpenLibraryBook | undefined {

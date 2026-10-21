@@ -1,7 +1,6 @@
 import { execute, HttpError, queryRows } from "./neon";
+import { describedHit, rankedHits } from "./search-hits";
 import { asId } from "./tmdb";
-
-const MAX_RESULTS = 8;
 const SEARCH_POOL = 20;
 const HORROR_NAME = /horror|survival horror/i;
 const TOKEN_SKEW_MS = 60_000;
@@ -77,20 +76,11 @@ export function parseIgdbSearch(payload: unknown): IgdbHit[] {
     hits.push({
       horror: [...genres, ...themes].some((name) => HORROR_NAME.test(name)),
       index,
-      hit: {
-        sourceId,
-        title,
-        ...(year ? { year } : {}),
-        ...(overview ? { overview } : {}),
-        ...(coverUrl ? { coverUrl } : {}),
-      },
+      hit: describedHit(sourceId, title, year, overview, coverUrl),
     });
   });
 
-  return hits
-    .sort((left, right) => Number(right.horror) - Number(left.horror) || left.index - right.index)
-    .slice(0, MAX_RESULTS)
-    .map((item) => item.hit);
+  return rankedHits(hits);
 }
 
 export function parseIgdbGame(payload: unknown): IgdbGame | undefined {

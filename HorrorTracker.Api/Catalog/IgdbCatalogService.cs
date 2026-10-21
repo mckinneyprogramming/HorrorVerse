@@ -34,7 +34,7 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
         foreach (var doc in payload.EnumerateArray())
         {
             var sourceId = Id(doc);
-            var title = Clean(doc, "name", 200);
+            var title = CatalogText.Clean(doc, "name", 200);
             if (sourceId is null || title is null)
             {
                 index += 1;
@@ -76,14 +76,14 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
             $"where id = {id}; fields name,summary,first_release_date,cover.image_id,genres.name,themes.name,platforms.name,involved_companies.company.name,involved_companies.developer,involved_companies.publisher; limit 1;",
             cancellationToken);
         var doc = First(payload);
-        var title = doc is { } game ? Clean(game, "name", 200) : null;
+        var title = doc is { } game ? CatalogText.Clean(game, "name", 200) : null;
         if (doc is null || title is null)
         {
             throw new InvalidOperationException("IGDB did not return that game.");
         }
 
         var year = Year(doc.Value) ?? 0;
-        var description = Clean(doc.Value, "summary", 4000);
+        var description = CatalogText.Clean(doc.Value, "summary", 4000);
         var cover = CoverUrl(doc.Value);
         var (developer, publisher) = Companies(doc.Value);
         var platforms = string.Join(", ", Names(doc.Value, "platforms").Take(8));
@@ -338,7 +338,7 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
         var publishers = new List<string>();
         foreach (var company in companies.EnumerateArray())
         {
-            var name = company.TryGetProperty("company", out var nested) ? Clean(nested, "name", 120) : null;
+            var name = company.TryGetProperty("company", out var nested) ? CatalogText.Clean(nested, "name", 120) : null;
             if (name is null)
             {
                 continue;
@@ -369,7 +369,7 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
 
         foreach (var item in value.EnumerateArray())
         {
-            var text = Clean(item, "name", 80);
+            var text = CatalogText.Clean(item, "name", 80);
             if (text is not null)
             {
                 yield return text;
@@ -397,22 +397,6 @@ public sealed partial class IgdbCatalogService(IConfiguration configuration)
 
         var year = DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime.Year;
         return year is >= 1 and <= 3000 ? year : null;
-    }
-
-    private static string? Clean(JsonElement element, string name, int max)
-    {
-        if (!element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
-        {
-            return null;
-        }
-
-        var text = string.Join(' ', value.GetString()!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        if (text.Length < 1)
-        {
-            return null;
-        }
-
-        return text.Length > max ? text[..max].Trim() : text;
     }
 
     private static string Escape(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
