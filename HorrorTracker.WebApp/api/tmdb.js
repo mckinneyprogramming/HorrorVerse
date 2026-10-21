@@ -1470,11 +1470,7 @@ async function insertShow(connectionString, title, totalTime, episodes, seasons,
     "INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched, releaseyear) VALUES ($1, $2, $3, $4, FALSE, $5) RETURNING id",
     [title, totalTime, episodes, seasons, year ?? 0]
   );
-  const id = asId(rows[0]);
-  if (!id) {
-    throw new TmdbError("Could not save that show.", 500);
-  }
-  return id;
+  return asId(rows[0]) ?? 0;
 }
 function normalizeTmdbKind(kind) {
   const value = kind.trim().toLowerCase();

@@ -110,13 +110,10 @@ async function ensureUserLibrarySchema(connectionString) {
       )`
   );
   await execute(connectionString, "CREATE INDEX IF NOT EXISTS user_list_user_id_idx ON user_list (user_id)");
-  try {
-    await execute(
-      connectionString,
-      "CREATE UNIQUE INDEX IF NOT EXISTS user_list_user_name_idx ON user_list (user_id, (lower(name)))"
-    );
-  } catch {
-  }
+  await execute(
+    connectionString,
+    "CREATE UNIQUE INDEX IF NOT EXISTS user_list_user_name_idx ON user_list (user_id, (lower(name)))"
+  ).catch(() => void 0);
   await execute(
     connectionString,
     `CREATE TABLE IF NOT EXISTS user_list_item (
@@ -538,6 +535,7 @@ export {
   GET,
   PATCH,
   POST,
+  duplicateListError,
   maxDuration,
   runtime
 };

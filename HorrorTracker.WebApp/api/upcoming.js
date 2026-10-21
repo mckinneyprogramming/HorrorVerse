@@ -70,6 +70,9 @@ var MAX_EPISODE_PAGES = 3;
 var MAX_TV_DETAILS = 48;
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache = null;
+function upcomingFailure(error) {
+  return error instanceof Error ? error.message : "Could not load upcoming titles.";
+}
 async function GET() {
   try {
     const today = isoDate(utcToday());
@@ -79,7 +82,7 @@ async function GET() {
       shows: schedule.shows.filter((item) => item.releaseDate >= today)
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not load upcoming titles.";
+    const message = upcomingFailure(error);
     const status = message.includes("TMDBKey") ? 503 : 502;
     return Response.json({ error: message }, { status });
   }
@@ -311,7 +314,7 @@ function parseDate(value) {
   if (!match) {
     return void 0;
   }
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  const date = /* @__PURE__ */ new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? void 0 : date;
 }
 function isoDate(date) {
@@ -328,6 +331,8 @@ function sortTitles(items) {
 }
 export {
   GET,
+  collectIds,
   maxDuration,
-  runtime
+  runtime,
+  upcomingFailure
 };

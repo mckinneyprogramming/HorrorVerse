@@ -222,7 +222,7 @@ async function registerUser(connectionString, body) {
     if (error instanceof AuthError) {
       throw error;
     }
-    const message = error instanceof Error ? error.message : "";
+    const message = errorText(error);
     if (/duplicate|unique/i.test(message)) {
       throw new AuthError("An account with that email already exists.", 409);
     }
@@ -242,10 +242,7 @@ async function loginUser(connectionString, body) {
   if (!row || !await verifyPassword(password, String(row.password_hash ?? ""))) {
     throw new AuthError("Invalid email or password.", 401);
   }
-  const user = await syncAdmin(connectionString, mapUser(row));
-  if (!user) {
-    throw new AuthError("Invalid email or password.", 401);
-  }
+  const user = denyMissingUser(await syncAdmin(connectionString, mapUser(row)));
   return { user, token: await createSession(connectionString, user.id) };
 }
 async function readSessionUser(connectionString, token) {
@@ -315,8 +312,19 @@ async function ensureSchema(connectionString) {
   await execute(connectionString, "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS about_me TEXT");
   await execute(connectionString, "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS avatar TEXT");
 }
+function errorText(error) {
+  return error instanceof Error ? error.message : "";
+}
+function denyMissingUser(user) {
+  if (!user) {
+    throw new AuthError("Invalid email or password.", 401);
+  }
+  return user;
+}
 async function hashPassword(password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return hashPasswordWithSalt(password, crypto.getRandomValues(new Uint8Array(16)));
+}
+async function hashPasswordWithSalt(password, salt) {
   const hash = await pbkdf2(password, salt, PBKDF2_ITERATIONS);
   return `pbkdf2$sha256$${PBKDF2_ITERATIONS}$${bufferToBase64(salt)}$${bufferToBase64(hash)}`;
 }
@@ -445,6 +453,11 @@ export {
   GET,
   PATCH,
   POST,
+  denyMissingUser,
+  errorText,
+  hashPassword,
+  hashPasswordWithSalt,
   maxDuration,
-  runtime
+  runtime,
+  verifyPassword
 };

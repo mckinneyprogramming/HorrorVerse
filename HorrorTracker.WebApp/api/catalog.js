@@ -503,7 +503,8 @@ function insertSql(kind) {
   }
 }
 function writeYear(body) {
-  return Number.isInteger(body.releaseYear) && (body.releaseYear ?? 0) > 0 ? Number(body.releaseYear) : (/* @__PURE__ */ new Date()).getUTCFullYear();
+  const year = body.releaseYear ?? 0;
+  return Number.isInteger(year) && year > 0 ? year : (/* @__PURE__ */ new Date()).getUTCFullYear();
 }
 async function ensureUniqueTitle(connectionString, kind, title, year, excludeId) {
   if (await findExistingId(connectionString, kind, title, year, excludeId)) {
@@ -751,11 +752,20 @@ function asNonEmptyString(value) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : void 0;
 }
+var catalogCoverage = {
+  insertSql,
+  existingIdSql,
+  currentYear,
+  insertParams,
+  updateSql,
+  deleteSql
+};
 export {
   DELETE,
   GET,
   PATCH,
   POST,
+  catalogCoverage,
   maxDuration,
   runtime
 };

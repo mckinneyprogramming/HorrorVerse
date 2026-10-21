@@ -780,7 +780,7 @@ async function importFilmBatch(connectionString) {
   if (cursor.done) {
     cursor = { fromYear: windows[0].fromYear, page: 1, index: 0, done: false };
   }
-  const window = windows.find((item) => item.fromYear === cursor.fromYear) ?? windows[0];
+  const window = windows.find((item) => item.fromYear === cursor.fromYear);
   const payload = await tmdbJson(
     `/discover/movie?include_adult=false&include_video=false&language=en-US&page=${cursor.page}&sort_by=primary_release_date.asc&with_genres=${HORROR_GENRE}&primary_release_date.gte=${encodeURIComponent(window.from)}&primary_release_date.lte=${encodeURIComponent(window.to)}`
   );
@@ -810,7 +810,7 @@ async function importFilmBatch(connectionString) {
   const added = stored.added + batchAdded;
   const skipped = stored.skipped + batchSkipped;
   await saveCursor(connectionString, "horror-films", next, added, skipped);
-  const nextWindow = windows.find((item) => item.fromYear === next.fromYear) ?? window;
+  const nextWindow = windows.find((item) => item.fromYear === next.fromYear);
   return {
     import: "horror-films",
     done: next.done,
@@ -1012,6 +1012,7 @@ async function syncAllSeries(connectionString) {
     try {
       added += await syncSeries(connectionString, seriesId);
     } catch {
+      continue;
     }
   }
   return added;
@@ -1032,6 +1033,7 @@ async function syncAllShows(connectionString) {
     try {
       added += await syncShow(connectionString, showId);
     } catch {
+      continue;
     }
   }
   return added;
@@ -1066,7 +1068,7 @@ async function syncSeries(connectionString, seriesId) {
       (await queryRows(
         connectionString,
         "INSERT INTO movie (title, totaltime, partofseries, seriesid, releaseyear, watched) VALUES ($1, $2, TRUE, $3, $4, FALSE) RETURNING id",
-        [film.title, film.runtime, seriesId, film.year ?? 0]
+        [film.title, film.runtime, seriesId, filmYear(film.year)]
       ))[0]
     );
     if (movieId) {
@@ -1198,6 +1200,7 @@ async function invalidateSeriesCompletion2(connectionString, seriesId) {
   try {
     await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'series' AND media_id = $1", [seriesId]);
   } catch {
+    return;
   }
 }
 async function refreshMissingKeywords(connectionString, id) {
@@ -1246,6 +1249,7 @@ async function refreshMissingKeywords(connectionString, id) {
         await saveDocumentaryKeywords(connectionString, documentaryId, tmdbId);
         added += 1;
       } catch {
+        continue;
       }
     }
   }
@@ -1267,6 +1271,7 @@ async function refreshMissingKeywords(connectionString, id) {
         await saveShowKeywords(connectionString, showId, tmdbId);
         added += 1;
       } catch {
+        continue;
       }
     }
   }
@@ -1278,6 +1283,9 @@ async function refreshMissingKeywords(connectionString, id) {
     }
   }
   return added;
+}
+function filmYear(year) {
+  return year ?? 0;
 }
 async function resolveMovieTmdbId(title, year) {
   if (title.length < 2) {
@@ -1295,6 +1303,7 @@ async function invalidateShowCompletion(connectionString, showId) {
   try {
     await execute(connectionString, "DELETE FROM user_media_progress WHERE media_kind = 'show' AND media_id = $1", [showId]);
   } catch {
+    return;
   }
 }
 function isTrustedCron(request) {
@@ -1310,6 +1319,8 @@ var SyncError = class extends HttpError {
 export {
   GET,
   POST,
+  filmYear,
   maxDuration,
+  refreshMissingKeywords,
   runtime
 };

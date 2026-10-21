@@ -14,7 +14,7 @@ function sameBundle(current, next) {
   return current.replaceAll("\r\n", "\n") === next.replaceAll("\r\n", "\n");
 }
 
-const entries = (await readdir(srcDir)).filter((name) => name.endsWith(".ts")).sort();
+const entries = (await readdir(srcDir)).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts")).sort();
 if (entries.length === 0) {
   throw new Error("No api-src/*.ts files to bundle.");
 }
@@ -50,7 +50,7 @@ for (const name of entries) {
   }
 }
 
-const leftovers = (await readdir(outDir)).filter((name) => name.endsWith(".ts"));
+const leftovers = (await readdir(outDir)).filter((name) => name.endsWith(".ts") || name.endsWith(".test.js"));
 if (leftovers.length > 0 && !check) {
   await Promise.all(leftovers.map((name) => rm(join(outDir, name))));
 }

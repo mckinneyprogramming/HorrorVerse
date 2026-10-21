@@ -110,13 +110,10 @@ async function ensureUserLibrarySchema(connectionString) {
       )`
   );
   await execute(connectionString, "CREATE INDEX IF NOT EXISTS user_list_user_id_idx ON user_list (user_id)");
-  try {
-    await execute(
-      connectionString,
-      "CREATE UNIQUE INDEX IF NOT EXISTS user_list_user_name_idx ON user_list (user_id, (lower(name)))"
-    );
-  } catch {
-  }
+  await execute(
+    connectionString,
+    "CREATE UNIQUE INDEX IF NOT EXISTS user_list_user_name_idx ON user_list (user_id, (lower(name)))"
+  ).catch(() => void 0);
   await execute(
     connectionString,
     `CREATE TABLE IF NOT EXISTS user_list_item (
@@ -416,7 +413,7 @@ function pickWatchNext(source, limit = WATCH_NEXT_LIMIT, seed = 0) {
   const seen = /* @__PURE__ */ new Set();
   const add = (items) => {
     for (const item of items) {
-      if (picked.length >= limit || seen.has(item.id) || !item.title) {
+      if (!item || picked.length >= limit || seen.has(item.id) || !item.title) {
         continue;
       }
       seen.add(item.id);

@@ -323,6 +323,7 @@ async function addSeriesMovies(connectionString, franchiseId, seriesId) {
       [franchiseId, seriesId]
     );
   } catch {
+    return;
   }
 }
 async function removeSeriesMovies(connectionString, franchiseId, seriesId) {
@@ -404,6 +405,7 @@ export {
   GET,
   PATCH,
   POST,
+  duplicateNameError,
   maxDuration,
   runtime
 };

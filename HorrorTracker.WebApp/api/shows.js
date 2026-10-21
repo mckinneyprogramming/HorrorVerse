@@ -317,19 +317,21 @@ async function PATCH(request) {
     const completed = Boolean(body.completed);
     const dated = body.dated !== false;
     const year = dated ? parseWatchYear(body.year) : void 0;
+    const episodeId = body.episodeId ?? 0;
+    const seasonId = body.seasonId ?? 0;
     let showId;
-    if (Number.isInteger(body.episodeId) && (body.episodeId ?? 0) > 0) {
-      showId = await getEpisodeShowId(connectionString, Number(body.episodeId));
-      await setEpisodeCompleted(connectionString, userId, Number(body.episodeId), completed, dated, year);
-    } else if (Number.isInteger(body.seasonId) && (body.seasonId ?? 0) > 0) {
-      const season = await getSeasonRef(connectionString, Number(body.seasonId));
+    if (Number.isInteger(episodeId) && episodeId > 0) {
+      showId = await getEpisodeShowId(connectionString, episodeId);
+      await setEpisodeCompleted(connectionString, userId, episodeId, completed, dated, year);
+    } else if (Number.isInteger(seasonId) && seasonId > 0) {
+      const season = await getSeasonRef(connectionString, seasonId);
       showId = season.showId;
       const tmdbId = await ensureShowTmdbId(connectionString, showId);
       if (tmdbId) {
         await refreshSeasons(connectionString, showId, tmdbId);
         await ensureEpisodes(connectionString, showId, tmdbId, season.seasonNumber);
       }
-      await setSeasonCompleted(connectionString, userId, Number(body.seasonId), completed);
+      await setSeasonCompleted(connectionString, userId, seasonId, completed);
     } else if (body.id) {
       showId = parseShowId(body.id);
       await setShowCompleted(connectionString, userId, showId, completed);
