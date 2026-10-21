@@ -439,7 +439,7 @@ public class GapRemainderTests
         Gap.Call(library, "LoadNextEpisodes", userId);
 
         var seriesId = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO movieseries (title, totaltime, totalmovies, watched, posterpath) VALUES ('Gap Next Series {stamp}', 0, 2, FALSE, NULL) RETURNING id");
-        var done = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO movie (title, totaltime, watched, releaseyear, partofseries, seriesid, posterpath) VALUES ('Gap Next Done {stamp}', 10, FALSE, NULL, TRUE, {seriesId}, '-') RETURNING id");
+        var done = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO movie (title, totaltime, watched, releaseyear, partofseries, seriesid, posterpath) VALUES ('Gap Next Done {stamp}', 10, FALSE, 1978, TRUE, {seriesId}, '-') RETURNING id");
         await CoverageSupport.Exec(connectionString, $"INSERT INTO movie (title, totaltime, watched, releaseyear, partofseries, seriesid, posterpath) VALUES ('Gap Next Open {stamp}', 10, FALSE, 0, TRUE, {seriesId}, NULL)");
         await CoverageSupport.Exec(connectionString, $"INSERT INTO user_media_progress (user_id, media_kind, media_id, completed_at) VALUES ({userId}, 'movie', {done}, NULL)");
         var datedSeries = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO movieseries (title, totaltime, totalmovies, watched, posterpath) VALUES ('Gap Next Dated {stamp}', 0, 2, FALSE, '/series.jpg') RETURNING id");
