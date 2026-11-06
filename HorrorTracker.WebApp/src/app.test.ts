@@ -166,7 +166,7 @@ function createWorld(): World {
     entry({ id: "book:8", mediaId: 8, title: "The Long Tome", kind: "book", completed: false, pages: 1, description: "D".repeat(200), author: "Anon" }),
     entry({ id: "podcast:31", mediaId: 31, title: "Voices", kind: "podcast", completed: false, releaseYear: 2021 }),
     entry({ id: "podcast:32", mediaId: 32, title: "Quiet Cast", kind: "podcast", completed: false }),
-    entry({ id: "game:33", mediaId: 33, title: "Resident Evil", kind: "game", completed: false, releaseYear: 1996, developer: "Capcom", platforms: "PlayStation", description: "A mansion.", coverUrl: "https://images.igdb.com/igdb/image/upload/t_cover_big/co1r74.jpg" }),
+    entry({ id: "game:33", mediaId: 33, title: "Resident Evil", kind: "game", completed: false, releaseYear: 1996, developer: "Capcom", publisher: "Capcom Press", platforms: "PlayStation", description: "A mansion.", coverUrl: "https://images.igdb.com/igdb/image/upload/t_cover_big/co1r74.jpg" }),
     entry({ id: "game:34", mediaId: 34, title: "Silent Hill", kind: "game", completed: false }),
     entry({ id: "movie:70", mediaId: 70, title: "Rock & Roll <Night> \"Fun\" 'Times'", kind: "movie", completed: false, releaseYear: 1984, totalTime: 95, posterPath: "/rock.jpg" }),
   ];
@@ -1477,6 +1477,14 @@ describe("mountApp", () => {
     await inject(root, { "data-action": "library-progress", "data-progress": "halfway" });
     expect(root.querySelector('[data-sort="title"]')?.classList.contains("is-active")).toBe(true);
 
+    await clickAction(root, "open-title", "data-id", "movie:2");
+    await vi.waitFor(() => {
+      if (!root.querySelector(".title-page h1")?.textContent?.includes("Scream 2")) throw new Error("title");
+    });
+    await inject(root, { "data-action": "open-title", "data-id": "movie:0" });
+    await inject(root, { "data-action": "open-title" });
+    expect(root.querySelector(".title-page h1")?.textContent).toContain("Scream 2");
+
     world.synopsis = "A quiet street.";
     window.history.pushState({}, "", "/movie/3");
     window.dispatchEvent(new PopStateEvent("popstate"));
@@ -1544,12 +1552,60 @@ describe("mountApp", () => {
     await settle();
     expect(root.textContent).toContain("It");
 
+    window.history.pushState({}, "", "/book/7");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(root.textContent).toContain("ISBN 9780670813025");
+
+    window.history.pushState({}, "", "/game/33");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(root.textContent).toContain("Capcom Press");
+
+    window.history.pushState({}, "", "/book/8");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(root.textContent).toContain("The Long Tome");
+    expect(root.textContent).not.toContain("ISBN");
+
+    window.history.pushState({}, "", "/show/4");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      if (!root.textContent?.includes("Season 1")) throw new Error("seasons");
+    });
+
+    window.history.pushState({}, "", "/movie/1");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    arm("PATCH /api/progress");
+    await clickAction(root, "toggle", "data-id", "movie:1");
+    await untilWaiting("PATCH /api/progress");
+    expect(root.querySelector('[data-action="toggle"]')?.hasAttribute("disabled")).toBe(true);
+    expect(root.querySelector('[data-action="open-lists"]')?.hasAttribute("disabled")).toBe(true);
+    expect(root.querySelector('[data-action="open-edit"]')?.hasAttribute("disabled")).toBe(true);
+    expect(root.querySelector('[data-action="delete"]')?.hasAttribute("disabled")).toBe(true);
+    gates.get("PATCH /api/progress")?.release();
+    await settle();
+    failNext("PATCH /api/progress", new Error("Could not update your library."));
+    await clickAction(root, "toggle", "data-id", "movie:1");
+    await vi.waitFor(() => {
+      if (!root.querySelector(".title-page .status")?.textContent?.includes("Could not update your library.")) {
+        throw new Error("title error");
+      }
+    });
+
     world.user = null;
     const guest = await boot("/library");
     expect(guest.root.querySelector('[data-progress="finished"]')).toBeNull();
     await clickAction(guest.root, "library-sort", "data-sort", "newest");
     await inject(guest.root, { "data-action": "library-progress", "data-progress": "waiting" });
     expect(guest.root.querySelector('[data-sort="newest"]')?.classList.contains("is-active")).toBe(true);
+    window.history.pushState({}, "", "/movie/3");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(guest.root.textContent).toContain("Sign in to keep your place");
+    expect(guest.root.querySelector('[data-action="open-lists"]')).toBeNull();
+    expect(guest.root.querySelector('[data-action="open-edit"]')).toBeNull();
   }, 60_000);
 
   it("covers profile links, popstate, and install", async () => {

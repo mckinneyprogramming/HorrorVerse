@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { jsonResponse, testConn, withNeonFetch } from "../test-helpers/http";
+import * as movies from "./import-tmdb";
 import { importFilmsReleasingToday, releaseDay } from "./release-day";
 
 const CONN = testConn("release-day");
@@ -70,5 +71,69 @@ describe("importFilmsReleasingToday", () => {
         ]);
       },
     );
+  });
+
+  it("caps long result lists and keeps going when a release date or failure is not a normal error", async () => {
+    const spy = vi.spyOn(movies, "importMovie").mockImplementation(async (_connection, tmdbId) => {
+      if (tmdbId === 10) {
+        throw "offline";
+      }
+
+      return { added: 1, id: `movie:${tmdbId}` };
+    });
+
+    try {
+      await withNeonFetch(
+        { TMDBKey: "key" },
+        (url) => {
+          if (!url.includes("/discover/movie")) {
+            return jsonResponse({});
+          }
+
+          if (url.includes("page=2")) {
+            return jsonResponse({ results: [{ id: 3, release_date: DAY }] });
+          }
+
+          return jsonResponse({
+            total_pages: 5,
+            results: [{ id: 1, release_date: DAY }, { id: 2 }],
+          });
+        },
+        [],
+        async () => {
+          await expect(importFilmsReleasingToday(CONN, new Date("2026-11-06T18:00:00.000Z"))).resolves.toEqual({
+            date: DAY,
+            added: 2,
+            already: 0,
+            failed: 0,
+          });
+        },
+      );
+
+      await withNeonFetch(
+        { TMDBKey: "key" },
+        (url) => {
+          if (!url.includes("/discover/movie")) {
+            return jsonResponse({});
+          }
+
+          return jsonResponse({
+            total_pages: 1,
+            results: Array.from({ length: 25 }, (_, index) => ({ id: 10 + index, release_date: DAY })),
+          });
+        },
+        [],
+        async () => {
+          await expect(importFilmsReleasingToday(CONN, new Date("2026-11-06T18:00:00.000Z"))).resolves.toEqual({
+            date: DAY,
+            added: 23,
+            already: 0,
+            failed: 1,
+          });
+        },
+      );
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

@@ -4331,7 +4331,7 @@ function renderTitlePage(): string {
   }
 
   const kindLabel = TITLE_KIND_LABEL[entry.kind];
-  const plural = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? "Library";
+  const plural = MEDIA_KINDS.find((kind) => kind.id === entry.kind)!.label;
   const details = movieDetailLine(entry);
   const art = entry.coverUrl || posterUrl(entry.posterPath, "w342");
   const done = isFinished(entry);
