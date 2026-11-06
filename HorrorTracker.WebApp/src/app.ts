@@ -4417,7 +4417,7 @@ async function ensureTitleExtras(root: HTMLElement): Promise<void> {
 
 async function ensureTitleSynopsis(root: HTMLElement): Promise<void> {
   const entry = state.entries.find((item) => item.id === state.titleId);
-  if (!entry || entry.description || !state.user || state.view !== "title" || state.titleSynopsisMiss === entry.id) {
+  if (!entry || entry.description || !state.user || state.titleSynopsisMiss === entry.id) {
     return;
   }
 

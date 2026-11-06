@@ -54,6 +54,31 @@ describe("tmdb search", () => {
     });
     expect((await GET(authed("http://localhost/api/tmdb?kind=opera&q=hex"))).status).toBe(400);
     expect((await GET(authed("http://localhost/api/tmdb?poster=nope"))).status).toBe(400);
+
+    handle.restore();
+    handle = installApi([sessionStep(), { match: "SELECT description", rows: [{ description: "Saved.", tmdbid: 15 }] }], {
+      env: { TMDBKey: "key" },
+    });
+    expect(await readBody(await GET(authed("http://localhost/api/tmdb?synopsis=movie:4")))).toEqual({ description: "Saved." });
+    expect(await readBody(await GET(authed("http://localhost/api/tmdb?synopsis=nope")))).toEqual({ description: null });
+  });
+
+  it("returns a stored synopsis or nothing", async () => {
+    handle = installApi([
+      sessionStep(),
+      { match: "SELECT description, tmdbid FROM movie", rows: [{ description: "Already saved.", tmdbid: 15 }] },
+    ]);
+    expect(await readBody(await GET(authed("http://localhost/api/tmdb?synopsis=movie:4")))).toEqual({
+      description: "Already saved.",
+    });
+
+    handle.restore();
+    handle = installApi([sessionStep(), { match: "SELECT description, tmdbid FROM show", rows: [{ description: null, tmdbid: null }] }]);
+    expect(await readBody(await GET(authed("http://localhost/api/tmdb?synopsis=show:4")))).toEqual({ description: null });
+    expect(await readBody(await GET(authed("http://localhost/api/tmdb?synopsis=nope")))).toEqual({ description: null });
+    expect(await readBody(await GET(authed("http://localhost/api/tmdb?synopsis=%20%20&q=h")))).toEqual({
+      error: "Enter at least two characters to search TMDb.",
+    });
   });
 
   it("searches movies, documentaries, shows, and collections", async () => {

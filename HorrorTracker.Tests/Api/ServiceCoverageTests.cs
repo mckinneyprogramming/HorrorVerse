@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Npgsql;
 using HorrorTracker.Api.Auth;
 using Microsoft.Extensions.Configuration;
 using HorrorTracker.Api.Catalog;
@@ -307,9 +308,9 @@ public class ServiceCoverageTests
         Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/tmdb?kind=series&q=halloween")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/tmdb", new { kind = "movie", tmdbId = 0 })).StatusCode);
 
-        script.Movies[30] = new Movie { Id = 30, Title = $"Imported {stamp}", Runtime = 91, ReleaseDate = new DateTime(1978, 10, 25), PosterPath = "/imp.jpg", BelongsToCollection = new SearchCollection { Name = $"Halloween Series {stamp} Collection" } };
+        script.Movies[30] = new Movie { Id = 30, Title = $"Imported {stamp}", Runtime = 91, ReleaseDate = new DateTime(1978, 10, 25), PosterPath = "/imp.jpg", Overview = "A night in Haddonfield.", BelongsToCollection = new SearchCollection { Name = $"Halloween Series {stamp} Collection" } };
         script.Movies[31] = new Movie { Id = 31, Title = $"Imported {stamp}", Runtime = 0, ReleaseDate = new DateTime(1978, 10, 25), PosterPath = "nope", BelongsToCollection = new SearchCollection { Name = $"Halloween Series {stamp}" } };
-        script.Movies[32] = new Movie { Id = 32, Title = $"Alone {stamp}", Runtime = null, ReleaseDate = null, PosterPath = null };
+        script.Movies[32] = new Movie { Id = 32, Title = $"Alone {stamp}", Runtime = null, ReleaseDate = null, PosterPath = null, Overview = "   " };
         script.Movies[33] = new Movie { Id = 33, Title = " ", Runtime = 10, ReleaseDate = new DateTime(1800, 1, 1) };
         script.Movies[34] = new Movie { Id = 34, Title = new string('T', 201), Runtime = 10, ReleaseDate = new DateTime(1990, 1, 1) };
         Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync("/api/tmdb", new { kind = "movie", tmdbId = 30 })).StatusCode);
@@ -318,7 +319,7 @@ public class ServiceCoverageTests
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/tmdb", new { kind = "movie", tmdbId = 33 })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/tmdb", new { kind = "movie", tmdbId = 34 })).StatusCode);
 
-        script.Movies[40] = new Movie { Id = 40, Title = $"Doc Import {stamp}", Runtime = 80, ReleaseDate = new DateTime(2011, 5, 1), PosterPath = "/d.jpg" };
+        script.Movies[40] = new Movie { Id = 40, Title = $"Doc Import {stamp}", Runtime = 80, ReleaseDate = new DateTime(2011, 5, 1), PosterPath = "/d.jpg", Overview = "A found footage night." };
         script.Movies[41] = new Movie { Id = 41, Title = $"Doc Import {stamp}", Runtime = 80, ReleaseDate = null, PosterPath = "/d.jpg" };
         Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync("/api/tmdb", new { kind = "documentary", tmdbId = 40 })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync("/api/tmdb", new { kind = "documentary", tmdbId = 41 })).StatusCode);
@@ -342,6 +343,7 @@ public class ServiceCoverageTests
         Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync("/api/tmdb", new { kind = "series", tmdbId = 71 })).StatusCode);
 
         script.Shows[80] = ShowDetail("Chapelwaite Import", 2018, [40], 4, 1, "/tv.jpg", "Season 1");
+        script.Shows[80].Overview = "A coastal town.";
         script.Shows[81] = ShowDetail($"Chapelwaite {stamp}", 2021, null, 0, 0, null, null);
         script.Seasons[(80, 1)] = new TvSeason
         {
@@ -415,7 +417,11 @@ public class ServiceCoverageTests
             Assert.Equal(HttpStatusCode.Unauthorized, (await bare.GetAsync("/api/sync")).StatusCode);
         }
 
-        _ = connectionString;
+        await using (var synopsisScope = factory.Services.CreateAsyncScope())
+        {
+            var synopsisTmdb = synopsisScope.ServiceProvider.GetRequiredService<TmdbCatalogService>();
+            await CoverSynopsisAsync(admin, script, synopsisTmdb, connectionString);
+        }
     }
 
     private static async Task ExerciseExternalAsync(HttpClient admin, HttpClient member, Playback http, string connectionString, string stamp, string movie, string documentary, string show, WebApplicationFactory<Program> factory)
@@ -602,6 +608,83 @@ public class ServiceCoverageTests
         NextEpisodeToAir = new TvEpisode { Runtime = 12 },
         Seasons = seasons > 0 ? [new SearchTvSeason { SeasonNumber = 0, Name = seasonName }, new SearchTvSeason { SeasonNumber = 1, Name = "Season 1" }] : null,
     };
+
+    private static async Task CoverSynopsisAsync(HttpClient admin, ScriptedTmdb script, TmdbCatalogService tmdb, string connectionString)
+    {
+        var movieId = await CoverageSupport.Scalar<int>(connectionString, "SELECT id FROM movie WHERE tmdbid = 30 ORDER BY id DESC LIMIT 1");
+        var documentaryId = await CoverageSupport.Scalar<int>(connectionString, "SELECT id FROM documentary WHERE tmdbid = 40 ORDER BY id DESC LIMIT 1");
+        var showId = await CoverageSupport.Scalar<int>(connectionString, "SELECT id FROM show WHERE tmdbid = 80 ORDER BY id DESC LIMIT 1");
+
+        var stored = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=movie:{movieId}");
+        Assert.Equal("A night in Haddonfield.", stored.GetProperty("description").GetString());
+        script.FailMovies.Add(30);
+        var again = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=movie:{movieId}");
+        Assert.Equal("A night in Haddonfield.", again.GetProperty("description").GetString());
+        script.FailMovies.Remove(30);
+
+        await CoverageSupport.Exec(connectionString, $"UPDATE movie SET description = NULL WHERE id = {movieId}");
+        script.Movies[30].Overview = new string('a', 3999) + "  " + new string('b', 10);
+        var filled = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=movie:{movieId}");
+        Assert.Equal(new string('a', 3999), filled.GetProperty("description").GetString());
+
+        await CoverageSupport.Exec(connectionString, $"UPDATE movie SET description = NULL WHERE id = {movieId}");
+        script.Movies[30].Overview = "   ";
+        var blank = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=movie:{movieId}");
+        Assert.Equal(JsonValueKind.Null, blank.GetProperty("description").ValueKind);
+        script.Movies[30].Overview = "A night in Haddonfield.";
+        await CoverageSupport.Exec(connectionString, $"UPDATE movie SET description = 'A night in Haddonfield.' WHERE id = {movieId}");
+
+        var documentary = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=documentary:{documentaryId}");
+        Assert.Equal("A found footage night.", documentary.GetProperty("description").GetString());
+        await CoverageSupport.Exec(connectionString, $"UPDATE show SET description = NULL WHERE id = {showId}");
+        var show = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=show:{showId}");
+        Assert.Equal("A coastal town.", show.GetProperty("description").GetString());
+
+        var orphanId = await CoverageSupport.Scalar<int>(connectionString, "INSERT INTO movie (title, totaltime, partofseries, releaseyear, watched) VALUES ('No Tmdb Synopsis', 0, false, 1991, false) RETURNING id");
+        var missingTmdb = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=movie:{orphanId}");
+        Assert.Equal(JsonValueKind.Null, missingTmdb.GetProperty("description").ValueKind);
+        Assert.Equal(JsonValueKind.Null, (await admin.GetFromJsonAsync<JsonElement>("/api/tmdb?synopsis=movie:99999999"))!.GetProperty("description").ValueKind);
+        Assert.Equal(JsonValueKind.Null, (await admin.GetFromJsonAsync<JsonElement>("/api/tmdb?synopsis=nope"))!.GetProperty("description").ValueKind);
+        Assert.Equal(JsonValueKind.Null, (await admin.GetFromJsonAsync<JsonElement>("/api/tmdb?synopsis=movie:0"))!.GetProperty("description").ValueKind);
+        Assert.Equal(JsonValueKind.Null, (await admin.GetFromJsonAsync<JsonElement>("/api/tmdb?synopsis=book:4"))!.GetProperty("description").ValueKind);
+
+        await Gap.WithRenamedTable(connectionString, "movie", "movie_gap_synopsis", async () =>
+        {
+            var blocked = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=movie:{movieId}");
+            Assert.Equal(JsonValueKind.Null, blocked.GetProperty("description").ValueKind);
+        });
+        Gap.Call(tmdb, "SaveSynopsis", "no_such_table", 1, "Hello there", true);
+
+        var catalog = await admin.GetFromJsonAsync<JsonElement>("/api/catalog");
+        Assert.Contains(catalog.EnumerateArray(), item => item.GetProperty("id").GetString() == $"movie:{movieId}" && item.GetProperty("description").GetString() == "A night in Haddonfield.");
+
+        await using (var connection = new NpgsqlConnection(connectionString))
+        {
+            await connection.OpenAsync();
+            var descriptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Gap.Call(
+                typeof(CatalogService),
+                "ReadDescriptionRows",
+                connection,
+                descriptions,
+                "SELECT kind, id, description FROM (VALUES ('movie', 1, NULL::text), ('movie', 2, E'\\t'), ('movie', 3, 'Night'), ('movie', 4, repeat('n', 4001))) AS rows(kind, id, description)");
+            Assert.Equal("Night", descriptions["movie:3"]);
+            Assert.Equal(4000, descriptions["movie:4"].Length);
+            Assert.False(descriptions.ContainsKey("movie:1"));
+            Assert.False(descriptions.ContainsKey("movie:2"));
+        }
+
+        await CoverageSupport.Exec(connectionString, "ALTER TABLE show RENAME TO show_gap_synopsis");
+        try
+        {
+            await CoverageSupport.Exec(connectionString, "CREATE VIEW show AS SELECT 1::int AS id");
+            Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/catalog")).StatusCode);
+        }
+        finally
+        {
+            await CoverageSupport.Exec(connectionString, "DROP VIEW IF EXISTS show; ALTER TABLE IF EXISTS show_gap_synopsis RENAME TO show");
+        }
+    }
 }
 
 internal sealed class Playback

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { importTmdb, searchTmdb } from "./tmdb";
+import { fetchSynopsis, importTmdb, searchTmdb } from "./tmdb";
 
 function respond(body: unknown, status = 200): Response {
   return new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
@@ -41,5 +41,18 @@ describe("tmdb client", () => {
     vi.stubGlobal("fetch", vi.fn(async () => respond({ error: "TMDb is down" }, 503)));
     await expect(searchTmdb("movie", "x")).rejects.toThrow("TMDb is down");
     await expect(importTmdb("movie", "OL1W")).rejects.toThrow("TMDb is down");
+  });
+
+  it("reads a synopsis and reports a failed lookup", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => respond({ description: "  A quiet street. " })));
+    await expect(fetchSynopsis("movie:4")).resolves.toBe("A quiet street.");
+    vi.stubGlobal("fetch", vi.fn(async () => respond({ description: "  " })));
+    await expect(fetchSynopsis("movie:4")).resolves.toBeUndefined();
+    vi.stubGlobal("fetch", vi.fn(async () => respond("nope")));
+    await expect(fetchSynopsis("movie:4")).resolves.toBeUndefined();
+    vi.stubGlobal("fetch", vi.fn(async () => respond("nope", 500)));
+    await expect(fetchSynopsis("movie:4")).rejects.toThrow("Could not load that synopsis.");
+    vi.stubGlobal("fetch", vi.fn(async () => respond({ error: "TMDb is down" }, 503)));
+    await expect(fetchSynopsis("movie:4")).rejects.toThrow("TMDb is down");
   });
 });

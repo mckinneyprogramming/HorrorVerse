@@ -84,6 +84,6 @@ function parseSynopsisId(catalogId: string): { table: string; tmdb: "movie" | "t
     return undefined;
   }
 
-  const target = TABLES[match[1]];
-  return target ? { ...target, mediaId: Number(match[2]) } : undefined;
+  const kind = match[1] as keyof typeof TABLES;
+  return { ...TABLES[kind], mediaId: Number(match[2]) };
 }

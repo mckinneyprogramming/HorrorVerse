@@ -108,6 +108,8 @@ type World = {
   horrorQueue: Record<string, unknown>[];
   horrorThrow?: unknown;
   reuseFranchiseIds: boolean;
+  synopsis: string | null;
+  synopsisStatus: number;
 };
 
 const admin: User = {
@@ -322,6 +324,8 @@ function createWorld(): World {
       { import: "horror-films", done: true, added: 4, skipped: 3, batchAdded: 1, batchSkipped: 0, queued: 3, label: "finished" },
     ],
     reuseFranchiseIds: false,
+    synopsis: null,
+    synopsisStatus: 200,
   };
 }
 
@@ -559,6 +563,10 @@ async function handle(input: string, init?: RequestInit): Promise<Response> {
     if (world.watch.title === "") return json({ title: "" }, 200);
     return json(world.watch);
   }
+  if (path === "/api/tmdb" && method === "GET" && url.searchParams.has("synopsis")) {
+    if (world.synopsisStatus >= 400) return json({ error: "No synopsis" }, world.synopsisStatus);
+    return json({ description: world.synopsis });
+  }
   if (path === "/api/tmdb" && method === "GET") return json({ results: world.tmdb });
   if (path === "/api/tmdb" && method === "POST") return json({ id: world.importId });
   if (path === "/api/sync" && method === "GET") return json(world.sync);
@@ -638,6 +646,18 @@ function must<T extends Element>(root: ParentNode, selector: string): T {
 async function click(root: ParentNode, selector: string): Promise<void> {
   must<HTMLElement>(root, selector).click();
   await settle();
+}
+
+function kindGroup(root: ParentNode, label: string): HTMLElement | undefined {
+  return [...root.querySelectorAll<HTMLElement>(".kind-group")].find((node) => node.querySelector(".kind-group-label")?.textContent === label);
+}
+
+function firstKindTitle(root: ParentNode, label: string): string {
+  return kindGroup(root, label)?.querySelector("strong")?.textContent ?? "";
+}
+
+function kindText(root: ParentNode, label: string): string {
+  return kindGroup(root, label)?.textContent ?? "";
 }
 
 async function clickAction(root: ParentNode, action: string, attr?: string, value?: string): Promise<void> {
@@ -1438,6 +1458,99 @@ describe("mountApp", () => {
     await settle();
     expect(root.textContent).toContain("That title is not in the vault.");
   });
+
+  it("sorts the vault and fills a missing synopsis", async () => {
+    const { root } = await boot("/library");
+    await clickAction(root, "library-sort", "data-sort", "oldest");
+    expect(firstKindTitle(root, "Movies")).toBe("Beta One");
+    await clickAction(root, "library-sort", "data-sort", "newest");
+    expect(firstKindTitle(root, "Movies")).toBe("Orphan");
+    await clickAction(root, "library-progress", "data-progress", "finished");
+    expect(kindText(root, "Movies")).toContain("Scream");
+    expect(kindText(root, "Movies")).not.toContain("Orphan");
+    await clickAction(root, "library-progress", "data-progress", "waiting");
+    expect(kindText(root, "Movies")).toContain("Orphan");
+    expect(kindText(root, "Movies")).not.toContain("Scream 2");
+    await clickAction(root, "library-progress", "data-progress", "all");
+    await clickAction(root, "library-sort", "data-sort", "title");
+    await inject(root, { "data-action": "library-sort", "data-sort": "random" });
+    await inject(root, { "data-action": "library-progress", "data-progress": "halfway" });
+    expect(root.querySelector('[data-sort="title"]')?.classList.contains("is-active")).toBe(true);
+
+    world.synopsis = "A quiet street.";
+    window.history.pushState({}, "", "/movie/3");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      if (!root.textContent?.includes("A quiet street.")) throw new Error("synopsis");
+    });
+    window.history.pushState({}, "", "/documentary/6");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      if (!root.textContent?.includes("Cropsey") || !root.textContent?.includes("A quiet street.")) throw new Error("documentary");
+    });
+    window.history.pushState({}, "", "/show/4");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      if (!root.textContent?.includes("The Zone") || !root.textContent?.includes("A quiet street.")) throw new Error("show");
+    });
+    window.history.pushState({}, "", "/game/34");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(root.textContent).toContain("Silent Hill");
+    expect(root.textContent).not.toContain("A quiet street.");
+
+    world.synopsis = null;
+    window.history.pushState({}, "", "/movie/80");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      if (!root.textContent?.includes("No synopsis yet.")) throw new Error("missing synopsis");
+    });
+    window.history.pushState({}, "", "/library");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    window.history.pushState({}, "", "/movie/80");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(root.textContent).toContain("No synopsis yet.");
+
+    world.synopsisStatus = 500;
+    window.history.pushState({}, "", "/movie/83");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      if (!root.textContent?.includes("No synopsis yet.")) throw new Error("failed synopsis");
+    });
+
+    world.synopsisStatus = 200;
+    arm("GET /api/tmdb");
+    window.history.pushState({}, "", "/movie/84");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await untilWaiting("GET /api/tmdb");
+    window.history.pushState({}, "", "/book/7");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    gates.get("GET /api/tmdb")?.release();
+    await settle();
+    expect(root.textContent).toContain("It");
+
+    arm("GET /api/tmdb");
+    failNext("GET /api/tmdb", new Error("synopsis down"));
+    window.history.pushState({}, "", "/movie/90");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await untilWaiting("GET /api/tmdb");
+    window.history.pushState({}, "", "/book/7");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    gates.get("GET /api/tmdb")?.release();
+    await settle();
+    expect(root.textContent).toContain("It");
+
+    world.user = null;
+    const guest = await boot("/library");
+    expect(guest.root.querySelector('[data-progress="finished"]')).toBeNull();
+    await clickAction(guest.root, "library-sort", "data-sort", "newest");
+    await inject(guest.root, { "data-action": "library-progress", "data-progress": "waiting" });
+    expect(guest.root.querySelector('[data-sort="newest"]')?.classList.contains("is-active")).toBe(true);
+  }, 60_000);
 
   it("covers profile links, popstate, and install", async () => {
     const { root } = await boot("/profile/7");

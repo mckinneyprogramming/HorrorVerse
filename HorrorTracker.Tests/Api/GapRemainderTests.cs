@@ -8,6 +8,7 @@ using HorrorTracker.Data.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using TMDbLib.Objects.Search;
 using TMDbLib.Objects.TvShows;
 
@@ -56,6 +57,21 @@ public class GapRemainderTests
         Assert.Null(Gap.Call(typeof(TmdbCatalogService), "SeriesTitle", "   "));
         Assert.Equal("Halloween", Gap.Call(typeof(TmdbCatalogService), "SeriesTitle", "Halloween Collection"));
         Assert.Equal("Collection", Gap.Call(typeof(TmdbCatalogService), "SeriesTitle", "Collection"));
+        Assert.Null(Gap.Call(typeof(TmdbCatalogService), "SynopsisText", new object?[] { null }));
+        Assert.Null(Gap.Call(typeof(TmdbCatalogService), "SynopsisText", "  \n "));
+        Assert.Equal("a b", Gap.Call(typeof(TmdbCatalogService), "SynopsisText", " a \n b "));
+        Assert.Equal(new string('x', 4000), Gap.Call(typeof(TmdbCatalogService), "SynopsisText", new string('x', 4000)));
+        Assert.Equal(new string('a', 3999), Gap.Call(typeof(TmdbCatalogService), "SynopsisText", new string('a', 3999) + "  " + new string('b', 10)));
+        Assert.False(ParseSynopsis(null));
+        Assert.False(ParseSynopsis("movie"));
+        Assert.False(ParseSynopsis("movie:no"));
+        Assert.False(ParseSynopsis("movie:0"));
+        Assert.False(ParseSynopsis("book:4"));
+        Assert.True(ParseSynopsis(" movie : 4 "));
+        Assert.True(ParseSynopsis("documentary:2"));
+        Assert.True(ParseSynopsis("show:3"));
+        var bareCatalog = new CatalogService(null!, null!, null!, null!, new ConfigurationBuilder().Build(), NullLogger<CatalogService>.Instance);
+        Assert.NotNull(typeof(CatalogService).GetMethod("AttachDescriptions", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(bareCatalog, [Array.Empty<CatalogItemDto>()]));
         Assert.Throws<InvalidOperationException>(() => Gap.Call(typeof(CatalogService), "ParseId", new object?[] { null }));
         Assert.Throws<InvalidOperationException>(() => Gap.Call(typeof(CatalogService), "ParseId", "movie"));
         Assert.Throws<InvalidOperationException>(() => Gap.Call(typeof(CatalogService), "ParseId", "movie:0"));
@@ -520,5 +536,11 @@ public class GapRemainderTests
 
         static TmdbCatalogService tmdbStatic() =>
             new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:HorrorVerse"] = Environment.GetEnvironmentVariable("HorrorVerseDb") }).Build(), null!, null!, null!);
+    }
+
+    private static bool ParseSynopsis(string? catalogId)
+    {
+        object?[] args = [catalogId, "", 0, ""];
+        return (bool)Gap.Call(typeof(TmdbCatalogService), "TryParseSynopsisId", args)!;
     }
 }
