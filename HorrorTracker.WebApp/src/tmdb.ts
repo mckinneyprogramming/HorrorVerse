@@ -12,6 +12,17 @@ export async function searchTmdb(kind: string, query: string): Promise<TmdbHit[]
   return payload.results.map(readHit).filter((hit): hit is TmdbHit => hit !== null);
 }
 
+export async function fetchSynopsis(id: string): Promise<string | undefined> {
+  const response = await fetch(`/api/tmdb?synopsis=${encodeURIComponent(id)}`);
+  const payload = (await response.json().catch(() => ({}))) as { description?: unknown; error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Could not load that synopsis.");
+  }
+
+  const description = String(payload.description ?? "").trim();
+  return description || undefined;
+}
+
 export async function importTmdb(kind: string, tmdbId: number | string): Promise<string> {
   const response = await fetch("/api/tmdb", {
     method: "POST",

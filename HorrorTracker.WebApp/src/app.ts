@@ -41,7 +41,7 @@ import {
   setListVisibility,
   type UserList,
 } from "./lists";
-import { importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
+import { fetchSynopsis, importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
 import { fetchUpcoming, type UpcomingTitle } from "./upcoming";
 import {
   fetchFriends,
@@ -79,6 +79,8 @@ import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUp
 type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install" | "stats" | "title";
 type UpcomingPane = "films" | "shows";
 type LibraryFilter = MediaKind | "all";
+type LibrarySort = "title" | "oldest" | "newest";
+type LibraryProgress = "all" | "waiting" | "finished";
 type LoadStatus = "loading" | "ready" | "error";
 type AuthMode = "login" | "register";
 type SheetMode = "add" | "edit" | "tmdb";
@@ -106,6 +108,9 @@ interface AppState {
   expandedListSeries: Set<string>;
   libraryQuery: string;
   libraryTag: string;
+  librarySort: LibrarySort;
+  libraryProgress: LibraryProgress;
+  titleSynopsisMiss: string | null;
   libraryPages: Record<string, number>;
   finishedIds: string[];
   recentIds: string[];
@@ -181,6 +186,9 @@ const state: AppState = {
   expandedListSeries: new Set<string>(),
   libraryQuery: "",
   libraryTag: "",
+  librarySort: "title",
+  libraryProgress: "all",
+  titleSynopsisMiss: null,
   libraryPages: {},
   finishedIds: [],
   recentIds: [],
@@ -359,6 +367,30 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "filter") {
       state.filter = target.dataset.filter as LibraryFilter;
+      resetLibraryPages();
+      render(root);
+      return;
+    }
+
+    if (action === "library-sort") {
+      const sort = target.dataset.sort;
+      if (sort !== "title" && sort !== "oldest" && sort !== "newest") {
+        return;
+      }
+
+      state.librarySort = sort;
+      resetLibraryPages();
+      render(root);
+      return;
+    }
+
+    if (action === "library-progress") {
+      const progress = target.dataset.progress;
+      if (!state.user || (progress !== "all" && progress !== "waiting" && progress !== "finished")) {
+        return;
+      }
+
+      state.libraryProgress = progress;
       resetLibraryPages();
       render(root);
       return;
@@ -2663,6 +2695,7 @@ function renderLibrary(): string {
     <div class="chips" role="tablist" aria-label="Filter by type">
       ${MEDIA_KINDS.filter((kind) => !usesTmdb(kind.id)).map((kind) => chip(kind.id, kind.label)).join("")}
     </div>
+    ${renderLibraryArrange()}
     ${renderLibraryTags()}
     ${renderFranchises()}
     ${state.filter === "all" ? renderGroupedCatalog() : renderFlatCatalog()}
@@ -2913,7 +2946,7 @@ function renderFlatCatalog(): string {
     return `<p class="empty">${emptyCopy()}</p>`;
   }
 
-  if (state.filter === "movie") {
+  if (state.filter === "movie" && usesSeriesGroups()) {
     return renderMoviesBySeries(visible, true, "kind:movie");
   }
 
@@ -2935,7 +2968,7 @@ function renderGroupedCatalog(): string {
     .map((group) => {
       const open = searching || !state.collapsedKinds.has(group.kind.id);
       const body =
-        group.kind.id === "movie"
+        group.kind.id === "movie" && usesSeriesGroups()
           ? renderMoviesBySeries(group.entries, false, "kind:movie")
           : renderKindEntries(group.entries, false, `kind:${group.kind.id}`);
       return `
@@ -3037,8 +3070,21 @@ function seriesNameForMovie(movie: CatalogEntry): string {
   return series?.title ?? "Series";
 }
 
+function usesSeriesGroups(): boolean {
+  return state.librarySort === "title" && state.libraryProgress === "all";
+}
+
 function matchingEntries(): CatalogEntry[] {
-  return state.entries.filter((entry) => matchesLibrary(entry));
+  return state.entries.filter((entry) => matchesLibrary(entry) && matchesProgress(entry));
+}
+
+function matchesProgress(entry: CatalogEntry): boolean {
+  if (!state.user || state.libraryProgress === "all") {
+    return true;
+  }
+
+  const finished = isFinished(entry);
+  return state.libraryProgress === "finished" ? finished : !finished;
 }
 
 function matchesLibrary(entry: CatalogEntry): boolean {
@@ -3101,6 +3147,26 @@ function renderLibraryTags(): string {
 
 function normalizeQuery(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function sortCatalog(entries: CatalogEntry[]): CatalogEntry[] {
+  if (state.librarySort === "oldest") {
+    return sortByYear(entries);
+  }
+
+  if (state.librarySort === "newest") {
+    return [...entries].sort((left, right) => {
+      const leftYear = left.releaseYear ?? -1;
+      const rightYear = right.releaseYear ?? -1;
+      if (leftYear !== rightYear) {
+        return rightYear - leftYear;
+      }
+
+      return left.title.localeCompare(right.title, undefined, { sensitivity: "base", numeric: true });
+    });
+  }
+
+  return sortByTitle(entries);
 }
 
 function sortByTitle(entries: CatalogEntry[]): CatalogEntry[] {
@@ -3525,8 +3591,43 @@ function renderSearchKindRadios(options: {
   `;
 }
 
+function renderLibraryArrange(): string {
+  const sorts: { id: LibrarySort; label: string }[] = [
+    { id: "title", label: "A–Z" },
+    { id: "oldest", label: "Oldest" },
+    { id: "newest", label: "Newest" },
+  ];
+  const progress: { id: LibraryProgress; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "waiting", label: "Not finished" },
+    { id: "finished", label: "Finished" },
+  ];
+  return `
+    <div class="chips library-arrange" role="tablist" aria-label="Sort the vault">
+      ${sorts
+        .map(
+          (sort) =>
+            `<button class="chip${state.librarySort === sort.id ? " is-active" : ""}" type="button" data-action="library-sort" data-sort="${sort.id}">${sort.label}</button>`,
+        )
+        .join("")}
+    </div>
+    ${
+      state.user
+        ? `<div class="chips library-arrange" role="tablist" aria-label="Filter by progress">
+            ${progress
+              .map(
+                (item) =>
+                  `<button class="chip${state.libraryProgress === item.id ? " is-active" : ""}" type="button" data-action="library-progress" data-progress="${item.id}">${item.label}</button>`,
+              )
+              .join("")}
+          </div>`
+        : ""
+    }
+  `;
+}
+
 function renderKindEntries(entries: CatalogEntry[], showKind: boolean, pageKey: string): string {
-  const sorted = sortByTitle(entries);
+  const sorted = sortCatalog(entries);
   const page = pageSlice(sorted, pageKey);
   const rows = page.map((entry) => (state.user ? renderCatalogRow(entry, showKind) : renderEntry(entry, showKind)));
   const body =
@@ -4253,7 +4354,13 @@ function renderTitlePage(): string {
           ${entry.kind === "game" && entry.publisher ? `<p class="fine-print">${escapeHtml(entry.publisher)}</p>` : ""}
         </div>
       </header>
-      ${entry.description ? `<p class="title-description">${escapeHtml(entry.description)}</p>` : ""}
+      ${
+        entry.description
+          ? `<p class="title-description">${escapeHtml(entry.description)}</p>`
+          : state.titleSynopsisMiss === entry.id
+            ? `<p class="fine-print">No synopsis yet.</p>`
+            : ""
+      }
       ${keywords.length > 0 ? `<p class="fine-print">${keywords.map((keyword) => escapeHtml(keyword)).join(" · ")}</p>` : ""}
       <div class="title-actions">
         ${
@@ -4292,6 +4399,7 @@ function renderTitlePage(): string {
 }
 
 async function ensureTitleExtras(root: HTMLElement): Promise<void> {
+  await ensureTitleSynopsis(root);
   const entry = state.entries.find((item) => item.id === state.titleId);
   if (!entry || entry.kind !== "show" || !state.user || state.view !== "title") {
     return;
@@ -4305,6 +4413,38 @@ async function ensureTitleExtras(root: HTMLElement): Promise<void> {
   }
 
   render(root);
+}
+
+async function ensureTitleSynopsis(root: HTMLElement): Promise<void> {
+  const entry = state.entries.find((item) => item.id === state.titleId);
+  if (!entry || entry.description || !state.user || state.view !== "title" || state.titleSynopsisMiss === entry.id) {
+    return;
+  }
+
+  if (entry.kind !== "movie" && entry.kind !== "documentary" && entry.kind !== "show") {
+    return;
+  }
+
+  try {
+    const description = await fetchSynopsis(entry.id);
+    if (state.titleId !== entry.id) {
+      return;
+    }
+
+    if (!description) {
+      state.titleSynopsisMiss = entry.id;
+      render(root);
+      return;
+    }
+
+    state.entries = state.entries.map((item) => (item.id === entry.id ? { ...item, description } : item));
+    render(root);
+  } catch {
+    if (state.titleId === entry.id) {
+      state.titleSynopsisMiss = entry.id;
+      render(root);
+    }
+  }
 }
 
 function renderBookBlurb(entry: CatalogEntry): string {

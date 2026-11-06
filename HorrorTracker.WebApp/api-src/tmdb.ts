@@ -6,6 +6,7 @@ import { upsertShowSeasons } from "../lib/catalog";
 import { parsePosterPath, proxyTmdbPoster, savePoster } from "../lib/poster";
 import { importMovie, importSeries } from "../lib/import-tmdb";
 import { importIgdbGame, searchIgdb } from "../lib/igdb";
+import { ensureSynopsis, storeSynopsis } from "../lib/synopsis";
 import { importOpenLibraryBook, searchOpenLibrary } from "../lib/open-library";
 import { saveDocumentaryKeywords, saveShowKeywords } from "../lib/keywords";
 import {
@@ -42,6 +43,11 @@ export async function GET(request: Request) {
     const poster = parsePosterPath(url.searchParams.get("poster"));
     if (poster) {
       return proxyTmdbPoster(poster, url.searchParams.get("size"));
+    }
+
+    const synopsisId = (url.searchParams.get("synopsis") ?? "").trim();
+    if (synopsisId) {
+      return Response.json({ description: (await ensureSynopsis(connectionString, synopsisId)) ?? null });
     }
 
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
@@ -191,12 +197,14 @@ async function importDocumentary(connectionString: string, tmdbId: number): Prom
   if (existingId) {
     await saveDocumentaryKeywords(connectionString, existingId, tmdbId);
     await savePoster(connectionString, "documentary", existingId, movie.poster_path);
+    await storeSynopsis(connectionString, "documentary", existingId, movie.overview);
     return { added: 0, id: `documentary:${existingId}` };
   }
 
   const documentaryId = await insertDocumentary(connectionString, title, runtimeOf(movie.runtime), year);
   await saveDocumentaryKeywords(connectionString, documentaryId, tmdbId);
   await savePoster(connectionString, "documentary", documentaryId, movie.poster_path);
+  await storeSynopsis(connectionString, "documentary", documentaryId, movie.overview);
   return { added: 1, id: `documentary:${documentaryId}` };
 }
 
@@ -229,6 +237,7 @@ async function importShow(connectionString: string, tmdbId: number): Promise<Tmd
   await attachShowSeasons(connectionString, showId, tmdbId, show, year);
   await saveShowKeywords(connectionString, showId, tmdbId);
   await savePoster(connectionString, "show", showId, show.poster_path);
+  await storeSynopsis(connectionString, "show", showId, show.overview);
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
 }
 

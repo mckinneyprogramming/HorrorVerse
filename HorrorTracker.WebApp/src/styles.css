@@ -675,7 +675,8 @@ button.fun-stat:focus-visible {
   -webkit-overflow-scrolling: touch;
 }
 
-.library-tags {
+.library-tags,
+.library-arrange {
   flex-wrap: wrap;
   overflow-x: visible;
 }

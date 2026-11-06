@@ -575,6 +575,35 @@ async function hasKeywords(connectionString, kind, mediaId) {
   return Boolean(rows[0]);
 }
 
+// lib/synopsis.ts
+var TABLES2 = {
+  movie: { table: "movie", tmdb: "movie" },
+  documentary: { table: "documentary", tmdb: "movie" },
+  show: { table: "show", tmdb: "tv" }
+};
+function synopsisText(value) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return void 0;
+  }
+  return text.length > 4e3 ? text.slice(0, 4e3).trim() : text;
+}
+async function storeSynopsis(connectionString, kind, mediaId, overview) {
+  const target = TABLES2[kind];
+  const text = synopsisText(overview);
+  if (!target || !Number.isInteger(mediaId) || mediaId < 1 || !text) {
+    return;
+  }
+  await execute(connectionString, `ALTER TABLE ${target.table} ADD COLUMN IF NOT EXISTS description TEXT`);
+  await execute(
+    connectionString,
+    `UPDATE ${target.table}
+     SET description = $2
+     WHERE id = $1 AND (description IS NULL OR btrim(description) = '')`,
+    [mediaId, text]
+  );
+}
+
 // lib/import-tmdb.ts
 async function importMovie(connectionString, tmdbId) {
   const movie = await tmdbJson(`/movie/${tmdbId}`);
@@ -595,6 +624,7 @@ async function importMovie(connectionString, tmdbId) {
     }
     await saveMovieKeywords(connectionString, existingId, tmdbId);
     await savePoster(connectionString, "movie", existingId, movie.poster_path);
+    await storeSynopsis(connectionString, "movie", existingId, movie.overview);
     return { added: 0, id: `movie:${existingId}` };
   }
   const movieId = await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
@@ -603,6 +633,7 @@ async function importMovie(connectionString, tmdbId) {
   }
   await saveMovieKeywords(connectionString, movieId, tmdbId);
   await savePoster(connectionString, "movie", movieId, movie.poster_path);
+  await storeSynopsis(connectionString, "movie", movieId, movie.overview);
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);

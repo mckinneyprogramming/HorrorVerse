@@ -62,6 +62,63 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         return new { results };
     }
 
+    public async Task<string?> EnsureSynopsisAsync(string? catalogId, CancellationToken cancellationToken)
+    {
+        if (!TryParseSynopsisId(catalogId, out var table, out var mediaId, out var tmdbKind))
+        {
+            return null;
+        }
+
+        string? existing;
+        int? tmdbId;
+        using (var connection = OpenConnection())
+        {
+            using (var alter = connection.CreateCommand())
+            {
+                alter.CommandText = $"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS Description TEXT";
+                try
+                {
+                    alter.ExecuteNonQuery();
+                }
+                catch (PostgresException)
+                {
+                    return null;
+                }
+            }
+
+            using var read = connection.CreateCommand();
+            read.CommandText = $"SELECT Description, TmdbId FROM {table} WHERE Id = @id";
+            read.Parameters.AddWithValue("id", mediaId);
+            using var reader = read.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            existing = SynopsisText(reader.IsDBNull(0) ? null : reader.GetString(0));
+            tmdbId = reader.IsDBNull(1) ? null : reader.GetInt32(1);
+        }
+
+        if (existing is not null || tmdbId is not > 0)
+        {
+            return existing;
+        }
+
+        var tmdb = CreateClient();
+        var overview = tmdbKind == "tv"
+            ? (await tmdb.GetTvShow(tmdbId.Value)).Overview
+            : (await tmdb.GetMovie(tmdbId.Value)).Overview;
+        _ = cancellationToken;
+        var text = SynopsisText(overview);
+        if (text is null)
+        {
+            return null;
+        }
+
+        SaveSynopsis(table, mediaId, text, onlyWhenBlank: false);
+        return text;
+    }
+
     public async Task<object> ImportAsync(TmdbImportRequest request, CancellationToken cancellationToken)
     {
         var kind = NormalizeTmdbKind(request.Kind);
@@ -152,12 +209,14 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
 
             await keywords.SaveMovieAsync(existingId, tmdbId, cancellationToken: cancellationToken);
             SavePoster("movie", existingId, movie.PosterPath);
+            SaveSynopsis("Movie", existingId, movie.Overview);
             return new TmdbImportResult($"movie:{existingId}", 0);
         }
 
         var movieId = InsertMovie(title, runtime, seriesId, year);
         await keywords.SaveMovieAsync(movieId, tmdbId, cancellationToken: cancellationToken);
         SavePoster("movie", movieId, movie.PosterPath);
+        SaveSynopsis("Movie", movieId, movie.Overview);
         if (seriesId is int id)
         {
             AddMovieToListsContainingSeries(id, movieId);
@@ -200,12 +259,14 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         {
             await keywords.SaveDocumentaryAsync(existingId, tmdbId, cancellationToken: cancellationToken);
             SavePoster("documentary", existingId, movie.PosterPath);
+            SaveSynopsis("Documentary", existingId, movie.Overview);
             return new TmdbImportResult($"documentary:{existingId}", 0);
         }
 
         var documentaryId = InsertDocumentary(title, RuntimeOf(movie.Runtime), year);
         await keywords.SaveDocumentaryAsync(documentaryId, tmdbId, cancellationToken: cancellationToken);
         SavePoster("documentary", documentaryId, movie.PosterPath);
+        SaveSynopsis("Documentary", documentaryId, movie.Overview);
         return new TmdbImportResult($"documentary:{documentaryId}", 1);
     }
 
@@ -223,6 +284,7 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
         await shows.AttachImportedShowAsync(tmdb, showId, tmdbId, show, cancellationToken);
         await keywords.SaveShowAsync(showId, tmdbId, cancellationToken: cancellationToken);
         SavePoster("show", showId, show.PosterPath);
+        SaveSynopsis("Show", showId, show.Overview);
         return new TmdbImportResult($"show:{showId}", existingId is null ? 1 : 0);
     }
 
@@ -1240,6 +1302,69 @@ public sealed class TmdbCatalogService(IConfiguration configuration, ShowGuideSe
     private static int? YearOf(DateTime? date) => date is { Year: >= 1888 and <= 3000 } value ? value.Year : null;
 
     private static decimal RuntimeOf(int? runtime) => runtime is > 0 ? runtime.Value : 0m;
+
+    private void SaveSynopsis(string table, int mediaId, string? overview, bool onlyWhenBlank = true)
+    {
+        var text = SynopsisText(overview);
+        if (text is null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var connection = OpenConnection();
+            using (var alter = connection.CreateCommand())
+            {
+                alter.CommandText = $"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS Description TEXT";
+                alter.ExecuteNonQuery();
+            }
+
+            using var command = connection.CreateCommand();
+            command.CommandText = onlyWhenBlank
+                ? $"UPDATE {table} SET Description = @description WHERE Id = @id AND (Description IS NULL OR btrim(Description) = '')"
+                : $"UPDATE {table} SET Description = @description WHERE Id = @id";
+            command.Parameters.AddWithValue("description", text);
+            command.Parameters.AddWithValue("id", mediaId);
+            command.ExecuteNonQuery();
+        }
+        catch (PostgresException)
+        {
+            // The title row can be read again without a synopsis.
+        }
+    }
+
+    private static bool TryParseSynopsisId(string? catalogId, out string table, out int mediaId, out string tmdbKind)
+    {
+        table = "";
+        mediaId = 0;
+        tmdbKind = "movie";
+        var parts = (catalogId ?? string.Empty).Trim().Split(':', 2);
+        if (parts.Length != 2 || !int.TryParse(parts[1], out mediaId) || mediaId < 1)
+        {
+            return false;
+        }
+
+        (table, tmdbKind) = parts[0].Trim().ToLowerInvariant() switch
+        {
+            "movie" => ("Movie", "movie"),
+            "documentary" => ("Documentary", "movie"),
+            "show" => ("Show", "tv"),
+            _ => ("", "")
+        };
+        return table.Length > 0;
+    }
+
+    private static string? SynopsisText(string? overview)
+    {
+        var value = System.Text.RegularExpressions.Regex.Replace(overview ?? string.Empty, @"\s+", " ").Trim();
+        if (value.Length == 0)
+        {
+            return null;
+        }
+
+        return value.Length > 4000 ? value[..4000].Trim() : value;
+    }
 
     private static string? TrimOverview(string? overview)
     {

@@ -515,6 +515,66 @@ async function hasKeywords(connectionString, kind, mediaId) {
   return Boolean(rows[0]);
 }
 
+// lib/synopsis.ts
+var TABLES2 = {
+  movie: { table: "movie", tmdb: "movie" },
+  documentary: { table: "documentary", tmdb: "movie" },
+  show: { table: "show", tmdb: "tv" }
+};
+function synopsisText(value) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return void 0;
+  }
+  return text.length > 4e3 ? text.slice(0, 4e3).trim() : text;
+}
+async function storeSynopsis(connectionString, kind, mediaId, overview) {
+  const target = TABLES2[kind];
+  const text = synopsisText(overview);
+  if (!target || !Number.isInteger(mediaId) || mediaId < 1 || !text) {
+    return;
+  }
+  await execute(connectionString, `ALTER TABLE ${target.table} ADD COLUMN IF NOT EXISTS description TEXT`);
+  await execute(
+    connectionString,
+    `UPDATE ${target.table}
+     SET description = $2
+     WHERE id = $1 AND (description IS NULL OR btrim(description) = '')`,
+    [mediaId, text]
+  );
+}
+async function ensureSynopsis(connectionString, catalogId) {
+  const parsed = parseSynopsisId(catalogId);
+  if (!parsed) {
+    return void 0;
+  }
+  await execute(connectionString, `ALTER TABLE ${parsed.table} ADD COLUMN IF NOT EXISTS description TEXT`);
+  const rows = await queryRows(connectionString, `SELECT description, tmdbid FROM ${parsed.table} WHERE id = $1`, [parsed.mediaId]);
+  const existing = synopsisText(rows[0]?.description);
+  if (existing) {
+    return existing;
+  }
+  const tmdbId = asId(rows[0], "tmdbid");
+  if (!tmdbId) {
+    return void 0;
+  }
+  const payload = await tmdbJson(`/${parsed.tmdb}/${tmdbId}`);
+  const text = synopsisText(payload.overview);
+  if (!text) {
+    return void 0;
+  }
+  await execute(connectionString, `UPDATE ${parsed.table} SET description = $2 WHERE id = $1`, [parsed.mediaId, text]);
+  return text;
+}
+function parseSynopsisId(catalogId) {
+  const match = /^(movie|documentary|show):([1-9]\d*)$/.exec(catalogId.trim());
+  if (!match) {
+    return void 0;
+  }
+  const target = TABLES2[match[1]];
+  return target ? { ...target, mediaId: Number(match[2]) } : void 0;
+}
+
 // lib/import-tmdb.ts
 async function importMovie(connectionString, tmdbId) {
   const movie = await tmdbJson(`/movie/${tmdbId}`);
@@ -535,6 +595,7 @@ async function importMovie(connectionString, tmdbId) {
     }
     await saveMovieKeywords(connectionString, existingId, tmdbId);
     await savePoster(connectionString, "movie", existingId, movie.poster_path);
+    await storeSynopsis(connectionString, "movie", existingId, movie.overview);
     return { added: 0, id: `movie:${existingId}` };
   }
   const movieId = await insertMovie(connectionString, title, runtimeOf(movie.runtime), seriesId, year);
@@ -543,6 +604,7 @@ async function importMovie(connectionString, tmdbId) {
   }
   await saveMovieKeywords(connectionString, movieId, tmdbId);
   await savePoster(connectionString, "movie", movieId, movie.poster_path);
+  await storeSynopsis(connectionString, "movie", movieId, movie.overview);
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);
@@ -1264,6 +1326,10 @@ async function GET(request) {
     if (poster) {
       return proxyTmdbPoster(poster, url.searchParams.get("size"));
     }
+    const synopsisId = (url.searchParams.get("synopsis") ?? "").trim();
+    if (synopsisId) {
+      return Response.json({ description: await ensureSynopsis(connectionString, synopsisId) ?? null });
+    }
     const kind = normalizeTmdbKind(url.searchParams.get("kind") ?? "movie");
     const query = (url.searchParams.get("q") ?? "").trim();
     if (query.length < 2) {
@@ -1364,11 +1430,13 @@ async function importDocumentary(connectionString, tmdbId) {
   if (existingId) {
     await saveDocumentaryKeywords(connectionString, existingId, tmdbId);
     await savePoster(connectionString, "documentary", existingId, movie.poster_path);
+    await storeSynopsis(connectionString, "documentary", existingId, movie.overview);
     return { added: 0, id: `documentary:${existingId}` };
   }
   const documentaryId = await insertDocumentary(connectionString, title, runtimeOf(movie.runtime), year);
   await saveDocumentaryKeywords(connectionString, documentaryId, tmdbId);
   await savePoster(connectionString, "documentary", documentaryId, movie.poster_path);
+  await storeSynopsis(connectionString, "documentary", documentaryId, movie.overview);
   return { added: 1, id: `documentary:${documentaryId}` };
 }
 async function importShow(connectionString, tmdbId) {
@@ -1399,6 +1467,7 @@ async function importShow(connectionString, tmdbId) {
   await attachShowSeasons(connectionString, showId, tmdbId, show, year);
   await saveShowKeywords(connectionString, showId, tmdbId);
   await savePoster(connectionString, "show", showId, show.poster_path);
+  await storeSynopsis(connectionString, "show", showId, show.overview);
   return { added: existingId ? 0 : 1, id: `show:${showId}` };
 }
 async function findDocumentaryId(connectionString, title, year) {

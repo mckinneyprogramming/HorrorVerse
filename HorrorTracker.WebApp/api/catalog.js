@@ -156,6 +156,16 @@ async function ensureGameColumns(connectionString) {
   await execute(connectionString, "ALTER TABLE game ADD COLUMN IF NOT EXISTS platforms TEXT");
 }
 
+// lib/synopsis.ts
+async function ensureSynopsisColumns(connectionString) {
+  await execute(connectionString, "ALTER TABLE movie ADD COLUMN IF NOT EXISTS description TEXT");
+  await execute(connectionString, "ALTER TABLE documentary ADD COLUMN IF NOT EXISTS description TEXT");
+  try {
+    await execute(connectionString, "ALTER TABLE show ADD COLUMN IF NOT EXISTS description TEXT");
+  } catch {
+  }
+}
+
 // lib/open-library.ts
 async function ensureBookColumns(connectionString) {
   await execute(
@@ -266,6 +276,7 @@ async function loadCatalog() {
   await ensureOptionalTables(connectionString, "show");
   await ensureOptionalTables(connectionString, "book");
   await ensurePosterSchema(connectionString);
+  await ensureSynopsisColumns(connectionString);
   const items = [
     ...await readTable(
       connectionString,
@@ -276,7 +287,8 @@ async function loadCatalog() {
               m.releaseyear,
               m.seriesid,
               s.title AS seriestitle,
-              m.posterpath
+              m.posterpath,
+              m.description
        FROM movie m
        LEFT JOIN movieseries s ON s.id = m.seriesid`,
       "movie"
@@ -297,12 +309,12 @@ async function loadCatalog() {
     ),
     ...await readTable(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, releaseyear, posterpath FROM documentary",
+      "SELECT id, title, watched AS completed, totaltime, releaseyear, posterpath, description FROM documentary",
       "documentary"
     ),
     ...await readOptional(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath FROM show",
+      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath, description FROM show",
       "show"
     ),
     ...await readOptional(

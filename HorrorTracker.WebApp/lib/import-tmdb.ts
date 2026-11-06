@@ -7,6 +7,7 @@ import {
 import { replaceSeriesKeywords, saveMovieKeywords } from "./keywords";
 import { execute, HttpError, queryRows } from "./neon";
 import { savePoster } from "./poster";
+import { storeSynopsis } from "./synopsis";
 import { asId, asRecord, requireTitle, runtimeOf, seriesTitle, tmdbJson, yearFrom } from "./tmdb";
 
 export interface TmdbImportResult {
@@ -35,6 +36,7 @@ export async function importMovie(connectionString: string, tmdbId: number): Pro
 
     await saveMovieKeywords(connectionString, existingId, tmdbId);
     await savePoster(connectionString, "movie", existingId, movie.poster_path);
+    await storeSynopsis(connectionString, "movie", existingId, movie.overview);
     return { added: 0, id: `movie:${existingId}` };
   }
 
@@ -45,6 +47,7 @@ export async function importMovie(connectionString: string, tmdbId: number): Pro
 
   await saveMovieKeywords(connectionString, movieId, tmdbId);
   await savePoster(connectionString, "movie", movieId, movie.poster_path);
+  await storeSynopsis(connectionString, "movie", movieId, movie.overview);
   if (seriesId) {
     await addMovieToListsContainingSeries(connectionString, seriesId, movieId);
     await addMovieToFranchisesContainingSeries(connectionString, seriesId, movieId);

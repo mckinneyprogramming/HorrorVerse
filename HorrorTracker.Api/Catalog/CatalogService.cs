@@ -25,7 +25,7 @@ public sealed class CatalogService(
         items.AddRange(ReadBooks());
         items.AddRange(ReadOptionalTable("SELECT Id, Title, Listened, ReleaseYear FROM Podcast", "podcast"));
         items.AddRange(ReadGames());
-        return AttachPosters(AttachKeywords(items));
+        return AttachDescriptions(AttachPosters(AttachKeywords(items)));
     }
 
     public IReadOnlyList<CatalogItemDto> GetByKind(string kind)
@@ -109,6 +109,66 @@ public sealed class CatalogService(
         {
             logger.LogWarning(exception, "Could not load catalog posters from PostgreSQL.");
             return items;
+        }
+    }
+
+    private IReadOnlyList<CatalogItemDto> AttachDescriptions(IReadOnlyList<CatalogItemDto> items)
+    {
+        try
+        {
+            var descriptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            using var connection = OpenConnection();
+            using (var alter = connection.CreateCommand())
+            {
+                alter.CommandText = """
+                    ALTER TABLE Movie ADD COLUMN IF NOT EXISTS Description TEXT;
+                    ALTER TABLE Documentary ADD COLUMN IF NOT EXISTS Description TEXT;
+                    """;
+                alter.ExecuteNonQuery();
+            }
+
+            ReadDescriptionRows(connection, descriptions, "SELECT 'movie', Id, Description FROM Movie WHERE Description IS NOT NULL AND btrim(Description) <> ''");
+            ReadDescriptionRows(connection, descriptions, "SELECT 'documentary', Id, Description FROM Documentary WHERE Description IS NOT NULL AND btrim(Description) <> ''");
+            try
+            {
+                using var showAlter = connection.CreateCommand();
+                showAlter.CommandText = "ALTER TABLE Show ADD COLUMN IF NOT EXISTS Description TEXT";
+                showAlter.ExecuteNonQuery();
+                ReadDescriptionRows(connection, descriptions, "SELECT 'show', Id, Description FROM Show WHERE Description IS NOT NULL AND btrim(Description) <> ''");
+            }
+            catch (PostgresException)
+            {
+                // Show descriptions arrive with the first TV import.
+            }
+
+            return items
+                .Select(item => descriptions.TryGetValue(item.Id, out var text) ? item with { Description = text } : item)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not load catalog descriptions from PostgreSQL.");
+            return items;
+        }
+    }
+
+    private static void ReadDescriptionRows(NpgsqlConnection connection, Dictionary<string, string> descriptions, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (reader.IsDBNull(2))
+            {
+                continue;
+            }
+
+            var text = reader.GetString(2).Trim();
+            if (text.Length > 0)
+            {
+                descriptions[$"{reader.GetString(0)}:{reader.GetInt32(1)}"] = text.Length > 4000 ? text[..4000].Trim() : text;
+            }
         }
     }
 

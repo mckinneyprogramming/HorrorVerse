@@ -4,6 +4,7 @@ void "restore-standalone-catalog";
 
 import { parseCatalogId } from "../lib/catalog-id";
 import { ensureGameColumns } from "../lib/igdb";
+import { ensureSynopsisColumns } from "../lib/synopsis";
 import { ensureBookColumns } from "../lib/open-library";
 import { ensurePosterSchema, parsePosterPath } from "../lib/poster";
 import {
@@ -102,6 +103,7 @@ async function loadCatalog(): Promise<CatalogItem[]> {
   await ensureOptionalTables(connectionString, "show");
   await ensureOptionalTables(connectionString, "book");
   await ensurePosterSchema(connectionString);
+  await ensureSynopsisColumns(connectionString);
   const items = [
     ...(await readTable(
       connectionString,
@@ -112,7 +114,8 @@ async function loadCatalog(): Promise<CatalogItem[]> {
               m.releaseyear,
               m.seriesid,
               s.title AS seriestitle,
-              m.posterpath
+              m.posterpath,
+              m.description
        FROM movie m
        LEFT JOIN movieseries s ON s.id = m.seriesid`,
       "movie",
@@ -133,12 +136,12 @@ async function loadCatalog(): Promise<CatalogItem[]> {
     )),
     ...(await readTable(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, releaseyear, posterpath FROM documentary",
+      "SELECT id, title, watched AS completed, totaltime, releaseyear, posterpath, description FROM documentary",
       "documentary",
     )),
     ...(await readOptional(
       connectionString,
-      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath FROM show",
+      "SELECT id, title, watched AS completed, totaltime, totalepisodes, numberofseasons, releaseyear, posterpath, description FROM show",
       "show",
     )),
     ...(await readOptional(
