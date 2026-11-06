@@ -571,8 +571,8 @@ function parseSynopsisId(catalogId) {
   if (!match) {
     return void 0;
   }
-  const target = TABLES2[match[1]];
-  return target ? { ...target, mediaId: Number(match[2]) } : void 0;
+  const kind = match[1];
+  return { ...TABLES2[kind], mediaId: Number(match[2]) };
 }
 
 // lib/import-tmdb.ts
