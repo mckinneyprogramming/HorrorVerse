@@ -24,6 +24,16 @@ describe("browser history places", () => {
     expect(parsePlace("/profile/nope", "").view).toBe("home");
   });
 
+  it("keeps a catalog title on its own address", () => {
+    expect(formatPlace(parsePlace("/movie/15", ""))).toBe("/movie/15");
+    expect(parsePlace("/book/4", "")).toMatchObject({ view: "title", titleId: "book:4" });
+    expect(parsePlace("/game/0", "").view).toBe("home");
+    expect(parsePlace("/show/nope", "").view).toBe("home");
+    expect(parsePlace("/title", "").view).toBe("home");
+    const place = parsePlace("/movie/15", "");
+    expect(formatPlace({ ...place, view: "title", titleId: null })).toBe("/library");
+  });
+
   it("drops unknown filters and keeps the other screens on their own paths", () => {
     expect(parsePlace("")).toEqual({
       view: "home",
@@ -32,6 +42,7 @@ describe("browser history places", () => {
       tag: "",
       franchisesOpen: false,
       profileId: null,
+      titleId: null,
     });
     expect(parsePlace("/library/").view).toBe("library");
     expect(parsePlace("/profile").view).toBe("home");

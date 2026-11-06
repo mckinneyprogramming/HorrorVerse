@@ -76,7 +76,7 @@ import {
 } from "./franchises";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
-type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install" | "stats";
+type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install" | "stats" | "title";
 type UpcomingPane = "films" | "shows";
 type LibraryFilter = MediaKind | "all";
 type LoadStatus = "loading" | "ready" | "error";
@@ -160,6 +160,7 @@ interface AppState {
   horrorImportStatus: string;
   badgeId: string | null;
   profileId: number | null;
+  titleId: string | null;
 }
 
 const state: AppState = {
@@ -234,6 +235,7 @@ const state: AppState = {
   horrorImportStatus: "",
   badgeId: null,
   profileId: null,
+  titleId: null,
 };
 
 let suppressHistory = true;
@@ -255,6 +257,9 @@ export function mountApp(root: HTMLElement): void {
     await refreshUser(root);
     if (state.view === "profile" && state.profileId && state.profilePerson?.id !== state.profileId) {
       await openPerson(root, state.profileId);
+    }
+    if (state.view === "title") {
+      await ensureTitleExtras(root);
     }
     if (state.user) {
       await applyVaultRefresh(root);
@@ -328,6 +333,27 @@ export function mountApp(root: HTMLElement): void {
       closeFranchiseSheets();
       resetLibraryPages();
       render(root);
+      return;
+    }
+
+    if (action === "open-title") {
+      const titleId = target.dataset.id ?? "";
+      if (!/^(movie|series|show|documentary|book|podcast|game):[1-9]\d*$/.test(titleId)) {
+        return;
+      }
+
+      state.badgeId = null;
+      state.sheet = null;
+      state.listPicker = null;
+      state.franchiseListPicker = null;
+      state.watchSheet = null;
+      state.whenPicker = null;
+      state.whenEpisode = null;
+      closeFranchiseSheets();
+      state.view = "title";
+      state.titleId = titleId;
+      render(root);
+      await ensureTitleExtras(root);
       return;
     }
 
@@ -1605,6 +1631,9 @@ async function refreshCatalog(root: HTMLElement): Promise<void> {
   }
 
   render(root);
+  if (state.view === "title") {
+    await ensureTitleExtras(root);
+  }
 }
 
 async function refreshUpcoming(root: HTMLElement): Promise<void> {
@@ -1905,6 +1934,7 @@ function render(root: HTMLElement): void {
         ${state.view === "account" ? renderAccount() : ""}
         ${state.view === "stats" ? renderStatsPage() : ""}
         ${state.view === "profile" ? renderPersonProfile() : ""}
+        ${state.view === "title" ? renderTitlePage() : ""}
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
@@ -1938,6 +1968,7 @@ function placeFromState(): AppPlace {
     tag: state.libraryTag,
     franchisesOpen: state.view === "library" && !state.franchisesCollapsed,
     profileId: state.view === "profile" ? state.profileId : null,
+    titleId: state.view === "title" ? state.titleId : null,
   };
 }
 
@@ -1950,6 +1981,7 @@ function applyPlace(place: AppPlace): void {
     state.franchisesCollapsed = !place.franchisesOpen;
   }
   state.profileId = place.profileId;
+  state.titleId = place.view === "title" ? place.titleId : null;
   if (place.view !== "profile") {
     state.profilePerson = null;
   }
@@ -1989,6 +2021,9 @@ async function restorePlace(root: HTMLElement): Promise<void> {
   if (place.view === "profile" && place.profileId && state.profilePerson?.id !== place.profileId) {
     await openPerson(root, place.profileId);
   }
+  if (place.view === "title") {
+    await ensureTitleExtras(root);
+  }
 }
 
 function renderUpdateBanner(): string {
@@ -2004,7 +2039,7 @@ function renderUpdateBanner(): string {
 }
 
 function dockButton(view: View, label: string, icon: string): string {
-  const active = state.view === view || (view === "account" && state.view === "profile") ? " is-active" : "";
+  const active = state.view === view || (view === "account" && state.view === "profile") || (view === "library" && state.view === "title") ? " is-active" : "";
   return `
     <button class="dock-btn${active}" type="button" data-action="view" data-view="${view}">
       ${icon}
@@ -2125,7 +2160,7 @@ function renderWatchNextFeatured(item: WatchNextItem): string {
         <h3>${escapeHtml(item.title)}</h3>
         ${item.detail ? `<p class="watch-next-detail">${escapeHtml(item.detail)}</p>` : ""}
         <div class="watch-next-actions">
-          <button class="ghost-btn" type="button" data-action="stat-open" data-filter="${escapeHtml(item.kind)}" data-query="${escapeHtml(item.title)}">Open</button>
+          <button class="ghost-btn" type="button" data-action="open-title" data-id="${escapeHtml(item.id)}">Open</button>
           ${
             watchable
               ? `<button class="primary-btn" type="button" data-action="open-watch" data-id="${escapeHtml(item.id)}" ${state.watchBusy ? "disabled" : ""}>Watch</button>`
@@ -2141,7 +2176,7 @@ function renderWatchNextPoster(item: WatchNextItem): string {
   const entry = state.entries.find((catalog) => catalog.id === item.id);
   const art = homeArt(entry, item.posterPath);
   return `
-    <button class="home-recent" type="button" data-action="stat-open" data-filter="${escapeHtml(item.kind)}" data-query="${escapeHtml(item.title)}" aria-label="${escapeHtml(item.title)}">
+    <button class="home-recent" type="button" data-action="open-title" data-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.title)}">
       ${
         art
           ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" decoding="async" referrerpolicy="no-referrer" />`
@@ -2209,7 +2244,7 @@ function renderHomeRecents(): string {
           .map((entry) => {
             const art = homeArt(entry, state.recentPosters[entry.id]);
             return `
-              <button class="home-recent" type="button" data-action="stat-open" data-query="${escapeHtml(entry.title)}" aria-label="${escapeHtml(entry.title)}">
+              <button class="home-recent" type="button" data-action="open-title" data-id="${escapeHtml(entry.id)}" aria-label="${escapeHtml(entry.title)}">
                 ${
                   art
                     ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" decoding="async" referrerpolicy="no-referrer" />`
@@ -3538,6 +3573,7 @@ function renderShowGuide(entry: CatalogEntry, options: { showKind?: boolean; lis
       </summary>
       <div class="show-toolbar">
         <button class="ghost-btn" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${done ? "Unmark show" : "Mark show"}</button>
+        <button class="ghost-btn" type="button" data-action="open-title" data-id="${escapeHtml(entry.id)}">Open</button>
         ${renderWatchButton(entry)}
         ${renderShareButton(entry)}
         ${renderWhenButton(entry)}
@@ -3648,19 +3684,19 @@ function renderEntry(entry: CatalogEntry, showKind = true, nested = false, franc
   const admin = Boolean(state.user?.isAdmin);
   const signedIn = Boolean(state.user);
   const done = isFinished(entry);
-  const body = `
-    ${renderPoster(entry.posterPath, entry.coverUrl)}
-    <span class="mark" aria-hidden="true"></span>
-    <span class="entry-copy">
-      <strong>${escapeHtml(entry.title)}</strong>
-      ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
-      ${renderBookBlurb(entry)}
-    </span>
-  `;
-
   return `
     <li class="entry${done ? " is-done" : ""}${nested ? " is-nested" : ""}">
-      <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${body}</button>
+      <button class="entry-toggle entry-mark" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" aria-label="${done ? "Mark unfinished" : "Mark finished"}: ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>
+        <span class="mark" aria-hidden="true"></span>
+      </button>
+      <button class="entry-open" type="button" data-action="open-title" data-id="${escapeHtml(entry.id)}">
+        ${renderPoster(entry.posterPath, entry.coverUrl)}
+        <span class="entry-copy">
+          <strong>${escapeHtml(entry.title)}</strong>
+          ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
+          ${renderBookBlurb(entry)}
+        </span>
+      </button>
       ${renderWatchButton(entry)}
       ${renderShareButton(entry)}
       ${renderWhenButton(entry)}
@@ -3933,9 +3969,11 @@ function renderListItem(entry: CatalogEntry, listId: number, nested = false): st
   const subtitle = details ?? (nested ? "" : MEDIA_KINDS.find((kind) => kind.id === entry.kind)!.label);
   return `
     <li class="entry${isFinished(entry) ? " is-done" : ""}${nested ? " is-nested" : ""}">
-      <button class="entry-toggle" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>
-        ${renderPoster(entry.posterPath, entry.coverUrl)}
+      <button class="entry-toggle entry-mark" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" aria-label="${isFinished(entry) ? "Mark unfinished" : "Mark finished"}: ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>
         <span class="mark" aria-hidden="true"></span>
+      </button>
+      <button class="entry-open" type="button" data-action="open-title" data-id="${escapeHtml(entry.id)}">
+        ${renderPoster(entry.posterPath, entry.coverUrl)}
         <span class="entry-copy">
           <strong>${escapeHtml(entry.title)}</strong>
           ${subtitle ? `<em>${escapeHtml(subtitle)}</em>` : ""}
@@ -4166,6 +4204,107 @@ function findShowEpisode(showId: number, episodeId: number): ShowEpisode | undef
 
 function whenSheetOpen(): boolean {
   return Boolean(state.whenPicker || state.whenEpisode);
+}
+
+const TITLE_KIND_LABEL: Record<MediaKind, string> = {
+  movie: "Film",
+  series: "Series",
+  show: "TV Show",
+  documentary: "Documentary",
+  book: "Book",
+  podcast: "Podcast",
+  game: "Game",
+};
+
+function renderTitlePage(): string {
+  const entry = state.entries.find((item) => item.id === state.titleId);
+  if (!entry) {
+    const waiting = state.status === "loading";
+    return `
+      <header class="page-head">
+        <p class="eyebrow">Title</p>
+        <h1>${waiting ? "Opening the vault…" : "That title is not in the vault."}</h1>
+      </header>
+      <button class="ghost-btn" type="button" data-action="view" data-view="library">Back to the library</button>
+    `;
+  }
+
+  const kindLabel = TITLE_KIND_LABEL[entry.kind];
+  const plural = MEDIA_KINDS.find((kind) => kind.id === entry.kind)?.label ?? "Library";
+  const details = movieDetailLine(entry);
+  const art = entry.coverUrl || posterUrl(entry.posterPath, "w342");
+  const done = isFinished(entry);
+  const seriesMovies = entry.kind === "series" ? sortByYear(state.entries.filter((item) => item.kind === "movie" && item.seriesId === entry.mediaId)) : [];
+  const keywords = (entry.keywords ?? []).slice(0, 12);
+  return `
+    <article class="title-page">
+      <button class="ghost-btn title-back" type="button" data-action="view" data-view="library" data-filter="${escapeHtml(entry.kind)}">Back to ${escapeHtml(plural)}</button>
+      <header class="title-hero">
+        ${
+          art
+            ? `<img class="title-poster" src="${escapeHtml(art)}" alt="" width="120" height="180" decoding="async" referrerpolicy="no-referrer" />`
+            : ""
+        }
+        <div class="title-copy">
+          <p class="eyebrow">${escapeHtml(kindLabel)}</p>
+          <h1>${escapeHtml(entry.title)}</h1>
+          ${details ? `<p>${escapeHtml(details)}</p>` : ""}
+          ${entry.kind === "book" && entry.isbn ? `<p class="fine-print">ISBN ${escapeHtml(entry.isbn)}</p>` : ""}
+          ${entry.kind === "game" && entry.publisher ? `<p class="fine-print">${escapeHtml(entry.publisher)}</p>` : ""}
+        </div>
+      </header>
+      ${entry.description ? `<p class="title-description">${escapeHtml(entry.description)}</p>` : ""}
+      ${keywords.length > 0 ? `<p class="fine-print">${keywords.map((keyword) => escapeHtml(keyword)).join(" · ")}</p>` : ""}
+      <div class="title-actions">
+        ${
+          state.user
+            ? `<button class="ghost-btn" type="button" data-action="toggle" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>${done ? "Mark unfinished" : "Mark finished"}</button>`
+            : `<button class="ghost-btn" type="button" data-action="view" data-view="account">Sign in to keep your place</button>`
+        }
+        ${renderWatchButton(entry)}
+        ${renderShareButton(entry)}
+        ${renderWhenButton(entry)}
+        ${renderScore(entry)}
+        ${
+          state.user
+            ? `<button class="entry-list" type="button" data-action="open-lists" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>List</button>`
+            : ""
+        }
+        ${renderFranchiseButton(entry)}
+        ${
+          state.user?.isAdmin
+            ? `
+              <button class="entry-edit" type="button" data-action="open-edit" data-id="${escapeHtml(entry.id)}" ${state.catalogBusy ? "disabled" : ""}>Edit</button>
+              <button class="entry-remove" type="button" data-action="delete" data-id="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.title)}" ${state.catalogBusy ? "disabled" : ""}>Remove</button>
+            `
+            : ""
+        }
+      </div>
+      ${state.catalogMessage ? `<p class="status is-error">${escapeHtml(state.catalogMessage)}</p>` : ""}
+      ${entry.kind === "show" && state.user ? renderShowSeasons(entry.mediaId, state.showGuides[entry.mediaId]) : ""}
+      ${
+        seriesMovies.length > 0
+          ? `<section class="title-series" aria-label="Films in this series"><h2>Films</h2><ul class="catalog">${seriesMovies.map((movie) => renderEntry(movie, false, true)).join("")}</ul></section>`
+          : ""
+      }
+    </article>
+  `;
+}
+
+async function ensureTitleExtras(root: HTMLElement): Promise<void> {
+  const entry = state.entries.find((item) => item.id === state.titleId);
+  if (!entry || entry.kind !== "show" || !state.user || state.view !== "title") {
+    return;
+  }
+
+  const hadGuide = Boolean(state.showGuides[entry.mediaId]);
+  state.expandedShowIds.add(entry.mediaId);
+  if (!hadGuide) {
+    await loadShowGuide(root, entry.mediaId);
+    return;
+  }
+
+  render(root);
 }
 
 function renderBookBlurb(entry: CatalogEntry): string {

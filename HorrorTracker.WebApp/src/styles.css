@@ -908,6 +908,71 @@ button.entry-toggle {
   background: var(--crimson);
 }
 
+.entry-open {
+  flex: 1 1 10rem;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 8px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.entry-mark {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 8px;
+}
+
+.title-page {
+  display: grid;
+  gap: 18px;
+}
+
+.title-back {
+  justify-self: start;
+}
+
+.title-hero {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.title-copy h1 {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+}
+
+.title-copy p {
+  margin: 8px 0 0;
+}
+
+.title-poster {
+  width: 120px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  background: var(--bg);
+}
+
+.title-description {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.title-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .entry-poster {
   width: 40px;
   height: 60px;

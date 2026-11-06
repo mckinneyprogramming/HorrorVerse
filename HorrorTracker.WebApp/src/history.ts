@@ -1,7 +1,7 @@
 import { isMediaKind, type MediaKind } from "./catalog";
 import { isLibraryTagId } from "./tags";
 
-export const HISTORY_VIEWS = ["home", "library", "upcoming", "lists", "account", "profile", "install", "stats"] as const;
+export const HISTORY_VIEWS = ["home", "library", "upcoming", "lists", "account", "profile", "install", "stats", "title"] as const;
 
 export type HistoryView = (typeof HISTORY_VIEWS)[number];
 
@@ -12,6 +12,7 @@ export interface AppPlace {
   tag: string;
   franchisesOpen: boolean;
   profileId: number | null;
+  titleId: string | null;
 }
 
 const VIEW_SET = new Set<string>(HISTORY_VIEWS);
@@ -24,8 +25,11 @@ export function emptyPlace(): AppPlace {
     tag: "",
     franchisesOpen: false,
     profileId: null,
+    titleId: null,
   };
 }
+
+const TITLE_PATH = /^\/(movie|series|show|documentary|book|podcast|game)\/(\d+)$/;
 
 export function parsePlace(pathname: string, search = ""): AppPlace {
   const path = pathname.replace(/\/+$/, "") || "/";
@@ -34,8 +38,16 @@ export function parsePlace(pathname: string, search = ""): AppPlace {
     return { ...emptyPlace(), view: "profile", profileId: Number(profile[1]) };
   }
 
+  const title = TITLE_PATH.exec(path);
+  if (title) {
+    const mediaId = Number(title[2]);
+    if (mediaId >= 1) {
+      return { ...emptyPlace(), view: "title", titleId: `${title[1]}:${mediaId}` };
+    }
+  }
+
   const view = path === "/" ? "home" : path.slice(1);
-  if (!VIEW_SET.has(view) || view === "profile") {
+  if (!VIEW_SET.has(view) || view === "profile" || view === "title") {
     return emptyPlace();
   }
 
@@ -49,6 +61,7 @@ export function parsePlace(pathname: string, search = ""): AppPlace {
     tag: isLibraryTagId(tag) ? tag : "",
     franchisesOpen: view === "library" && params.get("franchises") === "1",
     profileId: null,
+    titleId: null,
   };
 }
 
@@ -59,6 +72,11 @@ export function formatPlace(place: AppPlace): string {
 
   if (place.view === "profile") {
     return place.profileId ? `/profile/${place.profileId}` : "/account";
+  }
+
+  if (place.view === "title") {
+    const match = /^(movie|series|show|documentary|book|podcast|game):(\d+)$/.exec(place.titleId ?? "");
+    return match && Number(match[2]) >= 1 ? `/${match[1]}/${match[2]}` : "/library";
   }
 
   if (place.view !== "library") {

@@ -1421,6 +1421,24 @@ describe("mountApp", () => {
     await boot("/upcoming", false);
   }, 60_000);
 
+  it("opens a catalog title from its address", async () => {
+    const { root } = await boot("/movie/1");
+    expect(root.textContent).toContain("Scream");
+    expect(root.textContent).toContain("1996");
+    expect(window.location.pathname).toBe("/movie/1");
+
+    window.history.pushState({}, "", "/series/10");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(root.textContent).toContain("Scream Collection");
+    expect(root.textContent).toContain("Scream 2");
+
+    window.history.pushState({}, "", "/movie/999");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(root.textContent).toContain("That title is not in the vault.");
+  });
+
   it("covers profile links, popstate, and install", async () => {
     const { root } = await boot("/profile/7");
     expect(root.textContent).toContain("Gina");
