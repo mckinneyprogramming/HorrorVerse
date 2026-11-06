@@ -420,7 +420,8 @@ public class ServiceCoverageTests
         await using (var synopsisScope = factory.Services.CreateAsyncScope())
         {
             var synopsisTmdb = synopsisScope.ServiceProvider.GetRequiredService<TmdbCatalogService>();
-            await CoverSynopsisAsync(admin, script, synopsisTmdb, connectionString);
+            var synopsisCatalog = synopsisScope.ServiceProvider.GetRequiredService<CatalogService>();
+            await CoverSynopsisAsync(admin, script, synopsisTmdb, synopsisCatalog, connectionString);
         }
     }
 
@@ -609,7 +610,7 @@ public class ServiceCoverageTests
         Seasons = seasons > 0 ? [new SearchTvSeason { SeasonNumber = 0, Name = seasonName }, new SearchTvSeason { SeasonNumber = 1, Name = "Season 1" }] : null,
     };
 
-    private static async Task CoverSynopsisAsync(HttpClient admin, ScriptedTmdb script, TmdbCatalogService tmdb, string connectionString)
+    private static async Task CoverSynopsisAsync(HttpClient admin, ScriptedTmdb script, TmdbCatalogService tmdb, CatalogService catalog, string connectionString)
     {
         var movieId = await CoverageSupport.Scalar<int>(connectionString, "SELECT id FROM movie WHERE tmdbid = 30 ORDER BY id DESC LIMIT 1");
         var documentaryId = await CoverageSupport.Scalar<int>(connectionString, "SELECT id FROM documentary WHERE tmdbid = 40 ORDER BY id DESC LIMIT 1");
@@ -648,15 +649,23 @@ public class ServiceCoverageTests
         Assert.Equal(JsonValueKind.Null, (await admin.GetFromJsonAsync<JsonElement>("/api/tmdb?synopsis=movie:0"))!.GetProperty("description").ValueKind);
         Assert.Equal(JsonValueKind.Null, (await admin.GetFromJsonAsync<JsonElement>("/api/tmdb?synopsis=book:4"))!.GetProperty("description").ValueKind);
 
+        var probe = new List<CatalogItemDto>
+        {
+            new($"movie:{movieId}", movieId, "Imported", "movie", false),
+            new("movie:0", 0, "Missing", "movie", false),
+        };
         await Gap.WithRenamedTable(connectionString, "movie", "movie_gap_synopsis", async () =>
         {
             var blocked = await admin.GetFromJsonAsync<JsonElement>($"/api/tmdb?synopsis=movie:{movieId}");
             Assert.Equal(JsonValueKind.Null, blocked.GetProperty("description").ValueKind);
+            var hidden = (IReadOnlyList<CatalogItemDto>)Gap.Call(catalog, "AttachDescriptions", probe)!;
+            Assert.Null(hidden[0].Description);
         });
         Gap.Call(tmdb, "SaveSynopsis", "no_such_table", 1, "Hello there", true);
 
-        var catalog = await admin.GetFromJsonAsync<JsonElement>("/api/catalog");
-        Assert.Contains(catalog.EnumerateArray(), item => item.GetProperty("id").GetString() == $"movie:{movieId}" && item.GetProperty("description").GetString() == "A night in Haddonfield.");
+        var attached = (IReadOnlyList<CatalogItemDto>)Gap.Call(catalog, "AttachDescriptions", probe)!;
+        Assert.Equal("A night in Haddonfield.", attached[0].Description);
+        Assert.Null(attached[1].Description);
 
         await using (var connection = new NpgsqlConnection(connectionString))
         {

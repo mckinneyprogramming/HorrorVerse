@@ -130,6 +130,7 @@ public class GapCoverageTests
         var movieId = await CoverageSupport.Scalar<int>(connectionString, "SELECT id FROM movie ORDER BY id LIMIT 1");
         await CoverageSupport.Exec(connectionString, "ALTER TABLE movie ALTER COLUMN releaseyear DROP NOT NULL");
         await CoverageSupport.Exec(connectionString, $"UPDATE movie SET releaseyear = NULL WHERE id = {movieId}");
+        Assert.Contains(catalog.GetAll(), item => item.Id == $"movie:{movieId}" && item.ReleaseYear is null);
         Assert.Equal(0, Gap.Call(catalog, "CurrentYear", "movie", movieId));
         Assert.Equal(0, Gap.Call(catalog, "CurrentYear", "movie", 99999999));
         await CoverageSupport.Exec(connectionString, $"UPDATE movie SET releaseyear = 1978 WHERE id = {movieId}");

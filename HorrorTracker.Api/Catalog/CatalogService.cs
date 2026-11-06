@@ -118,27 +118,32 @@ public sealed class CatalogService(
         {
             var descriptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             using var connection = OpenConnection();
-            using (var alter = connection.CreateCommand())
+            try
             {
+                using var alter = connection.CreateCommand();
                 alter.CommandText = """
                     ALTER TABLE Movie ADD COLUMN IF NOT EXISTS Description TEXT;
                     ALTER TABLE Documentary ADD COLUMN IF NOT EXISTS Description TEXT;
                     """;
                 alter.ExecuteNonQuery();
+                ReadDescriptionRows(connection, descriptions, "SELECT 'movie'::text, Id, Description FROM Movie WHERE Description IS NOT NULL AND btrim(Description) <> ''");
+                ReadDescriptionRows(connection, descriptions, "SELECT 'documentary'::text, Id, Description FROM Documentary WHERE Description IS NOT NULL AND btrim(Description) <> ''");
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Could not load movie descriptions from PostgreSQL.");
             }
 
-            ReadDescriptionRows(connection, descriptions, "SELECT 'movie', Id, Description FROM Movie WHERE Description IS NOT NULL AND btrim(Description) <> ''");
-            ReadDescriptionRows(connection, descriptions, "SELECT 'documentary', Id, Description FROM Documentary WHERE Description IS NOT NULL AND btrim(Description) <> ''");
             try
             {
                 using var showAlter = connection.CreateCommand();
                 showAlter.CommandText = "ALTER TABLE Show ADD COLUMN IF NOT EXISTS Description TEXT";
                 showAlter.ExecuteNonQuery();
-                ReadDescriptionRows(connection, descriptions, "SELECT 'show', Id, Description FROM Show WHERE Description IS NOT NULL AND btrim(Description) <> ''");
+                ReadDescriptionRows(connection, descriptions, "SELECT 'show'::text, Id, Description FROM Show WHERE Description IS NOT NULL AND btrim(Description) <> ''");
             }
-            catch (PostgresException)
+            catch (Exception exception)
             {
-                // Show descriptions arrive with the first TV import.
+                logger.LogWarning(exception, "Could not load show descriptions from PostgreSQL.");
             }
 
             return items
