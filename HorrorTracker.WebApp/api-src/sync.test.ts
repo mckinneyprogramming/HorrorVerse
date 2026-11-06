@@ -68,6 +68,24 @@ describe("vault sync", () => {
     expect(ignored.status).toBe(401);
   });
 
+  it("imports today's horror films for a trusted cron and refuses members", async () => {
+    handle = installApi([sessionStep(memberRow)], {
+      env: { TMDBKey: "key" },
+      external: [{ match: "/discover/movie", body: { results: [], total_pages: 1 } }],
+    });
+    expect((await GET(authed("http://localhost/api/sync?job=today"))).status).toBe(403);
+
+    handle.restore();
+    handle = installApi([], {
+      env: { CRON_SECRET: "top-secret", TMDBKey: "key" },
+      external: [{ match: "/discover/movie", body: { results: [], total_pages: 1 } }],
+    });
+    const imported = await readBody(
+      await GET(new Request("http://localhost/api/sync?job=today", { headers: { authorization: "Bearer top-secret" } })),
+    );
+    expect(imported).toMatchObject({ added: 0, already: 0, failed: 0 });
+  });
+
   it("skips a fresh vault and refreshes a stale one", async () => {
     handle = installApi([
       sessionStep(memberRow),

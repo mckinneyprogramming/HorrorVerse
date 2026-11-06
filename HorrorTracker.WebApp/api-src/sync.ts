@@ -18,6 +18,7 @@ import {
   saveShowKeywords,
 } from "../lib/keywords";
 import { importHorrorBatch } from "../lib/horror-import";
+import { importFilmsReleasingToday } from "../lib/release-day";
 import { fillMissingPosters, savePoster } from "../lib/poster";
 import {
   execute,
@@ -45,6 +46,14 @@ export async function GET(request: Request) {
     const cron = isTrustedCron(request);
     const user = cron ? undefined : await requireSessionUser(request, connectionString);
     const url = new URL(request.url);
+    if ((url.searchParams.get("job") ?? "") === "today") {
+      if (!cron && !user?.isAdmin) {
+        throw new SyncError("Only the administrator can import today's releases.", 403);
+      }
+
+      return Response.json(await importFilmsReleasingToday(connectionString));
+    }
+
     const id = (url.searchParams.get("id") ?? "").trim();
     await ensureSeriesSchema(connectionString);
     await ensureKeywordSchema(connectionString);

@@ -9,6 +9,10 @@
     {
       "path": "/api/sync",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/sync?job=today",
+      "schedule": "15 12 * * *"
     }
   ]
 }
