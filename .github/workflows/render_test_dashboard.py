@@ -256,8 +256,8 @@ def render_case(item):
     opened = " open" if item["status"] == "failed" else ""
     return (
         f'<details class="case {item["status"]}"{opened}>'
-        f"<summary><span class=\"mark\">{item['status']}</span>"
-        f"<span class=\"name\">{html.escape(item['name'])}</span>{time}</summary>"
+        f'<summary><span class="row"><span class="mark">{item["status"]}</span>'
+        f'<span class="name">{html.escape(item["name"])}</span>{time}</span></summary>'
         f"{detail}{render_step_list(item.get('steps') or [], True)}</details>"
     )
 
@@ -292,8 +292,8 @@ def render_suite(suite):
             has_failure = any('class="case failed"' in item for item in items)
             opened = " open" if has_failure else ""
             rendered.append(
-                f'<details class="group" data-group{opened}><summary><span class="group-title">{html.escape(title)}</span>'
-                f'<span class="count">{len(items)}</span></summary><div class="tests">{"".join(items)}</div></details>'
+                f'<details class="group" data-group{opened}><summary><span class="row"><span class="group-title">{html.escape(title)}</span>'
+                f'<span class="count">{len(items)}</span></span></summary><div class="tests">{"".join(items)}</div></details>'
             )
         body = "".join(rendered)
     return (
@@ -384,16 +384,29 @@ def render(suites, updated):
     h2 {{ margin: 0; font-size: 22px; }}
     details.group, details.case {{ border-top: 1px solid var(--line); }}
     summary {{
+      display: list-item;
+      cursor: pointer;
+      list-style: none;
+    }}
+    summary::-webkit-details-marker {{ display: none; }}
+    summary::marker {{ content: ""; }}
+    summary .row, summary .row * {{
+      pointer-events: none;
+    }}
+    summary .row {{
       display: flex;
       gap: 12px;
       align-items: baseline;
-      cursor: pointer;
-      list-style: none;
-      padding: 10px 0;
+      padding: 10px 0 10px 1.2em;
+      position: relative;
     }}
-    summary::-webkit-details-marker {{ display: none; }}
-    summary::before {{ content: "▸"; color: var(--muted); width: 1em; }}
-    details[open] > summary::before {{ content: "▾"; }}
+    summary .row::before {{
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: var(--muted);
+    }}
+    details[open] > summary .row::before {{ content: "▾"; }}
     .group-title {{ color: var(--muted); font-size: 14px; font-weight: 650; }}
     .count {{ margin-left: auto; color: var(--muted); font-size: 13px; }}
     .tally {{ margin: 0; color: var(--muted); }}
