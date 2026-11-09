@@ -86,16 +86,6 @@ jobs:
           publish_branch: gh-pages
           commit_message: "Update the test dashboard."
 
-      - name: Enable GitHub Pages
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method POST "repos/${{ github.repository }}/pages" \
-            -f "build_type=legacy" \
-            -f "source[branch]=gh-pages" \
-            -f "source[path]=/"
-
       - name: Link the dashboard
         run: |
           url="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
@@ -104,5 +94,5 @@ jobs:
             echo ""
             echo "[Open the dashboard]($url)"
             echo ""
-            echo "If that link 404s, open the repository Settings, then Pages, and choose the gh-pages branch."
+            echo "GitHub Actions cannot turn Pages on. In the repository Settings, open Pages and choose the gh-pages branch."
           } >> "$GITHUB_STEP_SUMMARY"
