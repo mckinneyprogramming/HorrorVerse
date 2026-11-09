@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="deploy-smoke" tests="1" failures="0" skipped="1">
+    <testcase classname="deploy-smoke" name="live deploy"><skipped/></testcase>
+</testsuite>
