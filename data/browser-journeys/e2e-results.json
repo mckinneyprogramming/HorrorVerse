@@ -18,24 +18,24 @@
     "maxFailures": 0,
     "metadata": {
       "ci": {
-        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-        "commitHash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42651845789"
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/7342178f6f837546a83515d0a3f7d76779557d3f",
+        "commitHash": "7342178f6f837546a83515d0a3f7d76779557d3f",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42654993829"
       },
       "gitCommit": {
-        "shortHash": "55a97ea",
-        "hash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-        "subject": "Let each test group and test expand to show its steps.",
-        "body": "Let each test group and test expand to show its steps.\n\nBrowser journeys keep the actions Playwright recorded, and the other suites show the output captured with the result.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "shortHash": "7342178",
+        "hash": "7342178f6f837546a83515d0a3f7d76779557d3f",
+        "subject": "Keep test summaries clickable so groups and tests can collapse.",
+        "body": "Keep test summaries clickable so groups and tests can collapse.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
         "author": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794240496000
+          "time": 1794241633000
         },
         "committer": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794240496000
+          "time": 1794241633000
         },
         "branch": "master"
       },
@@ -49,24 +49,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-            "commitHash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42651845789"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/7342178f6f837546a83515d0a3f7d76779557d3f",
+            "commitHash": "7342178f6f837546a83515d0a3f7d76779557d3f",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42654993829"
           },
           "gitCommit": {
-            "shortHash": "55a97ea",
-            "hash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-            "subject": "Let each test group and test expand to show its steps.",
-            "body": "Let each test group and test expand to show its steps.\n\nBrowser journeys keep the actions Playwright recorded, and the other suites show the output captured with the result.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "7342178",
+            "hash": "7342178f6f837546a83515d0a3f7d76779557d3f",
+            "subject": "Keep test summaries clickable so groups and tests can collapse.",
+            "body": "Keep test summaries clickable so groups and tests can collapse.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794240496000
+              "time": 1794241633000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794240496000
+              "time": 1794241633000
             },
             "branch": "master"
           },
@@ -91,24 +91,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-            "commitHash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42651845789"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/7342178f6f837546a83515d0a3f7d76779557d3f",
+            "commitHash": "7342178f6f837546a83515d0a3f7d76779557d3f",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42654993829"
           },
           "gitCommit": {
-            "shortHash": "55a97ea",
-            "hash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
-            "subject": "Let each test group and test expand to show its steps.",
-            "body": "Let each test group and test expand to show its steps.\n\nBrowser journeys keep the actions Playwright recorded, and the other suites show the output captured with the result.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "7342178",
+            "hash": "7342178f6f837546a83515d0a3f7d76779557d3f",
+            "subject": "Keep test summaries clickable so groups and tests can collapse.",
+            "body": "Keep test summaries clickable so groups and tests can collapse.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794240496000
+              "time": 1794241633000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794240496000
+              "time": 1794241633000
             },
             "branch": "master"
           },
@@ -201,12 +201,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1094,
+                  "duration": 525,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-09T16:09:49.653Z",
+                  "startTime": "2026-11-09T16:28:20.441Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -235,12 +235,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 522,
+                  "duration": 431,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-09T16:09:50.945Z",
+                  "startTime": "2026-11-09T16:28:22.503Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -269,12 +269,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 615,
+                  "duration": 619,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-09T16:09:51.475Z",
+                  "startTime": "2026-11-09T16:28:22.949Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -303,12 +303,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 429,
+                  "duration": 333,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-09T16:09:52.096Z",
+                  "startTime": "2026-11-09T16:28:23.582Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -337,12 +337,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 286,
+                  "duration": 198,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-09T16:09:52.533Z",
+                  "startTime": "2026-11-09T16:28:23.930Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -360,8 +360,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-09T16:09:48.872Z",
-    "duration": 4012.185,
+    "startTime": "2026-11-09T16:28:19.447Z",
+    "duration": 4756.8,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,
