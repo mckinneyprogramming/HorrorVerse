@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HorrorVerse tests</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101114;
+      --card: #1a1c22;
+      --ink: #f4f1ea;
+      --muted: #a8a29e;
+      --line: #2e323c;
+      --pass: #4ade80;
+      --fail: #fb7185;
+      --skip: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.45 "Segoe UI", system-ui, sans-serif;
+    }
+    .wrap { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
+    .top { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; flex-wrap: wrap; }
+    .eyebrow { margin: 0; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; font-size: 12px; }
+    h1 { margin: 4px 0; font-size: 40px; line-height: 1; }
+    .updated { margin: 0; color: var(--muted); }
+    .totals { display: flex; gap: 8px; flex-wrap: wrap; }
+    .totals span, .tally {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+    }
+    .totals .passed b { color: var(--pass); }
+    .totals .failed b { color: var(--fail); }
+    .totals .skipped b { color: var(--skip); }
+    .tools {
+      position: sticky;
+      top: 0;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 24px 0;
+      padding: 12px 0;
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+    }
+    .nav { display: flex; gap: 12px; flex-wrap: wrap; }
+    .nav a { color: var(--ink); }
+    label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 13px; }
+    input, button {
+      font: inherit;
+      color: var(--ink);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    input { min-width: min(320px, 100%); padding: 8px 10px; }
+    .filters { display: flex; gap: 8px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    button[aria-pressed="true"] { border-color: var(--ink); }
+    .suite { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin: 0 0 16px; }
+    .suite header { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: baseline; }
+    h2 { margin: 0; font-size: 22px; }
+    h3 { margin: 18px 0 8px; color: var(--muted); font-size: 14px; font-weight: 650; }
+    .tally { margin: 0; color: var(--muted); }
+    .tally b { color: var(--ink); }
+    .tally span { margin: 0 6px; }
+    .source { margin: 8px 0 0; }
+    .source a { color: var(--muted); }
+    .empty { color: var(--muted); }
+    ul { list-style: none; margin: 0; padding: 0; }
+    .case {
+      display: grid;
+      grid-template-columns: 76px 1fr auto;
+      gap: 8px 12px;
+      align-items: baseline;
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
+    }
+    .mark { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .passed .mark { color: var(--pass); }
+    .failed .mark { color: var(--fail); }
+    .skipped .mark { color: var(--skip); }
+    .time { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .detail { grid-column: 2 / -1; margin: 0; white-space: pre-wrap; color: #fecdd3; font: 13px/1.4 ui-monospace, monospace; }
+    @media (max-width: 640px) {
+      .case { grid-template-columns: 1fr auto; }
+      .mark { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div>
+        <p class="eyebrow">HorrorVerse</p>
+        <h1>Tests</h1>
+        <p class="updated">Updated 2026-11-09 15:29 UTC</p>
+      </div>
+      <div class="totals">
+        <span class="passed"><b>0</b> passed</span>
+        <span class="failed"><b>0</b> failed</span>
+        <span class="skipped"><b>0</b> skipped</span>
+      </div>
+    </header>
+    <div class="tools">
+      <nav class="nav"><a href="#api-integration-tests">API and integration</a><a href="#web-unit-tests">Web unit</a><a href="#browser-journeys">Browser journeys</a><a href="#deploy-smoke">Deploy smoke</a></nav>
+      <label>Search<input id="q" type="search" placeholder="Test name"></label>
+      <div class="filters" role="group" aria-label="Status">
+        <button type="button" data-status="all" aria-pressed="true">All</button>
+        <button type="button" data-status="failed" aria-pressed="false">Failed</button>
+        <button type="button" data-status="passed" aria-pressed="false">Passed</button>
+        <button type="button" data-status="skipped" aria-pressed="false">Skipped</button>
+      </div>
+    </div>
+    <article class="suite" id="api-integration-tests"><header><h2>API and integration</h2><p class="tally"><b>0</b> passed<span>·</span><b>0</b> failed<span>·</span><b>0</b> skipped</p></header><p class="empty">Waiting for the next run.</p></article><article class="suite" id="web-unit-tests"><header><h2>Web unit</h2><p class="tally"><b>0</b> passed<span>·</span><b>0</b> failed<span>·</span><b>0</b> skipped</p></header><p class="empty">Waiting for the next run.</p></article><article class="suite" id="browser-journeys"><header><h2>Browser journeys</h2><p class="tally"><b>0</b> passed<span>·</span><b>0</b> failed<span>·</span><b>0</b> skipped</p></header><p class="empty">Waiting for the next run.</p></article><article class="suite" id="deploy-smoke"><header><h2>Deploy smoke</h2><p class="tally"><b>0</b> passed<span>·</span><b>0</b> failed<span>·</span><b>0</b> skipped</p></header><p class="empty">Waiting for the next run.</p></article>
+  </div>
+  <script>
+    const state = { query: "", status: "all" };
+    const search = document.querySelector("#q");
+    function apply() {
+      const needle = state.query.trim().toLowerCase();
+      document.querySelectorAll(".case").forEach((row) => {
+        const statusOk = state.status === "all" || row.classList.contains(state.status);
+        const textOk = needle === "" || row.textContent.toLowerCase().includes(needle);
+        row.hidden = !(statusOk && textOk);
+      });
+      document.querySelectorAll("[data-group]").forEach((group) => {
+        group.hidden = group.querySelector(".case:not([hidden])") === null;
+      });
+    }
+    search.addEventListener("input", () => {
+      state.query = search.value;
+      apply();
+    });
+    document.querySelectorAll("[data-status]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.status = button.dataset.status;
+        document.querySelectorAll("[data-status]").forEach((item) => {
+          item.setAttribute("aria-pressed", item === button ? "true" : "false");
+        });
+        apply();
+      });
+    });
+  </script>
+</body>
+</html>
