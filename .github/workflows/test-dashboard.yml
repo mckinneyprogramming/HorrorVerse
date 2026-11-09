@@ -1,6 +1,7 @@
 name: Test dashboard
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows:
       - SonarCloud Analysis
@@ -20,62 +21,63 @@ permissions:
 jobs:
   publish:
     if: >-
-      github.event.workflow_run.head_branch == 'master' &&
-      (github.event.workflow_run.event == 'push' ||
-       github.event.workflow_run.event == 'schedule' ||
-       github.event.workflow_run.event == 'workflow_dispatch')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.head_branch == 'master' &&
+       (github.event.workflow_run.event == 'push' ||
+        github.event.workflow_run.event == 'schedule' ||
+        github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Checkout the current dashboard
-        id: pages
-        continue-on-error: true
-        uses: actions/checkout@v5
-        with:
-          ref: gh-pages
-          path: site
-
-      - name: Download test results
-        id: download
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          path: incoming
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-
-      - name: Build the dashboard
+      - name: Collect the latest results
         env:
-          PAGES_CHECKOUT: ${{ steps.pages.outcome }}
+          GH_TOKEN: ${{ github.token }}
           DASHBOARD_UPDATED: ${{ github.event.workflow_run.updated_at }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
-          RUN_NAME: ${{ github.event.workflow_run.name }}
         run: |
           set -euo pipefail
-          if [ "$PAGES_CHECKOUT" != "success" ]; then
-            if git ls-remote --heads origin gh-pages | grep -q .; then
-              echo "The gh-pages branch exists, and the dashboard could not read it."
-              exit 1
-            fi
-          fi
-
           mkdir -p public/data
-          if [ -d site/data ]; then
-            cp -a site/data/. public/data/
-          fi
 
-          for name in api-integration-tests web-unit-tests browser-journeys deploy-smoke; do
-            if [ -d "incoming/$name" ]; then
-              rm -rf "public/data/$name"
-              mkdir -p "public/data/$name"
-              cp -a "incoming/$name"/. "public/data/$name/"
-              printf '%s\n%s\n' "$RUN_URL" "$RUN_NAME" > "public/data/$name/source.txt"
+          fetch_run() {
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${1}/runs?branch=master&status=completed&exclude_pull_requests=true&per_page=10" \
+              --jq '[.workflow_runs[] | select(.event != "workflow_run")][0] | [.id, .html_url, .name] | @tsv'
+          }
+
+          save_artifact() {
+            local workflow="$1"
+            local artifact="$2"
+            local row run_id html_url run_name
+            row="$(fetch_run "$workflow" || true)"
+            run_id=""
+            html_url=""
+            run_name=""
+            if [ -n "${row}" ]; then
+              IFS=$'\t' read -r run_id html_url run_name <<< "${row}" || true
             fi
-          done
+            if [ -z "${run_id}" ] || [ "${run_id}" = "null" ]; then
+              echo "No completed ${workflow} run to publish."
+              return
+            fi
+            mkdir -p "public/data/${artifact}"
+            if gh run download "${run_id}" --name "${artifact}" --dir "public/data/${artifact}"; then
+              printf '%s\n%s\n' "${html_url}" "${run_name}" > "public/data/${artifact}/source.txt"
+              echo "Saved ${artifact} from run ${run_id}."
+            else
+              rm -rf "public/data/${artifact}"
+              echo "Run ${run_id} has no ${artifact} artifact."
+            fi
+          }
 
-          python3 .github/workflows/render_test_dashboard.py public/data public/index.html
+          save_artifact build.yml api-integration-tests
+          save_artifact build.yml web-unit-tests
+          save_artifact e2e.yml browser-journeys
+          save_artifact smoke.yml deploy-smoke
+
+          if [ -z "${DASHBOARD_UPDATED}" ]; then
+            DASHBOARD_UPDATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          fi
+          DASHBOARD_UPDATED="${DASHBOARD_UPDATED}" python3 .github/workflows/render_test_dashboard.py public/data public/index.html
           : > public/.nojekyll
 
       - name: Publish the dashboard
@@ -94,5 +96,5 @@ jobs:
             echo ""
             echo "[Open the dashboard]($url)"
             echo ""
-            echo "GitHub Actions cannot turn Pages on. In the repository Settings, open Pages and choose the gh-pages branch."
+            echo "Run this workflow any time from the Actions tab. It republishes the latest API, web, browser, and smoke results together."
           } >> "$GITHUB_STEP_SUMMARY"
