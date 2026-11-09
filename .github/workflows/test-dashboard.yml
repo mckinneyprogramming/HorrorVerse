@@ -79,6 +79,21 @@ jobs:
           fi
           DASHBOARD_UPDATED="${DASHBOARD_UPDATED}" python3 .github/workflows/render_test_dashboard.py public/data public/index.html
           : > public/.nojekyll
+          python3 - <<'PY'
+          from pathlib import Path
+          payload = """{
+            "$schema": "https://openapi.vercel.sh/vercel.json",
+            "git": {
+              "deploymentEnabled": {
+                "gh-pages": false
+              }
+            }
+          }
+          """
+          for path in (Path("public/vercel.json"), Path("public/HorrorTracker.WebApp/vercel.json")):
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(payload, encoding="utf-8")
+          PY
 
       - name: Publish the dashboard
         uses: peaceiris/actions-gh-pages@v4
