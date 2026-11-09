@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  actions: write
+  checks: write
+
 jobs:
   build-and-analyze:
     runs-on: ubuntu-latest
@@ -173,7 +178,7 @@ jobs:
             /d:sonar.token="${SONAR_TOKEN}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.scanner.scanAll=true \
-            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,**/coverage/**,**/TestResults/**,HorrorTracker.Api/wwwroot/**,HorrorTracker.WebApp/api/**" \
+            /d:sonar.exclusions="**/node_modules/**,**/dist/**,**/.vite/**,**/coverage/**,**/TestResults/**,HorrorTracker.Api/wwwroot/**,HorrorTracker.WebApp/api/**,**/.github/**" \
             /d:sonar.coverage.exclusions="**/*Tests*/**,**/*.test.ts,**/*.spec.ts,**/e2e/**,**/playwright.config.ts,**/vitest.config.ts,**/test-helpers/**,**/stryker.config.json" \
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
             /d:sonar.javascript.lcov.reportPaths="HorrorTracker.WebApp/coverage/lcov.info" \
@@ -181,7 +186,7 @@ jobs:
 
           test -d .sonarqube
 
-          dotnet test HorrorTracker.sln --collect:"XPlat Code Coverage" --results-directory TestResults --settings coverlet.runsettings
+          dotnet test HorrorTracker.sln --collect:"XPlat Code Coverage" --results-directory TestResults --settings coverlet.runsettings --logger "trx;LogFileName=integration.trx"
 
           cd HorrorTracker.WebApp
           npm ci
@@ -190,3 +195,65 @@ jobs:
           cd ..
 
           .sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+      - name: Collect test results
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p reports/api reports/web
+          if [ -d TestResults ]; then
+            i=0
+            while IFS= read -r file; do
+              i=$((i + 1))
+              cp "$file" "reports/api/results-$i.trx"
+            done < <(find TestResults -name '*.trx' | sort)
+          fi
+          if [ -f HorrorTracker.WebApp/test-results/vitest-junit.xml ]; then
+            cp HorrorTracker.WebApp/test-results/vitest-junit.xml reports/web/vitest-junit.xml
+          fi
+
+      - name: Upload API test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-integration-tests
+          path: reports/api/*.trx
+          if-no-files-found: warn
+
+      - name: Upload web test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-unit-tests
+          path: reports/web/*.xml
+          if-no-files-found: warn
+
+      - name: Report API and integration tests
+        if: >-
+          always() &&
+          hashFiles('reports/api/*.trx') != '' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: dorny/test-reporter@v3
+        with:
+          name: API and integration tests
+          path: reports/api/*.trx
+          reporter: dotnet-trx
+          list-suites: all
+          list-tests: all
+          collapsed: never
+          report-title: API and integration tests
+
+      - name: Report web unit tests
+        if: >-
+          always() &&
+          hashFiles('reports/web/*.xml') != '' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: dorny/test-reporter@v3
+        with:
+          name: Web unit tests
+          path: reports/web/*.xml
+          reporter: java-junit
+          list-suites: all
+          list-tests: all
+          collapsed: never
+          report-title: Web unit tests

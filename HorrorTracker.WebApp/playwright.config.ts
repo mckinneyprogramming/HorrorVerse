@@ -5,6 +5,9 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI
+    ? [["list"], ["junit", { outputFile: "test-results/e2e-junit.xml" }]]
+    : [["list"]],
   use: {
     baseURL: "http://127.0.0.1:5173",
     serviceWorkers: "block",

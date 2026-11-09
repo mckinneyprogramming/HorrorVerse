@@ -1,0 +1,108 @@
+name: Test dashboard
+
+on:
+  workflow_run:
+    workflows:
+      - SonarCloud Analysis
+      - Browser journeys
+      - Deploy smoke
+    types:
+      - completed
+
+concurrency:
+  group: test-dashboard
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.head_branch == 'master' &&
+      (github.event.workflow_run.event == 'push' ||
+       github.event.workflow_run.event == 'schedule' ||
+       github.event.workflow_run.event == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Checkout the current dashboard
+        id: pages
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+          path: site
+
+      - name: Download test results
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          path: incoming
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Build the dashboard
+        env:
+          PAGES_CHECKOUT: ${{ steps.pages.outcome }}
+          DASHBOARD_UPDATED: ${{ github.event.workflow_run.updated_at }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          if [ "$PAGES_CHECKOUT" != "success" ]; then
+            if git ls-remote --heads origin gh-pages | grep -q .; then
+              echo "The gh-pages branch exists, and the dashboard could not read it."
+              exit 1
+            fi
+          fi
+
+          mkdir -p public/data
+          if [ -d site/data ]; then
+            cp -a site/data/. public/data/
+          fi
+
+          for name in api-integration-tests web-unit-tests browser-journeys deploy-smoke; do
+            if [ -d "incoming/$name" ]; then
+              rm -rf "public/data/$name"
+              mkdir -p "public/data/$name"
+              cp -a "incoming/$name"/. "public/data/$name/"
+              printf '%s\n%s\n' "$RUN_URL" "$RUN_NAME" > "public/data/$name/source.txt"
+            fi
+          done
+
+          python3 .github/workflows/render_test_dashboard.py public/data public/index.html
+          : > public/.nojekyll
+
+      - name: Publish the dashboard
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ github.token }}
+          publish_dir: public
+          publish_branch: gh-pages
+          commit_message: "Update the test dashboard."
+
+      - name: Enable GitHub Pages
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST "repos/${{ github.repository }}/pages" \
+            -f "build_type=legacy" \
+            -f "source[branch]=gh-pages" \
+            -f "source[path]=/"
+
+      - name: Link the dashboard
+        run: |
+          url="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          {
+            echo "### Test dashboard"
+            echo ""
+            echo "[Open the dashboard]($url)"
+            echo ""
+            echo "If that link 404s, open the repository Settings, then Pages, and choose the gh-pages branch."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  actions: write
+  checks: write
+
 jobs:
   playwright:
     runs-on: ubuntu-latest
@@ -32,3 +37,26 @@ jobs:
 
       - name: Run the five journeys
         run: npx playwright test
+
+      - name: Upload browser results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-journeys
+          path: HorrorTracker.WebApp/test-results/e2e-junit.xml
+          if-no-files-found: warn
+
+      - name: Report browser journeys
+        if: >-
+          always() &&
+          hashFiles('HorrorTracker.WebApp/test-results/e2e-junit.xml') != '' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: dorny/test-reporter@v3
+        with:
+          name: Browser journeys
+          path: HorrorTracker.WebApp/test-results/e2e-junit.xml
+          reporter: java-junit
+          list-suites: all
+          list-tests: all
+          collapsed: never
+          report-title: Browser journeys

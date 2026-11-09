@@ -5,6 +5,11 @@ on:
   schedule:
     - cron: "0 12 * * *"
 
+permissions:
+  contents: read
+  actions: write
+  checks: write
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -20,4 +25,25 @@ jobs:
       - name: Check the live API
         env:
           SMOKE_URL: ${{ secrets.SMOKE_URL }}
+          SMOKE_JUNIT: HorrorTracker.WebApp/test-results/smoke-junit.xml
         run: node HorrorTracker.WebApp/scripts/smoke.mjs
+
+      - name: Upload smoke results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deploy-smoke
+          path: HorrorTracker.WebApp/test-results/smoke-junit.xml
+          if-no-files-found: warn
+
+      - name: Report smoke tests
+        if: always() && hashFiles('HorrorTracker.WebApp/test-results/smoke-junit.xml') != ''
+        uses: dorny/test-reporter@v3
+        with:
+          name: Deploy smoke
+          path: HorrorTracker.WebApp/test-results/smoke-junit.xml
+          reporter: java-junit
+          list-suites: all
+          list-tests: all
+          collapsed: never
+          report-title: Deploy smoke

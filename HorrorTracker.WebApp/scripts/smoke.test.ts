@@ -1,6 +1,9 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runIfDirect, runSmoke } from "./smoke.mjs";
+import { runIfDirect, runSmoke, smokeJunit } from "./smoke.mjs";
 
 function response(body: unknown, status = 200): Response {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -70,6 +73,49 @@ describe("deploy smoke", () => {
     });
     await expect(runSmoke({ SMOKE_URL: "https://horror.example" }, missingCatalog, logger)).resolves.toBe(1);
     expect(errors.at(-1)?.startsWith("FAIL /api/catalog status=200")).toBe(true);
+  });
+
+  it("writes a junit report for passed, failed, and skipped checks", async () => {
+    const xml = smokeJunit([
+      { name: "/api/health" },
+      { name: "/api/catalog", failed: true, message: 'status=500 body=<bad & "no">' },
+      { name: "live deploy", skipped: true },
+    ]);
+    expect(xml).toContain('tests="3" failures="1" skipped="1"');
+    expect(xml).toContain('<testcase classname="deploy-smoke" name="/api/health"/>');
+    expect(xml).toContain('message="status=500 body=&lt;bad &amp; &quot;no&quot;&gt;"');
+    expect(xml).toContain('<testcase classname="deploy-smoke" name="live deploy"><skipped/></testcase>');
+
+    const dir = await mkdtemp(path.join(tmpdir(), "horror-smoke-"));
+    const report = path.join(dir, "nested", "smoke.xml");
+    const logger = { log: () => undefined, error: () => undefined };
+    try {
+      await expect(runSmoke({ SMOKE_JUNIT: report }, fetch, logger)).resolves.toBe(0);
+      expect(await readFile(report, "utf8")).toContain('name="live deploy"><skipped/></testcase>');
+
+      const passing = fetchRoutes({
+        "/api/health": response({ status: "ok" }),
+        "/api/catalog": response({ movies: [] }),
+        "/api/auth": response({ user: null }),
+        "/api/progress": response({ error: "Sign in" }, 401),
+      });
+      await expect(runSmoke({ SMOKE_URL: "https://horror.example/", SMOKE_JUNIT: report }, passing, logger)).resolves.toBe(0);
+      const passed = await readFile(report, "utf8");
+      expect(passed).toContain('tests="4" failures="0" skipped="0"');
+      expect(passed).toContain('name="/api/progress"/>');
+
+      const failing = fetchRoutes({
+        "/api/health": response('<bad & "no">', 500),
+        "/api/catalog": response({ movies: [] }),
+        "/api/auth": response({ user: null }),
+        "/api/progress": response({}, 401),
+      });
+      await expect(runSmoke({ SMOKE_URL: "https://horror.example", SMOKE_JUNIT: report }, failing, logger)).resolves.toBe(1);
+      expect(await readFile(report, "utf8")).toContain('failures="1"');
+      expect(await readFile(report, "utf8")).toContain("&lt;bad &amp; &quot;no&quot;&gt;");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("exits from the direct entry point", async () => {
