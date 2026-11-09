@@ -1,0 +1,370 @@
+{
+  "config": {
+    "argv": [
+      "/opt/hostedtoolcache/node/24.22.2/x64/bin/node",
+      "/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/node_modules/.bin/playwright",
+      "test"
+    ],
+    "configFile": "/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/playwright.config.ts",
+    "rootDir": "/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "ci": {
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+        "commitHash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42651845789"
+      },
+      "gitCommit": {
+        "shortHash": "55a97ea",
+        "hash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+        "subject": "Let each test group and test expand to show its steps.",
+        "body": "Let each test group and test expand to show its steps.\n\nBrowser journeys keep the actions Playwright recorded, and the other suites show the output captured with the result.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "author": {
+          "name": "James McKinney",
+          "email": "mckinneyjames1995@gmail.com",
+          "time": 1794240496000
+        },
+        "committer": {
+          "name": "James McKinney",
+          "email": "mckinneyjames1995@gmail.com",
+          "time": 1794240496000
+        },
+        "branch": "master"
+      },
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "ci": {
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+            "commitHash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42651845789"
+          },
+          "gitCommit": {
+            "shortHash": "55a97ea",
+            "hash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+            "subject": "Let each test group and test expand to show its steps.",
+            "body": "Let each test group and test expand to show its steps.\n\nBrowser journeys keep the actions Playwright recorded, and the other suites show the output captured with the result.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "author": {
+              "name": "James McKinney",
+              "email": "mckinneyjames1995@gmail.com",
+              "time": 1794240496000
+            },
+            "committer": {
+              "name": "James McKinney",
+              "email": "mckinneyjames1995@gmail.com",
+              "time": 1794240496000
+            },
+            "branch": "master"
+          },
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "ci": {
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+            "commitHash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/42651845789"
+          },
+          "gitCommit": {
+            "shortHash": "55a97ea",
+            "hash": "55a97ea7f04d8c06fdf72d2e9059d412ce1976d3",
+            "subject": "Let each test group and test expand to show its steps.",
+            "body": "Let each test group and test expand to show its steps.\n\nBrowser journeys keep the actions Playwright recorded, and the other suites show the output captured with the result.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "author": {
+              "name": "James McKinney",
+              "email": "mckinneyjames1995@gmail.com",
+              "time": 1794240496000
+            },
+            "committer": {
+              "name": "James McKinney",
+              "email": "mckinneyjames1995@gmail.com",
+              "time": 1794240496000
+            },
+            "branch": "master"
+          },
+          "actualWorkers": 1
+        },
+        "name": "",
+        "testDir": "/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/e2e",
+        "snapshotDir": "/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/e2e",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://127.0.0.1:5173",
+          "serviceWorkers": "block",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          },
+          "screen": {
+            "width": 1920,
+            "height": 1080
+          },
+          "deviceScaleFactor": 1,
+          "isMobile": false,
+          "hasTouch": false,
+          "defaultBrowserType": "chromium"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": ""
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "test-results/e2e-junit.xml"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/e2e-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.1",
+    "workers": 2,
+    "webServer": {
+      "command": "npm run dev -- --host 127.0.0.1 --port 5173",
+      "url": "http://127.0.0.1:5173",
+      "reuseExistingServer": false,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "journeys.spec.ts",
+      "file": "journeys.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "signs in",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1094,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-09T16:09:49.653Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "aa09586c1d16412a1f00-0cc93c5ec0ef140cf0ea",
+          "file": "journeys.spec.ts",
+          "line": 111,
+          "column": 1
+        },
+        {
+          "title": "marks a title watched and shows it in the numbers",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 522,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-09T16:09:50.945Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "aa09586c1d16412a1f00-c34574c5c334415591f8",
+          "file": "journeys.spec.ts",
+          "line": 122,
+          "column": 1
+        },
+        {
+          "title": "creates a list and adds a title",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 615,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-09T16:09:51.475Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "aa09586c1d16412a1f00-fb6e6f773ab7c18817c5",
+          "file": "journeys.spec.ts",
+          "line": 134,
+          "column": 1
+        },
+        {
+          "title": "opens a show guide",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 429,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-09T16:09:52.096Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "aa09586c1d16412a1f00-b5cc40ebfa0aaf452367",
+          "file": "journeys.spec.ts",
+          "line": 150,
+          "column": 1
+        },
+        {
+          "title": "keeps library search in the address bar",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 286,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-09T16:09:52.533Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "aa09586c1d16412a1f00-685d16c65a1d510a3251",
+          "file": "journeys.spec.ts",
+          "line": 161,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-09T16:09:48.872Z",
+    "duration": 4012.185,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
