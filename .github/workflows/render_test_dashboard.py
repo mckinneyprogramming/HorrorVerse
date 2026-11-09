@@ -1,4 +1,5 @@
 import html
+import json
 import os
 import sys
 import xml.etree.ElementTree as ET
@@ -44,7 +45,19 @@ def short_class(name):
     return name or "Tests"
 
 
-def add_case(cases, name, classname, status, raw_time, message):
+def lines_to_steps(text):
+    steps = []
+    for line in (text or "").splitlines():
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        steps.append({"title": cleaned[:500], "time": "", "status": "", "steps": []})
+        if len(steps) >= 40:
+            break
+    return steps
+
+
+def add_case(cases, name, classname, status, raw_time, message, steps=None):
     cases.append(
         {
             "name": name or "(unnamed)",
@@ -52,6 +65,7 @@ def add_case(cases, name, classname, status, raw_time, message):
             "status": status,
             "time": format_time(raw_time),
             "message": (message or "").strip()[:2000],
+            "steps": steps or [],
         }
     )
 
@@ -64,6 +78,7 @@ def parse_junit(path):
         if local(node.tag) == "testcase":
             status = "passed"
             message = ""
+            output = []
             for child in list(node):
                 kind = local(child.tag)
                 if kind in ("failure", "error"):
@@ -71,6 +86,8 @@ def parse_junit(path):
                     message = (child.attrib.get("message") or "") + "\n" + (child.text or "")
                 elif kind == "skipped" and status != "failed":
                     status = "skipped"
+                elif kind in ("system-out", "system-err"):
+                    output.extend(lines_to_steps(child.text))
             add_case(
                 cases,
                 node.attrib.get("name"),
@@ -78,6 +95,7 @@ def parse_junit(path):
                 status,
                 node.attrib.get("time"),
                 message,
+                output[:40],
             )
             return
         for child in list(node):
@@ -105,13 +123,72 @@ def parse_trx(path):
         if not separator:
             classname, name = "", full
         message = ""
-        if status == "failed":
-            for child in node.iter():
-                if local(child.tag) == "Message" and (child.text or "").strip():
-                    message = child.text
-                    break
-        add_case(cases, name, classname, status, node.attrib.get("duration"), message)
+        output = []
+        for child in node.iter():
+            kind = local(child.tag)
+            if status == "failed" and kind == "Message" and (child.text or "").strip() and not message:
+                message = child.text
+            elif kind == "StdOut":
+                output.extend(lines_to_steps(child.text))
+        add_case(cases, name, classname, status, node.attrib.get("duration"), message, output[:40])
     return cases
+
+
+def convert_playwright_step(step):
+    error = step.get("error") if isinstance(step, dict) else None
+    title = (step.get("title") if isinstance(step, dict) else "") or "Step"
+    if isinstance(error, dict) and error.get("message"):
+        title = f"{title}: {error['message']}"
+    duration = step.get("duration") if isinstance(step, dict) else None
+    time = format_time(str(float(duration) / 1000)) if isinstance(duration, (int, float)) else ""
+    children = [
+        convert_playwright_step(child)
+        for child in (step.get("steps") or [])
+        if isinstance(child, dict) and (child.get("title") or child.get("steps"))
+    ]
+    return {"title": title[:500], "time": time, "status": "failed" if error else "", "steps": children}
+
+
+def playwright_specs(report):
+    found = []
+
+    def walk(suite, file_name):
+        current = suite.get("file") or file_name
+        for spec in suite.get("specs") or []:
+            results = []
+            for test in spec.get("tests") or []:
+                results.extend(test.get("results") or [])
+            chosen = next((item for item in reversed(results) if item.get("steps")), results[-1] if results else {})
+            steps = [
+                convert_playwright_step(step)
+                for step in (chosen.get("steps") or [])
+                if isinstance(step, dict) and step.get("title")
+            ]
+            if steps:
+                found.append({"title": spec.get("title") or "", "file": current or "", "steps": steps})
+        for child in suite.get("suites") or []:
+            if isinstance(child, dict):
+                walk(child, current)
+
+    for suite in report.get("suites") or []:
+        if isinstance(suite, dict):
+            walk(suite, "")
+    return found
+
+
+def merge_playwright_steps(cases, report):
+    specs = playwright_specs(report)
+    for case in cases:
+        matches = [spec for spec in specs if spec["title"] == case["name"]]
+        if not matches:
+            continue
+        chosen = matches[0]
+        for spec in matches:
+            file_name = spec["file"].replace("\\", "/")
+            if file_name and file_name in case["classname"].replace("\\", "/"):
+                chosen = spec
+                break
+        case["steps"] = chosen["steps"]
 
 
 def load_file(path):
@@ -138,9 +215,19 @@ def load_suite(data_dir, key, label):
             lines = source.read_text(encoding="utf-8-sig").splitlines()
             source_url = lines[0].strip() if lines else ""
             source_name = lines[1].strip() if len(lines) > 1 else ""
+        reports = []
         for path in sorted(folder.rglob("*")):
             if path.suffix.lower() in (".xml", ".trx"):
                 cases.extend(load_file(path))
+            elif path.suffix.lower() == ".json":
+                try:
+                    payload = json.loads(path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as error:
+                    raise SystemExit(f"Could not read {path}: {error}") from error
+                if isinstance(payload, dict) and "suites" in payload:
+                    reports.append(payload)
+        for report in reports:
+            merge_playwright_steps(cases, report)
     rank = {"failed": 0, "skipped": 1, "passed": 2}
     cases.sort(key=lambda item: (item["classname"], rank[item["status"]], item["name"]))
     return {"key": key, "label": label, "cases": cases, "source_url": source_url, "source_name": source_name}
@@ -150,16 +237,28 @@ def count(cases, status):
     return sum(1 for item in cases if item["status"] == status)
 
 
+def render_step_list(steps, placeholder):
+    if not steps:
+        return '<p class="none">No steps were recorded for this test.</p>' if placeholder else ""
+    items = []
+    for step in steps:
+        status = step.get("status") or ""
+        klass = f' class="step-{status}"' if status else ""
+        time = f'<span class="time">{html.escape(step["time"])}</span>' if step.get("time") else ""
+        nested = render_step_list(step.get("steps") or [], False)
+        items.append(f"<li{klass}><span>{html.escape(step['title'])}</span>{time}{nested}</li>")
+    return f'<ol class="steps">{"".join(items)}</ol>'
+
+
 def render_case(item):
-    detail = ""
-    if item["message"]:
-        detail = f'<pre class="detail">{html.escape(item["message"])}</pre>'
+    detail = f'<pre class="detail">{html.escape(item["message"])}</pre>' if item["message"] else ""
     time = f'<span class="time">{html.escape(item["time"])}</span>' if item["time"] else ""
+    opened = " open" if item["status"] == "failed" else ""
     return (
-        f'<li class="case {item["status"]}">'
-        f'<span class="mark">{item["status"]}</span>'
-        f'<span class="name">{html.escape(item["name"])}</span>'
-        f"{time}{detail}</li>"
+        f'<details class="case {item["status"]}"{opened}>'
+        f"<summary><span class=\"mark\">{item['status']}</span>"
+        f"<span class=\"name\">{html.escape(item['name'])}</span>{time}</summary>"
+        f"{detail}{render_step_list(item.get('steps') or [], True)}</details>"
     )
 
 
@@ -188,10 +287,15 @@ def render_suite(suite):
             rows.append(render_case(item))
         if rows:
             groups.append((current, rows))
-        body = "".join(
-            f'<section class="group" data-group><h3>{html.escape(title)}</h3><ul>{"".join(items)}</ul></section>'
-            for title, items in groups
-        )
+        rendered = []
+        for title, items in groups:
+            has_failure = any('class="case failed"' in item for item in items)
+            opened = " open" if has_failure else ""
+            rendered.append(
+                f'<details class="group" data-group{opened}><summary><span class="group-title">{html.escape(title)}</span>'
+                f'<span class="count">{len(items)}</span></summary><div class="tests">{"".join(items)}</div></details>'
+            )
+        body = "".join(rendered)
     return (
         f'<article class="suite" id="{html.escape(suite["key"], quote=True)}">'
         f"<header><h2>{html.escape(suite['label'])}</h2>"
@@ -278,32 +382,38 @@ def render(suites, updated):
     .suite {{ background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin: 0 0 16px; }}
     .suite header {{ display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: baseline; }}
     h2 {{ margin: 0; font-size: 22px; }}
-    h3 {{ margin: 18px 0 8px; color: var(--muted); font-size: 14px; font-weight: 650; }}
+    details.group, details.case {{ border-top: 1px solid var(--line); }}
+    summary {{
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      cursor: pointer;
+      list-style: none;
+      padding: 10px 0;
+    }}
+    summary::-webkit-details-marker {{ display: none; }}
+    summary::before {{ content: "▸"; color: var(--muted); width: 1em; }}
+    details[open] > summary::before {{ content: "▾"; }}
+    .group-title {{ color: var(--muted); font-size: 14px; font-weight: 650; }}
+    .count {{ margin-left: auto; color: var(--muted); font-size: 13px; }}
     .tally {{ margin: 0; color: var(--muted); }}
     .tally b {{ color: var(--ink); }}
     .tally span {{ margin: 0 6px; }}
     .source {{ margin: 8px 0 0; }}
     .source a {{ color: var(--muted); }}
     .empty {{ color: var(--muted); }}
-    ul {{ list-style: none; margin: 0; padding: 0; }}
-    .case {{
-      display: grid;
-      grid-template-columns: 76px 1fr auto;
-      gap: 8px 12px;
-      align-items: baseline;
-      padding: 8px 0;
-      border-top: 1px solid var(--line);
-    }}
+    .tests {{ padding-left: 18px; }}
+    .case summary .name {{ flex: 1; }}
     .mark {{ font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }}
-    .passed .mark {{ color: var(--pass); }}
-    .failed .mark {{ color: var(--fail); }}
-    .skipped .mark {{ color: var(--skip); }}
+    .passed > summary .mark {{ color: var(--pass); }}
+    .failed > summary .mark {{ color: var(--fail); }}
+    .skipped > summary .mark {{ color: var(--skip); }}
     .time {{ color: var(--muted); font-variant-numeric: tabular-nums; }}
-    .detail {{ grid-column: 2 / -1; margin: 0; white-space: pre-wrap; color: #fecdd3; font: 13px/1.4 ui-monospace, monospace; }}
-    @media (max-width: 640px) {{
-      .case {{ grid-template-columns: 1fr auto; }}
-      .mark {{ grid-column: 1 / -1; }}
-    }}
+    .steps {{ margin: 0 0 12px 1.4em; padding: 0; }}
+    .steps li {{ margin: 4px 0; }}
+    .step-failed > span {{ color: var(--fail); }}
+    .none {{ margin: 0 0 12px 1.4em; color: var(--muted); }}
+    .detail {{ margin: 0 0 12px 1.4em; white-space: pre-wrap; color: #fecdd3; font: 13px/1.4 ui-monospace, monospace; }}
   </style>
 </head>
 <body>
@@ -343,7 +453,9 @@ def render(suites, updated):
         row.hidden = !(statusOk && textOk);
       }});
       document.querySelectorAll("[data-group]").forEach((group) => {{
-        group.hidden = group.querySelector(".case:not([hidden])") === null;
+        const visible = group.querySelector(".case:not([hidden])");
+        group.hidden = visible === null;
+        if (visible && (needle !== "" || state.status !== "all")) group.open = true;
       }});
     }}
     search.addEventListener("input", () => {{
