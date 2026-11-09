@@ -1,39 +1,39 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="394" failures="0" errors="0" time="21.261472337">
-    <testsuite name="api-src/auth.password.test.ts" timestamp="2026-11-09T15:30:26.592Z" hostname="runnervm7aw5e" tests="12" failures="0" errors="0" skipped="0" time="0.119451708">
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; matches the shared C# vector and rejects a different password" time="0.051972505">
+<testsuites name="vitest tests" tests="394" failures="0" errors="0" time="30.113414559">
+    <testsuite name="api-src/auth.password.test.ts" timestamp="2026-11-09T15:56:26.855Z" hostname="runnervm7aw5e" tests="12" failures="0" errors="0" skipped="0" time="0.138559759">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; matches the shared C# vector and rejects a different password" time="0.060735011">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; hashes a random salt that verifies" time="0.031634684">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; hashes a random salt that verifies" time="0.033934137">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects " time="0.000409739">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects " time="0.000296534">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects not-a-hash" time="0.001716762">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects not-a-hash" time="0.000166201">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects other$sha256$100000$c2FsdA==$YQ==" time="0.000120431">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects other$sha256$100000$c2FsdA==$YQ==" time="0.00015005">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$md5$100000$c2FsdA==$YQ==" time="0.000069075">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$md5$100000$c2FsdA==$YQ==" time="0.000152284">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$sha256$0$c2FsdA==$YQ==" time="0.000062956">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$sha256$0$c2FsdA==$YQ==" time="0.00018188">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$sha256$nope$c2FsdA==$YQ==" time="0.000052199">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$sha256$nope$c2FsdA==$YQ==" time="0.000139962">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$sha256$100000$%%%$YQ==" time="0.015260273">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$sha256$100000$%%%$YQ==" time="0.01859164">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$sha256$100000$c2FsdA==$YQ==" time="0.014915548">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects pbkdf2$sha256$100000$c2FsdA==$YQ==" time="0.017056982">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects a valid hash whose label, algorithm, or part count was changed" time="0.000657032">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; rejects a valid hash whose label, algorithm, or part count was changed" time="0.00052988">
         </testcase>
-        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; accepts a hash that used a single iteration" time="0.00109305">
+        <testcase classname="api-src/auth.password.test.ts" name="password hashing &gt; accepts a hash that used a single iteration" time="0.001096592">
         </testcase>
     </testsuite>
-    <testsuite name="api-src/auth.test.ts" timestamp="2026-11-09T15:30:26.594Z" hostname="runnervm7aw5e" tests="10" failures="0" errors="0" skipped="0" time="0.195239025">
-        <testcase classname="api-src/auth.test.ts" name="auth session &gt; returns null when the request is unsigned and clears a cookie on logout" time="0.013820619">
+    <testsuite name="api-src/auth.test.ts" timestamp="2026-11-09T15:56:26.858Z" hostname="runnervm7aw5e" tests="10" failures="0" errors="0" skipped="0" time="0.302155218">
+        <testcase classname="api-src/auth.test.ts" name="auth session &gt; returns null when the request is unsigned and clears a cookie on logout" time="0.016239934">
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth session &gt; returns the signed-in profile and deletes the session token" time="0.003017158">
+        <testcase classname="api-src/auth.test.ts" name="auth session &gt; returns the signed-in profile and deletes the session token" time="0.004066306">
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth session &gt; promotes and demotes admin from ADMIN_EMAIL while reading the session" time="0.003578897">
+        <testcase classname="api-src/auth.test.ts" name="auth session &gt; promotes and demotes admin from ADMIN_EMAIL while reading the session" time="0.004587149">
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth session &gt; returns the neon and configuration failures" time="0.013499763">
+        <testcase classname="api-src/auth.test.ts" name="auth session &gt; returns the neon and configuration failures" time="0.020437538">
             <system-err>
 Auth request failed. Error: db down
     at neonRequest [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:195:11[90m)[39m
@@ -55,9 +55,9 @@ Auth request failed. HttpError: DATABASE_URL is not configured.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth login and register &gt; logs in with a matching password and sets a secure cookie on Vercel" time="0.033387689">
+        <testcase classname="api-src/auth.test.ts" name="auth login and register &gt; logs in with a matching password and sets a secure cookie on Vercel" time="0.059121585">
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth login and register &gt; rejects a missing user, a bad password, and a hashless row" time="0.007467922">
+        <testcase classname="api-src/auth.test.ts" name="auth login and register &gt; rejects a missing user, a bad password, and a hashless row" time="0.008690594">
             <system-err>
 Auth request failed. AuthError: Invalid email or password.
     at loginUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/auth.ts:171:11[90m)[39m
@@ -85,9 +85,9 @@ Auth request failed. AuthError: Invalid email or password.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth login and register &gt; registers an account, derives a display name, and flags the admin email" time="0.030007993">
+        <testcase classname="api-src/auth.test.ts" name="auth login and register &gt; registers an account, derives a display name, and flags the admin email" time="0.052663425">
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth login and register &gt; rejects invalid credentials, duplicates, empty inserts, and other database errors" time="0.067653594">
+        <testcase classname="api-src/auth.test.ts" name="auth login and register &gt; rejects invalid credentials, duplicates, empty inserts, and other database errors" time="0.09585432">
             <system-err>
 Auth request failed. AuthError: Enter a valid email address.
     at validateCredentials [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/auth.ts:393:11[90m)[39m
@@ -204,7 +204,7 @@ Auth request failed. Error: syntax error
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth profile &gt; requires a session and saves the supplied profile fields" time="0.012385771">
+        <testcase classname="api-src/auth.test.ts" name="auth profile &gt; requires a session and saves the supplied profile fields" time="0.023950273">
             <system-err>
 Auth request failed. AuthError: Sign in to continue.
     at PATCH [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/auth.ts:71:13[90m)[39m
@@ -222,7 +222,7 @@ Auth request failed. AuthError: Sign in to continue.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/auth.test.ts" name="auth profile &gt; rejects a bad photo, a missing update, invalid JSON, and a database error" time="0.008295211">
+        <testcase classname="api-src/auth.test.ts" name="auth profile &gt; rejects a bad photo, a missing update, invalid JSON, and a database error" time="0.013765224">
             <system-err>
 Auth request failed. AuthError: Choose a smaller profile photo.
     at normalizeAvatar [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/auth.ts:363:11[90m)[39m
@@ -257,8 +257,8 @@ Auth request failed. Error: db down
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/branches.test.ts" timestamp="2026-11-09T15:30:26.596Z" hostname="runnervm7aw5e" tests="9" failures="0" errors="0" skipped="0" time="0.120910534">
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers auth null fields, logout failures, and password edge cases" time="0.037447467">
+    <testsuite name="api-src/branches.test.ts" timestamp="2026-11-09T15:56:26.862Z" hostname="runnervm7aw5e" tests="9" failures="0" errors="0" skipped="0" time="0.213650648">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers auth null fields, logout failures, and password edge cases" time="0.06977367">
             <system-err>
 Auth request failed. AuthError: Password must be at least 8 characters.
     at validateCredentials [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/auth.ts:397:11[90m)[39m
@@ -288,7 +288,7 @@ Auth request failed. AuthError: Enter a display name.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers catalog defaults and missing optional values" time="0.017528975">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers catalog defaults and missing optional values" time="0.023742274">
             <system-err>
 Catalog write failed. CatalogError: Enter a title.
     at normalizeTitle [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/catalog.ts:582:11[90m)[39m
@@ -302,7 +302,7 @@ Catalog write failed. CatalogError: Enter a title.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers franchise and list defensive branches" time="0.00671242">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers franchise and list defensive branches" time="0.011469125">
             <system-err>
 User library request failed. LibraryError: A list is either private or public.
     at normalizeVisibility [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/lists.ts:384:11[90m)[39m
@@ -316,11 +316,11 @@ User library request failed. LibraryError: A list is either private or public.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers people names, list visibility, and a missing friend action" time="0.00468662">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers people names, list visibility, and a missing friend action" time="0.009413886">
         </testcase>
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers show ids, blank titles, and partial TMDb seasons" time="0.007771835">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers show ids, blank titles, and partial TMDb seasons" time="0.023295674">
         </testcase>
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; stores a documentary TMDb id and ignores blank watch fields" time="0.002440332">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; stores a documentary TMDb id and ignores blank watch fields" time="0.005088435">
             <system-err>
 Watch request failed. WatchError: That title was not found.
     at loadWatch [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/watch.ts:40:11[90m)[39m
@@ -333,7 +333,7 @@ Watch request failed. WatchError: That title was not found.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers TMDb blank search fields and an empty show insert" time="0.01153117">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; covers TMDb blank search fields and an empty show insert" time="0.017230127">
             <system-err>
 TMDb request failed. HttpError: Choose an Open Library book to add.
     at importOpenLibraryBook [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/open-library.ts:112:11[90m)[39m
@@ -364,15 +364,15 @@ TMDb request failed. TmdbError: Could not save that show.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; walks sync paths that only appear for existing films and scoped keywords" time="0.027582784">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; walks sync paths that only appear for existing films and scoped keywords" time="0.049777326">
         </testcase>
-        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; asks the episode collector for a path without a query string" time="0.000735552">
+        <testcase classname="api-src/branches.test.ts" name="remaining handler branches &gt; asks the episode collector for a path without a query string" time="0.001287414">
         </testcase>
     </testsuite>
-    <testsuite name="api-src/catalog.test.ts" timestamp="2026-11-09T15:30:26.597Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.14140495">
-        <testcase classname="api-src/catalog.test.ts" name="catalog reads &gt; maps catalog rows and keywords" time="0.011726585">
+    <testsuite name="api-src/catalog.test.ts" timestamp="2026-11-09T15:56:26.864Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.155529592">
+        <testcase classname="api-src/catalog.test.ts" name="catalog reads &gt; maps catalog rows and keywords" time="0.018972602">
         </testcase>
-        <testcase classname="api-src/catalog.test.ts" name="catalog reads &gt; skips an optional table and keywords when Neon fails" time="0.024089402">
+        <testcase classname="api-src/catalog.test.ts" name="catalog reads &gt; skips an optional table and keywords when Neon fails" time="0.024557471">
             <system-err>
 Optional catalog table podcast is unavailable. Error: no podcast table
     at neonRequest [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:195:11[90m)[39m
@@ -387,7 +387,7 @@ Optional catalog table podcast is unavailable. Error: no podcast table
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/catalog.test.ts" name="catalog reads &gt; reports a missing database and a failed read" time="0.009526151">
+        <testcase classname="api-src/catalog.test.ts" name="catalog reads &gt; reports a missing database and a failed read" time="0.005173083">
             <system-err>
 Catalog request failed. Error: DATABASE_URL is not configured.
     at loadCatalog [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/catalog.ts:100:11[90m)[39m
@@ -413,7 +413,7 @@ Catalog request failed. Error: db down
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/catalog.test.ts" name="catalog writes &gt; splits administrators from members" time="0.013518573">
+        <testcase classname="api-src/catalog.test.ts" name="catalog writes &gt; splits administrators from members" time="0.0166">
             <system-err>
 Catalog write failed. CatalogError: Sign in to continue.
     at requireAdmin [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/catalog.ts:297:11[90m)[39m
@@ -485,7 +485,7 @@ Catalog write failed. CatalogError: Only the administrator can change the catalo
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/catalog.test.ts" name="catalog writes &gt; inserts every stored kind and rejects bad input" time="0.048893357">
+        <testcase classname="api-src/catalog.test.ts" name="catalog writes &gt; inserts every stored kind and rejects bad input" time="0.053771491">
             <system-err>
 Catalog write failed. CatalogError: That type cannot be stored yet.
     at normalizeKind [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/catalog.ts:576:9[90m)[39m
@@ -557,7 +557,7 @@ Catalog write failed. [TypeError: fetch failed] {
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/catalog.test.ts" name="catalog writes &gt; updates and deletes every kind" time="0.03144588">
+        <testcase classname="api-src/catalog.test.ts" name="catalog writes &gt; updates and deletes every kind" time="0.0341391">
             <system-err>
 Catalog write failed. CatalogError: That title was not found.
     at [90m/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/catalog.ts:79:13
@@ -591,8 +591,8 @@ Catalog write failed. HttpError: That title was not found.
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/franchises.test.ts" timestamp="2026-11-09T15:30:26.598Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.102673868">
-        <testcase classname="api-src/franchises.test.ts" name="franchises &gt; lists franchises and reports database failures" time="0.040454594">
+    <testsuite name="api-src/franchises.test.ts" timestamp="2026-11-09T15:56:26.867Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.116950134">
+        <testcase classname="api-src/franchises.test.ts" name="franchises &gt; lists franchises and reports database failures" time="0.044867414">
             <system-err>
 Franchise request failed. Error: db down
     at neonRequest [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:195:11[90m)[39m
@@ -614,7 +614,7 @@ Franchise request failed. HttpError: DATABASE_URL is not configured.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/franchises.test.ts" name="franchises &gt; lets an admin create, rename, and delete a franchise" time="0.047011851">
+        <testcase classname="api-src/franchises.test.ts" name="franchises &gt; lets an admin create, rename, and delete a franchise" time="0.052048448">
             <system-err>
 Franchise request failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -773,7 +773,7 @@ Franchise request failed. FranchiseError: That franchise was not found.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/franchises.test.ts" name="franchises &gt; adds and removes franchise titles, including series movies" time="0.013862593">
+        <testcase classname="api-src/franchises.test.ts" name="franchises &gt; adds and removes franchise titles, including series movies" time="0.017839522">
             <system-err>
 Franchise request failed. FranchiseError: That franchise is full.
     at addItem [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/franchises.ts:153:11[90m)[39m
@@ -830,16 +830,16 @@ Franchise request failed. FranchiseError: That franchise was not found.
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/health.test.ts" timestamp="2026-11-09T15:30:26.599Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.006490479">
-        <testcase classname="api-src/health.test.ts" name="health &gt; reports a configured database from DATABASE_URL" time="0.004209385">
+    <testsuite name="api-src/health.test.ts" timestamp="2026-11-09T15:56:26.869Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.025127146">
+        <testcase classname="api-src/health.test.ts" name="health &gt; reports a configured database from DATABASE_URL" time="0.010983099">
         </testcase>
-        <testcase classname="api-src/health.test.ts" name="health &gt; reports a configured database from HorrorVerseDb when DATABASE_URL is blank" time="0.00050316">
+        <testcase classname="api-src/health.test.ts" name="health &gt; reports a configured database from HorrorVerseDb when DATABASE_URL is blank" time="0.001042398">
         </testcase>
-        <testcase classname="api-src/health.test.ts" name="health &gt; reports an unconfigured database when both env vars are blank" time="0.00042412">
+        <testcase classname="api-src/health.test.ts" name="health &gt; reports an unconfigured database when both env vars are blank" time="0.000769819">
         </testcase>
     </testsuite>
-    <testsuite name="api-src/lists.test.ts" timestamp="2026-11-09T15:30:26.600Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.12122224">
-        <testcase classname="api-src/lists.test.ts" name="lists &gt; requires a session and returns grouped lists" time="0.040427494">
+    <testsuite name="api-src/lists.test.ts" timestamp="2026-11-09T15:56:26.869Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.177700692">
+        <testcase classname="api-src/lists.test.ts" name="lists &gt; requires a session and returns grouped lists" time="0.049824535">
             <system-err>
 User library request failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -862,7 +862,7 @@ User library request failed. HttpError: Sign in to continue.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/lists.test.ts" name="lists &gt; creates, renames, and shares a list" time="0.02964909">
+        <testcase classname="api-src/lists.test.ts" name="lists &gt; creates, renames, and shares a list" time="0.055199865">
             <system-err>
 User library request failed. LibraryError: You already have 40 lists.
     at createList [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/lists.ts:131:11[90m)[39m
@@ -992,7 +992,7 @@ User library request failed. LibraryError: That list was not found.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/lists.test.ts" name="lists &gt; adds and removes titles, series, and franchises" time="0.046059562">
+        <testcase classname="api-src/lists.test.ts" name="lists &gt; adds and removes titles, series, and franchises" time="0.066525843">
             <system-err>
 User library request failed. LibraryError: That list is full.
     at addListItem [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/lists.ts:194:11[90m)[39m
@@ -1093,7 +1093,7 @@ User library request failed. LibraryError: That franchise was not found.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/lists.test.ts" name="lists &gt; rejects invalid JSON and a database error" time="0.003548351">
+        <testcase classname="api-src/lists.test.ts" name="lists &gt; rejects invalid JSON and a database error" time="0.003750476">
             <system-err>
 User library request failed. LibraryError: Enter a list name.
     at normalizeListName [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/lists.ts:351:11[90m)[39m
@@ -1117,8 +1117,8 @@ User library request failed. Error: db down
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/people.test.ts" timestamp="2026-11-09T15:30:26.601Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.114776591">
-        <testcase classname="api-src/people.test.ts" name="people search and profiles &gt; requires a session and searches by name" time="0.04651493">
+    <testsuite name="api-src/people.test.ts" timestamp="2026-11-09T15:56:26.872Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.151450055">
+        <testcase classname="api-src/people.test.ts" name="people search and profiles &gt; requires a session and searches by name" time="0.06728778">
             <system-err>
 People request failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -1168,7 +1168,7 @@ People request failed. SocialError: Enter at least two letters to find someone.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/people.test.ts" name="people search and profiles &gt; loads a profile for self, friends, followers, and strangers" time="0.016267515">
+        <testcase classname="api-src/people.test.ts" name="people search and profiles &gt; loads a profile for self, friends, followers, and strangers" time="0.021616136">
             <system-err>
 People request failed. SocialError: That member was not found.
     at GET [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/people.ts:42:15[90m)[39m
@@ -1198,9 +1198,9 @@ People request failed. SocialError: Enter at least two letters to find someone.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/people.test.ts" name="friends and follows &gt; sends, accepts, declines, and removes friend requests" time="0.039101761">
+        <testcase classname="api-src/people.test.ts" name="friends and follows &gt; sends, accepts, declines, and removes friend requests" time="0.044306566">
         </testcase>
-        <testcase classname="api-src/people.test.ts" name="friends and follows &gt; follows, unfollows, and rejects unknown routes" time="0.011479591">
+        <testcase classname="api-src/people.test.ts" name="friends and follows &gt; follows, unfollows, and rejects unknown routes" time="0.015913076">
             <system-err>
 People request failed. SocialError: That request is not supported.
     at POST [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/people.ts:65:11[90m)[39m
@@ -1247,8 +1247,8 @@ People request failed. HttpError: DATABASE_URL is not configured.
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/progress.test.ts" timestamp="2026-11-09T15:30:26.606Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.104140193">
-        <testcase classname="api-src/progress.test.ts" name="progress &gt; requires a session and returns scored, undated, and poster data" time="0.037933755">
+    <testsuite name="api-src/progress.test.ts" timestamp="2026-11-09T15:56:26.874Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.137527708">
+        <testcase classname="api-src/progress.test.ts" name="progress &gt; requires a session and returns scored, undated, and poster data" time="0.035691954">
             <system-err>
 User library request failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -1271,9 +1271,9 @@ User library request failed. HttpError: Sign in to continue.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/progress.test.ts" name="progress &gt; seeds an admin library once and ignores a missing catalog table" time="0.003470272">
+        <testcase classname="api-src/progress.test.ts" name="progress &gt; seeds an admin library once and ignores a missing catalog table" time="0.008148011">
         </testcase>
-        <testcase classname="api-src/progress.test.ts" name="progress &gt; scores a finished title and rejects scores that are not 1 through 5" time="0.017832429">
+        <testcase classname="api-src/progress.test.ts" name="progress &gt; scores a finished title and rejects scores that are not 1 through 5" time="0.030748039">
             <system-err>
 User library request failed. HttpError: Score a finished title from 1 to 5.
     at setTitleScore [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/progress.ts:75:11[90m)[39m
@@ -1313,11 +1313,11 @@ User library request failed. HttpError: Mark that title finished before scoring 
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/progress.test.ts" name="progress &gt; marks titles finished with and without a year and clears them" time="0.008839494">
+        <testcase classname="api-src/progress.test.ts" name="progress &gt; marks titles finished with and without a year and clears them" time="0.015083616">
         </testcase>
-        <testcase classname="api-src/progress.test.ts" name="progress &gt; cascades series movies and syncs a movie back to its series" time="0.027147181">
+        <testcase classname="api-src/progress.test.ts" name="progress &gt; cascades series movies and syncs a movie back to its series" time="0.037941275">
         </testcase>
-        <testcase classname="api-src/progress.test.ts" name="progress &gt; rejects an invalid id, invalid JSON, and a database error" time="0.006864671">
+        <testcase classname="api-src/progress.test.ts" name="progress &gt; rejects an invalid id, invalid JSON, and a database error" time="0.007835016">
             <system-err>
 User library request failed. HttpError: That title was not found.
     at parseCatalogId [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/catalog-id.ts:14:11[90m)[39m
@@ -1358,8 +1358,8 @@ User library request failed. HttpError: DATABASE_URL is not configured.
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/shows.test.ts" timestamp="2026-11-09T15:30:26.607Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.07018951">
-        <testcase classname="api-src/shows.test.ts" name="show guide &gt; requires a session and a real show" time="0.031241636">
+    <testsuite name="api-src/shows.test.ts" timestamp="2026-11-09T15:56:26.876Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.116976838">
+        <testcase classname="api-src/shows.test.ts" name="show guide &gt; requires a session and a real show" time="0.044242263">
             <system-err>
 Show guide request failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -1424,9 +1424,9 @@ Show guide request failed. Error: db down
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/shows.test.ts" name="show guide &gt; refreshes seasons and episodes from TMDb" time="0.010702769">
+        <testcase classname="api-src/shows.test.ts" name="show guide &gt; refreshes seasons and episodes from TMDb" time="0.016881749">
         </testcase>
-        <testcase classname="api-src/shows.test.ts" name="show guide &gt; marks episodes, seasons, and whole shows" time="0.026984721">
+        <testcase classname="api-src/shows.test.ts" name="show guide &gt; marks episodes, seasons, and whole shows" time="0.053270993">
             <system-err>
 Show guide request failed. ShowError: That episode was not found.
     at getEpisodeShowId [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/shows.ts:448:11[90m)[39m
@@ -1483,8 +1483,8 @@ Show guide request failed. ShowError: Choose a show, season, or episode to mark.
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/sync.test.ts" timestamp="2026-11-09T15:30:26.608Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.102451672">
-        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; rejects anonymous callers and accepts a trusted cron" time="0.034330842">
+    <testsuite name="api-src/sync.test.ts" timestamp="2026-11-09T15:56:26.877Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.168827948">
+        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; rejects anonymous callers and accepts a trusted cron" time="0.046561932">
             <system-err>
 Vault sync failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -1529,7 +1529,7 @@ Vault sync failed. HttpError: Sign in to continue.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; imports today&apos;s horror films for a trusted cron and refuses members" time="0.015923015">
+        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; imports today&apos;s horror films for a trusted cron and refuses members" time="0.019694681">
             <system-err>
 Vault sync failed. SyncError: Only the administrator can import today&apos;s releases.
     at GET [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/sync.ts:51:15[90m)[39m
@@ -1541,9 +1541,9 @@ Vault sync failed. SyncError: Only the administrator can import today&apos;s rel
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; skips a fresh vault and refreshes a stale one" time="0.010831098">
+        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; skips a fresh vault and refreshes a stale one" time="0.021240064">
         </testcase>
-        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; tags movies, documentaries, and shows that are missing keywords" time="0.008934898">
+        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; tags movies, documentaries, and shows that are missing keywords" time="0.019650048">
             <system-err>
 Vault sync failed. SyncError: HorrorVerse can refresh series and TV shows from TMDb.
     at syncOne [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/sync.ts:120:9[90m)[39m
@@ -1565,7 +1565,7 @@ Vault sync failed. SyncError: HorrorVerse can refresh series and TV shows from T
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; refreshes one series or show and rejects other ids" time="0.023009565">
+        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; refreshes one series or show and rejects other ids" time="0.047259383">
             <system-err>
 Vault sync failed. SyncError: That series was not found.
     at syncSeries [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/sync.ts:172:11[90m)[39m
@@ -1614,7 +1614,7 @@ Vault sync failed. SyncError: That show was not found.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; imports horror batches for an administrator" time="0.008088349">
+        <testcase classname="api-src/sync.test.ts" name="vault sync &gt; imports horror batches for an administrator" time="0.012281141">
             <system-err>
 Horror import failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -1684,8 +1684,8 @@ Horror import failed. HttpError: DATABASE_URL is not configured.
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/tmdb.test.ts" timestamp="2026-11-09T15:30:26.609Z" hostname="runnervm7aw5e" tests="5" failures="0" errors="0" skipped="0" time="0.079922368">
-        <testcase classname="api-src/tmdb.test.ts" name="tmdb search &gt; requires a session and a long enough query" time="0.03176031">
+    <testsuite name="api-src/tmdb.test.ts" timestamp="2026-11-09T15:56:26.880Z" hostname="runnervm7aw5e" tests="5" failures="0" errors="0" skipped="0" time="0.14007914">
+        <testcase classname="api-src/tmdb.test.ts" name="tmdb search &gt; requires a session and a long enough query" time="0.061269354">
             <system-err>
 TMDb request failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -1753,7 +1753,7 @@ TMDb request failed. TmdbError: Enter at least two characters to search TMDb.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/tmdb.test.ts" name="tmdb search &gt; returns a stored synopsis or nothing" time="0.003553979">
+        <testcase classname="api-src/tmdb.test.ts" name="tmdb search &gt; returns a stored synopsis or nothing" time="0.003824634">
             <system-err>
 TMDb request failed. TmdbError: Enter at least two characters to search TMDb.
     at GET [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/tmdb.ts:56:13[90m)[39m
@@ -1765,11 +1765,11 @@ TMDb request failed. TmdbError: Enter at least two characters to search TMDb.
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/tmdb.test.ts" name="tmdb search &gt; searches movies, documentaries, shows, and collections" time="0.005523083">
+        <testcase classname="api-src/tmdb.test.ts" name="tmdb search &gt; searches movies, documentaries, shows, and collections" time="0.02713175">
         </testcase>
-        <testcase classname="api-src/tmdb.test.ts" name="tmdb search &gt; proxies a poster and searches books and games" time="0.005582553">
+        <testcase classname="api-src/tmdb.test.ts" name="tmdb search &gt; proxies a poster and searches books and games" time="0.007084804">
         </testcase>
-        <testcase classname="api-src/tmdb.test.ts" name="tmdb import &gt; imports movies, series, documentaries, shows, books, and games" time="0.031584594">
+        <testcase classname="api-src/tmdb.test.ts" name="tmdb import &gt; imports movies, series, documentaries, shows, books, and games" time="0.038493106">
             <system-err>
 TMDb request failed. TmdbError: Choose a TMDb title to add.
     at POST [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/tmdb.ts:104:13[90m)[39m
@@ -1844,18 +1844,18 @@ TMDb request failed. Error: db down
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="api-src/upcoming.test.ts" timestamp="2026-11-09T15:30:26.610Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.06334508">
-        <testcase classname="api-src/upcoming.test.ts" name="upcoming &gt; returns films and horror episodes inside the horizon" time="0.03927055">
+    <testsuite name="api-src/upcoming.test.ts" timestamp="2026-11-09T15:56:26.882Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.088554166">
+        <testcase classname="api-src/upcoming.test.ts" name="upcoming &gt; returns films and horror episodes inside the horizon" time="0.058011969">
         </testcase>
-        <testcase classname="api-src/upcoming.test.ts" name="upcoming &gt; reuses a fresh cache and drops titles once the day changes" time="0.006528413">
+        <testcase classname="api-src/upcoming.test.ts" name="upcoming &gt; reuses a fresh cache and drops titles once the day changes" time="0.007721033">
         </testcase>
-        <testcase classname="api-src/upcoming.test.ts" name="upcoming &gt; drops blank fields, impossible dates, and a failed episode page" time="0.005114587">
+        <testcase classname="api-src/upcoming.test.ts" name="upcoming &gt; drops blank fields, impossible dates, and a failed episode page" time="0.006387713">
         </testcase>
-        <testcase classname="api-src/upcoming.test.ts" name="upcoming &gt; reports TMDb configuration and upstream failures" time="0.008528283">
+        <testcase classname="api-src/upcoming.test.ts" name="upcoming &gt; reports TMDb configuration and upstream failures" time="0.014127173">
         </testcase>
     </testsuite>
-    <testsuite name="api-src/watch.test.ts" timestamp="2026-11-09T15:30:26.610Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.064057626">
-        <testcase classname="api-src/watch.test.ts" name="watch &gt; requires a session and rejects titles that cannot stream" time="0.022097192">
+    <testsuite name="api-src/watch.test.ts" timestamp="2026-11-09T15:56:26.883Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.072136981">
+        <testcase classname="api-src/watch.test.ts" name="watch &gt; requires a session and rejects titles that cannot stream" time="0.045920622">
             <system-err>
 Watch request failed. HttpError: Sign in to continue.
     at requireSessionUser [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mlib/neon.ts:86:11[90m)[39m
@@ -1911,9 +1911,9 @@ Watch request failed. WatchError: Streaming is only available for movies, docume
 
             </system-err>
         </testcase>
-        <testcase classname="api-src/watch.test.ts" name="watch &gt; reads a stored TMDb id and maps providers" time="0.014007411">
+        <testcase classname="api-src/watch.test.ts" name="watch &gt; reads a stored TMDb id and maps providers" time="0.013216466">
         </testcase>
-        <testcase classname="api-src/watch.test.ts" name="watch &gt; resolves a TMDb id from the title and stores it" time="0.026545197">
+        <testcase classname="api-src/watch.test.ts" name="watch &gt; resolves a TMDb id from the title and stores it" time="0.010846281">
             <system-err>
 Watch request failed. WatchError: No TMDb match for this title yet.
     at loadWatch [90m(/home/runner/work/HorrorVerse/HorrorVerse/HorrorTracker.WebApp/[39mapi-src/watch.ts:46:11[90m)[39m
@@ -1964,394 +1964,394 @@ Watch request failed. Error: db down
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="lib/catalog-id.test.ts" timestamp="2026-11-09T15:30:26.611Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.004631322">
-        <testcase classname="lib/catalog-id.test.ts" name="parseCatalogId &gt; splits a catalog id" time="0.002164718">
+    <testsuite name="lib/catalog-id.test.ts" timestamp="2026-11-09T15:56:26.884Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.008674263">
+        <testcase classname="lib/catalog-id.test.ts" name="parseCatalogId &gt; splits a catalog id" time="0.00352585">
         </testcase>
-        <testcase classname="lib/catalog-id.test.ts" name="parseCatalogId &gt; rejects invalid ids" time="0.000804805">
+        <testcase classname="lib/catalog-id.test.ts" name="parseCatalogId &gt; rejects invalid ids" time="0.001727328">
         </testcase>
-        <testcase classname="lib/catalog-id.test.ts" name="parseCatalogId &gt; trims and lowercases the kind" time="0.000155104">
+        <testcase classname="lib/catalog-id.test.ts" name="parseCatalogId &gt; trims and lowercases the kind" time="0.000259476">
         </testcase>
-        <testcase classname="lib/catalog-id.test.ts" name="parseCatalogId &gt; can return a custom status" time="0.000327094">
-        </testcase>
-    </testsuite>
-    <testsuite name="lib/catalog.test.ts" timestamp="2026-11-09T15:30:26.611Z" hostname="runnervm7aw5e" tests="11" failures="0" errors="0" skipped="0" time="0.020670337">
-        <testcase classname="lib/catalog.test.ts" name="filmsFromCollection &gt; returns no films when the collection has no dated parts" time="0.002333665">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="filmsFromCollection &gt; loads dated parts and falls back to the collection record" time="0.005389252">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="findMovieId &gt; returns a tmdb match without the title query" time="0.000802152">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="findMovieId &gt; uses the title when the tmdb lookup misses, throws, or is not positive" time="0.002375489">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="list and franchise membership &gt; adds a movie that belongs to a collected series" time="0.000633687">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="list and franchise membership &gt; ignores missing list and franchise tables" time="0.001028273">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="ensureShowTmdbId &gt; returns the id already stored on the show" time="0.001784306">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="ensureShowTmdbId &gt; gives up when the stored title is too short or the search has no id" time="0.001502901">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="ensureShowTmdbId &gt; matches the same title and year, then falls back to the first same title or any result" time="0.001739178">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="upsertShowSeasons &gt; upserts named seasons, specials, and generated season titles" time="0.001062335">
-        </testcase>
-        <testcase classname="lib/catalog.test.ts" name="upsertShowSeasons &gt; does nothing when seasons are missing" time="0.000150578">
+        <testcase classname="lib/catalog-id.test.ts" name="parseCatalogId &gt; can return a custom status" time="0.000963029">
         </testcase>
     </testsuite>
-    <testsuite name="lib/horror-import.test.ts" timestamp="2026-11-09T15:30:26.612Z" hostname="runnervm7aw5e" tests="14" failures="0" errors="0" skipped="0" time="0.05132441">
-        <testcase classname="lib/horror-import.test.ts" name="filmWindows &gt; covers 1895 through next year in five-year slices" time="0.004800412">
+    <testsuite name="lib/catalog.test.ts" timestamp="2026-11-09T15:56:26.885Z" hostname="runnervm7aw5e" tests="11" failures="0" errors="0" skipped="0" time="0.046860217">
+        <testcase classname="lib/catalog.test.ts" name="filmsFromCollection &gt; returns no films when the collection has no dated parts" time="0.004965556">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="nextFilmCursor &gt; stays on the page until the slice is consumed" time="0.000370149">
+        <testcase classname="lib/catalog.test.ts" name="filmsFromCollection &gt; loads dated parts and falls back to the collection record" time="0.01132714">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="nextFilmCursor &gt; advances the page, then the date window" time="0.000181464">
+        <testcase classname="lib/catalog.test.ts" name="findMovieId &gt; returns a tmdb match without the title query" time="0.001799131">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="nextFilmCursor &gt; marks the job done after the last window" time="0.000088844">
+        <testcase classname="lib/catalog.test.ts" name="findMovieId &gt; uses the title when the tmdb lookup misses, throws, or is not positive" time="0.005461592">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="nextFilmCursor &gt; stops at the discover page cap and restarts when the year is unknown" time="0.001309948">
+        <testcase classname="lib/catalog.test.ts" name="list and franchise membership &gt; adds a movie that belongs to a collected series" time="0.001039502">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; imports new films, skips documentaries, existing rows, and failures" time="0.015608875">
+        <testcase classname="lib/catalog.test.ts" name="list and franchise membership &gt; ignores missing list and franchise tables" time="0.00129011">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; resets a finished cursor and a cursor that cannot be parsed" time="0.003359415">
+        <testcase classname="lib/catalog.test.ts" name="ensureShowTmdbId &gt; returns the id already stored on the show" time="0.003014602">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; keeps a valid page and index, including string and fractional indexes" time="0.004396342">
+        <testcase classname="lib/catalog.test.ts" name="ensureShowTmdbId &gt; gives up when the stored title is too short or the search has no id" time="0.002882875">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; finishes on the last window once the capped page is consumed" time="0.002474478">
+        <testcase classname="lib/catalog.test.ts" name="ensureShowTmdbId &gt; matches the same title and year, then falls back to the first same title or any result" time="0.004572492">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; starts from the first window when no cursor row exists" time="0.000792457">
+        <testcase classname="lib/catalog.test.ts" name="upsertShowSeasons &gt; upserts named seasons, specials, and generated season titles" time="0.001421035">
         </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch collections &gt; skips ids that are not horror and failures, and uses the singular label" time="0.002490633">
-        </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch collections &gt; adds a new horror series and finishes the queue" time="0.002179703">
-        </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch collections &gt; counts an existing series as skipped and pluralizes the remaining label" time="0.001803976">
-        </testcase>
-        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch collections &gt; accepts every stored cursor shape" time="0.007917501">
+        <testcase classname="lib/catalog.test.ts" name="upsertShowSeasons &gt; does nothing when seasons are missing" time="0.000384859">
         </testcase>
     </testsuite>
-    <testsuite name="lib/igdb.test.ts" timestamp="2026-11-09T15:30:26.613Z" hostname="runnervm7aw5e" tests="14" failures="0" errors="0" skipped="0" time="0.040210866">
-        <testcase classname="lib/igdb.test.ts" name="parseIgdbId &gt; keeps positive numeric IGDB ids" time="0.001454317">
+    <testsuite name="lib/horror-import.test.ts" timestamp="2026-11-09T15:56:26.887Z" hostname="runnervm7aw5e" tests="14" failures="0" errors="0" skipped="0" time="0.072897078">
+        <testcase classname="lib/horror-import.test.ts" name="filmWindows &gt; covers 1895 through next year in five-year slices" time="0.003539072">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdbCoverUrl &gt; builds the Cloudinary-style IGDB cover path and rewrites legacy URLs" time="0.000353514">
+        <testcase classname="lib/horror-import.test.ts" name="nextFilmCursor &gt; stays on the page until the slice is consumed" time="0.000440152">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="parseIgdbSearch &gt; maps title, year, genres, platforms, and cover, with horror first" time="0.00114521">
+        <testcase classname="lib/horror-import.test.ts" name="nextFilmCursor &gt; advances the page, then the date window" time="0.000515994">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="parseIgdbGame &gt; keeps summary, companies, platforms, and genres" time="0.000976956">
+        <testcase classname="lib/horror-import.test.ts" name="nextFilmCursor &gt; marks the job done after the last window" time="0.000189022">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb parsing edges &gt; rejects ids and covers that are not usable" time="0.000461256">
+        <testcase classname="lib/horror-import.test.ts" name="nextFilmCursor &gt; stops at the discover page cap and restarts when the year is unknown" time="0.000381412">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb parsing edges &gt; drops bad search rows, keeps bare hits, and caps at eight" time="0.002077899">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; imports new films, skips documentaries, existing rows, and failures" time="0.017213816">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb parsing edges &gt; reads a single object and leaves optional game fields off" time="0.00176071">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; resets a finished cursor and a cursor that cannot be parsed" time="0.008067281">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; requires a client id and secret before it asks Twitch" time="0.005840844">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; keeps a valid page and index, including string and fractional indexes" time="0.010803471">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; fails when Twitch or IGDB does not return usable JSON" time="0.010005435">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; finishes on the last window once the capped page is consumed" time="0.002281482">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; escapes search text and reuses a token until it expires" time="0.002961965">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch films &gt; starts from the first window when no cursor row exists" time="0.001035846">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; defaults the token lifetime when Twitch omits a positive expires_in" time="0.001286684">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch collections &gt; skips ids that are not horror and failures, and uses the singular label" time="0.002646303">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; adds a new game, refreshes an existing one, and reports save failures" time="0.00663924">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch collections &gt; adds a new horror series and finishes the queue" time="0.004615963">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; rejects a bad id, an empty IGDB payload, and an IGDB error" time="0.002664535">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch collections &gt; counts an existing series as skipped and pluralizes the remaining label" time="0.002617159">
         </testcase>
-        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; creates the game columns" time="0.000614979">
-        </testcase>
-    </testsuite>
-    <testsuite name="lib/import-tmdb.test.ts" timestamp="2026-11-09T15:30:26.614Z" hostname="runnervm7aw5e" tests="18" failures="0" errors="0" skipped="0" time="0.042490906">
-        <testcase classname="lib/import-tmdb.test.ts" name="queueHorrorCollection &gt; ignores ids that are not positive integers" time="0.002137018">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="queueHorrorCollection &gt; queues a collection id" time="0.004841904">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; rejects a movie TMDb cannot title" time="0.002418023">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; inserts a dated movie that is not part of a collection" time="0.004825084">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; throws when the insert does not return an id and stores a yearless movie as zero" time="0.000851487">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; queues a collection and links a new movie to its series" time="0.002807551">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; still saves the movie when series progress cannot be cleared" time="0.001570843">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; queues a nameless collection without attaching a series" time="0.002020412">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; names a collection that is not in the catalog yet" time="0.001427567">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; returns an existing movie and can attach it to a series" time="0.001951268">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; rejects a collection without a title" time="0.001533316">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; creates a series when the title is new" time="0.001254485">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; throws when the series insert does not return an id" time="0.000491623">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; updates an existing series and keeps going when the tmdb id column cannot be added" time="0.001616933">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; links an existing film and skips keyword work when tags are already stored" time="0.002807952">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; fetches keywords for an existing film that has none" time="0.002051008">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; adds a new film onto the series" time="0.003004989">
-        </testcase>
-        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; counts a film even when it cannot be inserted or progress cannot be cleared" time="0.003093884">
+        <testcase classname="lib/horror-import.test.ts" name="importHorrorBatch collections &gt; accepts every stored cursor shape" time="0.015968432">
         </testcase>
     </testsuite>
-    <testsuite name="lib/keywords.test.ts" timestamp="2026-11-09T15:30:26.615Z" hostname="runnervm7aw5e" tests="9" failures="0" errors="0" skipped="0" time="0.023443165">
-        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; ignores tmdb ids that are not positive integers" time="0.002410161">
+    <testsuite name="lib/igdb.test.ts" timestamp="2026-11-09T15:56:26.890Z" hostname="runnervm7aw5e" tests="14" failures="0" errors="0" skipped="0" time="0.05295218">
+        <testcase classname="lib/igdb.test.ts" name="parseIgdbId &gt; keeps positive numeric IGDB ids" time="0.00303517">
         </testcase>
-        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; stores movie keywords and skips invalid rows" time="0.006535112">
+        <testcase classname="lib/igdb.test.ts" name="igdbCoverUrl &gt; builds the Cloudinary-style IGDB cover path and rewrites legacy URLs" time="0.000449269">
         </testcase>
-        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; updates documentary ids and reads keywords from results" time="0.001881603">
+        <testcase classname="lib/igdb.test.ts" name="parseIgdbSearch &gt; maps title, year, genres, platforms, and cover, with horror first" time="0.001645043">
         </testcase>
-        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; stores show keywords when the payload has neither list" time="0.000973611">
+        <testcase classname="lib/igdb.test.ts" name="parseIgdbGame &gt; keeps summary, companies, platforms, and genres" time="0.001830559">
         </testcase>
-        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; returns before fetching when keywords are already stored" time="0.001405383">
+        <testcase classname="lib/igdb.test.ts" name="igdb parsing edges &gt; rejects ids and covers that are not usable" time="0.001137265">
         </testcase>
-        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; fetches when skip is requested but nothing is stored yet" time="0.00113201">
+        <testcase classname="lib/igdb.test.ts" name="igdb parsing edges &gt; drops bad search rows, keeps bare hits, and caps at eight" time="0.001787079">
         </testcase>
-        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; swallows schema and TMDb failures" time="0.004988967">
+        <testcase classname="lib/igdb.test.ts" name="igdb parsing edges &gt; reads a single object and leaves optional game fields off" time="0.001649993">
         </testcase>
-        <testcase classname="lib/keywords.test.ts" name="series keywords &gt; creates the keyword tables and reports whether any row exists" time="0.001157669">
+        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; requires a client id and secret before it asks Twitch" time="0.004946099">
         </testcase>
-        <testcase classname="lib/keywords.test.ts" name="series keywords &gt; replaces series keywords and ignores database errors" time="0.001441888">
+        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; fails when Twitch or IGDB does not return usable JSON" time="0.009824753">
         </testcase>
-    </testsuite>
-    <testsuite name="lib/neon.test.ts" timestamp="2026-11-09T15:30:26.616Z" hostname="runnervm7aw5e" tests="17" failures="0" errors="0" skipped="0" time="0.042190847">
-        <testcase classname="lib/neon.test.ts" name="readSessionToken &gt; reads the HorrorVerse session cookie" time="0.008929955">
+        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; escapes search text and reuses a token until it expires" time="0.003679603">
         </testcase>
-        <testcase classname="lib/neon.test.ts" name="readSessionToken &gt; returns undefined when the session cookie is missing or unnamed" time="0.000490681">
+        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; defaults the token lifetime when Twitch omits a positive expires_in" time="0.003925442">
         </testcase>
-        <testcase classname="lib/neon.test.ts" name="jsonError &gt; returns the status from an HttpError" time="0.008405868">
+        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; adds a new game, refreshes an existing one, and reports save failures" time="0.010928896">
         </testcase>
-        <testcase classname="lib/neon.test.ts" name="jsonError &gt; returns 503 when the database is not configured" time="0.000802442">
+        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; rejects a bad id, an empty IGDB payload, and an IGDB error" time="0.003930051">
         </testcase>
-        <testcase classname="lib/neon.test.ts" name="jsonError &gt; uses the fallback when an unknown failure has no unavailable copy" time="0.000766568">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; prefers DATABASE_URL and strips the pooler host" time="0.000563261">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; converts a postgres URI in HorrorVerseDb" time="0.000740268">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; converts an Npgsql connection string" time="0.000415938">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; returns undefined when neither setting is present" time="0.000427306">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; rejects an Npgsql string without a host or user" time="0.001378452">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; ignores blank pieces in an Npgsql string" time="0.000305962">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="neon HTTP &gt; returns rows and executes statements" time="0.005025031">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="neon HTTP &gt; rejects a payload without rows and a failed response" time="0.005993824">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="requireSessionUser &gt; requires a session cookie" time="0.000821852">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="requireSessionUser &gt; rejects an unknown or broken session" time="0.001345112">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="requireSessionUser &gt; marks the configured admin email" time="0.00124458">
-        </testcase>
-        <testcase classname="lib/neon.test.ts" name="ensureUserLibrarySchema &gt; creates the library tables and ignores an expression-index rejection" time="0.001505384">
+        <testcase classname="lib/igdb.test.ts" name="igdb network &gt; creates the game columns" time="0.001190083">
         </testcase>
     </testsuite>
-    <testsuite name="lib/open-library.test.ts" timestamp="2026-11-09T15:30:26.617Z" hostname="runnervm7aw5e" tests="12" failures="0" errors="0" skipped="0" time="0.03028393">
-        <testcase classname="lib/open-library.test.ts" name="parseWorkId &gt; keeps an Open Library work id" time="0.001391272">
+    <testsuite name="lib/import-tmdb.test.ts" timestamp="2026-11-09T15:56:26.892Z" hostname="runnervm7aw5e" tests="18" failures="0" errors="0" skipped="0" time="0.057774929">
+        <testcase classname="lib/import-tmdb.test.ts" name="queueHorrorCollection &gt; ignores ids that are not positive integers" time="0.00280856">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="parseOpenLibrarySearch &gt; maps title, author, year, subjects, and cover" time="0.001147693">
+        <testcase classname="lib/import-tmdb.test.ts" name="queueHorrorCollection &gt; queues a collection id" time="0.006357446">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="parseOpenLibrarySearch &gt; lists horror subjects ahead of other matches" time="0.000246863">
+        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; rejects a movie TMDb cannot title" time="0.0027886">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="parseOpenLibraryWork &gt; keeps the work description, edition facts, and subjects" time="0.001205071">
+        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; inserts a dated movie that is not part of a collection" time="0.004436637">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="open library parsing edges &gt; rejects ids and covers that are not usable" time="0.000349618">
+        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; throws when the insert does not return an id and stores a yearless movie as zero" time="0.000961296">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="open library parsing edges &gt; sorts tied horror hits, drops empty docs, and caps the list" time="0.001500116">
+        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; queues a collection and links a new movie to its series" time="0.004869667">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="open library parsing edges &gt; builds a title from the work, the search doc, or neither" time="0.000857655">
+        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; still saves the movie when series progress cannot be cleared" time="0.002539273">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; searches Open Library" time="0.004084941">
+        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; queues a nameless collection without attaching a series" time="0.002653734">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; fails when search is not OK or is not JSON" time="0.001457411">
+        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; names a collection that is not in the catalog yet" time="0.001890682">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; inserts a new book and updates an existing one" time="0.007472869">
+        <testcase classname="lib/import-tmdb.test.ts" name="importMovie &gt; returns an existing movie and can attach it to a series" time="0.003244672">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; rejects a bad id, a missing book, and a failed insert" time="0.00834069">
+        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; rejects a collection without a title" time="0.001524999">
         </testcase>
-        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; creates the book columns" time="0.000556581">
+        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; creates a series when the title is new" time="0.001990688">
         </testcase>
-    </testsuite>
-    <testsuite name="lib/poster.test.ts" timestamp="2026-11-09T15:30:26.618Z" hostname="runnervm7aw5e" tests="23" failures="0" errors="0" skipped="0" time="0.024450377">
-        <testcase classname="lib/poster.test.ts" name="parsePosterPath &gt; keeps a TMDb path and drops anything else" time="0.001801431">
+        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; throws when the series insert does not return an id" time="0.000706189">
         </testcase>
-        <testcase classname="lib/poster.test.ts" name="posterUrl &gt; builds a TMDb image URL" time="0.000163327">
+        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; updates an existing series and keeps going when the tmdb id column cannot be added" time="0.002895689">
         </testcase>
-        <testcase classname="lib/poster.test.ts" name="posterSize &gt; keeps TMDb thumbnail sizes and defaults the rest" time="0.000201494">
+        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; links an existing film and skips keyword work when tags are already stored" time="0.005714525">
         </testcase>
-        <testcase classname="lib/poster.test.ts" name="proxyTmdbPoster &gt; rejects a path that is not a TMDb file" time="0.001394627">
+        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; fetches keywords for an existing film that has none" time="0.002266254">
         </testcase>
-        <testcase classname="lib/poster.test.ts" name="proxyTmdbPoster &gt; proxies an image and replaces a missing or non-image type" time="0.003274506">
+        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; adds a new film onto the series" time="0.004042345">
         </testcase>
-        <testcase classname="lib/poster.test.ts" name="proxyTmdbPoster &gt; rejects responses that are not a usable image" time="0.000479535">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="poster schema &gt; applies the schema once per connection and again for a new one" time="0.001586938">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="poster schema &gt; clears the cached schema when a required alter fails" time="0.00090653">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="poster schema &gt; ignores a missing show table" time="0.000679877">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="savePoster &gt; writes a valid path and ignores values or ids that cannot be stored" time="0.000657473">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; fills one poster per kind and records the misses" time="0.002233203">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; uses the simpler poster query when progress cannot be read" time="0.000791075">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; returns zero when neither poster query can run" time="0.000749452">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; ignores a poster lookup when TMDb is not configured" time="0.000488297">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; stops once the time budget is spent" time="0.001450671">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="ensurePoster &gt; returns without a query for series, unknown kinds, and bad ids" time="0.000321936">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="ensurePoster &gt; returns a poster that is already stored" time="0.000313864">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="ensurePoster &gt; loads a poster from TMDb and falls back to a sibling or nothing" time="0.001629792">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="ensurePoster &gt; returns undefined when the lookup fails" time="0.001316499">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="home posters &gt; ignores anonymous users and database errors" time="0.000526636">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="home posters &gt; loads posters for the ids returned by recent progress" time="0.000882113">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="home posters &gt; dedupes catalog ids and skips values that are not posters" time="0.000543481">
-        </testcase>
-        <testcase classname="lib/poster.test.ts" name="home posters &gt; stops before fetching when the budget is already spent" time="0.000505473">
+        <testcase classname="lib/import-tmdb.test.ts" name="importSeries &gt; counts a film even when it cannot be inserted or progress cannot be cleared" time="0.004010031">
         </testcase>
     </testsuite>
-    <testsuite name="lib/release-day.test.ts" timestamp="2026-11-09T15:30:26.620Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.024019166">
-        <testcase classname="lib/release-day.test.ts" name="releaseDay &gt; uses the Eastern calendar date" time="0.011582838">
+    <testsuite name="lib/keywords.test.ts" timestamp="2026-11-09T15:56:26.896Z" hostname="runnervm7aw5e" tests="9" failures="0" errors="0" skipped="0" time="0.032132658">
+        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; ignores tmdb ids that are not positive integers" time="0.004247514">
         </testcase>
-        <testcase classname="lib/release-day.test.ts" name="importFilmsReleasingToday &gt; adds new horror films releasing that day and skips ones already in the vault" time="0.008190674">
+        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; stores movie keywords and skips invalid rows" time="0.014654117">
+        </testcase>
+        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; updates documentary ids and reads keywords from results" time="0.002362543">
+        </testcase>
+        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; stores show keywords when the payload has neither list" time="0.001140771">
+        </testcase>
+        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; returns before fetching when keywords are already stored" time="0.001356163">
+        </testcase>
+        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; fetches when skip is requested but nothing is stored yet" time="0.001068957">
+        </testcase>
+        <testcase classname="lib/keywords.test.ts" name="saveKeywords &gt; swallows schema and TMDb failures" time="0.001983015">
+        </testcase>
+        <testcase classname="lib/keywords.test.ts" name="series keywords &gt; creates the keyword tables and reports whether any row exists" time="0.001420162">
+        </testcase>
+        <testcase classname="lib/keywords.test.ts" name="series keywords &gt; replaces series keywords and ignores database errors" time="0.001681551">
+        </testcase>
+    </testsuite>
+    <testsuite name="lib/neon.test.ts" timestamp="2026-11-09T15:56:26.897Z" hostname="runnervm7aw5e" tests="17" failures="0" errors="0" skipped="0" time="0.043520645">
+        <testcase classname="lib/neon.test.ts" name="readSessionToken &gt; reads the HorrorVerse session cookie" time="0.012525054">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="readSessionToken &gt; returns undefined when the session cookie is missing or unnamed" time="0.000874554">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="jsonError &gt; returns the status from an HttpError" time="0.008303051">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="jsonError &gt; returns 503 when the database is not configured" time="0.000832074">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="jsonError &gt; uses the fallback when an unknown failure has no unavailable copy" time="0.001251428">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; prefers DATABASE_URL and strips the pooler host" time="0.000736606">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; converts a postgres URI in HorrorVerseDb" time="0.000651688">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; converts an Npgsql connection string" time="0.000524019">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; returns undefined when neither setting is present" time="0.000735324">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; rejects an Npgsql string without a host or user" time="0.001406958">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="resolveDatabaseUrl &gt; ignores blank pieces in an Npgsql string" time="0.001036316">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="neon HTTP &gt; returns rows and executes statements" time="0.002267616">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="neon HTTP &gt; rejects a payload without rows and a failed response" time="0.003499968">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="requireSessionUser &gt; requires a session cookie" time="0.000788553">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="requireSessionUser &gt; rejects an unknown or broken session" time="0.00153607">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="requireSessionUser &gt; marks the configured admin email" time="0.001123188">
+        </testcase>
+        <testcase classname="lib/neon.test.ts" name="ensureUserLibrarySchema &gt; creates the library tables and ignores an expression-index rejection" time="0.002206922">
+        </testcase>
+    </testsuite>
+    <testsuite name="lib/open-library.test.ts" timestamp="2026-11-09T15:56:26.900Z" hostname="runnervm7aw5e" tests="12" failures="0" errors="0" skipped="0" time="0.043728386">
+        <testcase classname="lib/open-library.test.ts" name="parseWorkId &gt; keeps an Open Library work id" time="0.002667843">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="parseOpenLibrarySearch &gt; maps title, author, year, subjects, and cover" time="0.00219467">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="parseOpenLibrarySearch &gt; lists horror subjects ahead of other matches" time="0.000421477">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="parseOpenLibraryWork &gt; keeps the work description, edition facts, and subjects" time="0.002044069">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="open library parsing edges &gt; rejects ids and covers that are not usable" time="0.000571017">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="open library parsing edges &gt; sorts tied horror hits, drops empty docs, and caps the list" time="0.00297071">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="open library parsing edges &gt; builds a title from the work, the search doc, or neither" time="0.001621599">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; searches Open Library" time="0.008940611">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; fails when search is not OK or is not JSON" time="0.002096546">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; inserts a new book and updates an existing one" time="0.010234659">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; rejects a bad id, a missing book, and a failed insert" time="0.006039462">
+        </testcase>
+        <testcase classname="lib/open-library.test.ts" name="open library requests &gt; creates the book columns" time="0.001116676">
+        </testcase>
+    </testsuite>
+    <testsuite name="lib/poster.test.ts" timestamp="2026-11-09T15:56:26.903Z" hostname="runnervm7aw5e" tests="23" failures="0" errors="0" skipped="0" time="0.054869248">
+        <testcase classname="lib/poster.test.ts" name="parsePosterPath &gt; keeps a TMDb path and drops anything else" time="0.003078971">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="posterUrl &gt; builds a TMDb image URL" time="0.000374299">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="posterSize &gt; keeps TMDb thumbnail sizes and defaults the rest" time="0.000288148">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="proxyTmdbPoster &gt; rejects a path that is not a TMDb file" time="0.002568678">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="proxyTmdbPoster &gt; proxies an image and replaces a missing or non-image type" time="0.006748396">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="proxyTmdbPoster &gt; rejects responses that are not a usable image" time="0.000755191">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="poster schema &gt; applies the schema once per connection and again for a new one" time="0.002832692">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="poster schema &gt; clears the cached schema when a required alter fails" time="0.001480775">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="poster schema &gt; ignores a missing show table" time="0.001107198">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="savePoster &gt; writes a valid path and ignores values or ids that cannot be stored" time="0.001801896">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; fills one poster per kind and records the misses" time="0.005823429">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; uses the simpler poster query when progress cannot be read" time="0.002569159">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; returns zero when neither poster query can run" time="0.002471447">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; ignores a poster lookup when TMDb is not configured" time="0.001439259">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="fillMissingPosters &gt; stops once the time budget is spent" time="0.00318503">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="ensurePoster &gt; returns without a query for series, unknown kinds, and bad ids" time="0.000865416">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="ensurePoster &gt; returns a poster that is already stored" time="0.000873462">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="ensurePoster &gt; loads a poster from TMDb and falls back to a sibling or nothing" time="0.004783095">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="ensurePoster &gt; returns undefined when the lookup fails" time="0.003821219">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="home posters &gt; ignores anonymous users and database errors" time="0.00105995">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="home posters &gt; loads posters for the ids returned by recent progress" time="0.001565585">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="home posters &gt; dedupes catalog ids and skips values that are not posters" time="0.00135417">
+        </testcase>
+        <testcase classname="lib/poster.test.ts" name="home posters &gt; stops before fetching when the budget is already spent" time="0.001134579">
+        </testcase>
+    </testsuite>
+    <testsuite name="lib/release-day.test.ts" timestamp="2026-11-09T15:56:26.907Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.052036105">
+        <testcase classname="lib/release-day.test.ts" name="releaseDay &gt; uses the Eastern calendar date" time="0.025952523">
+        </testcase>
+        <testcase classname="lib/release-day.test.ts" name="importFilmsReleasingToday &gt; adds new horror films releasing that day and skips ones already in the vault" time="0.017787797">
             <system-err>
 Could not import today&apos;s release. [33m13[39m TMDb did not return a usable title.
 
             </system-err>
         </testcase>
-        <testcase classname="lib/release-day.test.ts" name="importFilmsReleasingToday &gt; caps long result lists and keeps going when a release date or failure is not a normal error" time="0.002924087">
+        <testcase classname="lib/release-day.test.ts" name="importFilmsReleasingToday &gt; caps long result lists and keeps going when a release date or failure is not a normal error" time="0.005903154">
             <system-err>
 Could not import today&apos;s release. [33m10[39m offline
 
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="lib/session-user.test.ts" timestamp="2026-11-09T15:30:26.620Z" hostname="runnervm7aw5e" tests="1" failures="0" errors="0" skipped="0" time="0.010672242">
-        <testcase classname="lib/session-user.test.ts" name="requireSessionUser missing columns &gt; uses blank email and display name when the session row omits them" time="0.00923352">
+    <testsuite name="lib/session-user.test.ts" timestamp="2026-11-09T15:56:26.908Z" hostname="runnervm7aw5e" tests="1" failures="0" errors="0" skipped="0" time="0.016743055">
+        <testcase classname="lib/session-user.test.ts" name="requireSessionUser missing columns &gt; uses blank email and display name when the session row omits them" time="0.014515913">
         </testcase>
     </testsuite>
-    <testsuite name="lib/synopsis.test.ts" timestamp="2026-11-09T15:30:26.620Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.022677162">
-        <testcase classname="lib/synopsis.test.ts" name="synopsisText &gt; keeps a synopsis and drops blank text" time="0.001321857">
+    <testsuite name="lib/synopsis.test.ts" timestamp="2026-11-09T15:56:26.908Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.021142357">
+        <testcase classname="lib/synopsis.test.ts" name="synopsisText &gt; keeps a synopsis and drops blank text" time="0.002648179">
         </testcase>
-        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; returns a stored synopsis without calling TMDb" time="0.00861233">
+        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; returns a stored synopsis without calling TMDb" time="0.008511389">
         </testcase>
-        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; stores a TMDb overview when the movie has none" time="0.002131183">
+        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; stores a TMDb overview when the movie has none" time="0.002191005">
         </testcase>
-        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; stores an overview on import when the row is still blank" time="0.003271021">
+        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; stores an overview on import when the row is still blank" time="0.001208308">
         </testcase>
-        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; leaves a blank TMDb overview unsaved" time="0.004866492">
+        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; leaves a blank TMDb overview unsaved" time="0.002876726">
         </testcase>
-        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; adds the description columns and ignores a missing show table" time="0.000950576">
-        </testcase>
-    </testsuite>
-    <testsuite name="lib/tmdb.test.ts" timestamp="2026-11-09T15:30:26.621Z" hostname="runnervm7aw5e" tests="17" failures="0" errors="0" skipped="0" time="0.023705271">
-        <testcase classname="lib/tmdb.test.ts" name="yearFrom &gt; reads a four-digit year from a date" time="0.004465987">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="yearFrom &gt; rejects values that are not years" time="0.000259352">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="asId &gt; reads a positive integer from a named field" time="0.00018539">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="asResults &gt; returns object rows from a TMDb payload" time="0.000770003">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="genre filters &gt; recognizes horror-adjacent and documentary genre lists" time="0.000251019">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="showTotalMinutes &gt; uses series episode_run_time when TMDb provides it" time="0.000174855">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="showTotalMinutes &gt; falls back to the last aired episode when episode_run_time is empty" time="0.000548128">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="showTotalMinutes &gt; returns 0 when TMDb has no usable runtime" time="0.000108434">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="helpers &gt; narrows records and runtimes" time="0.000515178">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="tmdb value helpers &gt; rejects empty, non-numeric, and out-of-range values" time="0.001448409">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="tmdb value helpers &gt; totals episode minutes from runtimes, aired episodes, and the caller fallback" time="0.000334165">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="tmdb value helpers &gt; accepts a trimmed title and rejects blank or oversized titles" time="0.000921923">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="tmdb value helpers &gt; trims overviews and caps them at 180 characters" time="0.000342166">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="tmdbJson &gt; requires a TMDb key and requests JSON with the key on either query shape" time="0.006422453">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="tmdbJson &gt; returns null for HTTP failures and network errors, and rethrows auth failures" time="0.002393926">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="collectionIsHorrorAdjacent &gt; is true when any part has a horror-adjacent genre" time="0.000539666">
-        </testcase>
-        <testcase classname="lib/tmdb.test.ts" name="collectionIsHorrorAdjacent &gt; is false when the collection has no horror parts or cannot be loaded" time="0.00199253">
+        <testcase classname="lib/synopsis.test.ts" name="ensureSynopsis &gt; adds the description columns and ignores a missing show table" time="0.001335205">
         </testcase>
     </testsuite>
-    <testsuite name="lib/watch-next.test.ts" timestamp="2026-11-09T15:30:26.622Z" hostname="runnervm7aw5e" tests="12" failures="0" errors="0" skipped="0" time="0.024416716">
-        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext &gt; prefers in-progress episodes, then series, then lists, then vault" time="0.002019991">
+    <testsuite name="lib/tmdb.test.ts" timestamp="2026-11-09T15:56:26.909Z" hostname="runnervm7aw5e" tests="17" failures="0" errors="0" skipped="0" time="0.031156271">
+        <testcase classname="lib/tmdb.test.ts" name="yearFrom &gt; reads a four-digit year from a date" time="0.002512523">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext &gt; skips duplicates so a listed title already continued is not shown twice" time="0.00049633">
+        <testcase classname="lib/tmdb.test.ts" name="yearFrom &gt; rejects values that are not years" time="0.000477252">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext &gt; fills read next from listed books before vault books" time="0.000182476">
+        <testcase classname="lib/tmdb.test.ts" name="asId &gt; reads a positive integer from a named field" time="0.000355654">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext &gt; keeps vault order stable for the same seed" time="0.00037769">
+        <testcase classname="lib/tmdb.test.ts" name="asResults &gt; returns object rows from a TMDb payload" time="0.001467131">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="dailyWatchNextSeed &gt; changes by calendar day, not by hour" time="0.000402709">
+        <testcase classname="lib/tmdb.test.ts" name="genre filters &gt; recognizes horror-adjacent and documentary genre lists" time="0.000611663">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="dailyWatchNextSeed &gt; uses today&apos;s UTC date when now is omitted" time="0.000136015">
+        <testcase classname="lib/tmdb.test.ts" name="showTotalMinutes &gt; uses series episode_run_time when TMDb provides it" time="0.000344634">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext edges &gt; stops at the limit and skips blank titles" time="0.000195866">
+        <testcase classname="lib/tmdb.test.ts" name="showTotalMinutes &gt; falls back to the last aired episode when episode_run_time is empty" time="0.000264494">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext edges &gt; leaves holes in place while shuffling" time="0.000133962">
+        <testcase classname="lib/tmdb.test.ts" name="showTotalMinutes &gt; returns 0 when TMDb has no usable runtime" time="0.000275194">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="loadWatchNext &gt; orders episodes, then series, and still loads lists and the vault" time="0.014779156">
+        <testcase classname="lib/tmdb.test.ts" name="helpers &gt; narrows records and runtimes" time="0.00061048">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="loadWatchNext &gt; returns nothing when every watch query fails" time="0.001759518">
+        <testcase classname="lib/tmdb.test.ts" name="tmdb value helpers &gt; rejects empty, non-numeric, and out-of-range values" time="0.001881054">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="loadReadNext &gt; lists unfinished books before vault books" time="0.001460356">
+        <testcase classname="lib/tmdb.test.ts" name="tmdb value helpers &gt; totals episode minutes from runtimes, aired episodes, and the caller fallback" time="0.000614298">
         </testcase>
-        <testcase classname="lib/watch-next.test.ts" name="loadReadNext &gt; returns nothing when the book queries fail" time="0.000551763">
+        <testcase classname="lib/tmdb.test.ts" name="tmdb value helpers &gt; accepts a trimmed title and rejects blank or oversized titles" time="0.001017852">
         </testcase>
-    </testsuite>
-    <testsuite name="lib/watch-year.test.ts" timestamp="2026-11-09T15:30:26.623Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.003594576">
-        <testcase classname="lib/watch-year.test.ts" name="parseWatchYear &gt; accepts a year from 1888 through next year" time="0.001505362">
+        <testcase classname="lib/tmdb.test.ts" name="tmdb value helpers &gt; trims overviews and caps them at 180 characters" time="0.000457044">
         </testcase>
-        <testcase classname="lib/watch-year.test.ts" name="parseWatchYear &gt; uses the current UTC year when now is omitted" time="0.000186502">
+        <testcase classname="lib/tmdb.test.ts" name="tmdbJson &gt; requires a TMDb key and requests JSON with the key on either query shape" time="0.011429321">
         </testcase>
-        <testcase classname="lib/watch-year.test.ts" name="yearFromCompletedAt &gt; reads a UTC year and skips empty dates" time="0.000420695">
+        <testcase classname="lib/tmdb.test.ts" name="tmdbJson &gt; returns null for HTTP failures and network errors, and rethrows auth failures" time="0.003092517">
         </testcase>
-        <testcase classname="lib/watch-year.test.ts" name="watchTimestamp &gt; stores mid-year so the row is dated but not today" time="0.000118489">
+        <testcase classname="lib/tmdb.test.ts" name="collectionIsHorrorAdjacent &gt; is true when any part has a horror-adjacent genre" time="0.000868352">
         </testcase>
-    </testsuite>
-    <testsuite name="scripts/bundle-api.test.ts" timestamp="2026-11-09T15:30:26.623Z" hostname="runnervm7aw5e" tests="5" failures="0" errors="0" skipped="0" time="0.110906065">
-        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; treats CRLF as the same bundle" time="0.001101043">
-        </testcase>
-        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; writes fresh bundles, skips tests, and removes leftovers" time="0.009127879">
-        </testcase>
-        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; reports a stale check without writing and accepts a missing file as empty" time="0.004783022">
-        </testcase>
-        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; rejects an empty source directory and an empty esbuild result" time="0.002437783">
-        </testcase>
-        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; checks the real api directory when the script is the entry point" time="0.092246521">
+        <testcase classname="lib/tmdb.test.ts" name="collectionIsHorrorAdjacent &gt; is false when the collection has no horror parts or cannot be loaded" time="0.001750731">
         </testcase>
     </testsuite>
-    <testsuite name="scripts/smoke.test.ts" timestamp="2026-11-09T15:30:26.623Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.063065728">
-        <testcase classname="scripts/smoke.test.ts" name="deploy smoke &gt; skips when no deploy url is configured" time="0.003573759">
+    <testsuite name="lib/watch-next.test.ts" timestamp="2026-11-09T15:56:26.911Z" hostname="runnervm7aw5e" tests="12" failures="0" errors="0" skipped="0" time="0.028647605">
+        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext &gt; prefers in-progress episodes, then series, then lists, then vault" time="0.003594294">
         </testcase>
-        <testcase classname="scripts/smoke.test.ts" name="deploy smoke &gt; accepts a healthy unsigned deploy and records each failed check" time="0.021806321">
+        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext &gt; skips duplicates so a listed title already continued is not shown twice" time="0.000402171">
         </testcase>
-        <testcase classname="scripts/smoke.test.ts" name="deploy smoke &gt; writes a junit report for passed, failed, and skipped checks" time="0.022293139">
+        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext &gt; fills read next from listed books before vault books" time="0.000295982">
         </testcase>
-        <testcase classname="scripts/smoke.test.ts" name="deploy smoke &gt; exits from the direct entry point" time="0.005737498">
+        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext &gt; keeps vault order stable for the same seed" time="0.000597697">
+        </testcase>
+        <testcase classname="lib/watch-next.test.ts" name="dailyWatchNextSeed &gt; changes by calendar day, not by hour" time="0.000817868">
+        </testcase>
+        <testcase classname="lib/watch-next.test.ts" name="dailyWatchNextSeed &gt; uses today&apos;s UTC date when now is omitted" time="0.000487019">
+        </testcase>
+        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext edges &gt; stops at the limit and skips blank titles" time="0.000457164">
+        </testcase>
+        <testcase classname="lib/watch-next.test.ts" name="pickWatchNext edges &gt; leaves holes in place while shuffling" time="0.000387053">
+        </testcase>
+        <testcase classname="lib/watch-next.test.ts" name="loadWatchNext &gt; orders episodes, then series, and still loads lists and the vault" time="0.013692659">
+        </testcase>
+        <testcase classname="lib/watch-next.test.ts" name="loadWatchNext &gt; returns nothing when every watch query fails" time="0.002283696">
+        </testcase>
+        <testcase classname="lib/watch-next.test.ts" name="loadReadNext &gt; lists unfinished books before vault books" time="0.002110453">
+        </testcase>
+        <testcase classname="lib/watch-next.test.ts" name="loadReadNext &gt; returns nothing when the book queries fail" time="0.00067435">
+        </testcase>
+    </testsuite>
+    <testsuite name="lib/watch-year.test.ts" timestamp="2026-11-09T15:56:26.913Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.006749215">
+        <testcase classname="lib/watch-year.test.ts" name="parseWatchYear &gt; accepts a year from 1888 through next year" time="0.003035794">
+        </testcase>
+        <testcase classname="lib/watch-year.test.ts" name="parseWatchYear &gt; uses the current UTC year when now is omitted" time="0.000300181">
+        </testcase>
+        <testcase classname="lib/watch-year.test.ts" name="yearFromCompletedAt &gt; reads a UTC year and skips empty dates" time="0.000752386">
+        </testcase>
+        <testcase classname="lib/watch-year.test.ts" name="watchTimestamp &gt; stores mid-year so the row is dated but not today" time="0.000270656">
+        </testcase>
+    </testsuite>
+    <testsuite name="scripts/bundle-api.test.ts" timestamp="2026-11-09T15:56:26.914Z" hostname="runnervm7aw5e" tests="5" failures="0" errors="0" skipped="0" time="0.142312769">
+        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; treats CRLF as the same bundle" time="0.002459454">
+        </testcase>
+        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; writes fresh bundles, skips tests, and removes leftovers" time="0.015556634">
+        </testcase>
+        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; reports a stale check without writing and accepts a missing file as empty" time="0.00462512">
+        </testcase>
+        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; rejects an empty source directory and an empty esbuild result" time="0.002792035">
+        </testcase>
+        <testcase classname="scripts/bundle-api.test.ts" name="api bundling &gt; checks the real api directory when the script is the entry point" time="0.114930776">
+        </testcase>
+    </testsuite>
+    <testsuite name="scripts/smoke.test.ts" timestamp="2026-11-09T15:56:26.915Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.040956929">
+        <testcase classname="scripts/smoke.test.ts" name="deploy smoke &gt; skips when no deploy url is configured" time="0.003304974">
+        </testcase>
+        <testcase classname="scripts/smoke.test.ts" name="deploy smoke &gt; accepts a healthy unsigned deploy and records each failed check" time="0.005635818">
+        </testcase>
+        <testcase classname="scripts/smoke.test.ts" name="deploy smoke &gt; writes a junit report for passed, failed, and skipped checks" time="0.020915962">
+        </testcase>
+        <testcase classname="scripts/smoke.test.ts" name="deploy smoke &gt; exits from the direct entry point" time="0.009502411">
             <system-out>
 SMOKE_URL is not set; skipping the deploy smoke check.
 
@@ -2368,328 +2368,328 @@ FAIL /api/health status=503 body={&quot;status&quot;:&quot;down&quot;}
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="src/achievements.test.ts" timestamp="2026-11-09T15:30:26.624Z" hostname="runnervm7aw5e" tests="7" failures="0" errors="0" skipped="0" time="0.020982564">
-        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; keeps every badge locked with no progress" time="0.005782381">
+    <testsuite name="src/achievements.test.ts" timestamp="2026-11-09T15:56:26.916Z" hostname="runnervm7aw5e" tests="7" failures="0" errors="0" skipped="0" time="0.023241175">
+        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; keeps every badge locked with no progress" time="0.004248076">
         </testcase>
-        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; earns First Blood on the first finished movie, not Body Count" time="0.000950156">
+        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; earns First Blood on the first finished movie, not Body Count" time="0.001596001">
         </testcase>
-        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; counts a series finished by its films or by the series mark" time="0.008689918">
+        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; counts a series finished by its films or by the series mark" time="0.008216629">
         </testcase>
-        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; earns Franchise Killer only when every title in a franchise is finished" time="0.000442278">
+        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; earns Franchise Killer only when every title in a franchise is finished" time="0.000671454">
         </testcase>
-        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; unlocks kind, tag, list, year, and runtime badges from existing marks" time="0.000520917">
+        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; unlocks kind, tag, list, year, and runtime badges from existing marks" time="0.001122677">
         </testcase>
-        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; lists the finished titles, series, franchises, lists, and years that earned a badge" time="0.001948543">
+        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; lists the finished titles, series, franchises, lists, and years that earned a badge" time="0.00404709">
         </testcase>
-        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; covers kind, runtime, franchise, and series edges" time="0.001425043">
-        </testcase>
-    </testsuite>
-    <testsuite name="src/app.test.ts" timestamp="2026-11-09T15:30:26.624Z" hostname="runnervm7aw5e" tests="9" failures="0" errors="0" skipped="0" time="18.906466465">
-        <testcase classname="src/app.test.ts" name="mountApp &gt; walks the signed-in vault" time="13.664766954">
-        </testcase>
-        <testcase classname="src/app.test.ts" name="mountApp &gt; covers guests, registration, and members" time="0.414897326">
-        </testcase>
-        <testcase classname="src/app.test.ts" name="mountApp &gt; covers load failures, sync, empty copy, and history" time="0.361266424">
-        </testcase>
-        <testcase classname="src/app.test.ts" name="mountApp &gt; opens a catalog title from its address" time="0.03310886">
-        </testcase>
-        <testcase classname="src/app.test.ts" name="mountApp &gt; sorts the vault and fills a missing synopsis" time="0.737194358">
-        </testcase>
-        <testcase classname="src/app.test.ts" name="mountApp &gt; covers profile links, popstate, and install" time="1.001364755">
-        </testcase>
-        <testcase classname="src/app.test.ts" name="mountApp &gt; covers busy guards and sheet-kind edges" time="0.746536585">
-        </testcase>
-        <testcase classname="src/app.test.ts" name="mountApp &gt; covers leftover branches" time="1.652839092">
-        </testcase>
-        <testcase classname="src/app.test.ts" name="mountApp &gt; covers empty vault copy" time="0.293055734">
+        <testcase classname="src/achievements.test.ts" name="buildAchievements &gt; covers kind, runtime, franchise, and series edges" time="0.00172397">
         </testcase>
     </testsuite>
-    <testsuite name="src/auth.test.ts" timestamp="2026-11-09T15:30:26.625Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.020516528">
-        <testcase classname="src/auth.test.ts" name="fetchCurrentUser &gt; returns the signed-in profile" time="0.005139504">
+    <testsuite name="src/app.test.ts" timestamp="2026-11-09T15:56:26.917Z" hostname="runnervm7aw5e" tests="9" failures="0" errors="0" skipped="0" time="26.740484915">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; walks the signed-in vault" time="19.52338793">
         </testcase>
-        <testcase classname="src/auth.test.ts" name="fetchCurrentUser &gt; keeps a profile that omits optional text" time="0.000630162">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; covers guests, registration, and members" time="0.532252642">
         </testcase>
-        <testcase classname="src/auth.test.ts" name="fetchCurrentUser &gt; returns null when auth is refused, the body is junk, or the network fails" time="0.003219774">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; covers load failures, sync, empty copy, and history" time="0.511082863">
         </testcase>
-        <testcase classname="src/auth.test.ts" name="account mutations &gt; registers, signs in, and saves a profile" time="0.002462384">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; opens a catalog title from its address" time="0.042728604">
         </testcase>
-        <testcase classname="src/auth.test.ts" name="account mutations &gt; signs out with DELETE" time="0.001319153">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; sorts the vault and fills a missing synopsis" time="0.928812462">
         </testcase>
-        <testcase classname="src/auth.test.ts" name="account mutations &gt; raises the server error, a status fallback, or a missing profile" time="0.006247738">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; covers profile links, popstate, and install" time="1.394313513">
         </testcase>
-    </testsuite>
-    <testsuite name="src/catalog.test.ts" timestamp="2026-11-09T15:30:26.625Z" hostname="runnervm7aw5e" tests="11" failures="0" errors="0" skipped="0" time="0.026499318">
-        <testcase classname="src/catalog.test.ts" name="movieDetailLine &gt; shows the air year for TV reboots with the same title" time="0.00237672">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; covers busy guards and sheet-kind edges" time="1.035154641">
         </testcase>
-        <testcase classname="src/catalog.test.ts" name="movieDetailLine &gt; shows the year for a typed-in book, podcast, or game" time="0.000631714">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; covers leftover branches" time="2.345427849">
         </testcase>
-        <testcase classname="src/catalog.test.ts" name="posterUrl &gt; builds a TMDb thumbnail URL" time="0.000304359">
-        </testcase>
-        <testcase classname="src/catalog.test.ts" name="allowedCover &gt; rewrites legacy IGDB cover URLs to include /upload/" time="0.000537222">
-        </testcase>
-        <testcase classname="src/catalog.test.ts" name="catalog helpers &gt; recognizes every media kind" time="0.001848663">
-        </testcase>
-        <testcase classname="src/catalog.test.ts" name="catalog helpers &gt; accepts a poster path and builds its image URL" time="0.000448738">
-        </testcase>
-        <testcase classname="src/catalog.test.ts" name="catalog helpers &gt; formats runtimes" time="0.00029773">
-        </testcase>
-        <testcase classname="src/catalog.test.ts" name="movieDetailLine kinds &gt; describes books, games, podcasts, and timed titles" time="0.003843977">
-        </testcase>
-        <testcase classname="src/catalog.test.ts" name="catalog requests &gt; keeps valid rows and optional text from either casing" time="0.005856857">
-        </testcase>
-        <testcase classname="src/catalog.test.ts" name="catalog requests &gt; returns nothing for a non-array body and writes a title back" time="0.004620911">
-        </testcase>
-        <testcase classname="src/catalog.test.ts" name="catalog requests &gt; raises server errors, a missing title, bad JSON, and a dropped network" time="0.003647025">
+        <testcase classname="src/app.test.ts" name="mountApp &gt; covers empty vault copy" time="0.425189193">
         </testcase>
     </testsuite>
-    <testsuite name="src/franchises.test.ts" timestamp="2026-11-09T15:30:26.626Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.016362193">
-        <testcase classname="src/franchises.test.ts" name="isFranchiseKind &gt; accepts the four vault kinds" time="0.002220705">
+    <testsuite name="src/auth.test.ts" timestamp="2026-11-09T15:56:26.918Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.036206325">
+        <testcase classname="src/auth.test.ts" name="fetchCurrentUser &gt; returns the signed-in profile" time="0.015503411">
         </testcase>
-        <testcase classname="src/franchises.test.ts" name="franchise requests &gt; parses a mixed payload and runs every mutation" time="0.007379969">
+        <testcase classname="src/auth.test.ts" name="fetchCurrentUser &gt; keeps a profile that omits optional text" time="0.001237662">
         </testcase>
-        <testcase classname="src/franchises.test.ts" name="franchise requests &gt; returns nothing for an empty or malformed body" time="0.000961463">
+        <testcase classname="src/auth.test.ts" name="fetchCurrentUser &gt; returns null when auth is refused, the body is junk, or the network fails" time="0.006425994">
         </testcase>
-        <testcase classname="src/franchises.test.ts" name="franchise requests &gt; raises server errors, a bad body, and a dropped network" time="0.004764792">
+        <testcase classname="src/auth.test.ts" name="account mutations &gt; registers, signs in, and saves a profile" time="0.003503605">
         </testcase>
-    </testsuite>
-    <testsuite name="src/history.test.ts" timestamp="2026-11-09T15:30:26.626Z" hostname="runnervm7aw5e" tests="5" failures="0" errors="0" skipped="0" time="0.019717982">
-        <testcase classname="src/history.test.ts" name="browser history places &gt; maps the home screen to the site root" time="0.004874375">
+        <testcase classname="src/auth.test.ts" name="account mutations &gt; signs out with DELETE" time="0.002182998">
         </testcase>
-        <testcase classname="src/history.test.ts" name="browser history places &gt; keeps library kind, search, tag, and franchises in the address" time="0.001652625">
-        </testcase>
-        <testcase classname="src/history.test.ts" name="browser history places &gt; keeps a member profile on its own address" time="0.000395828">
-        </testcase>
-        <testcase classname="src/history.test.ts" name="browser history places &gt; keeps a catalog title on its own address" time="0.000751735">
-        </testcase>
-        <testcase classname="src/history.test.ts" name="browser history places &gt; drops unknown filters and keeps the other screens on their own paths" time="0.00421223">
+        <testcase classname="src/auth.test.ts" name="account mutations &gt; raises the server error, a status fallback, or a missing profile" time="0.00519782">
         </testcase>
     </testsuite>
-    <testsuite name="src/lists.test.ts" timestamp="2026-11-09T15:30:26.627Z" hostname="runnervm7aw5e" tests="5" failures="0" errors="0" skipped="0" time="0.024010292">
-        <testcase classname="src/lists.test.ts" name="normalizeVisibility &gt; keeps public lists public" time="0.001841662">
+    <testsuite name="src/catalog.test.ts" timestamp="2026-11-09T15:56:26.919Z" hostname="runnervm7aw5e" tests="11" failures="0" errors="0" skipped="0" time="0.066706089">
+        <testcase classname="src/catalog.test.ts" name="movieDetailLine &gt; shows the air year for TV reboots with the same title" time="0.021719453">
         </testcase>
-        <testcase classname="src/lists.test.ts" name="normalizeVisibility &gt; treats anything else as private" time="0.000440475">
+        <testcase classname="src/catalog.test.ts" name="movieDetailLine &gt; shows the year for a typed-in book, podcast, or game" time="0.001012912">
         </testcase>
-        <testcase classname="src/lists.test.ts" name="list requests &gt; parses mixed rows and runs every mutation" time="0.009880948">
+        <testcase classname="src/catalog.test.ts" name="posterUrl &gt; builds a TMDb thumbnail URL" time="0.000732929">
         </testcase>
-        <testcase classname="src/lists.test.ts" name="list requests &gt; returns nothing for an empty payload and an empty list when signed out" time="0.001790485">
+        <testcase classname="src/catalog.test.ts" name="allowedCover &gt; rewrites legacy IGDB cover URLs to include /upload/" time="0.001270433">
         </testcase>
-        <testcase classname="src/lists.test.ts" name="list requests &gt; raises server errors, a bad body, and a dropped network" time="0.008675146">
+        <testcase classname="src/catalog.test.ts" name="catalog helpers &gt; recognizes every media kind" time="0.002657955">
         </testcase>
-    </testsuite>
-    <testsuite name="src/main.test.ts" timestamp="2026-11-09T15:30:26.627Z" hostname="runnervm7aw5e" tests="2" failures="0" errors="0" skipped="0" time="0.015607783">
-        <testcase classname="src/main.test.ts" name="main &gt; throws when the app root is missing" time="0.010215908">
+        <testcase classname="src/catalog.test.ts" name="catalog helpers &gt; accepts a poster path and builds its image URL" time="0.000965785">
         </testcase>
-        <testcase classname="src/main.test.ts" name="main &gt; mounts into #app" time="0.004146103">
+        <testcase classname="src/catalog.test.ts" name="catalog helpers &gt; formats runtimes" time="0.000676153">
         </testcase>
-    </testsuite>
-    <testsuite name="src/people.test.ts" timestamp="2026-11-09T15:30:26.627Z" hostname="runnervm7aw5e" tests="10" failures="0" errors="0" skipped="0" time="0.026840527">
-        <testcase classname="src/people.test.ts" name="searchPeople &gt; parses camel and Pascal profiles and drops junk" time="0.007756348">
+        <testcase classname="src/catalog.test.ts" name="movieDetailLine kinds &gt; describes books, games, podcasts, and timed titles" time="0.001049189">
         </testcase>
-        <testcase classname="src/people.test.ts" name="searchPeople &gt; returns an empty list for a non-array or unreadable body" time="0.001450241">
+        <testcase classname="src/catalog.test.ts" name="catalog requests &gt; keeps valid rows and optional text from either casing" time="0.010196087">
         </testcase>
-        <testcase classname="src/people.test.ts" name="searchPeople &gt; raises server errors and a dropped network" time="0.002603984">
+        <testcase classname="src/catalog.test.ts" name="catalog requests &gt; returns nothing for a non-array body and writes a title back" time="0.014200247">
         </testcase>
-        <testcase classname="src/people.test.ts" name="fetchPerson &gt; returns one member" time="0.000814621">
-        </testcase>
-        <testcase classname="src/people.test.ts" name="fetchPerson &gt; raises when the member is missing, the server fails, or the network drops" time="0.00169434">
-        </testcase>
-        <testcase classname="src/people.test.ts" name="friends &gt; reads each inbox list and ignores junk entries" time="0.0007018">
-        </testcase>
-        <testcase classname="src/people.test.ts" name="friends &gt; sends, answers, and removes friend requests" time="0.005062088">
-        </testcase>
-        <testcase classname="src/people.test.ts" name="friends &gt; raises inbox errors and a dropped network" time="0.001985109">
-        </testcase>
-        <testcase classname="src/people.test.ts" name="follows &gt; follows and unfollows a member" time="0.001331211">
-        </testcase>
-        <testcase classname="src/people.test.ts" name="follows &gt; raises when the follow target is missing, the server fails, or the network drops" time="0.002010778">
+        <testcase classname="src/catalog.test.ts" name="catalog requests &gt; raises server errors, a missing title, bad JSON, and a dropped network" time="0.008883835">
         </testcase>
     </testsuite>
-    <testsuite name="src/progress.test.ts" timestamp="2026-11-09T15:30:26.628Z" hostname="runnervm7aw5e" tests="10" failures="0" errors="0" skipped="0" time="0.037544709">
-        <testcase classname="src/progress.test.ts" name="readWatchedYears &gt; keeps integer years keyed by catalog id" time="0.005195378">
+    <testsuite name="src/franchises.test.ts" timestamp="2026-11-09T15:56:26.921Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.033005526">
+        <testcase classname="src/franchises.test.ts" name="isFranchiseKind &gt; accepts the four vault kinds" time="0.004927815">
         </testcase>
-        <testcase classname="src/progress.test.ts" name="readWatchNext &gt; keeps titled catalog picks and drops junk" time="0.003925831">
+        <testcase classname="src/franchises.test.ts" name="franchise requests &gt; parses a mixed payload and runs every mutation" time="0.014802342">
         </testcase>
-        <testcase classname="src/progress.test.ts" name="readScores &gt; keeps scores from 1 to 5" time="0.000487437">
+        <testcase classname="src/franchises.test.ts" name="franchise requests &gt; returns nothing for an empty or malformed body" time="0.002276509">
         </testcase>
-        <testcase classname="src/progress.test.ts" name="readRecentPosters &gt; keeps TMDb paths keyed by catalog id" time="0.000386804">
-        </testcase>
-        <testcase classname="src/progress.test.ts" name="readRecentPosters &gt; ignores posters that are not an object map" time="0.000308406">
-        </testcase>
-        <testcase classname="src/progress.test.ts" name="read maps &gt; rejects years and scores that are not a bounded integer map" time="0.000433635">
-        </testcase>
-        <testcase classname="src/progress.test.ts" name="read maps &gt; keeps every watch-next kind and reason and can read the book shelf" time="0.000441547">
-        </testcase>
-        <testcase classname="src/progress.test.ts" name="progress requests &gt; reads a full shelf and an empty one" time="0.010573473">
-        </testcase>
-        <testcase classname="src/progress.test.ts" name="progress requests &gt; patches completion and score" time="0.004440799">
-        </testcase>
-        <testcase classname="src/progress.test.ts" name="progress requests &gt; raises server errors, a bad body, and a dropped network" time="0.003352184">
+        <testcase classname="src/franchises.test.ts" name="franchise requests &gt; raises server errors, a bad body, and a dropped network" time="0.008767541">
         </testcase>
     </testsuite>
-    <testsuite name="src/pwa.test.ts" timestamp="2026-11-09T15:30:26.629Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.0290526">
-        <testcase classname="src/pwa.test.ts" name="registerPwa &gt; stores the install prompt and reports the choice" time="0.019821064">
+    <testsuite name="src/history.test.ts" timestamp="2026-11-09T15:56:26.921Z" hostname="runnervm7aw5e" tests="5" failures="0" errors="0" skipped="0" time="0.012368939">
+        <testcase classname="src/history.test.ts" name="browser history places &gt; maps the home screen to the site root" time="0.003080398">
         </testcase>
-        <testcase classname="src/pwa.test.ts" name="registerPwa &gt; checks for updates on visible and restored pages" time="0.005520579">
+        <testcase classname="src/history.test.ts" name="browser history places &gt; keeps library kind, search, tag, and franchises in the address" time="0.002457122">
         </testcase>
-        <testcase classname="src/pwa.test.ts" name="registerPwa &gt; applies an update only after registration" time="0.001222397">
+        <testcase classname="src/history.test.ts" name="browser history places &gt; keeps a member profile on its own address" time="0.000325338">
         </testcase>
-        <testcase classname="src/pwa.test.ts" name="registerPwa &gt; detects standalone display and iOS devices" time="0.001253043">
+        <testcase classname="src/history.test.ts" name="browser history places &gt; keeps a catalog title on its own address" time="0.000759489">
         </testcase>
-    </testsuite>
-    <testsuite name="src/share.test.ts" timestamp="2026-11-09T15:30:26.629Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.01744944">
-        <testcase classname="src/share.test.ts" name="shareStoryImage &gt; shares a file when the browser accepts it" time="0.006919914">
-        </testcase>
-        <testcase classname="src/share.test.ts" name="shareStoryImage &gt; treats a cancelled share sheet as shared" time="0.000991857">
-        </testcase>
-        <testcase classname="src/share.test.ts" name="shareStoryImage &gt; downloads when sharing fails for another reason" time="0.006607111">
-        </testcase>
-        <testcase classname="src/share.test.ts" name="shareStoryImage &gt; downloads when the browser cannot share files" time="0.00148923">
+        <testcase classname="src/history.test.ts" name="browser history places &gt; drops unknown filters and keeps the other screens on their own paths" time="0.003580823">
         </testcase>
     </testsuite>
-    <testsuite name="src/shows.test.ts" timestamp="2026-11-09T15:30:26.629Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.012701658">
-        <testcase classname="src/shows.test.ts" name="show guide &gt; loads a show and an optional season" time="0.007869678">
+    <testsuite name="src/lists.test.ts" timestamp="2026-11-09T15:56:26.922Z" hostname="runnervm7aw5e" tests="5" failures="0" errors="0" skipped="0" time="0.02953183">
+        <testcase classname="src/lists.test.ts" name="normalizeVisibility &gt; keeps public lists public" time="0.003693072">
         </testcase>
-        <testcase classname="src/shows.test.ts" name="show guide &gt; patches episode, season, and show progress" time="0.001279553">
+        <testcase classname="src/lists.test.ts" name="normalizeVisibility &gt; treats anything else as private" time="0.000573301">
         </testcase>
-        <testcase classname="src/shows.test.ts" name="show guide &gt; raises server errors, a bad body, and a dropped network" time="0.002499106">
+        <testcase classname="src/lists.test.ts" name="list requests &gt; parses mixed rows and runs every mutation" time="0.013458592">
         </testcase>
-    </testsuite>
-    <testsuite name="src/stats.test.ts" timestamp="2026-11-09T15:30:26.630Z" hostname="runnervm7aw5e" tests="24" failures="0" errors="0" skipped="0" time="0.023348843">
-        <testcase classname="src/stats.test.ts" name="buildHorrorStats &gt; returns vault stats without a signed-in group" time="0.002712318">
+        <testcase classname="src/lists.test.ts" name="list requests &gt; returns nothing for an empty payload and an empty list when signed out" time="0.001776108">
         </testcase>
-        <testcase classname="src/stats.test.ts" name="buildHorrorStats &gt; counts only finished runtimes in the personal group" time="0.000579646">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="buildHorrorStats &gt; counts pages in the vault and pages marked read" time="0.011823582">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="buildHorrorStats &gt; handles an empty vault" time="0.000770644">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 45 minutes as 45 min" time="0.000285662">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 60 minutes as 1 hr" time="0.000100201">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 90 minutes as 1 hr 30 min" time="0.000081233">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 120 minutes as 2 hr" time="0.000052329">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 1440 minutes as 1 day" time="0.00009211">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 1470 minutes as 1 day" time="0.000093992">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 1500 minutes as 1 day 1 hr" time="0.000056866">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 2880 minutes as 2 days" time="0.000134273">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 3000 minutes as 2 days 2 hr" time="0.000068223">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 0.4 minutes as 0 hr" time="0.000120682">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; describes an average only after a film has a runtime" time="0.000454897">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; uses runtime unknown when a length rounds away" time="0.000167783">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="shows, documentaries, and series &gt; counts one timed show and one documentary" time="0.000339393">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="shows, documentaries, and series &gt; counts several documentaries and episode-only shows" time="0.000850275">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="shows, documentaries, and series &gt; labels a show by episodes, by count, or by runtime" time="0.000464802">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="shows, documentaries, and series &gt; breaks ties for longest films, oldest years, series, and decades" time="0.000488598">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="personal and franchise stats &gt; picks the biggest franchise through ties and skips empty groups" time="0.000510602">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="personal and franchise stats &gt; counts finished and waiting time, including a cleared vault" time="0.000276618">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="personal and franchise stats &gt; counts personal documentaries, shows, and decades" time="0.000792898">
-        </testcase>
-        <testcase classname="src/stats.test.ts" name="personal and franchise stats &gt; counts franchises a member has started or finished" time="0.000591995">
+        <testcase classname="src/lists.test.ts" name="list requests &gt; raises server errors, a bad body, and a dropped network" time="0.007881583">
         </testcase>
     </testsuite>
-    <testsuite name="src/story.test.ts" timestamp="2026-11-09T15:30:26.631Z" hostname="runnervm7aw5e" tests="19" failures="0" errors="0" skipped="0" time="0.022671238">
-        <testcase classname="src/story.test.ts" name="titleStoryCopy &gt; adds runtime, series, and a tag beside year and kind" time="0.002239233">
+    <testsuite name="src/main.test.ts" timestamp="2026-11-09T15:56:26.923Z" hostname="runnervm7aw5e" tests="2" failures="0" errors="0" skipped="0" time="0.030557757">
+        <testcase classname="src/main.test.ts" name="main &gt; throws when the app root is missing" time="0.020193606">
         </testcase>
-        <testcase classname="src/story.test.ts" name="titleStoryCopy &gt; picks a stable kicker and omits empty extras" time="0.000379103">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="titleStoryCopy &gt; does not repeat the title as a series on series cards" time="0.000130337">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="titleStoryCopy &gt; names the watch year on the byline" time="0.000123326">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="watchedByline &gt; falls back to a nameless survivor" time="0.000143447">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="recapStoryCopy &gt; lists hours, extras, and recent titles" time="0.000685396">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="recapStoryCopy &gt; explains an empty vault" time="0.000447426">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="storyTag &gt; uses the first library tag that matches keywords" time="0.000529249">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="recapItemsFromCatalog &gt; skips series and keeps catalog order of recent ids" time="0.000384131">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="recapItemsFromCatalog &gt; uses extra poster paths when the catalog row has none" time="0.000342477">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="finishedTitleCount &gt; ignores series marks so recaps do not double-count sagas" time="0.000163568">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="storyFilename &gt; slugifies the title" time="0.000286222">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="story copy edges &gt; fills blank titles and trims extras" time="0.00132403">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="story copy edges &gt; stops after five recent titles and skips unknown ids" time="0.000240583">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="story cards &gt; draws a title card with a poster, tag, and avatar" time="0.005164081">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="story cards &gt; draws a title without a poster and a recap with mixed art" time="0.003572367">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="story cards &gt; uses a blob image when createImageBitmap is unavailable" time="0.001458753">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="story cards &gt; rejects a canvas that cannot draw or export" time="0.002516662">
-        </testcase>
-        <testcase classname="src/story.test.ts" name="story cards &gt; skips font waiting when the document is missing" time="0.000627017">
+        <testcase classname="src/main.test.ts" name="main &gt; mounts into #app" time="0.008021428">
         </testcase>
     </testsuite>
-    <testsuite name="src/sync.test.ts" timestamp="2026-11-09T15:30:26.632Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.017085726">
-        <testcase classname="src/sync.test.ts" name="syncVault &gt; syncs the whole vault or one title" time="0.007200998">
+    <testsuite name="src/people.test.ts" timestamp="2026-11-09T15:56:26.923Z" hostname="runnervm7aw5e" tests="10" failures="0" errors="0" skipped="0" time="0.058081338">
+        <testcase classname="src/people.test.ts" name="searchPeople &gt; parses camel and Pascal profiles and drops junk" time="0.018546145">
         </testcase>
-        <testcase classname="src/sync.test.ts" name="syncVault &gt; treats missing counts as zero" time="0.000880119">
+        <testcase classname="src/people.test.ts" name="searchPeople &gt; returns an empty list for a non-array or unreadable body" time="0.001890211">
         </testcase>
-        <testcase classname="src/sync.test.ts" name="syncVault &gt; raises server errors and survives a bad body or a dropped network" time="0.002861993">
+        <testcase classname="src/people.test.ts" name="searchPeople &gt; raises server errors and a dropped network" time="0.004044195">
         </testcase>
-        <testcase classname="src/sync.test.ts" name="importHorrorVault &gt; normalizes a collections batch" time="0.002229168">
+        <testcase classname="src/people.test.ts" name="fetchPerson &gt; returns one member" time="0.001818948">
         </testcase>
-        <testcase classname="src/sync.test.ts" name="importHorrorVault &gt; falls back when the batch payload is sparse" time="0.001481723">
+        <testcase classname="src/people.test.ts" name="fetchPerson &gt; raises when the member is missing, the server fails, or the network drops" time="0.004552885">
         </testcase>
-        <testcase classname="src/sync.test.ts" name="importHorrorVault &gt; raises server errors and survives a bad body or a dropped network" time="0.001007221">
+        <testcase classname="src/people.test.ts" name="friends &gt; reads each inbox list and ignores junk entries" time="0.001388113">
         </testcase>
-    </testsuite>
-    <testsuite name="src/tags.test.ts" timestamp="2026-11-09T15:30:26.633Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.004649265">
-        <testcase classname="src/tags.test.ts" name="library tags &gt; recognizes known tag ids" time="0.001149185">
+        <testcase classname="src/people.test.ts" name="friends &gt; sends, answers, and removes friend requests" time="0.009890105">
         </testcase>
-        <testcase classname="src/tags.test.ts" name="library tags &gt; matches keywords only when the tag and the list both exist" time="0.000589726">
+        <testcase classname="src/people.test.ts" name="friends &gt; raises inbox errors and a dropped network" time="0.004574927">
         </testcase>
-        <testcase classname="src/tags.test.ts" name="library tags &gt; lists tags that appear on at least one title" time="0.001830814">
+        <testcase classname="src/people.test.ts" name="follows &gt; follows and unfollows a member" time="0.003145496">
         </testcase>
-    </testsuite>
-    <testsuite name="src/tmdb.test.ts" timestamp="2026-11-09T15:30:26.633Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.0127968">
-        <testcase classname="src/tmdb.test.ts" name="tmdb client &gt; returns no hits when the payload is not a list and drops values that are not titles" time="0.006321724">
-        </testcase>
-        <testcase classname="src/tmdb.test.ts" name="tmdb client &gt; uses the status when search or import fails without a message" time="0.001767188">
-        </testcase>
-        <testcase classname="src/tmdb.test.ts" name="tmdb client &gt; rejects an import that does not return a catalog id" time="0.001674908">
-        </testcase>
-        <testcase classname="src/tmdb.test.ts" name="tmdb client &gt; reads a synopsis and reports a failed lookup" time="0.001836652">
+        <testcase classname="src/people.test.ts" name="follows &gt; raises when the follow target is missing, the server fails, or the network drops" time="0.003932667">
         </testcase>
     </testsuite>
-    <testsuite name="src/upcoming.test.ts" timestamp="2026-11-09T15:30:26.633Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.014853239">
-        <testcase classname="src/upcoming.test.ts" name="fetchUpcoming &gt; keeps dated films, shows, and episodes" time="0.008735668">
+    <testsuite name="src/progress.test.ts" timestamp="2026-11-09T15:56:26.925Z" hostname="runnervm7aw5e" tests="10" failures="0" errors="0" skipped="0" time="0.028637126">
+        <testcase classname="src/progress.test.ts" name="readWatchedYears &gt; keeps integer years keyed by catalog id" time="0.005490327">
         </testcase>
-        <testcase classname="src/upcoming.test.ts" name="fetchUpcoming &gt; returns empty lists when the payload is not a schedule" time="0.00135685">
+        <testcase classname="src/progress.test.ts" name="readWatchNext &gt; keeps titled catalog picks and drops junk" time="0.001003855">
         </testcase>
-        <testcase classname="src/upcoming.test.ts" name="fetchUpcoming &gt; raises server errors and a dropped network" time="0.003623103">
+        <testcase classname="src/progress.test.ts" name="readScores &gt; keeps scores from 1 to 5" time="0.000641478">
+        </testcase>
+        <testcase classname="src/progress.test.ts" name="readRecentPosters &gt; keeps TMDb paths keyed by catalog id" time="0.000748939">
+        </testcase>
+        <testcase classname="src/progress.test.ts" name="readRecentPosters &gt; ignores posters that are not an object map" time="0.000581076">
+        </testcase>
+        <testcase classname="src/progress.test.ts" name="read maps &gt; rejects years and scores that are not a bounded integer map" time="0.001317661">
+        </testcase>
+        <testcase classname="src/progress.test.ts" name="read maps &gt; keeps every watch-next kind and reason and can read the book shelf" time="0.000621621">
+        </testcase>
+        <testcase classname="src/progress.test.ts" name="progress requests &gt; reads a full shelf and an empty one" time="0.009981897">
+        </testcase>
+        <testcase classname="src/progress.test.ts" name="progress requests &gt; patches completion and score" time="0.001665791">
+        </testcase>
+        <testcase classname="src/progress.test.ts" name="progress requests &gt; raises server errors, a bad body, and a dropped network" time="0.003766115">
         </testcase>
     </testsuite>
-    <testsuite name="src/watch.test.ts" timestamp="2026-11-09T15:30:26.634Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.023286237">
-        <testcase classname="src/watch.test.ts" name="fetchWatch &gt; reads providers and drops duplicates" time="0.015290478">
+    <testsuite name="src/pwa.test.ts" timestamp="2026-11-09T15:56:26.926Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.0481311">
+        <testcase classname="src/pwa.test.ts" name="registerPwa &gt; stores the install prompt and reports the choice" time="0.032257007">
         </testcase>
-        <testcase classname="src/watch.test.ts" name="fetchWatch &gt; accepts Pascal fields and fills missing offer text" time="0.002307176">
+        <testcase classname="src/pwa.test.ts" name="registerPwa &gt; checks for updates on visible and restored pages" time="0.010560792">
         </testcase>
-        <testcase classname="src/watch.test.ts" name="fetchWatch &gt; rejects an empty offer, server errors, bad JSON, and a dropped network" time="0.004251833">
+        <testcase classname="src/pwa.test.ts" name="registerPwa &gt; applies an update only after registration" time="0.001564268">
+        </testcase>
+        <testcase classname="src/pwa.test.ts" name="registerPwa &gt; detects standalone display and iOS devices" time="0.001877409">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/share.test.ts" timestamp="2026-11-09T15:56:26.927Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.035634928">
+        <testcase classname="src/share.test.ts" name="shareStoryImage &gt; shares a file when the browser accepts it" time="0.016186473">
+        </testcase>
+        <testcase classname="src/share.test.ts" name="shareStoryImage &gt; treats a cancelled share sheet as shared" time="0.001520148">
+        </testcase>
+        <testcase classname="src/share.test.ts" name="shareStoryImage &gt; downloads when sharing fails for another reason" time="0.012959849">
+        </testcase>
+        <testcase classname="src/share.test.ts" name="shareStoryImage &gt; downloads when the browser cannot share files" time="0.00300471">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/shows.test.ts" timestamp="2026-11-09T15:56:26.928Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.017205639">
+        <testcase classname="src/shows.test.ts" name="show guide &gt; loads a show and an optional season" time="0.009305903">
+        </testcase>
+        <testcase classname="src/shows.test.ts" name="show guide &gt; patches episode, season, and show progress" time="0.00227881">
+        </testcase>
+        <testcase classname="src/shows.test.ts" name="show guide &gt; raises server errors, a bad body, and a dropped network" time="0.003743657">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/stats.test.ts" timestamp="2026-11-09T15:56:26.928Z" hostname="runnervm7aw5e" tests="24" failures="0" errors="0" skipped="0" time="0.051206111">
+        <testcase classname="src/stats.test.ts" name="buildHorrorStats &gt; returns vault stats without a signed-in group" time="0.007194607">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="buildHorrorStats &gt; counts only finished runtimes in the personal group" time="0.00126874">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="buildHorrorStats &gt; counts pages in the vault and pages marked read" time="0.024621303">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="buildHorrorStats &gt; handles an empty vault" time="0.001110805">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 45 minutes as 45 min" time="0.000379739">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 60 minutes as 1 hr" time="0.000217175">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 90 minutes as 1 hr 30 min" time="0.00022495">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 120 minutes as 2 hr" time="0.000169686">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 1440 minutes as 1 day" time="0.000240349">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 1470 minutes as 1 day" time="0.000265576">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 1500 minutes as 1 day 1 hr" time="0.000212698">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 2880 minutes as 2 days" time="0.00018257">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 3000 minutes as 2 days 2 hr" time="0.000115275">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; sums 0.4 minutes as 0 hr" time="0.000246481">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; describes an average only after a film has a runtime" time="0.000637528">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="vault time formatting &gt; uses runtime unknown when a length rounds away" time="0.00028908">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="shows, documentaries, and series &gt; counts one timed show and one documentary" time="0.000776914">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="shows, documentaries, and series &gt; counts several documentaries and episode-only shows" time="0.001826883">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="shows, documentaries, and series &gt; labels a show by episodes, by count, or by runtime" time="0.000804302">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="shows, documentaries, and series &gt; breaks ties for longest films, oldest years, series, and decades" time="0.000661575">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="personal and franchise stats &gt; picks the biggest franchise through ties and skips empty groups" time="0.000756984">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="personal and franchise stats &gt; counts finished and waiting time, including a cleared vault" time="0.000578718">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="personal and franchise stats &gt; counts personal documentaries, shows, and decades" time="0.001248292">
+        </testcase>
+        <testcase classname="src/stats.test.ts" name="personal and franchise stats &gt; counts franchises a member has started or finished" time="0.004744843">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/story.test.ts" timestamp="2026-11-09T15:56:26.932Z" hostname="runnervm7aw5e" tests="19" failures="0" errors="0" skipped="0" time="0.032958961">
+        <testcase classname="src/story.test.ts" name="titleStoryCopy &gt; adds runtime, series, and a tag beside year and kind" time="0.003070844">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="titleStoryCopy &gt; picks a stable kicker and omits empty extras" time="0.000636679">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="titleStoryCopy &gt; does not repeat the title as a series on series cards" time="0.000222446">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="titleStoryCopy &gt; names the watch year on the byline" time="0.000260897">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="watchedByline &gt; falls back to a nameless survivor" time="0.000255887">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="recapStoryCopy &gt; lists hours, extras, and recent titles" time="0.001359509">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="recapStoryCopy &gt; explains an empty vault" time="0.000698855">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="storyTag &gt; uses the first library tag that matches keywords" time="0.000784245">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="recapItemsFromCatalog &gt; skips series and keeps catalog order of recent ids" time="0.000408783">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="recapItemsFromCatalog &gt; uses extra poster paths when the catalog row has none" time="0.000714454">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="finishedTitleCount &gt; ignores series marks so recaps do not double-count sagas" time="0.000298988">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="storyFilename &gt; slugifies the title" time="0.000460941">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="story copy edges &gt; fills blank titles and trims extras" time="0.002347203">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="story copy edges &gt; stops after five recent titles and skips unknown ids" time="0.000426727">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="story cards &gt; draws a title card with a poster, tag, and avatar" time="0.007821906">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="story cards &gt; draws a title without a poster and a recap with mixed art" time="0.004615157">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="story cards &gt; uses a blob image when createImageBitmap is unavailable" time="0.002307128">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="story cards &gt; rejects a canvas that cannot draw or export" time="0.003214292">
+        </testcase>
+        <testcase classname="src/story.test.ts" name="story cards &gt; skips font waiting when the document is missing" time="0.000511625">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/sync.test.ts" timestamp="2026-11-09T15:56:26.934Z" hostname="runnervm7aw5e" tests="6" failures="0" errors="0" skipped="0" time="0.026306601">
+        <testcase classname="src/sync.test.ts" name="syncVault &gt; syncs the whole vault or one title" time="0.012736693">
+        </testcase>
+        <testcase classname="src/sync.test.ts" name="syncVault &gt; treats missing counts as zero" time="0.001172661">
+        </testcase>
+        <testcase classname="src/sync.test.ts" name="syncVault &gt; raises server errors and survives a bad body or a dropped network" time="0.00326562">
+        </testcase>
+        <testcase classname="src/sync.test.ts" name="importHorrorVault &gt; normalizes a collections batch" time="0.003772717">
+        </testcase>
+        <testcase classname="src/sync.test.ts" name="importHorrorVault &gt; falls back when the batch payload is sparse" time="0.002016286">
+        </testcase>
+        <testcase classname="src/sync.test.ts" name="importHorrorVault &gt; raises server errors and survives a bad body or a dropped network" time="0.001546679">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/tags.test.ts" timestamp="2026-11-09T15:56:26.935Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.008584505">
+        <testcase classname="src/tags.test.ts" name="library tags &gt; recognizes known tag ids" time="0.002420184">
+        </testcase>
+        <testcase classname="src/tags.test.ts" name="library tags &gt; matches keywords only when the tag and the list both exist" time="0.00105943">
+        </testcase>
+        <testcase classname="src/tags.test.ts" name="library tags &gt; lists tags that appear on at least one title" time="0.002681863">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/tmdb.test.ts" timestamp="2026-11-09T15:56:26.936Z" hostname="runnervm7aw5e" tests="4" failures="0" errors="0" skipped="0" time="0.021810237">
+        <testcase classname="src/tmdb.test.ts" name="tmdb client &gt; returns no hits when the payload is not a list and drops values that are not titles" time="0.011630549">
+        </testcase>
+        <testcase classname="src/tmdb.test.ts" name="tmdb client &gt; uses the status when search or import fails without a message" time="0.002928964">
+        </testcase>
+        <testcase classname="src/tmdb.test.ts" name="tmdb client &gt; rejects an import that does not return a catalog id" time="0.002943842">
+        </testcase>
+        <testcase classname="src/tmdb.test.ts" name="tmdb client &gt; reads a synopsis and reports a failed lookup" time="0.002593668">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/upcoming.test.ts" timestamp="2026-11-09T15:56:26.936Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.0295659">
+        <testcase classname="src/upcoming.test.ts" name="fetchUpcoming &gt; keeps dated films, shows, and episodes" time="0.014416801">
+        </testcase>
+        <testcase classname="src/upcoming.test.ts" name="fetchUpcoming &gt; returns empty lists when the payload is not a schedule" time="0.002380006">
+        </testcase>
+        <testcase classname="src/upcoming.test.ts" name="fetchUpcoming &gt; raises server errors and a dropped network" time="0.004741728">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/watch.test.ts" timestamp="2026-11-09T15:56:26.937Z" hostname="runnervm7aw5e" tests="3" failures="0" errors="0" skipped="0" time="0.024809622">
+        <testcase classname="src/watch.test.ts" name="fetchWatch &gt; reads providers and drops duplicates" time="0.014696891">
+        </testcase>
+        <testcase classname="src/watch.test.ts" name="fetchWatch &gt; accepts Pascal fields and fills missing offer text" time="0.002693705">
+        </testcase>
+        <testcase classname="src/watch.test.ts" name="fetchWatch &gt; rejects an empty offer, server errors, bad JSON, and a dropped network" time="0.005514588">
         </testcase>
     </testsuite>
 </testsuites>
