@@ -1,7 +1,7 @@
 import { isMediaKind, type MediaKind } from "./catalog";
 import { isLibraryTagId } from "./tags";
 
-export const HISTORY_VIEWS = ["home", "library", "upcoming", "lists", "account", "profile", "install", "stats", "title"] as const;
+export const HISTORY_VIEWS = ["home", "library", "upcoming", "lists", "account", "profile", "install", "stats", "title", "talent"] as const;
 
 export type HistoryView = (typeof HISTORY_VIEWS)[number];
 
@@ -13,6 +13,7 @@ export interface AppPlace {
   franchisesOpen: boolean;
   profileId: number | null;
   titleId: string | null;
+  talentId: number | null;
 }
 
 const VIEW_SET = new Set<string>(HISTORY_VIEWS);
@@ -26,6 +27,7 @@ export function emptyPlace(): AppPlace {
     franchisesOpen: false,
     profileId: null,
     titleId: null,
+    talentId: null,
   };
 }
 
@@ -38,6 +40,14 @@ export function parsePlace(pathname: string, search = ""): AppPlace {
     return { ...emptyPlace(), view: "profile", profileId: Number(profile[1]) };
   }
 
+  const talent = /^\/talent\/(\d+)$/.exec(path);
+  if (talent) {
+    const talentId = Number(talent[1]);
+    if (talentId >= 1) {
+      return { ...emptyPlace(), view: "talent", talentId };
+    }
+  }
+
   const title = TITLE_PATH.exec(path);
   if (title) {
     const mediaId = Number(title[2]);
@@ -47,7 +57,7 @@ export function parsePlace(pathname: string, search = ""): AppPlace {
   }
 
   const view = path === "/" ? "home" : path.slice(1);
-  if (!VIEW_SET.has(view) || view === "profile" || view === "title") {
+  if (!VIEW_SET.has(view) || view === "profile" || view === "title" || view === "talent") {
     return emptyPlace();
   }
 
@@ -62,6 +72,7 @@ export function parsePlace(pathname: string, search = ""): AppPlace {
     franchisesOpen: view === "library" && params.get("franchises") === "1",
     profileId: null,
     titleId: null,
+    talentId: null,
   };
 }
 
@@ -77,6 +88,10 @@ export function formatPlace(place: AppPlace): string {
   if (place.view === "title") {
     const match = /^(movie|series|show|documentary|book|podcast|game):(\d+)$/.exec(place.titleId ?? "");
     return match && Number(match[2]) >= 1 ? `/${match[1]}/${match[2]}` : "/library";
+  }
+
+  if (place.view === "talent") {
+    return place.talentId && place.talentId >= 1 ? `/talent/${place.talentId}` : "/";
   }
 
   if (place.view !== "library") {

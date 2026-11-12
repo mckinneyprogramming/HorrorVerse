@@ -110,6 +110,12 @@ type World = {
   reuseFranchiseIds: boolean;
   synopsis: string | null;
   synopsisStatus: number;
+  talentDirectors: { id: number; name: string; role: string; profilePath?: string }[];
+  talentCast: { id: number; name: string; role: string; profilePath?: string }[];
+  talentPeople: { id: number; name: string; watched: number; total: number; profilePath?: string; knownFor?: string }[];
+  talentPerson: Record<string, unknown> | null;
+  talentFailList: boolean;
+  talentFailTitle: boolean;
 };
 
 const admin: User = {
@@ -326,6 +332,12 @@ function createWorld(): World {
     reuseFranchiseIds: false,
     synopsis: null,
     synopsisStatus: 200,
+    talentDirectors: [],
+    talentCast: [],
+    talentPeople: [],
+    talentPerson: null,
+    talentFailList: false,
+    talentFailTitle: false,
   };
 }
 
@@ -550,6 +562,36 @@ async function handle(input: string, init?: RequestInit): Promise<Response> {
   if (path === "/api/follows" && method === "DELETE") {
     const person = personById(Number(url.searchParams.get("id")));
     return json({ person: { ...(person ?? world.people[0]), following: false } });
+  }
+  if (path === "/api/talent" && method === "GET" && url.searchParams.has("title")) {
+    if (world.talentFailTitle) {
+      return json({ error: "Nope" }, 500);
+    }
+    return json({ directors: world.talentDirectors, cast: world.talentCast });
+  }
+  if (path === "/api/talent" && method === "GET" && url.searchParams.has("person")) {
+    const id = Number(url.searchParams.get("person"));
+    const person = world.talentPerson && Number(world.talentPerson.id) === id
+      ? world.talentPerson
+      : { id, name: "Talent", following: false, watched: 0, total: 0, credits: [] };
+    return json({ person });
+  }
+  if (path === "/api/talent" && method === "GET") {
+    if (world.talentFailList) {
+      world.talentFailList = false;
+      return json({ error: "Nope" }, 500);
+    }
+    return json({ people: world.talentPeople });
+  }
+  if (path === "/api/talent" && method === "POST") {
+    const id = Number(body.personId);
+    const person = world.talentPerson && Number(world.talentPerson.id) === id ? world.talentPerson : { id, name: "Talent", watched: 0, total: 0, credits: [] };
+    return json({ person: { ...person, following: true } });
+  }
+  if (path === "/api/talent" && method === "DELETE") {
+    const id = Number(url.searchParams.get("person"));
+    const person = world.talentPerson && Number(world.talentPerson.id) === id ? world.talentPerson : { id, name: "Talent", watched: 0, total: 0, credits: [] };
+    return json({ person: { ...person, following: false } });
   }
   if (path === "/api/shows" && method === "GET") {
     const showId = Number(String(url.searchParams.get("id") ?? "").split(":")[1]);
@@ -1988,4 +2030,153 @@ describe("mountApp", () => {
     const down = await boot("/library");
     expect(down.root.textContent).toContain("unreachable");
   }, 60_000);
+
+  it("follows a director and keeps their horror work beside the vault", async () => {
+    world.user = member;
+    world.talentDirectors = [{ id: 5, name: "Carpenter", role: "Director", profilePath: "/c.jpg" }, { id: 9, name: "Hill", role: "Director" }];
+    world.talentCast = [{ id: 6, name: "Jamie", role: "Laurie" }];
+    world.talentPeople = [
+      { id: 5, name: "Carpenter", watched: 1, total: 2, profilePath: "/c.jpg", knownFor: "Directing" },
+      { id: 8, name: "Quiet", watched: 0, total: 0 },
+    ];
+    world.talentPerson = {
+      id: 5,
+      name: "Carpenter",
+      profilePath: "/c.jpg",
+      knownFor: "Directing",
+      following: false,
+      watched: 1,
+      total: 2,
+      credits: [
+        { tmdbId: 77, mediaType: "movie", kind: "movie", title: "Halloween", year: 1978, posterPath: "/h.jpg", role: "Director", vaultId: "movie:1", finished: true },
+        { tmdbId: 78, mediaType: "movie", kind: "documentary", title: "Doc Night", role: "Director", finished: false },
+      ],
+    };
+    const home = await boot("/");
+    expect(home.root.textContent).toContain("People you follow");
+    expect(home.root.textContent).toContain("1 of 2 finished");
+    await click(home.root, '[data-person-id="8"]');
+    expect(home.root.textContent).toContain("No horror credits yet.");
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
+    await click(home.root, '[data-action="back"]');
+    expect(back).toHaveBeenCalled();
+    back.mockRestore();
+    const length = Object.getOwnPropertyDescriptor(History.prototype, "length");
+    Object.defineProperty(window.history, "length", { configurable: true, get: () => 1 });
+    await click(home.root, '[data-action="back"]');
+    expect(home.root.textContent).toContain("People you follow");
+    if (length) Object.defineProperty(window.history, "length", length);
+
+    const title = await boot("/movie/1");
+    expect(title.root.textContent).toContain("Carpenter");
+    expect(title.root.textContent).toContain("Directors");
+    expect(title.root.textContent).toContain("Jamie");
+    await click(title.root, '[data-person-id="5"]');
+    expect(title.root.textContent).toContain("Known for Directing");
+    expect(title.root.textContent).toContain("Finished");
+    await click(title.root, '[data-action="follow-talent"]');
+    expect(title.root.textContent).toContain("Following");
+    await click(title.root, '[data-action="unfollow-talent"]');
+    expect(title.root.textContent).toContain("Follow");
+    failNext("POST /api/talent", "status");
+    await click(title.root, '[data-action="follow-talent"]');
+    expect(title.root.textContent).toContain("Nope");
+    failNext("POST /api/talent", "offline");
+    await click(title.root, '[data-action="follow-talent"]');
+    expect(title.root.textContent).toContain("Could not update that follow.");
+    world.talentFailList = true;
+    await click(title.root, '[data-action="add-talent-title"]');
+    expect(title.root.textContent).toContain("Doc Night");
+    await inject(title.root, { "data-action": "add-talent-title", "data-kind": "show", "data-tmdb-id": "80" });
+    failNext("POST /api/tmdb", "offline");
+    await click(title.root, '[data-action="add-talent-title"]');
+    expect(title.root.textContent).toContain("Could not add that title.");
+    failNext("POST /api/tmdb", "status");
+    await click(title.root, '[data-action="add-talent-title"]');
+    expect(title.root.textContent).toContain("Nope");
+    await click(title.root, '[data-action="open-title"]');
+    expect(title.root.textContent).toContain("Scream");
+
+    failNext("GET /api/talent", "status");
+    arm("GET /api/talent");
+    const first = click(title.root, '[data-person-id="5"]');
+    await untilWaiting("GET /api/talent");
+    const second = inject(title.root, { "data-action": "open-talent", "data-person-id": "6" });
+    gates.get("GET /api/talent")?.release();
+    await first;
+    await second;
+    expect(title.root.textContent).toContain("Talent");
+
+    failNext("GET /api/talent", "offline");
+    arm("GET /api/talent");
+    const stalled = inject(title.root, { "data-action": "open-talent", "data-person-id": "5" });
+    await untilWaiting("GET /api/talent");
+    await click(title.root, '[data-action="view"][data-view="home"]');
+    gates.get("GET /api/talent")?.release();
+    await stalled;
+
+    world.downMode = "string";
+    world.down.add("/api/talent");
+    await inject(title.root, { "data-action": "open-talent", "data-person-id": "5" });
+    expect(title.root.textContent).toContain("Could not open that person.");
+    world.down.delete("/api/talent");
+    world.downMode = "status";
+
+    await inject(title.root, { "data-action": "open-talent", "data-person-id": "0" });
+    await inject(title.root, { "data-action": "open-talent", "data-person-id": "nope" });
+    await inject(title.root, { "data-action": "follow-talent" });
+    await inject(title.root, { "data-action": "add-talent-title", "data-kind": "book", "data-tmdb-id": "4" });
+    await inject(title.root, { "data-action": "add-talent-title", "data-kind": "movie", "data-tmdb-id": "0" });
+    await inject(title.root, { "data-action": "add-talent-title", "data-kind": "movie", "data-tmdb-id": "nope" });
+    await inject(title.root, { "data-action": "add-talent-title" });
+
+    const movie = await boot("/movie/3");
+    arm("GET /api/talent");
+    const nextTitle = inject(movie.root, { "data-action": "open-title", "data-id": "movie:2" });
+    await untilWaiting("GET /api/talent");
+    const leaveTitle = inject(movie.root, { "data-action": "open-title", "data-id": "movie:1" });
+    gates.get("GET /api/talent")?.release();
+    await nextTitle;
+    await leaveTitle;
+    expect(movie.root.textContent).toContain("Scream");
+    window.history.pushState({}, "", "/talent/5");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await settle();
+    expect(movie.root.textContent).toContain("Carpenter");
+
+    world.talentDirectors = [];
+    world.talentCast = [{ id: 6, name: "Jamie", role: "Laurie" }];
+    const documentary = await boot("/documentary/6");
+    expect(documentary.root.textContent).toContain("Jamie");
+
+    world.talentDirectors = [{ id: 5, name: "Carpenter", role: "Director" }];
+    world.talentCast = [];
+    const directed = await boot("/show/5");
+    expect(directed.root.textContent).toContain("Carpenter");
+    expect(directed.root.querySelectorAll(".talent-names")).toHaveLength(1);
+
+    world.talentFailTitle = true;
+    const missingCast = await boot("/show/4");
+    expect(missingCast.root.textContent).toContain("The Zone");
+    expect(missingCast.root.querySelector(".talent-chip")).toBeNull();
+    world.talentFailTitle = false;
+
+    const book = await boot("/book/7");
+    expect(book.root.querySelector(".title-talent")).toBeNull();
+
+    world.user = null;
+    const signedOut = await boot("/talent/5");
+    expect(signedOut.root.textContent).toContain("Sign in to follow directors and actors.");
+    await inject(signedOut.root, { "data-action": "open-talent", "data-person-id": "5" });
+    await inject(signedOut.root, { "data-action": "follow-talent" });
+    await inject(signedOut.root, { "data-action": "add-talent-title", "data-kind": "movie", "data-tmdb-id": "4" });
+    const guestTitle = await boot("/movie/1");
+    expect(guestTitle.root.querySelector(".title-talent")).toBeNull();
+
+    world.user = member;
+    world.talentFailList = true;
+    const quiet = await boot("/");
+    expect(quiet.root.textContent).not.toContain("People you follow");
+    await inject(quiet.root, { "data-action": "add-talent-title", "data-kind": "movie", "data-tmdb-id": "4" });
+  }, 20_000);
 });

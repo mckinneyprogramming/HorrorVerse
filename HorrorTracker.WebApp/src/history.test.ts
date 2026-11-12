@@ -43,6 +43,7 @@ describe("browser history places", () => {
       franchisesOpen: false,
       profileId: null,
       titleId: null,
+      talentId: null,
     });
     expect(parsePlace("/library/").view).toBe("library");
     expect(parsePlace("/profile").view).toBe("home");
@@ -64,5 +65,10 @@ describe("browser history places", () => {
     );
     expect(formatPlace({ ...noisy, view: "profile", profileId: 0 })).toBe("/account");
     expect(formatPlace({ ...noisy, view: "profile", profileId: null })).toBe("/account");
+    expect(formatPlace(parsePlace("/talent/42", ""))).toBe("/talent/42");
+    expect(parsePlace("/talent/0", "").view).toBe("home");
+    expect(parsePlace("/talent", "").view).toBe("home");
+    expect(formatPlace({ ...noisy, view: "talent", talentId: 0 })).toBe("/");
+    expect(formatPlace({ ...noisy, view: "talent", talentId: null })).toBe("/");
   });
 });

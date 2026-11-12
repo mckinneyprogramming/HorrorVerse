@@ -40,6 +40,7 @@ builder.Services.AddScoped<IgdbCatalogService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserLibraryService>();
 builder.Services.AddScoped<SocialService>();
+builder.Services.AddScoped<TalentCatalogService>();
 
 var app = builder.Build();
 
@@ -186,6 +187,12 @@ app.MapPost("/api/follows", (SocialWriteRequest body, HttpContext http, AuthServ
     WriteSignedIn(http, auth, user => Results.Json(new { person = social.Follow(user, body.UserId) })));
 app.MapDelete("/api/follows", (int? id, HttpContext http, AuthService auth, SocialService social) =>
     WriteSignedIn(http, auth, user => Results.Json(new { person = social.Unfollow(user, id) })));
+app.MapGet("/api/talent", async (string? title, string? person, HttpContext http, AuthService auth, TalentCatalogService talent) =>
+    await WriteSignedInUserAsync(http, auth, user => talent.GetAsync(user, title, person, http.RequestAborted)));
+app.MapPost("/api/talent", async (TalentFollowRequest body, HttpContext http, AuthService auth, TalentCatalogService talent) =>
+    await WriteSignedInUserAsync(http, auth, user => talent.FollowAsync(user, body.PersonId, http.RequestAborted)));
+app.MapDelete("/api/talent", async (int? person, HttpContext http, AuthService auth, TalentCatalogService talent) =>
+    await WriteSignedInUserAsync(http, auth, user => talent.UnfollowAsync(user, person, http.RequestAborted)));
 app.MapGet("/api/auth", (HttpContext http, AuthService auth) =>
 {
     return Results.Json(new { user = auth.GetCurrent(AuthCookies.Read(http.Request)) });

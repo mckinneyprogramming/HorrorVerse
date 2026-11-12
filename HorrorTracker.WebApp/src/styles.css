@@ -1961,6 +1961,126 @@ code {
   font-size: 0.82rem;
 }
 
+.title-talent,
+.talent-shelf {
+  display: grid;
+  gap: 14px;
+}
+
+.talent-names h2,
+.talent-shelf h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.talent-shelf > p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.talent-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.talent-chip,
+.talent-follow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.talent-chip {
+  flex: 0 0 76px;
+  flex-direction: column;
+  text-align: center;
+}
+
+.talent-chip img,
+.talent-follow img,
+.talent-portrait {
+  object-fit: cover;
+  background: var(--surface);
+}
+
+.talent-chip img,
+.talent-letter {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+}
+
+.talent-follow img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.talent-letter {
+  display: grid;
+  place-items: center;
+  background: var(--surface-alt);
+  color: var(--text);
+  font-family: var(--font-display);
+}
+
+.talent-letter-large,
+.talent-portrait {
+  width: 120px;
+  height: 180px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+
+.talent-chip strong,
+.talent-chip em,
+.talent-follow strong,
+.talent-follow em {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.talent-chip em,
+.talent-follow em {
+  color: var(--text-muted);
+  font-style: normal;
+  font-size: 0.78rem;
+}
+
+.talent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.talent-follow {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.talent-page .people-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
 @media (display-mode: standalone) {
   .app {
     min-height: 100dvh;

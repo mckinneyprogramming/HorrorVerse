@@ -42,6 +42,16 @@ import {
   type UserList,
 } from "./lists";
 import { fetchSynopsis, importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
+import {
+  fetchFollowedTalent,
+  fetchTalentPerson,
+  fetchTitleTalent,
+  followTalent,
+  unfollowTalent,
+  type TalentFollow,
+  type TalentName,
+  type TalentPerson,
+} from "./talent";
 import { fetchUpcoming, type UpcomingTitle } from "./upcoming";
 import {
   fetchFriends,
@@ -76,7 +86,7 @@ import {
 } from "./franchises";
 import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUpdate, isIosDevice, isStandalone, onInstallAvailabilityChange, promptInstall } from "./pwa";
 
-type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install" | "stats" | "title";
+type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install" | "stats" | "title" | "talent";
 type UpcomingPane = "films" | "shows";
 type LibraryFilter = MediaKind | "all";
 type LibrarySort = "title" | "oldest" | "newest";
@@ -166,6 +176,12 @@ interface AppState {
   badgeId: string | null;
   profileId: number | null;
   titleId: string | null;
+  talentId: number | null;
+  titleTalent: { titleId: string; directors: TalentName[]; cast: TalentName[] } | null;
+  talentPerson: TalentPerson | null;
+  talentFollows: TalentFollow[];
+  talentMessage: string;
+  talentBusy: boolean;
 }
 
 const state: AppState = {
@@ -244,6 +260,12 @@ const state: AppState = {
   badgeId: null,
   profileId: null,
   titleId: null,
+  talentId: null,
+  titleTalent: null,
+  talentPerson: null,
+  talentFollows: [],
+  talentMessage: "",
+  talentBusy: false,
 };
 
 let suppressHistory = true;
@@ -268,6 +290,9 @@ export function mountApp(root: HTMLElement): void {
     }
     if (state.view === "title") {
       await ensureTitleExtras(root);
+    }
+    if (state.view === "talent" && state.talentId) {
+      await openTalent(root, state.talentId);
     }
     if (state.user) {
       await applyVaultRefresh(root);
@@ -360,8 +385,51 @@ export function mountApp(root: HTMLElement): void {
       closeFranchiseSheets();
       state.view = "title";
       state.titleId = titleId;
+      state.titleTalent = state.titleTalent?.titleId === titleId ? state.titleTalent : null;
       render(root);
       await ensureTitleExtras(root);
+      return;
+    }
+
+    if (action === "open-talent") {
+      const personId = Number(target.dataset.personId);
+      if (!state.user || !Number.isInteger(personId) || personId < 1) {
+        return;
+      }
+
+      await openTalent(root, personId);
+      return;
+    }
+
+    if (action === "follow-talent" || action === "unfollow-talent") {
+      const personId = state.talentPerson?.id;
+      if (!state.user || !personId) {
+        return;
+      }
+
+      await setTalentFollow(root, personId, action === "follow-talent");
+      return;
+    }
+
+    if (action === "add-talent-title") {
+      const kind = target.dataset.kind ?? "";
+      const tmdbId = Number(target.dataset.tmdbId);
+      if (!state.user || (kind !== "movie" && kind !== "documentary" && kind !== "show") || !Number.isInteger(tmdbId) || tmdbId < 1) {
+        return;
+      }
+
+      await addTalentTitle(root, kind, tmdbId);
+      return;
+    }
+
+    if (action === "back") {
+      if (window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+
+      state.view = "home";
+      render(root);
       return;
     }
 
@@ -1714,6 +1782,8 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.profilePerson = null;
     state.peopleResults = [];
     state.friendInbox = { friends: [], incoming: [], outgoing: [], following: [] };
+    state.talentFollows = [];
+    state.talentPerson = null;
     render(root);
     await refreshSocial();
     renderRecapShare();
@@ -1739,6 +1809,11 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     }
 
     await refreshSocial();
+    try {
+      state.talentFollows = await fetchFollowedTalent();
+    } catch {
+      state.talentFollows = [];
+    }
     render(root);
 }
 
@@ -1967,6 +2042,7 @@ function render(root: HTMLElement): void {
         ${state.view === "stats" ? renderStatsPage() : ""}
         ${state.view === "profile" ? renderPersonProfile() : ""}
         ${state.view === "title" ? renderTitlePage() : ""}
+        ${state.view === "talent" ? renderTalentPage() : ""}
         ${state.view === "install" ? renderInstall(standalone) : ""}
       </main>
       ${state.view === "library" && state.user?.isAdmin ? `<button class="fab" type="button" data-action="open-add" aria-label="Add a title">+</button>` : ""}
@@ -2001,6 +2077,7 @@ function placeFromState(): AppPlace {
     franchisesOpen: state.view === "library" && !state.franchisesCollapsed,
     profileId: state.view === "profile" ? state.profileId : null,
     titleId: state.view === "title" ? state.titleId : null,
+    talentId: state.view === "talent" ? state.talentId : null,
   };
 }
 
@@ -2014,6 +2091,7 @@ function applyPlace(place: AppPlace): void {
   }
   state.profileId = place.profileId;
   state.titleId = place.view === "title" ? place.titleId : null;
+  state.talentId = place.view === "talent" ? place.talentId : null;
   if (place.view !== "profile") {
     state.profilePerson = null;
   }
@@ -2055,6 +2133,9 @@ async function restorePlace(root: HTMLElement): Promise<void> {
   }
   if (place.view === "title") {
     await ensureTitleExtras(root);
+  }
+  if (place.view === "talent" && place.talentId) {
+    await openTalent(root, place.talentId);
   }
 }
 
@@ -2112,6 +2193,7 @@ function renderHome(): string {
     </section>
     ${renderWatchNext()}
     ${renderReadNext()}
+    ${renderTalentShelf()}
     ${renderHomeRecents()}
     ${renderAchievements()}
     <section class="kinds">
@@ -4362,6 +4444,7 @@ function renderTitlePage(): string {
             : ""
       }
       ${keywords.length > 0 ? `<p class="fine-print">${keywords.map((keyword) => escapeHtml(keyword)).join(" · ")}</p>` : ""}
+      ${renderTitleTalent(entry)}
       <div class="title-actions">
         ${
           state.user
@@ -4398,8 +4481,276 @@ function renderTitlePage(): string {
   `;
 }
 
+function renderTitleTalent(entry: CatalogEntry): string {
+  if (!state.user || (entry.kind !== "movie" && entry.kind !== "documentary" && entry.kind !== "show")) {
+    return "";
+  }
+
+  const credits = state.titleTalent?.titleId === entry.id ? state.titleTalent : undefined;
+  if (!credits || (credits.directors.length < 1 && credits.cast.length < 1)) {
+    return "";
+  }
+
+  return `
+    <section class="title-talent" aria-label="People">
+      ${credits.directors.length > 0 ? renderTalentNames(credits.directors.length > 1 ? "Directors" : "Director", credits.directors) : ""}
+      ${credits.cast.length > 0 ? renderTalentNames("Cast", credits.cast) : ""}
+    </section>
+  `;
+}
+
+function renderTalentNames(label: string, people: TalentName[]): string {
+  return `
+    <div class="talent-names">
+      <h2>${escapeHtml(label)}</h2>
+      <div class="talent-strip">
+        ${people.map((person) => renderTalentChip(person)).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderTalentChip(person: TalentName): string {
+  const face = posterUrl(person.profilePath, "w185");
+  return `
+    <button class="talent-chip" type="button" data-action="open-talent" data-person-id="${person.id}">
+      ${
+        face
+          ? `<img src="${escapeHtml(face)}" alt="" width="64" height="64" decoding="async" referrerpolicy="no-referrer" />`
+          : `<span class="talent-letter">${escapeHtml(person.name.slice(0, 1))}</span>`
+      }
+      <strong>${escapeHtml(person.name)}</strong>
+      <em>${escapeHtml(person.role)}</em>
+    </button>
+  `;
+}
+
+function renderTalentShelf(): string {
+  if (!state.user || state.talentFollows.length < 1) {
+    return "";
+  }
+
+  return `
+    <section class="talent-shelf" aria-label="People you follow">
+      <h2>People you follow</h2>
+      <p>Horror movies, shows, and documentaries from the directors and actors you follow.</p>
+      <ul class="talent-list">
+        ${state.talentFollows.map((person) => renderTalentFollow(person)).join("")}
+      </ul>
+    </section>
+  `;
+}
+
+function renderTalentFollow(person: TalentFollow): string {
+  const face = posterUrl(person.profilePath, "w185");
+  return `
+    <li>
+      <button class="talent-follow" type="button" data-action="open-talent" data-person-id="${person.id}">
+        ${
+          face
+            ? `<img src="${escapeHtml(face)}" alt="" width="48" height="48" decoding="async" referrerpolicy="no-referrer" />`
+            : `<span class="talent-letter">${escapeHtml(person.name.slice(0, 1))}</span>`
+        }
+        <span>
+          <strong>${escapeHtml(person.name)}</strong>
+          <em>${person.watched} of ${person.total} finished</em>
+        </span>
+      </button>
+    </li>
+  `;
+}
+
+function renderTalentPage(): string {
+  const person = state.talentPerson?.id === state.talentId ? state.talentPerson : undefined;
+  if (!state.user) {
+    return `
+      <header class="page-head">
+        <p class="eyebrow">People</p>
+        <h1>Sign in to follow directors and actors.</h1>
+      </header>
+      <button class="ghost-btn" type="button" data-action="view" data-view="account">Sign in</button>
+    `;
+  }
+
+  if (!person) {
+    return `
+      <header class="page-head">
+        <p class="eyebrow">People</p>
+        <h1>${state.talentBusy ? "Opening their horror work…" : "That person is not available."}</h1>
+      </header>
+      ${state.talentMessage ? `<p class="status is-error">${escapeHtml(state.talentMessage)}</p>` : ""}
+      <button class="ghost-btn" type="button" data-action="back">Back</button>
+    `;
+  }
+
+  const face = posterUrl(person.profilePath, "w342");
+  return `
+    <article class="title-page talent-page">
+      <button class="ghost-btn title-back" type="button" data-action="back">Back</button>
+      <header class="title-hero">
+        ${
+          face
+            ? `<img class="talent-portrait" src="${escapeHtml(face)}" alt="" width="120" height="180" decoding="async" referrerpolicy="no-referrer" />`
+            : `<span class="talent-letter talent-letter-large">${escapeHtml(person.name.slice(0, 1))}</span>`
+        }
+        <div class="title-copy">
+          <p class="eyebrow">${escapeHtml(person.knownFor ? `Known for ${person.knownFor}` : "People")}</p>
+          <h1>${escapeHtml(person.name)}</h1>
+          <p>${person.watched} of ${person.total} horror titles finished</p>
+        </div>
+      </header>
+      <div class="title-actions">
+        <button class="ghost-btn" type="button" data-action="${person.following ? "unfollow-talent" : "follow-talent"}" ${state.talentBusy ? "disabled" : ""}>${person.following ? "Following" : "Follow"}</button>
+      </div>
+      ${state.talentMessage ? `<p class="status is-error">${escapeHtml(state.talentMessage)}</p>` : ""}
+      <p class="fine-print">Horror movies, shows, and documentaries. Following someone keeps this list and leaves the vault unchanged until you add a title.</p>
+      ${
+        person.credits.length > 0
+          ? `<ul class="catalog">${person.credits.map((credit) => renderTalentCredit(credit)).join("")}</ul>`
+          : `<p class="fine-print">No horror credits yet.</p>`
+      }
+    </article>
+  `;
+}
+
+function renderTalentCredit(credit: TalentPerson["credits"][number]): string {
+  const art = posterUrl(credit.posterPath, "w185");
+  const detail = [credit.year ? String(credit.year) : "", credit.role].filter(Boolean).join(" · ");
+  return `
+    <li class="entry${credit.finished ? " is-done" : ""}">
+      <div class="entry-open">
+        ${art ? `<img class="entry-poster" src="${escapeHtml(art)}" alt="" width="40" height="60" decoding="async" referrerpolicy="no-referrer" />` : ""}
+        <span class="entry-copy">
+          <strong>${escapeHtml(credit.title)}</strong>
+          ${detail ? `<em>${escapeHtml(detail)}</em>` : ""}
+        </span>
+      </div>
+      <div class="people-actions">
+        ${
+          credit.vaultId
+            ? `<button class="ghost-btn" type="button" data-action="open-title" data-id="${escapeHtml(credit.vaultId)}">Open</button>`
+            : `<button class="ghost-btn" type="button" data-action="add-talent-title" data-kind="${escapeHtml(credit.kind)}" data-tmdb-id="${credit.tmdbId}" ${state.talentBusy ? "disabled" : ""}>Add</button>`
+        }
+        ${credit.finished ? `<span class="fine-print">Finished</span>` : ""}
+      </div>
+    </li>
+  `;
+}
+
+async function ensureTitleTalent(root: HTMLElement): Promise<void> {
+  const entry = state.entries.find((item) => item.id === state.titleId);
+  if (!entry || !state.user || state.view !== "title") {
+    return;
+  }
+
+  if (entry.kind !== "movie" && entry.kind !== "documentary" && entry.kind !== "show") {
+    return;
+  }
+
+  if (state.titleTalent?.titleId === entry.id) {
+    return;
+  }
+
+  try {
+    const credits = await fetchTitleTalent(entry.id);
+    if (state.view !== "title" || state.titleId !== entry.id) {
+      return;
+    }
+
+    state.titleTalent = { titleId: entry.id, ...credits };
+    render(root);
+  } catch {
+    // The title page still works when the cast lookup fails.
+  }
+}
+
+async function openTalent(root: HTMLElement, personId: number): Promise<void> {
+  state.view = "talent";
+  state.talentId = personId;
+  state.talentMessage = "";
+  state.talentBusy = true;
+  state.badgeId = null;
+  state.sheet = null;
+  state.listPicker = null;
+  state.franchiseListPicker = null;
+  state.watchSheet = null;
+  state.whenPicker = null;
+  state.whenEpisode = null;
+  closeFranchiseSheets();
+  if (state.talentPerson?.id !== personId) {
+    state.talentPerson = null;
+  }
+
+  if (!state.user) {
+    state.talentBusy = false;
+    render(root);
+    return;
+  }
+
+  render(root);
+  try {
+    const person = await fetchTalentPerson(personId);
+    if (state.view !== "talent" || state.talentId !== personId) {
+      return;
+    }
+
+    state.talentPerson = person;
+  } catch (error) {
+    if (state.view === "talent" && state.talentId === personId) {
+      state.talentMessage = error instanceof Error ? error.message : "Could not open that person.";
+    }
+  }
+
+  if (state.view === "talent" && state.talentId === personId) {
+    state.talentBusy = false;
+    render(root);
+  }
+}
+
+async function setTalentFollow(root: HTMLElement, personId: number, follow: boolean): Promise<void> {
+  state.talentBusy = true;
+  state.talentMessage = "";
+  render(root);
+  try {
+    state.talentPerson = follow ? await followTalent(personId) : await unfollowTalent(personId);
+    state.talentFollows = await fetchFollowedTalent();
+  } catch (error) {
+    state.talentMessage = error instanceof Error ? error.message : "Could not update that follow.";
+  }
+
+  state.talentBusy = false;
+  render(root);
+}
+
+async function addTalentTitle(root: HTMLElement, kind: "movie" | "documentary" | "show", tmdbId: number): Promise<void> {
+  const personId = state.talentId;
+  if (!personId) {
+    return;
+  }
+
+  state.talentBusy = true;
+  state.talentMessage = "";
+  render(root);
+  try {
+    await importTmdb(kind, tmdbId);
+    state.entries = await fetchCatalog();
+    state.talentPerson = await fetchTalentPerson(personId);
+    try {
+      state.talentFollows = await fetchFollowedTalent();
+    } catch {
+      state.talentFollows = [];
+    }
+  } catch (error) {
+    state.talentMessage = error instanceof Error ? error.message : "Could not add that title.";
+  }
+
+  state.talentBusy = false;
+  render(root);
+}
+
 async function ensureTitleExtras(root: HTMLElement): Promise<void> {
   await ensureTitleSynopsis(root);
+  await ensureTitleTalent(root);
   const entry = state.entries.find((item) => item.id === state.titleId);
   if (!entry || entry.kind !== "show" || !state.user || state.view !== "title") {
     return;
