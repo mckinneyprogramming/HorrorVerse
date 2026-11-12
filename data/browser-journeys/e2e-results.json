@@ -18,24 +18,24 @@
     "maxFailures": 0,
     "metadata": {
       "ci": {
-        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-        "commitHash": "071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43282097364"
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+        "commitHash": "1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43285507475"
       },
       "gitCommit": {
-        "shortHash": "071ba08",
-        "hash": "071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-        "subject": "Cover the remaining talent branches so the coverage gate stays at 100%.",
-        "body": "Cover the remaining talent branches so the coverage gate stays at 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "shortHash": "1fbc67d",
+        "hash": "1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+        "subject": "Cover the last talent branches that left the coverage gate at 99.9%.",
+        "body": "Cover the last talent branches that left the coverage gate at 99.9%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
         "author": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794508720000
+          "time": 1794509841000
         },
         "committer": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794508720000
+          "time": 1794509841000
         },
         "branch": "master"
       },
@@ -49,24 +49,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-            "commitHash": "071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43282097364"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+            "commitHash": "1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43285507475"
           },
           "gitCommit": {
-            "shortHash": "071ba08",
-            "hash": "071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-            "subject": "Cover the remaining talent branches so the coverage gate stays at 100%.",
-            "body": "Cover the remaining talent branches so the coverage gate stays at 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "1fbc67d",
+            "hash": "1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+            "subject": "Cover the last talent branches that left the coverage gate at 99.9%.",
+            "body": "Cover the last talent branches that left the coverage gate at 99.9%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794508720000
+              "time": 1794509841000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794508720000
+              "time": 1794509841000
             },
             "branch": "master"
           },
@@ -91,24 +91,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-            "commitHash": "071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43282097364"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+            "commitHash": "1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43285507475"
           },
           "gitCommit": {
-            "shortHash": "071ba08",
-            "hash": "071ba08798c2aed96e7e101ef6cfd7c1888e99c8",
-            "subject": "Cover the remaining talent branches so the coverage gate stays at 100%.",
-            "body": "Cover the remaining talent branches so the coverage gate stays at 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "1fbc67d",
+            "hash": "1fbc67d34a269730e6ccf7d9dfc6545255f61740",
+            "subject": "Cover the last talent branches that left the coverage gate at 99.9%.",
+            "body": "Cover the last talent branches that left the coverage gate at 99.9%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794508720000
+              "time": 1794509841000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794508720000
+              "time": 1794509841000
             },
             "branch": "master"
           },
@@ -201,12 +201,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 500,
+                  "duration": 3205,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T18:39:59.654Z",
+                  "startTime": "2026-11-12T19:00:07.080Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -235,12 +235,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 484,
+                  "duration": 487,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T18:40:00.434Z",
+                  "startTime": "2026-11-12T19:00:10.579Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -269,12 +269,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 531,
+                  "duration": 487,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T18:40:00.939Z",
+                  "startTime": "2026-11-12T19:00:11.079Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -303,12 +303,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 359,
+                  "duration": 342,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T18:40:01.482Z",
+                  "startTime": "2026-11-12T19:00:11.579Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -337,12 +337,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 184,
+                  "duration": 207,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T18:40:01.855Z",
+                  "startTime": "2026-11-12T19:00:11.936Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -360,8 +360,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-12T18:39:58.633Z",
-    "duration": 3493.108,
+    "startTime": "2026-11-12T19:00:06.103Z",
+    "duration": 6114.424,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,
