@@ -197,7 +197,7 @@ public sealed class TalentCatalogService(IConfiguration configuration)
     private List<TalentCreditDto> Annotate(int userId, IReadOnlyList<StoredCredit> credits)
     {
         var vault = VaultByTmdb();
-        var finished = userId > 0 ? FinishedIds(userId) : [];
+        var finished = FinishedIds(userId);
         return credits.Select(credit =>
         {
             vault.TryGetValue($"{credit.Kind}:{credit.TmdbId}", out var vaultId);
@@ -227,16 +227,11 @@ public sealed class TalentCatalogService(IConfiguration configuration)
             SELECT 'show', id, tmdbid FROM show WHERE tmdbid IS NOT NULL
             """;
         using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var kind = reader.IsDBNull(0) ? "" : reader.GetString(0);
-            var id = ReadId(reader, 1);
-            var tmdbId = ReadId(reader, 2);
-            if (kind is "movie" or "documentary" or "show" && id is int mediaId && tmdbId is int sourceId)
+            while (reader.Read())
             {
-                vault[$"{kind}:{sourceId}"] = $"{kind}:{mediaId}";
+                var kind = reader.GetString(0);
+                vault[$"{kind}:{reader.GetInt32(2)}"] = $"{kind}:{reader.GetInt32(1)}";
             }
-        }
 
         return vault;
     }
@@ -253,15 +248,10 @@ public sealed class TalentCatalogService(IConfiguration configuration)
             """;
         command.Parameters.AddWithValue("userId", userId);
         using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            var kind = reader.IsDBNull(0) ? "" : reader.GetString(0);
-            var id = ReadId(reader, 1);
-            if (kind.Length > 0 && id is int mediaId)
+            while (reader.Read())
             {
-                ids.Add($"{kind}:{mediaId}");
+                ids.Add($"{reader.GetString(0)}:{reader.GetInt32(1)}");
             }
-        }
 
         return ids;
     }
@@ -305,7 +295,7 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         command.CommandText = "SELECT 1 FROM user_talent_follow WHERE user_id = @userId AND person_id = @personId";
         command.Parameters.AddWithValue("userId", userId);
         command.Parameters.AddWithValue("personId", personId);
-        return command.ExecuteScalar() is not null and not DBNull;
+        return command.ExecuteScalar() is not null;
     }
 
     private int? LookupTmdbId(string kind, int mediaId)
@@ -456,7 +446,7 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         }
 
         var id = Convert.ToInt64(value);
-        return id > 0 && id <= int.MaxValue ? (int)id : null;
+        return id > 0 ? (int)id : null;
     }
 
     private static string? PosterOrNull(string? path)

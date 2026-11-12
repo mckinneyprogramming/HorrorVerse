@@ -52,6 +52,11 @@ public class TalentCatalogTests
 
             if (url.Contains("/person/501", StringComparison.Ordinal))
             {
+                if (mode == "hide-501")
+                {
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+                }
+
                 return Task.FromResult(CoverageSupport.Json("""{"id":501,"name":"Quiet","combined_credits":{"cast":[],"crew":[]}}"""));
             }
 
@@ -92,9 +97,16 @@ public class TalentCatalogTests
                 $"INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched, tmdbid) VALUES ('Talent Show {stamp}', 40, 1, 1, false, 80) RETURNING id"));
             var documentaryId = Convert.ToInt32(await CoverageSupport.Scalar<object>(connectionString,
                 $"INSERT INTO documentary (title, totaltime, releaseyear, watched) VALUES ('Talent Doc {stamp}', 50, 2001, false) RETURNING id"));
+            await CoverageSupport.Exec(connectionString,
+                $"INSERT INTO documentary (title, totaltime, releaseyear, watched, tmdbid) VALUES ('Talent Doc Match {stamp}', 50, 2010, false, 78)");
             Assert.Equal(HttpStatusCode.OK, (await client.PatchAsJsonAsync("/api/progress", new { id = $"movie:{movieId}", completed = true, dated = true })).StatusCode);
 
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/talent?title=book:1")).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/talent?title=movie")).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/talent?title=movie:0")).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/talent?title=movie:abc")).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/talent?title=movie:999999")).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/talent?person=nope")).StatusCode);
             var movieCredits = await client.GetFromJsonAsync<JsonElement>($"/api/talent?title=movie:{movieId}");
             Assert.Equal("Carpenter", movieCredits.GetProperty("directors")[0].GetProperty("name").GetString());
             var showCredits = await client.GetFromJsonAsync<JsonElement>($"/api/talent?title=show:{showId}");
@@ -112,9 +124,28 @@ public class TalentCatalogTests
             Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/talent", new { personId = 500 })).StatusCode);
             Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/talent", new { personId = 501 })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/talent", new { personId = 0 })).StatusCode);
-            await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind) VALUES (500, 'nope', 1, 'Skip', 'Cast', 'movie')");
+            await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind, release_year, poster_path) VALUES (500, 'nope', 1, 'Skip', 'Cast', 'movie', NULL, NULL)");
+            await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind) VALUES (500, 'movie', 0, 'Zero', 'Cast', 'movie')");
+            await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind) VALUES (500, 'movie', 2, '', 'Cast', 'movie')");
+            await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind) VALUES (500, 'movie', 3, 'Ok', 'Cast', 'book')");
+            await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind) VALUES (500, 'movie', 4, 'Ok', '', 'movie')");
+            await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind) VALUES (500, 'movie', 5, '" + new string('T', 201) + "', 'Cast', 'movie')");
+            await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind, release_year) VALUES (500, 'movie', 6, 'Bare', '" + new string('R', 121) + "', 'movie', 0)");
+            await CoverageSupport.Exec(connectionString, "UPDATE talent_filmography SET poster_path = '/" + new string('a', 160) + "' WHERE person_id = 500 AND tmdb_id = 77");
+            await CoverageSupport.Exec(connectionString, "UPDATE talent_filmography SET poster_path = '/h.jpg' WHERE person_id = 500 AND tmdb_id = 78");
+            var userId = Convert.ToInt32(await CoverageSupport.Scalar<object>(connectionString, $"SELECT id FROM app_user WHERE email = 'talent-{stamp}@example.com'"));
+            await CoverageSupport.Exec(connectionString, $"UPDATE user_talent_follow SET profile_path = '/../x' WHERE user_id = {userId} AND person_id = 500");
+            await CoverageSupport.Exec(connectionString, $"UPDATE user_talent_follow SET profile_path = '   ' WHERE user_id = {userId} AND person_id = 501");
+            await CoverageSupport.Exec(connectionString, $"INSERT INTO user_talent_follow (user_id, person_id, name) VALUES ({userId}, 9, '')");
+            await CoverageSupport.Exec(connectionString, $"INSERT INTO user_talent_follow (user_id, person_id, name) VALUES ({userId}, 8, '{new string('n', 201)}')");
             var people = await client.GetFromJsonAsync<JsonElement>("/api/talent");
             Assert.Contains(people.GetProperty("people").EnumerateArray(), person => person.GetProperty("id").GetInt32() == 500 && person.GetProperty("watched").GetInt32() == 1);
+            await CoverageSupport.Exec(connectionString, $"UPDATE user_talent_follow SET known_for = '{new string('k', 50)}' WHERE user_id = {userId} AND person_id = 500");
+
+            mode = "hide-501";
+            var hidden = await client.GetFromJsonAsync<JsonElement>("/api/talent");
+            Assert.Contains(hidden.GetProperty("people").EnumerateArray(), person => person.GetProperty("id").GetInt32() == 501 && person.GetProperty("total").GetInt32() == 0);
+            mode = "ok";
 
             mode = "throw";
             var thrown = await client.GetFromJsonAsync<JsonElement>($"/api/talent?title=movie:{movieId}");

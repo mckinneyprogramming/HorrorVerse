@@ -13,7 +13,7 @@ public class TalentFilmographyTests
                 {"id": 2, "name": "Carpenter", "job": " Director ", "profile_path": "/c.jpg"},
                 {"id": 2, "name": "Carpenter", "job": "Director"},
                 {"id": 3, "name": "Assistant", "job": "Assistant Director"},
-                {"id": 4, "name": "Two", "job": "Director"},
+                {"id": 4, "name": "Two", "job": "Director", "profile_path": "/a b.jpg"},
                 {"id": 5, "name": "Three", "job": "Director"},
                 {"id": 6, "name": "Four", "job": "Director"},
                 {"id": 7, "name": "Five", "job": "Director"}],
@@ -22,6 +22,7 @@ public class TalentFilmographyTests
                 {"id": 8, "name": "First", "order": 0, "character": " LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL ", "profile_path": "/a.jpg"},
                 {"id": 8, "name": "First", "order": 0, "character": "Again"},
                 {"id": 10, "name": "Unbilled"},
+                {"id": 17, "name": "Negative", "order": -1, "character": "N"},
                 {"id": 11, "name": "Six", "order": 6},
                 {"id": 12, "name": "Seven", "order": 7},
                 {"id": 13, "name": "Eight", "order": 8},
@@ -42,6 +43,8 @@ public class TalentFilmographyTests
     [Fact]
     public void ReadPerson_KeepsHorrorCredits()
     {
+        using var bare = JsonDocument.Parse("""{"name":"Bare"}""");
+        Assert.Empty(TalentFilmographyReader.ReadPerson(bare.RootElement)!.Credits);
         using var empty = JsonDocument.Parse("""{"name":" "}""");
         Assert.Null(TalentFilmographyReader.ReadPerson(empty.RootElement));
         using var list = JsonDocument.Parse("""{"name":"Busy","combined_credits":[]}""");
@@ -55,18 +58,26 @@ public class TalentFilmographyTests
               {"id":18,"media_type":"movie","title":"Thriller","genre_ids":[53],"character":"Guest"},
               {"id":19,"media_type":"person","title":"Self","genre_ids":[27]},
               {"media_type":"movie","title":"No Id","genre_ids":[27]},
-              {"id":22,"media_type":"movie","title":" ","genre_ids":[27]}
+              {"id":22,"media_type":"movie","title":" ","genre_ids":[27]},
+              {"id":30,"media_type":"movie","title":"Old","genre_ids":[27],"release_date":"1800-01-01","poster_path":"/a b.jpg","character":"A"},
+              {"id":31,"media_type":"movie","title":"Alpha","genre_ids":[27],"release_date":"2021-01-01","character":"A"},
+              {"id":32,"media_type":"movie","title":"Beta","genre_ids":[27],"release_date":"2021-01-01","character":"B"},
+              {"id":33,"media_type":"movie","title":"No Genre","character":"A"}
             ],"crew":[
               {"id":15,"media_type":"movie","title":"Halloween","job":"Director","genre_ids":[27],"poster_path":"nope"},
+              {"id":15,"media_type":"movie","title":"Halloween","job":"Director","genre_ids":[27]},
               {"id":20,"media_type":"movie","title":"Later","job":"Director","genre_ids":[27],"release_date":"2020-05-01","poster_path":"/later.jpg"},
               {"id":20,"media_type":"movie","title":"Later","job":"Director","genre_ids":[27]},
-              {"id":17,"media_type":"tv","name":"Zone","job":"Director","genre_ids":[27]}
+              {"id":17,"media_type":"tv","name":"Zone","job":"Director","genre_ids":[27]},
+              {"id":34,"media_type":"movie","title":"No Job","genre_ids":[27]}
             ]}}
             """);
         var film = TalentFilmographyReader.ReadPerson(jamie.RootElement)!;
         Assert.Equal("Laurie · Director", film.Credits.Single(credit => credit.TmdbId == 15).Role);
         Assert.Equal("documentary", film.Credits.Single(credit => credit.TmdbId == 16).Kind);
-        Assert.Equal("show", film.Credits.Single(credit => credit.TmdbId == 17).Kind);
+        Assert.Equal("Alpha", film.Credits.First(credit => credit.Year == 2021).Title);
+        Assert.Null(film.Credits.Single(credit => credit.TmdbId == 30).Year);
+        Assert.Null(film.Credits.Single(credit => credit.TmdbId == 30).PosterPath);
 
         var cast = string.Join(",", Enumerable.Range(1, 121).Select(id =>
             "{\"id\":" + id + ",\"media_type\":\"movie\",\"title\":\"Film " + id.ToString("000") + "\",\"release_date\":\"" + (1888 + id - 1) + "-01-01\",\"genre_ids\":[27],\"character\":\"A\"}"));

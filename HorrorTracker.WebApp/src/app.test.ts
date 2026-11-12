@@ -2097,7 +2097,6 @@ describe("mountApp", () => {
     await click(title.root, '[data-action="open-title"]');
     expect(title.root.textContent).toContain("Scream");
 
-    failNext("GET /api/talent", "status");
     arm("GET /api/talent");
     const first = click(title.root, '[data-person-id="5"]');
     await untilWaiting("GET /api/talent");
@@ -2114,6 +2113,17 @@ describe("mountApp", () => {
     await click(title.root, '[data-action="view"][data-view="home"]');
     gates.get("GET /api/talent")?.release();
     await stalled;
+
+    arm("GET /api/talent");
+    const leaving = inject(title.root, { "data-action": "open-talent", "data-person-id": "5" });
+    await untilWaiting("GET /api/talent");
+    await click(title.root, '[data-action="view"][data-view="home"]');
+    gates.get("GET /api/talent")?.release();
+    await leaving;
+
+    failNext("GET /api/talent", "status");
+    await inject(title.root, { "data-action": "open-talent", "data-person-id": "5" });
+    expect(title.root.textContent).toContain("Nope");
 
     world.downMode = "string";
     world.down.add("/api/talent");

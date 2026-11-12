@@ -4622,7 +4622,7 @@ function renderTalentCredit(credit: TalentPerson["credits"][number]): string {
         ${art ? `<img class="entry-poster" src="${escapeHtml(art)}" alt="" width="40" height="60" decoding="async" referrerpolicy="no-referrer" />` : ""}
         <span class="entry-copy">
           <strong>${escapeHtml(credit.title)}</strong>
-          ${detail ? `<em>${escapeHtml(detail)}</em>` : ""}
+          <em>${escapeHtml(detail)}</em>
         </span>
       </div>
       <div class="people-actions">
