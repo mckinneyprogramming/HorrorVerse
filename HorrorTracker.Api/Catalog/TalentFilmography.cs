@@ -219,7 +219,7 @@ internal static class TalentFilmography
             return "";
         }
 
-        return value.GetString()?.Trim() ?? "";
+        return value.GetString()!.Trim();
     }
 
     private static string FirstText(JsonElement item, string first, string second)

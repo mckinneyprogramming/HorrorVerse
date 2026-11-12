@@ -122,6 +122,9 @@ public class TalentCatalogTests
                 credit.GetProperty("tmdbId").GetInt32() == 77 && credit.GetProperty("finished").GetBoolean());
 
             Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/talent", new { personId = 500 })).StatusCode);
+            var followed = await client.GetFromJsonAsync<JsonElement>("/api/talent?person=500");
+            Assert.True(followed.GetProperty("person").GetProperty("following").GetBoolean());
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/talent", new { personId = 500 })).StatusCode);
             Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/talent", new { personId = 501 })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/talent", new { personId = 0 })).StatusCode);
             await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind, release_year, poster_path) VALUES (500, 'nope', 1, 'Skip', 'Cast', 'movie', NULL, NULL)");
@@ -133,9 +136,11 @@ public class TalentCatalogTests
             await CoverageSupport.Exec(connectionString, "INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind, release_year) VALUES (500, 'movie', 6, 'Bare', '" + new string('R', 121) + "', 'movie', 0)");
             await CoverageSupport.Exec(connectionString, "UPDATE talent_filmography SET poster_path = '/" + new string('a', 160) + "' WHERE person_id = 500 AND tmdb_id = 77");
             await CoverageSupport.Exec(connectionString, "UPDATE talent_filmography SET poster_path = '/h.jpg' WHERE person_id = 500 AND tmdb_id = 78");
+            await CoverageSupport.Exec(connectionString, "UPDATE talent_filmography SET poster_path = 'plain.jpg', release_year = 0 WHERE person_id = 500 AND tmdb_id = 79");
             var userId = Convert.ToInt32(await CoverageSupport.Scalar<object>(connectionString, $"SELECT id FROM app_user WHERE email = 'talent-{stamp}@example.com'"));
             await CoverageSupport.Exec(connectionString, $"UPDATE user_talent_follow SET profile_path = '/../x' WHERE user_id = {userId} AND person_id = 500");
             await CoverageSupport.Exec(connectionString, $"UPDATE user_talent_follow SET profile_path = '   ' WHERE user_id = {userId} AND person_id = 501");
+            await CoverageSupport.Exec(connectionString, $"INSERT INTO user_talent_follow (user_id, person_id, name) VALUES ({userId}, 7, 'Pat')");
             await CoverageSupport.Exec(connectionString, $"INSERT INTO user_talent_follow (user_id, person_id, name) VALUES ({userId}, 9, '')");
             await CoverageSupport.Exec(connectionString, $"INSERT INTO user_talent_follow (user_id, person_id, name) VALUES ({userId}, 8, '{new string('n', 201)}')");
             var people = await client.GetFromJsonAsync<JsonElement>("/api/talent");

@@ -148,15 +148,14 @@ public sealed class TalentCatalogService(IConfiguration configuration)
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
-                var id = ReadId(reader, 0);
-                var name = reader.IsDBNull(1) ? "" : reader.GetString(1).Trim();
-                if (id is not int personId || name.Length is < 1 or > 200)
+                var name = reader.GetString(1).Trim();
+                if (name.Length is < 1 or > 200)
                 {
                     continue;
                 }
 
                 follows.Add((
-                    personId,
+                    reader.GetInt32(0),
                     name,
                     reader.IsDBNull(2) ? null : reader.GetString(2),
                     reader.IsDBNull(3) ? null : reader.GetString(3)));
@@ -270,19 +269,19 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            var mediaType = reader.IsDBNull(0) ? "" : reader.GetString(0);
-            var tmdbId = ReadId(reader, 1);
-            var title = reader.IsDBNull(2) ? "" : reader.GetString(2).Trim();
-            var kind = reader.IsDBNull(6) ? "" : reader.GetString(6);
-            var role = reader.IsDBNull(5) ? "" : reader.GetString(5).Trim();
-            if (mediaType is not ("movie" or "tv") || tmdbId is not int sourceId || title.Length is < 1 or > 200 || kind is not ("movie" or "documentary" or "show") || role.Length is < 1 or > 120)
+            var mediaType = reader.GetString(0);
+            var tmdbId = reader.GetInt32(1);
+            var title = reader.GetString(2).Trim();
+            var kind = reader.GetString(6);
+            var role = reader.GetString(5).Trim();
+            if (mediaType is not ("movie" or "tv") || tmdbId < 1 || title.Length is < 1 or > 200 || kind is not ("movie" or "documentary" or "show") || role.Length is < 1 or > 120)
             {
                 continue;
             }
 
-            var year = reader.IsDBNull(3) ? null : ReadId(reader, 3);
+            var year = reader.IsDBNull(3) ? null : ReadId(reader.GetValue(3));
             var poster = reader.IsDBNull(4) ? null : PosterOrNull(reader.GetString(4));
-            credits.Add(new StoredCredit(sourceId, mediaType, kind, title, year, poster, role));
+            credits.Add(new StoredCredit(tmdbId, mediaType, kind, title, year, poster, role));
         }
 
         return credits;
@@ -435,8 +434,6 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         kind = parts[0];
         return true;
     }
-
-    private static int? ReadId(NpgsqlDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : ReadId(reader.GetValue(ordinal));
 
     private static int? ReadId(object? value)
     {

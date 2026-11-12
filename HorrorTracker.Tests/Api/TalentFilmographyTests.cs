@@ -18,6 +18,7 @@ public class TalentFilmographyTests
                 {"id": 6, "name": "Four", "job": "Director"},
                 {"id": 7, "name": "Five", "job": "Director"}],
               "cast": [
+                {"id": 1, "name": " ", "order": 1, "character": "Skip"},
                 {"id": 9, "name": "Later", "order": 2, "character": "Z"},
                 {"id": 8, "name": "First", "order": 0, "character": " LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL ", "profile_path": "/a.jpg"},
                 {"id": 8, "name": "First", "order": 0, "character": "Again"},
@@ -62,20 +63,23 @@ public class TalentFilmographyTests
               {"id":30,"media_type":"movie","title":"Old","genre_ids":[27],"release_date":"1800-01-01","poster_path":"/a b.jpg","character":"A"},
               {"id":31,"media_type":"movie","title":"Alpha","genre_ids":[27],"release_date":"2021-01-01","character":"A"},
               {"id":32,"media_type":"movie","title":"Beta","genre_ids":[27],"release_date":"2021-01-01","character":"B"},
-              {"id":33,"media_type":"movie","title":"No Genre","character":"A"}
+              {"id":33,"media_type":"movie","title":"No Genre","character":"A"},
+              {"id":40,"media_type":"movie","title":"Undated","genre_ids":["x",27.5,27],"character":"A"}
             ],"crew":[
               {"id":15,"media_type":"movie","title":"Halloween","job":"Director","genre_ids":[27],"poster_path":"nope"},
               {"id":15,"media_type":"movie","title":"Halloween","job":"Director","genre_ids":[27]},
               {"id":20,"media_type":"movie","title":"Later","job":"Director","genre_ids":[27],"release_date":"2020-05-01","poster_path":"/later.jpg"},
               {"id":20,"media_type":"movie","title":"Later","job":"Director","genre_ids":[27]},
               {"id":17,"media_type":"tv","name":"Zone","job":"Director","genre_ids":[27]},
-              {"id":34,"media_type":"movie","title":"No Job","genre_ids":[27]}
+              {"id":34,"media_type":"movie","title":"No Job","genre_ids":[27]},
+              {"id":40,"media_type":"movie","title":"Undated","job":"Director","genre_ids":[27],"release_date":"2011-01-01"}
             ]}}
             """);
         var film = TalentFilmographyReader.ReadPerson(jamie.RootElement)!;
         Assert.Equal("Laurie · Director", film.Credits.Single(credit => credit.TmdbId == 15).Role);
         Assert.Equal("documentary", film.Credits.Single(credit => credit.TmdbId == 16).Kind);
         Assert.Equal("Alpha", film.Credits.First(credit => credit.Year == 2021).Title);
+        Assert.Equal(2011, film.Credits.Single(credit => credit.TmdbId == 40).Year);
         Assert.Null(film.Credits.Single(credit => credit.TmdbId == 30).Year);
         Assert.Null(film.Credits.Single(credit => credit.TmdbId == 30).PosterPath);
 
