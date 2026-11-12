@@ -1,4 +1,4 @@
-import type { TalentCredit, TalentFollow, TalentName, TalentPerson } from "../lib/talent-types";
+import type { TalentCredit, TalentFollow, TalentName, TalentPerson } from "../lib/talent";
 
 export type { TalentCredit, TalentFollow, TalentName, TalentPerson };
 
