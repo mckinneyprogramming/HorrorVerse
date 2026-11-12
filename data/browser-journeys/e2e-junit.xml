@@ -1,14 +1,14 @@
-<testsuites id="" name="" tests="5" failures="0" skipped="0" errors="0" time="4.7568">
-<testsuite name="journeys.spec.ts" timestamp="2026-11-09T16:28:20.013Z" hostname="" tests="5" failures="0" skipped="0" time="2.106" errors="0">
-<testcase name="signs in" classname="journeys.spec.ts" time="0.525">
+<testsuites id="" name="" tests="5" failures="0" skipped="0" errors="0" time="3.943662">
+<testsuite name="journeys.spec.ts" timestamp="2026-11-12T18:19:52.330Z" hostname="" tests="5" failures="0" skipped="0" time="1.985" errors="0">
+<testcase name="signs in" classname="journeys.spec.ts" time="0.504">
 </testcase>
-<testcase name="marks a title watched and shows it in the numbers" classname="journeys.spec.ts" time="0.431">
+<testcase name="marks a title watched and shows it in the numbers" classname="journeys.spec.ts" time="0.393">
 </testcase>
-<testcase name="creates a list and adds a title" classname="journeys.spec.ts" time="0.619">
+<testcase name="creates a list and adds a title" classname="journeys.spec.ts" time="0.56">
 </testcase>
-<testcase name="opens a show guide" classname="journeys.spec.ts" time="0.333">
+<testcase name="opens a show guide" classname="journeys.spec.ts" time="0.325">
 </testcase>
-<testcase name="keeps library search in the address bar" classname="journeys.spec.ts" time="0.198">
+<testcase name="keeps library search in the address bar" classname="journeys.spec.ts" time="0.203">
 </testcase>
 </testsuite>
 </testsuites>
