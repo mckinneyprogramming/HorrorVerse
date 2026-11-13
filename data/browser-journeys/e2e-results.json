@@ -18,24 +18,24 @@
     "maxFailures": 0,
     "metadata": {
       "ci": {
-        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/6f9e2207905585587c9bf0883665caaf9cbaa52b",
-        "commitHash": "6f9e2207905585587c9bf0883665caaf9cbaa52b",
-        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43342757085"
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/20a952a639766e8631553b5c8483177aaa7bd6e8",
+        "commitHash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43344304195"
       },
       "gitCommit": {
-        "shortHash": "6f9e220",
-        "hash": "6f9e2207905585587c9bf0883665caaf9cbaa52b",
-        "subject": "Move talent shapes out of the server module so the app typecheck no longer needs Node.",
-        "body": "Move talent shapes out of the server module so the app typecheck no longer needs Node.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "shortHash": "20a952a",
+        "hash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
+        "subject": "Keep movie pages readable on phones without sideways scrolling.",
+        "body": "Keep movie pages readable on phones without sideways scrolling.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
         "author": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794532156000
+          "time": 1794532867000
         },
         "committer": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794532156000
+          "time": 1794532867000
         },
         "branch": "master"
       },
@@ -49,24 +49,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/6f9e2207905585587c9bf0883665caaf9cbaa52b",
-            "commitHash": "6f9e2207905585587c9bf0883665caaf9cbaa52b",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43342757085"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/20a952a639766e8631553b5c8483177aaa7bd6e8",
+            "commitHash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43344304195"
           },
           "gitCommit": {
-            "shortHash": "6f9e220",
-            "hash": "6f9e2207905585587c9bf0883665caaf9cbaa52b",
-            "subject": "Move talent shapes out of the server module so the app typecheck no longer needs Node.",
-            "body": "Move talent shapes out of the server module so the app typecheck no longer needs Node.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "20a952a",
+            "hash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
+            "subject": "Keep movie pages readable on phones without sideways scrolling.",
+            "body": "Keep movie pages readable on phones without sideways scrolling.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794532156000
+              "time": 1794532867000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794532156000
+              "time": 1794532867000
             },
             "branch": "master"
           },
@@ -91,24 +91,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/6f9e2207905585587c9bf0883665caaf9cbaa52b",
-            "commitHash": "6f9e2207905585587c9bf0883665caaf9cbaa52b",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43342757085"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/20a952a639766e8631553b5c8483177aaa7bd6e8",
+            "commitHash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43344304195"
           },
           "gitCommit": {
-            "shortHash": "6f9e220",
-            "hash": "6f9e2207905585587c9bf0883665caaf9cbaa52b",
-            "subject": "Move talent shapes out of the server module so the app typecheck no longer needs Node.",
-            "body": "Move talent shapes out of the server module so the app typecheck no longer needs Node.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "20a952a",
+            "hash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
+            "subject": "Keep movie pages readable on phones without sideways scrolling.",
+            "body": "Keep movie pages readable on phones without sideways scrolling.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794532156000
+              "time": 1794532867000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794532156000
+              "time": 1794532867000
             },
             "branch": "master"
           },
@@ -201,12 +201,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 515,
+                  "duration": 503,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:10:13.872Z",
+                  "startTime": "2026-11-13T01:22:07.226Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -235,12 +235,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 528,
+                  "duration": 496,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:10:14.684Z",
+                  "startTime": "2026-11-13T01:22:07.988Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -269,12 +269,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 564,
+                  "duration": 626,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:10:15.232Z",
+                  "startTime": "2026-11-13T01:22:08.496Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -303,12 +303,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 380,
+                  "duration": 427,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:10:15.806Z",
+                  "startTime": "2026-11-13T01:22:09.133Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -337,12 +337,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 233,
+                  "duration": 299,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:10:16.204Z",
+                  "startTime": "2026-11-13T01:22:09.573Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -360,8 +360,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-13T01:10:12.844Z",
-    "duration": 3670.1890000000003,
+    "startTime": "2026-11-13T01:22:06.336Z",
+    "duration": 3593.431,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,
