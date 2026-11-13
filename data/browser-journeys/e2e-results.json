@@ -18,24 +18,24 @@
     "maxFailures": 0,
     "metadata": {
       "ci": {
-        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-        "commitHash": "47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43346951845"
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+        "commitHash": "b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43348869591"
       },
       "gitCommit": {
-        "shortHash": "47ebeaa",
-        "hash": "47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-        "subject": "Drop unreachable talent branches so coverage can return to 100%.",
-        "body": "Drop unreachable talent branches so coverage can return to 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "shortHash": "b4aa49f",
+        "hash": "b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+        "subject": "Put title scores to work on Home, library sort, and story cards.",
+        "body": "Put title scores to work on Home, library sort, and story cards.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
         "author": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794534170000
+          "time": 1794535155000
         },
         "committer": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794534170000
+          "time": 1794535155000
         },
         "branch": "master"
       },
@@ -49,24 +49,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-            "commitHash": "47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43346951845"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+            "commitHash": "b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43348869591"
           },
           "gitCommit": {
-            "shortHash": "47ebeaa",
-            "hash": "47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-            "subject": "Drop unreachable talent branches so coverage can return to 100%.",
-            "body": "Drop unreachable talent branches so coverage can return to 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "b4aa49f",
+            "hash": "b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+            "subject": "Put title scores to work on Home, library sort, and story cards.",
+            "body": "Put title scores to work on Home, library sort, and story cards.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794534170000
+              "time": 1794535155000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794534170000
+              "time": 1794535155000
             },
             "branch": "master"
           },
@@ -91,24 +91,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-            "commitHash": "47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43346951845"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+            "commitHash": "b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43348869591"
           },
           "gitCommit": {
-            "shortHash": "47ebeaa",
-            "hash": "47ebeaaf5ef69e6002ed24346290b8b62f34eca9",
-            "subject": "Drop unreachable talent branches so coverage can return to 100%.",
-            "body": "Drop unreachable talent branches so coverage can return to 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "b4aa49f",
+            "hash": "b4aa49f2c9451f1b24ad1d2ce47a4f5d37cdcd4a",
+            "subject": "Put title scores to work on Home, library sort, and story cards.",
+            "body": "Put title scores to work on Home, library sort, and story cards.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794534170000
+              "time": 1794535155000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794534170000
+              "time": 1794535155000
             },
             "branch": "master"
           },
@@ -201,12 +201,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 417,
+                  "duration": 482,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:43:28.817Z",
+                  "startTime": "2026-11-13T01:59:55.976Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -235,12 +235,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 449,
+                  "duration": 387,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:43:29.457Z",
+                  "startTime": "2026-11-13T01:59:56.701Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -269,12 +269,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 561,
+                  "duration": 544,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:43:29.918Z",
+                  "startTime": "2026-11-13T01:59:57.100Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -303,12 +303,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 361,
+                  "duration": 331,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:43:30.489Z",
+                  "startTime": "2026-11-13T01:59:57.655Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -337,12 +337,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 233,
+                  "duration": 214,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:43:30.862Z",
+                  "startTime": "2026-11-13T01:59:57.996Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -360,8 +360,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-13T01:43:27.975Z",
-    "duration": 3182.212,
+    "startTime": "2026-11-13T01:59:55.149Z",
+    "duration": 3131.559,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,
