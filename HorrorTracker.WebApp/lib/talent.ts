@@ -1,51 +1,15 @@
+import type { TalentCredit, TalentFollow, TalentName, TalentPerson } from "./talent-model";
 import { execute, HttpError, queryRows } from "./neon";
 import { parsePosterPath } from "./poster";
 import { asId, asPositiveInt, tmdbJsonOptional, yearFrom } from "./tmdb";
+
+export type { TalentCredit, TalentFollow, TalentName, TalentPerson };
 
 const HORROR_GENRE = 27;
 const DOCUMENTARY_GENRE = 99;
 const CAST_LIMIT = 8;
 const DIRECTOR_LIMIT = 4;
 const FILMOGRAPHY_LIMIT = 120;
-
-export interface TalentName {
-  id: number;
-  name: string;
-  role: string;
-  profilePath?: string;
-}
-
-export interface TalentCredit {
-  tmdbId: number;
-  mediaType: "movie" | "tv";
-  kind: "movie" | "documentary" | "show";
-  title: string;
-  year?: number;
-  posterPath?: string;
-  role: string;
-  vaultId?: string;
-  finished: boolean;
-}
-
-export interface TalentPerson {
-  id: number;
-  name: string;
-  profilePath?: string;
-  knownFor?: string;
-  following: boolean;
-  watched: number;
-  total: number;
-  credits: TalentCredit[];
-}
-
-export interface TalentFollow {
-  id: number;
-  name: string;
-  profilePath?: string;
-  knownFor?: string;
-  watched: number;
-  total: number;
-}
 
 interface StoredCredit {
   tmdbId: number;
