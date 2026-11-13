@@ -18,24 +18,24 @@
     "maxFailures": 0,
     "metadata": {
       "ci": {
-        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/20a952a639766e8631553b5c8483177aaa7bd6e8",
-        "commitHash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
-        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43344304195"
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+        "commitHash": "03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43345723266"
       },
       "gitCommit": {
-        "shortHash": "20a952a",
-        "hash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
-        "subject": "Keep movie pages readable on phones without sideways scrolling.",
-        "body": "Keep movie pages readable on phones without sideways scrolling.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "shortHash": "03ada93",
+        "hash": "03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+        "subject": "Match finished talent credits across duplicate TMDB vault rows.",
+        "body": "Match finished talent credits across duplicate TMDB vault rows.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
         "author": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794532867000
+          "time": 1794533545000
         },
         "committer": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794532867000
+          "time": 1794533545000
         },
         "branch": "master"
       },
@@ -49,24 +49,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/20a952a639766e8631553b5c8483177aaa7bd6e8",
-            "commitHash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43344304195"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+            "commitHash": "03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43345723266"
           },
           "gitCommit": {
-            "shortHash": "20a952a",
-            "hash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
-            "subject": "Keep movie pages readable on phones without sideways scrolling.",
-            "body": "Keep movie pages readable on phones without sideways scrolling.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "03ada93",
+            "hash": "03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+            "subject": "Match finished talent credits across duplicate TMDB vault rows.",
+            "body": "Match finished talent credits across duplicate TMDB vault rows.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794532867000
+              "time": 1794533545000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794532867000
+              "time": 1794533545000
             },
             "branch": "master"
           },
@@ -91,24 +91,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/20a952a639766e8631553b5c8483177aaa7bd6e8",
-            "commitHash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43344304195"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+            "commitHash": "03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43345723266"
           },
           "gitCommit": {
-            "shortHash": "20a952a",
-            "hash": "20a952a639766e8631553b5c8483177aaa7bd6e8",
-            "subject": "Keep movie pages readable on phones without sideways scrolling.",
-            "body": "Keep movie pages readable on phones without sideways scrolling.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "03ada93",
+            "hash": "03ada93d2741d9b96cb6bdcb653fe4808cdadd62",
+            "subject": "Match finished talent credits across duplicate TMDB vault rows.",
+            "body": "Match finished talent credits across duplicate TMDB vault rows.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794532867000
+              "time": 1794533545000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794532867000
+              "time": 1794533545000
             },
             "branch": "master"
           },
@@ -201,12 +201,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 503,
+                  "duration": 413,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:22:07.226Z",
+                  "startTime": "2026-11-13T01:33:38.392Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -235,12 +235,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 496,
+                  "duration": 397,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:22:07.988Z",
+                  "startTime": "2026-11-13T01:33:39.005Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -269,12 +269,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 626,
+                  "duration": 548,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:22:08.496Z",
+                  "startTime": "2026-11-13T01:33:39.413Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -303,12 +303,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 427,
+                  "duration": 344,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:22:09.133Z",
+                  "startTime": "2026-11-13T01:33:39.971Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -337,12 +337,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 299,
+                  "duration": 215,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T01:22:09.573Z",
+                  "startTime": "2026-11-13T01:33:40.325Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -360,8 +360,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-13T01:22:06.336Z",
-    "duration": 3593.431,
+    "startTime": "2026-11-13T01:33:37.589Z",
+    "duration": 3016.884,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,
