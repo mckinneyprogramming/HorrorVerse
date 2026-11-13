@@ -18,24 +18,24 @@
     "maxFailures": 0,
     "metadata": {
       "ci": {
-        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/65496adf59ee4ba044adb09c537723784a62ffd5",
-        "commitHash": "65496adf59ee4ba044adb09c537723784a62ffd5",
-        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43290217643"
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/ffa33beef92f75271985ed482bd9add93dc27076",
+        "commitHash": "ffa33beef92f75271985ed482bd9add93dc27076",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43341669303"
       },
       "gitCommit": {
-        "shortHash": "65496ad",
-        "hash": "65496adf59ee4ba044adb09c537723784a62ffd5",
-        "subject": "Keep the talent model in the covered library so coverage stays at 100%.",
-        "body": "Keep the talent model in the covered library so coverage stays at 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "shortHash": "ffa33be",
+        "hash": "ffa33beef92f75271985ed482bd9add93dc27076",
+        "subject": "Approve the reviewed esbuild install scripts so npm keeps installing their binaries.",
+        "body": "Approve the reviewed esbuild install scripts so npm keeps installing their binaries.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
         "author": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794511525000
+          "time": 1794531656000
         },
         "committer": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794511525000
+          "time": 1794531656000
         },
         "branch": "master"
       },
@@ -49,24 +49,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/65496adf59ee4ba044adb09c537723784a62ffd5",
-            "commitHash": "65496adf59ee4ba044adb09c537723784a62ffd5",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43290217643"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/ffa33beef92f75271985ed482bd9add93dc27076",
+            "commitHash": "ffa33beef92f75271985ed482bd9add93dc27076",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43341669303"
           },
           "gitCommit": {
-            "shortHash": "65496ad",
-            "hash": "65496adf59ee4ba044adb09c537723784a62ffd5",
-            "subject": "Keep the talent model in the covered library so coverage stays at 100%.",
-            "body": "Keep the talent model in the covered library so coverage stays at 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "ffa33be",
+            "hash": "ffa33beef92f75271985ed482bd9add93dc27076",
+            "subject": "Approve the reviewed esbuild install scripts so npm keeps installing their binaries.",
+            "body": "Approve the reviewed esbuild install scripts so npm keeps installing their binaries.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794511525000
+              "time": 1794531656000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794511525000
+              "time": 1794531656000
             },
             "branch": "master"
           },
@@ -91,24 +91,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/65496adf59ee4ba044adb09c537723784a62ffd5",
-            "commitHash": "65496adf59ee4ba044adb09c537723784a62ffd5",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43290217643"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/ffa33beef92f75271985ed482bd9add93dc27076",
+            "commitHash": "ffa33beef92f75271985ed482bd9add93dc27076",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43341669303"
           },
           "gitCommit": {
-            "shortHash": "65496ad",
-            "hash": "65496adf59ee4ba044adb09c537723784a62ffd5",
-            "subject": "Keep the talent model in the covered library so coverage stays at 100%.",
-            "body": "Keep the talent model in the covered library so coverage stays at 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "ffa33be",
+            "hash": "ffa33beef92f75271985ed482bd9add93dc27076",
+            "subject": "Approve the reviewed esbuild install scripts so npm keeps installing their binaries.",
+            "body": "Approve the reviewed esbuild install scripts so npm keeps installing their binaries.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794511525000
+              "time": 1794531656000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794511525000
+              "time": 1794531656000
             },
             "branch": "master"
           },
@@ -201,12 +201,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 445,
+                  "duration": 549,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T19:27:19.925Z",
+                  "startTime": "2026-11-13T01:01:57.324Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -235,12 +235,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 527,
+                  "duration": 503,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T19:27:22.372Z",
+                  "startTime": "2026-11-13T01:01:58.070Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -269,12 +269,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 601,
+                  "duration": 620,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T19:27:22.908Z",
+                  "startTime": "2026-11-13T01:01:58.586Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -303,12 +303,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 427,
+                  "duration": 396,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T19:27:23.516Z",
+                  "startTime": "2026-11-13T01:01:59.212Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -337,12 +337,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 283,
+                  "duration": 266,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-12T19:27:23.952Z",
+                  "startTime": "2026-11-13T01:01:59.617Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -360,8 +360,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-12T19:27:19.174Z",
-    "duration": 5122.609,
+    "startTime": "2026-11-13T01:01:56.606Z",
+    "duration": 3350.279,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,
