@@ -18,24 +18,24 @@
     "maxFailures": 0,
     "metadata": {
       "ci": {
-        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/2945c983c4d5afcb1794b4707723f1444c6ed463",
-        "commitHash": "2945c983c4d5afcb1794b4707723f1444c6ed463",
-        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43352773227"
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+        "commitHash": "d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43357413976"
       },
       "gitCommit": {
-        "shortHash": "2945c98",
-        "hash": "2945c983c4d5afcb1794b4707723f1444c6ed463",
-        "subject": "Give the Home talent shelf room before Recently survived.",
-        "body": "Give the Home talent shelf room before Recently survived.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "shortHash": "d6772d3",
+        "hash": "d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+        "subject": "Surface followed upcoming titles and richer watch-next picks on Home.",
+        "body": "Surface followed upcoming titles and richer watch-next picks on Home.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
         "author": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794537089000
+          "time": 1794539558000
         },
         "committer": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794537089000
+          "time": 1794539558000
         },
         "branch": "master"
       },
@@ -49,24 +49,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/2945c983c4d5afcb1794b4707723f1444c6ed463",
-            "commitHash": "2945c983c4d5afcb1794b4707723f1444c6ed463",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43352773227"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+            "commitHash": "d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43357413976"
           },
           "gitCommit": {
-            "shortHash": "2945c98",
-            "hash": "2945c983c4d5afcb1794b4707723f1444c6ed463",
-            "subject": "Give the Home talent shelf room before Recently survived.",
-            "body": "Give the Home talent shelf room before Recently survived.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "d6772d3",
+            "hash": "d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+            "subject": "Surface followed upcoming titles and richer watch-next picks on Home.",
+            "body": "Surface followed upcoming titles and richer watch-next picks on Home.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794537089000
+              "time": 1794539558000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794537089000
+              "time": 1794539558000
             },
             "branch": "master"
           },
@@ -91,24 +91,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/2945c983c4d5afcb1794b4707723f1444c6ed463",
-            "commitHash": "2945c983c4d5afcb1794b4707723f1444c6ed463",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43352773227"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+            "commitHash": "d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43357413976"
           },
           "gitCommit": {
-            "shortHash": "2945c98",
-            "hash": "2945c983c4d5afcb1794b4707723f1444c6ed463",
-            "subject": "Give the Home talent shelf room before Recently survived.",
-            "body": "Give the Home talent shelf room before Recently survived.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "d6772d3",
+            "hash": "d6772d39405da900a1bdd1f6a3e0bb3e8ef2b5b4",
+            "subject": "Surface followed upcoming titles and richer watch-next picks on Home.",
+            "body": "Surface followed upcoming titles and richer watch-next picks on Home.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794537089000
+              "time": 1794539558000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794537089000
+              "time": 1794539558000
             },
             "branch": "master"
           },
@@ -201,12 +201,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 546,
+                  "duration": 382,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T02:32:15.213Z",
+                  "startTime": "2026-11-13T03:13:14.776Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -235,12 +235,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 465,
+                  "duration": 368,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T02:32:17.347Z",
+                  "startTime": "2026-11-13T03:13:15.331Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -269,12 +269,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 615,
+                  "duration": 507,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T02:32:17.826Z",
+                  "startTime": "2026-11-13T03:13:15.712Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -303,12 +303,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 404,
+                  "duration": 319,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T02:32:18.453Z",
+                  "startTime": "2026-11-13T03:13:16.227Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -337,12 +337,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 241,
+                  "duration": 163,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T02:32:18.869Z",
+                  "startTime": "2026-11-13T03:13:16.553Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -360,8 +360,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-13T02:32:13.766Z",
-    "duration": 5417.455,
+    "startTime": "2026-11-13T03:13:14.081Z",
+    "duration": 2699.0860000000002,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,
