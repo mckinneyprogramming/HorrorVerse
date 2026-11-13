@@ -199,9 +199,21 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         var finished = FinishedIds(userId);
         return credits.Select(credit =>
         {
-            vault.TryGetValue($"{credit.Kind}:{credit.TmdbId}", out var vaultIds);
-            var matches = vaultIds ?? [];
-            var vaultId = matches.FirstOrDefault(finished.Contains) ?? matches.FirstOrDefault();
+            string? vaultId = null;
+            if (vault.TryGetValue($"{credit.Kind}:{credit.TmdbId}", out var matches))
+            {
+                foreach (var candidate in matches)
+                {
+                    if (finished.Contains(candidate))
+                    {
+                        vaultId = candidate;
+                        break;
+                    }
+                }
+
+                vaultId ??= matches[0];
+            }
+
             return new TalentCreditDto(
                 credit.TmdbId,
                 credit.MediaType,
@@ -230,22 +242,15 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            var kind = reader.IsDBNull(0) ? "" : reader.GetString(0);
-            var id = reader.IsDBNull(1) ? null : ReadId(reader.GetValue(1));
-            var tmdbId = reader.IsDBNull(2) ? null : ReadId(reader.GetValue(2));
-            if (kind is not ("movie" or "documentary" or "show") || id is not int mediaId || tmdbId is not int sourceId)
-            {
-                continue;
-            }
-
-            var key = $"{kind}:{sourceId}";
+            var kind = reader.GetString(0);
+            var key = $"{kind}:{reader.GetInt32(2)}";
             if (!vault.TryGetValue(key, out var ids))
             {
                 ids = [];
                 vault[key] = ids;
             }
 
-            ids.Add($"{kind}:{mediaId}");
+            ids.Add($"{kind}:{reader.GetInt32(1)}");
         }
 
         return vault;
@@ -265,12 +270,7 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            var kind = reader.IsDBNull(0) ? "" : reader.GetString(0);
-            var id = reader.IsDBNull(1) ? null : ReadId(reader.GetValue(1));
-            if (kind.Length > 0 && id is int mediaId)
-            {
-                ids.Add($"{kind}:{mediaId}");
-            }
+            ids.Add($"{reader.GetString(0)}:{reader.GetInt32(1)}");
         }
 
         return ids;

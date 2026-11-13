@@ -121,7 +121,13 @@ public class TalentCatalogTests
             var opened = await client.GetFromJsonAsync<JsonElement>("/api/talent?person=500");
             Assert.Equal(1, opened.GetProperty("person").GetProperty("watched").GetInt32());
             Assert.Contains(opened.GetProperty("person").GetProperty("credits").EnumerateArray(), credit =>
-                credit.GetProperty("tmdbId").GetInt32() == 77 && credit.GetProperty("finished").GetBoolean());
+                credit.GetProperty("tmdbId").GetInt32() == 77
+                && credit.GetProperty("finished").GetBoolean()
+                && credit.GetProperty("vaultId").GetString() == $"movie:{movieId}");
+            Assert.Contains(opened.GetProperty("person").GetProperty("credits").EnumerateArray(), credit =>
+                credit.GetProperty("tmdbId").GetInt32() == 78
+                && !credit.GetProperty("finished").GetBoolean()
+                && credit.GetProperty("vaultId").GetString()!.StartsWith("documentary:", StringComparison.Ordinal));
 
             Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/talent", new { personId = 500 })).StatusCode);
             var followed = await client.GetFromJsonAsync<JsonElement>("/api/talent?person=500");

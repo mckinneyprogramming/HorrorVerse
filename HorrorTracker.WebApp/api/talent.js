@@ -389,8 +389,11 @@ async function annotateCredits(connectionString, userId, credits) {
   const vault = await vaultByTmdb(connectionString);
   const finished = await finishedIds(connectionString, userId);
   return credits.map((credit) => {
-    const matches = vault.get(`${credit.kind}:${credit.tmdbId}`) ?? [];
-    const vaultId = matches.find((id) => finished.has(id)) ?? matches[0];
+    const matches = vault.get(`${credit.kind}:${credit.tmdbId}`);
+    let vaultId;
+    if (matches) {
+      vaultId = matches.find((id) => finished.has(id)) ?? matches[0];
+    }
     return {
       ...credit,
       ...vaultId ? { vaultId } : {},
