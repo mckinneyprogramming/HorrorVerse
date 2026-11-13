@@ -389,7 +389,8 @@ async function annotateCredits(connectionString, userId, credits) {
   const vault = await vaultByTmdb(connectionString);
   const finished = await finishedIds(connectionString, userId);
   return credits.map((credit) => {
-    const vaultId = vault.get(`${credit.kind}:${credit.tmdbId}`);
+    const matches = vault.get(`${credit.kind}:${credit.tmdbId}`) ?? [];
+    const vaultId = matches.find((id) => finished.has(id)) ?? matches[0];
     return {
       ...credit,
       ...vaultId ? { vaultId } : {},
@@ -412,7 +413,10 @@ async function vaultByTmdb(connectionString) {
     const id = asId(row);
     const tmdbId = asId(row, "tmdbid");
     if ((kind === "movie" || kind === "documentary" || kind === "show") && id && tmdbId) {
-      vault.set(`${kind}:${tmdbId}`, `${kind}:${id}`);
+      const key = `${kind}:${tmdbId}`;
+      const ids = vault.get(key) ?? [];
+      ids.push(`${kind}:${id}`);
+      vault.set(key, ids);
     }
   }
   return vault;
@@ -420,7 +424,7 @@ async function vaultByTmdb(connectionString) {
 async function finishedIds(connectionString, userId) {
   const rows = await queryRows(
     connectionString,
-    "SELECT media_kind, media_id FROM user_media_progress WHERE user_id = $1 AND completed_at IS NOT NULL",
+    "SELECT media_kind, media_id FROM user_media_progress WHERE user_id = $1",
     [userId]
   );
   const ids = /* @__PURE__ */ new Set();

@@ -163,7 +163,15 @@ describe("talent lookups", () => {
   it("opens a person, matches the vault, and follows them", async () => {
     handle = installApi(
       [
-        { match: "UNION ALL", rows: [{ kind: "movie", id: 4, tmdbid: 15 }, { kind: "nope", id: 1, tmdbid: 2 }, { id: 3, tmdbid: 9 }] },
+        {
+          match: "UNION ALL",
+          rows: [
+            { kind: "movie", id: 9, tmdbid: 15 },
+            { kind: "movie", id: 4, tmdbid: 15 },
+            { kind: "nope", id: 1, tmdbid: 2 },
+            { id: 3, tmdbid: 9 },
+          ],
+        },
         { match: "user_media_progress", rows: [{ media_kind: "movie", media_id: 4 }, { media_kind: "", media_id: 1 }, { media_id: 5 }] },
         { match: "SELECT 1 FROM user_talent_follow", rows: [{ "?column?": 1 }] },
       ],

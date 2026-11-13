@@ -93,6 +93,8 @@ public class TalentCatalogTests
             Environment.SetEnvironmentVariable("TMDBKey", "test-key");
             var movieId = Convert.ToInt32(await CoverageSupport.Scalar<object>(connectionString,
                 $"INSERT INTO movie (title, totaltime, partofseries, releaseyear, watched, tmdbid) VALUES ('Talent {stamp}', 90, false, 1978, false, 77) RETURNING id"));
+            await CoverageSupport.Exec(connectionString,
+                $"INSERT INTO movie (title, totaltime, partofseries, releaseyear, watched, tmdbid) VALUES ('Talent Dup {stamp}', 90, false, 1978, false, 77)");
             var showId = Convert.ToInt32(await CoverageSupport.Scalar<object>(connectionString,
                 $"INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched, tmdbid) VALUES ('Talent Show {stamp}', 40, 1, 1, false, 80) RETURNING id"));
             var documentaryId = Convert.ToInt32(await CoverageSupport.Scalar<object>(connectionString,

@@ -249,7 +249,8 @@ async function annotateCredits(connectionString: string, userId: number, credits
   const vault = await vaultByTmdb(connectionString);
   const finished = await finishedIds(connectionString, userId);
   return credits.map((credit) => {
-    const vaultId = vault.get(`${credit.kind}:${credit.tmdbId}`);
+    const matches = vault.get(`${credit.kind}:${credit.tmdbId}`) ?? [];
+    const vaultId = matches.find((id) => finished.has(id)) ?? matches[0];
     return {
       ...credit,
       ...(vaultId ? { vaultId } : {}),
@@ -258,7 +259,7 @@ async function annotateCredits(connectionString: string, userId: number, credits
   });
 }
 
-async function vaultByTmdb(connectionString: string): Promise<Map<string, string>> {
+async function vaultByTmdb(connectionString: string): Promise<Map<string, string[]>> {
   const rows = await queryRows(
     connectionString,
     `SELECT 'movie' AS kind, id, tmdbid FROM movie WHERE tmdbid IS NOT NULL
@@ -267,13 +268,16 @@ async function vaultByTmdb(connectionString: string): Promise<Map<string, string
      UNION ALL
      SELECT 'show', id, tmdbid FROM show WHERE tmdbid IS NOT NULL`,
   );
-  const vault = new Map<string, string>();
+  const vault = new Map<string, string[]>();
   for (const row of rows) {
     const kind = String(row.kind ?? "");
     const id = asId(row);
     const tmdbId = asId(row, "tmdbid");
     if ((kind === "movie" || kind === "documentary" || kind === "show") && id && tmdbId) {
-      vault.set(`${kind}:${tmdbId}`, `${kind}:${id}`);
+      const key = `${kind}:${tmdbId}`;
+      const ids = vault.get(key) ?? [];
+      ids.push(`${kind}:${id}`);
+      vault.set(key, ids);
     }
   }
 
@@ -283,7 +287,7 @@ async function vaultByTmdb(connectionString: string): Promise<Map<string, string
 async function finishedIds(connectionString: string, userId: number): Promise<Set<string>> {
   const rows = await queryRows(
     connectionString,
-    "SELECT media_kind, media_id FROM user_media_progress WHERE user_id = $1 AND completed_at IS NOT NULL",
+    "SELECT media_kind, media_id FROM user_media_progress WHERE user_id = $1",
     [userId],
   );
   const ids = new Set<string>();

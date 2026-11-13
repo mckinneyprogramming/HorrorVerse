@@ -199,7 +199,9 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         var finished = FinishedIds(userId);
         return credits.Select(credit =>
         {
-            vault.TryGetValue($"{credit.Kind}:{credit.TmdbId}", out var vaultId);
+            vault.TryGetValue($"{credit.Kind}:{credit.TmdbId}", out var vaultIds);
+            var matches = vaultIds ?? [];
+            var vaultId = matches.FirstOrDefault(finished.Contains) ?? matches.FirstOrDefault();
             return new TalentCreditDto(
                 credit.TmdbId,
                 credit.MediaType,
@@ -213,9 +215,9 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         }).ToList();
     }
 
-    private Dictionary<string, string> VaultByTmdb()
+    private Dictionary<string, List<string>> VaultByTmdb()
     {
-        var vault = new Dictionary<string, string>();
+        var vault = new Dictionary<string, List<string>>();
         using var connection = Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
@@ -226,11 +228,25 @@ public sealed class TalentCatalogService(IConfiguration configuration)
             SELECT 'show', id, tmdbid FROM show WHERE tmdbid IS NOT NULL
             """;
         using var reader = command.ExecuteReader();
-            while (reader.Read())
+        while (reader.Read())
+        {
+            var kind = reader.IsDBNull(0) ? "" : reader.GetString(0);
+            var id = reader.IsDBNull(1) ? null : ReadId(reader.GetValue(1));
+            var tmdbId = reader.IsDBNull(2) ? null : ReadId(reader.GetValue(2));
+            if (kind is not ("movie" or "documentary" or "show") || id is not int mediaId || tmdbId is not int sourceId)
             {
-                var kind = reader.GetString(0);
-                vault[$"{kind}:{reader.GetInt32(2)}"] = $"{kind}:{reader.GetInt32(1)}";
+                continue;
             }
+
+            var key = $"{kind}:{sourceId}";
+            if (!vault.TryGetValue(key, out var ids))
+            {
+                ids = [];
+                vault[key] = ids;
+            }
+
+            ids.Add($"{kind}:{mediaId}");
+        }
 
         return vault;
     }
@@ -243,14 +259,19 @@ public sealed class TalentCatalogService(IConfiguration configuration)
         command.CommandText = """
             SELECT media_kind, media_id
             FROM user_media_progress
-            WHERE user_id = @userId AND completed_at IS NOT NULL
+            WHERE user_id = @userId
             """;
         command.Parameters.AddWithValue("userId", userId);
         using var reader = command.ExecuteReader();
-            while (reader.Read())
+        while (reader.Read())
+        {
+            var kind = reader.IsDBNull(0) ? "" : reader.GetString(0);
+            var id = reader.IsDBNull(1) ? null : ReadId(reader.GetValue(1));
+            if (kind.Length > 0 && id is int mediaId)
             {
-                ids.Add($"{reader.GetString(0)}:{reader.GetInt32(1)}");
+                ids.Add($"{kind}:{mediaId}");
             }
+        }
 
         return ids;
     }
