@@ -333,101 +333,85 @@ public sealed class UserLibraryService(IConfiguration configuration, TmdbCatalog
 
     private List<WatchNextPick> LoadFollowUnfinished(int userId)
     {
-        try
+        var rows = ReadNamedWatchNextRows(
+            userId,
+            """
+            SELECT 'movie' AS kind, m.id, m.title, m.posterpath, f.name AS detail
+            FROM user_talent_follow f
+            JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'movie'
+            JOIN movie m ON m.tmdbid = t.tmdb_id
+            WHERE f.user_id = @userId
+              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
+            UNION ALL
+            SELECT 'documentary', d.id, d.title, d.posterpath, f.name
+            FROM user_talent_follow f
+            JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'documentary'
+            JOIN documentary d ON d.tmdbid = t.tmdb_id
+            WHERE f.user_id = @userId
+              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'documentary' AND p.media_id = d.id)
+            UNION ALL
+            SELECT 'show', s.id, s.title, s.posterpath, f.name
+            FROM user_talent_follow f
+            JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'show'
+            JOIN show s ON s.tmdbid = t.tmdb_id
+            WHERE f.user_id = @userId
+              AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
+            """,
+            "follow");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var picks = new List<WatchNextPick>();
+        foreach (var item in rows)
         {
-            var rows = ReadNamedWatchNextRows(
-                userId,
-                """
-                SELECT 'movie' AS kind, m.id, m.title, m.posterpath, f.name AS detail
-                FROM user_talent_follow f
-                JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'movie'
-                JOIN movie m ON m.tmdbid = t.tmdb_id
-                WHERE f.user_id = @userId
-                  AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
-                UNION ALL
-                SELECT 'documentary', d.id, d.title, d.posterpath, f.name
-                FROM user_talent_follow f
-                JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'documentary'
-                JOIN documentary d ON d.tmdbid = t.tmdb_id
-                WHERE f.user_id = @userId
-                  AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'documentary' AND p.media_id = d.id)
-                UNION ALL
-                SELECT 'show', s.id, s.title, s.posterpath, f.name
-                FROM user_talent_follow f
-                JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'show'
-                JOIN show s ON s.tmdbid = t.tmdb_id
-                WHERE f.user_id = @userId
-                  AND NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
-                """,
-                "follow");
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            var picks = new List<WatchNextPick>();
-            foreach (var item in rows)
+            if (!seen.Add(item.Id))
             {
-                if (!seen.Add(item.Id))
-                {
-                    continue;
-                }
-
-                picks.Add(item);
-                if (picks.Count >= 6)
-                {
-                    break;
-                }
+                continue;
             }
 
-            return picks;
+            picks.Add(item);
+            if (picks.Count >= 6)
+            {
+                break;
+            }
         }
-        catch
-        {
-            return [];
-        }
+
+        return picks;
     }
 
-    private List<WatchNextPick> LoadTagAffinityUnfinished(int userId)
-    {
-        try
-        {
-            return ReadNamedWatchNextRows(
-                userId,
-                """
-                WITH favorites AS (
-                  SELECT media_kind, media_id
-                  FROM user_media_progress
-                  WHERE user_id = @userId AND score >= 4
-                ),
-                fav_keywords AS (
-                  SELECT DISTINCT lower(k.name) AS key, k.name AS label
-                  FROM media_keyword k
-                  JOIN favorites f ON f.media_kind = k.media_kind AND f.media_id = k.media_id
-                  WHERE length(trim(k.name)) > 0
-                )
-                SELECT 'movie' AS kind, m.id, m.title, m.posterpath, 'Like ' || fk.label AS detail
-                FROM movie m
-                JOIN media_keyword k ON k.media_kind = 'movie' AND k.media_id = m.id
-                JOIN fav_keywords fk ON lower(k.name) = fk.key
-                WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
-                UNION ALL
-                SELECT 'documentary', d.id, d.title, d.posterpath, 'Like ' || fk.label
-                FROM documentary d
-                JOIN media_keyword k ON k.media_kind = 'documentary' AND k.media_id = d.id
-                JOIN fav_keywords fk ON lower(k.name) = fk.key
-                WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'documentary' AND p.media_id = d.id)
-                UNION ALL
-                SELECT 'show', s.id, s.title, s.posterpath, 'Like ' || fk.label
-                FROM show s
-                JOIN media_keyword k ON k.media_kind = 'show' AND k.media_id = s.id
-                JOIN fav_keywords fk ON lower(k.name) = fk.key
-                WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
-                LIMIT 40
-                """,
-                "tag");
-        }
-        catch
-        {
-            return [];
-        }
-    }
+    private List<WatchNextPick> LoadTagAffinityUnfinished(int userId) =>
+        ReadNamedWatchNextRows(
+            userId,
+            """
+            WITH favorites AS (
+              SELECT media_kind, media_id
+              FROM user_media_progress
+              WHERE user_id = @userId AND score >= 4
+            ),
+            fav_keywords AS (
+              SELECT DISTINCT lower(k.name) AS key, k.name AS label
+              FROM media_keyword k
+              JOIN favorites f ON f.media_kind = k.media_kind AND f.media_id = k.media_id
+              WHERE length(trim(k.name)) > 0
+            )
+            SELECT 'movie' AS kind, m.id, m.title, m.posterpath, 'Like ' || fk.label AS detail
+            FROM movie m
+            JOIN media_keyword k ON k.media_kind = 'movie' AND k.media_id = m.id
+            JOIN fav_keywords fk ON lower(k.name) = fk.key
+            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'movie' AND p.media_id = m.id)
+            UNION ALL
+            SELECT 'documentary', d.id, d.title, d.posterpath, 'Like ' || fk.label
+            FROM documentary d
+            JOIN media_keyword k ON k.media_kind = 'documentary' AND k.media_id = d.id
+            JOIN fav_keywords fk ON lower(k.name) = fk.key
+            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'documentary' AND p.media_id = d.id)
+            UNION ALL
+            SELECT 'show', s.id, s.title, s.posterpath, 'Like ' || fk.label
+            FROM show s
+            JOIN media_keyword k ON k.media_kind = 'show' AND k.media_id = s.id
+            JOIN fav_keywords fk ON lower(k.name) = fk.key
+            WHERE NOT EXISTS (SELECT 1 FROM user_media_progress p WHERE p.user_id = @userId AND p.media_kind = 'show' AND p.media_id = s.id)
+            LIMIT 40
+            """,
+            "tag");
 
     private List<WatchNextPick> LoadVaultUnfinished(int userId) =>
         ReadWatchNextRows(

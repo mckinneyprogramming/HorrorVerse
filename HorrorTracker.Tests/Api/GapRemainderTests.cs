@@ -471,6 +471,82 @@ public class GapRemainderTests
         Gap.Call(library, "SyncSeriesForMovie", userId, linked, true, 1990);
         Gap.Call(library, "SyncSeriesForMovie", userId, zero, false, null);
         Assert.Empty((System.Collections.IEnumerable)Gap.Call(library, "ReadWatchNextRows", userId, "SELECT 1 FROM gap_missing_watch", "vault")!);
+        Assert.Empty((System.Collections.IEnumerable)Gap.Call(library, "ReadNamedWatchNextRows", userId, "SELECT 1 FROM gap_missing_named", "follow")!);
+
+        await CoverageSupport.Exec(connectionString, """
+            CREATE TABLE IF NOT EXISTS user_talent_follow (
+                user_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+                person_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                profile_path TEXT,
+                known_for TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (user_id, person_id)
+            );
+            CREATE TABLE IF NOT EXISTS talent_filmography (
+                person_id INTEGER NOT NULL,
+                media_type TEXT NOT NULL,
+                tmdb_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                release_year INTEGER,
+                poster_path TEXT,
+                role TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (person_id, media_type, tmdb_id)
+            );
+            CREATE TABLE IF NOT EXISTS media_keyword (
+                media_kind TEXT NOT NULL,
+                media_id INTEGER NOT NULL,
+                tmdb_keyword_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                PRIMARY KEY (media_kind, media_id, tmdb_keyword_id)
+            );
+            ALTER TABLE movie ADD COLUMN IF NOT EXISTS tmdbid INTEGER;
+            ALTER TABLE documentary ADD COLUMN IF NOT EXISTS tmdbid INTEGER;
+            ALTER TABLE show ADD COLUMN IF NOT EXISTS tmdbid INTEGER;
+            """);
+        var followTmdb = stamp + 501;
+        var followMovie = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO movie (title, totaltime, watched, releaseyear, partofseries, tmdbid, posterpath) VALUES ('Gap Follow Movie {stamp}', 10, FALSE, 1990, FALSE, {followTmdb}, '/follow.jpg') RETURNING id");
+        var followDoc = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO documentary (title, totaltime, watched, releaseyear, tmdbid, posterpath) VALUES ('Gap Follow Doc {stamp}', 10, FALSE, 1991, {followTmdb + 1}, NULL) RETURNING id");
+        var followShow = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched, tmdbid, posterpath) VALUES ('Gap Follow Show {stamp}', 10, 1, 1, FALSE, {followTmdb + 2}, NULL) RETURNING id");
+        await CoverageSupport.Exec(connectionString, $"INSERT INTO user_talent_follow (user_id, person_id, name) VALUES ({userId}, 500, 'Gap Director'), ({userId}, 501, 'Gap Actor')");
+        await CoverageSupport.Exec(connectionString, $"INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind) VALUES (500, 'movie', {followTmdb}, 'Gap Follow Movie {stamp}', 'Director', 'movie'), (501, 'movie', {followTmdb}, 'Gap Follow Movie {stamp}', 'Cast', 'movie'), (500, 'movie', {followTmdb + 1}, 'Gap Follow Doc {stamp}', 'Director', 'documentary'), (500, 'tv', {followTmdb + 2}, 'Gap Follow Show {stamp}', 'Director', 'show')");
+        for (var i = 0; i < 6; i++)
+        {
+            var extraTmdb = followTmdb + 10 + i;
+            await CoverageSupport.Exec(connectionString, $"INSERT INTO movie (title, totaltime, watched, releaseyear, partofseries, tmdbid) VALUES ('Gap Follow Extra {stamp}-{i}', 10, FALSE, 1993, FALSE, {extraTmdb})");
+            await CoverageSupport.Exec(connectionString, $"INSERT INTO talent_filmography (person_id, media_type, tmdb_id, title, role, kind) VALUES (500, 'movie', {extraTmdb}, 'Gap Follow Extra {stamp}-{i}', 'Director', 'movie')");
+        }
+
+        var liked = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO movie (title, totaltime, watched, releaseyear, partofseries) VALUES ('Gap Liked {stamp}', 10, FALSE, 1988, FALSE) RETURNING id");
+        var tagged = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO movie (title, totaltime, watched, releaseyear, partofseries, posterpath) VALUES ('Gap Tagged {stamp}', 10, FALSE, 1989, FALSE, '/tag.jpg') RETURNING id");
+        var taggedDoc = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO documentary (title, totaltime, watched, releaseyear) VALUES ('Gap Tagged Doc {stamp}', 10, FALSE, 1990) RETURNING id");
+        var taggedShow = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched) VALUES ('Gap Tagged Show {stamp}', 10, 1, 1, FALSE) RETURNING id");
+        await CoverageSupport.Exec(connectionString, $"INSERT INTO user_media_progress (user_id, media_kind, media_id, score, completed_at) VALUES ({userId}, 'movie', {liked}, 5, NOW())");
+        await CoverageSupport.Exec(connectionString, $"INSERT INTO media_keyword (media_kind, media_id, tmdb_keyword_id, name) VALUES ('movie', {liked}, 1, 'slasher'), ('movie', {tagged}, 1, 'slasher'), ('documentary', {taggedDoc}, 1, 'slasher'), ('show', {taggedShow}, 1, 'slasher'), ('movie', {liked}, 2, '  ')");
+        var followPicks = (System.Collections.IEnumerable)Gap.Call(library, "LoadFollowUnfinished", userId)!;
+        Assert.NotEmpty(followPicks);
+        var tagPicks = (System.Collections.IEnumerable)Gap.Call(library, "LoadTagAffinityUnfinished", userId)!;
+        Assert.NotEmpty(tagPicks);
+        Assert.NotEmpty((System.Collections.IEnumerable)Gap.Call(library, "LoadWatchNext", userId)!);
+        Assert.NotEmpty((System.Collections.IEnumerable)Gap.Call(library, "ReadNamedWatchNextRows", userId, "SELECT 'movie' AS kind, id, title, posterpath, NULL AS detail FROM movie WHERE id = " + tagged + " LIMIT 1", "tag")!);
+        Assert.NotEmpty((System.Collections.IEnumerable)Gap.Call(library, "ReadNamedWatchNextRows", userId, "SELECT 'movie' AS kind, id, title, posterpath, '  Like tags  ' AS detail FROM movie WHERE id = " + tagged + " LIMIT 1", "tag")!);
+        Assert.NotEmpty((System.Collections.IEnumerable)Gap.Call(library, "ReadNamedWatchNextRows", userId, "SELECT 'movie' AS kind, id, title, posterpath, '   ' AS detail FROM movie WHERE id = " + tagged + " LIMIT 1", "tag")!);
+        Assert.Empty((System.Collections.IEnumerable)Gap.Call(library, "ReadNamedWatchNextRows", userId, "SELECT 'movie' AS kind, 0 AS id, title, posterpath, 'x' AS detail FROM movie WHERE id = " + tagged + " LIMIT 1", "tag")!);
+        await Gap.WithRenamedTable(connectionString, "talent_filmography", "talent_filmography_gap", () =>
+        {
+            Assert.Empty((System.Collections.IEnumerable)Gap.Call(library, "LoadFollowUnfinished", userId)!);
+            return Task.CompletedTask;
+        });
+        await Gap.WithRenamedTable(connectionString, "media_keyword", "media_keyword_gap", () =>
+        {
+            Assert.Empty((System.Collections.IEnumerable)Gap.Call(library, "LoadTagAffinityUnfinished", userId)!);
+            return Task.CompletedTask;
+        });
+        _ = followMovie;
+        _ = followDoc;
+        _ = followShow;
 
         var bareShow = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched) VALUES ('Gap Bare {stamp}', 0, 0, 0, FALSE) RETURNING id");
         var emptySeasonShow = await CoverageSupport.Scalar<int>(connectionString, $"INSERT INTO show (title, totaltime, totalepisodes, numberofseasons, watched) VALUES ('Gap Empty Season {stamp}', 0, 1, 2, FALSE) RETURNING id");
