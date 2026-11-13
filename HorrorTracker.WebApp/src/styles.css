@@ -2081,6 +2081,10 @@ code {
   gap: 14px;
 }
 
+.talent-shelf {
+  margin: 0 0 28px;
+}
+
 .talent-names h2,
 .talent-shelf h2 {
   margin: 0;
