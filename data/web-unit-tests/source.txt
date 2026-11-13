@@ -1,2 +1,2 @@
-https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43346951861
+https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43348869648
 SonarCloud Analysis
