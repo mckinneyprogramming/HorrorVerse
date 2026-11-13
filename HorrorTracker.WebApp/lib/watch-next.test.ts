@@ -12,44 +12,61 @@ function item(id: string, reason: WatchNextItem["reason"], title = id): WatchNex
   };
 }
 
+function emptySource(overrides: Partial<Parameters<typeof pickWatchNext>[0]> = {}): Parameters<typeof pickWatchNext>[0] {
+  return {
+    episodes: [],
+    series: [],
+    listed: [],
+    follow: [],
+    tag: [],
+    vault: [],
+    ...overrides,
+  };
+}
+
 describe("pickWatchNext", () => {
-  it("prefers in-progress episodes, then series, then lists, then vault", () => {
+  it("prefers episodes, series, lists, follows, tags, then vault", () => {
     expect(
-      pickWatchNext({
-        episodes: [item("show:1", "episode", "Ratched")],
-        series: [item("movie:2", "series", "Halloween II")],
-        listed: [item("movie:3", "list", "Hereditary")],
-        vault: [item("movie:4", "vault", "The Thing")],
-      }).map((pick) => pick.id),
-    ).toEqual(["show:1", "movie:2", "movie:3", "movie:4"]);
+      pickWatchNext(
+        emptySource({
+          episodes: [item("show:1", "episode", "Ratched")],
+          series: [item("movie:2", "series", "Halloween II")],
+          listed: [item("movie:3", "list", "Hereditary")],
+          follow: [item("movie:5", "follow", "Halloween")],
+          tag: [item("movie:6", "tag", "Scream")],
+          vault: [item("movie:4", "vault", "The Thing")],
+        }),
+      ).map((pick) => pick.id),
+    ).toEqual(["show:1", "movie:2", "movie:3", "movie:5", "movie:6", "movie:4"]);
   });
 
   it("skips duplicates so a listed title already continued is not shown twice", () => {
     expect(
-      pickWatchNext({
-        episodes: [item("show:1", "episode")],
-        series: [],
-        listed: [item("show:1", "list")],
-        vault: [item("show:1", "vault"), item("movie:9", "vault")],
-      }).map((pick) => pick.id),
+      pickWatchNext(
+        emptySource({
+          episodes: [item("show:1", "episode")],
+          listed: [item("show:1", "list")],
+          vault: [item("show:1", "vault"), item("movie:9", "vault")],
+        }),
+      ).map((pick) => pick.id),
     ).toEqual(["show:1", "movie:9"]);
   });
 
   it("fills read next from listed books before vault books", () => {
     expect(
-      pickWatchNext({
-        episodes: [],
-        series: [],
-        listed: [item("book:1", "list", "It")],
-        vault: [item("book:2", "vault", "Carrie")],
-      }).map((pick) => pick.title),
+      pickWatchNext(
+        emptySource({
+          listed: [item("book:1", "list", "It")],
+          vault: [item("book:2", "vault", "Carrie")],
+        }),
+      ).map((pick) => pick.title),
     ).toEqual(["It", "Carrie"]);
   });
 
   it("keeps vault order stable for the same seed", () => {
     const vault = [item("movie:1", "vault"), item("movie:2", "vault"), item("movie:3", "vault"), item("movie:4", "vault")];
-    const first = pickWatchNext({ episodes: [], series: [], listed: [], vault }, 3, 42).map((pick) => pick.id);
-    const second = pickWatchNext({ episodes: [], series: [], listed: [], vault }, 3, 42).map((pick) => pick.id);
+    const first = pickWatchNext(emptySource({ vault }), 3, 42).map((pick) => pick.id);
+    const second = pickWatchNext(emptySource({ vault }), 3, 42).map((pick) => pick.id);
     expect(first).toEqual(second);
     expect(first).not.toEqual(["movie:1", "movie:2", "movie:3"]);
   });
@@ -71,19 +88,22 @@ describe("dailyWatchNextSeed", () => {
 
 describe("pickWatchNext edges", () => {
   it("stops at the limit and skips blank titles", () => {
-    expect(pickWatchNext({
-      episodes: [item("movie:1", "episode", "A"), item("movie:2", "episode", "B")],
-      series: [],
-      listed: [],
-      vault: [],
-    }, 1).map((pick) => pick.id)).toEqual(["movie:1"]);
+    expect(
+      pickWatchNext(
+        emptySource({
+          episodes: [item("movie:1", "episode", "A"), item("movie:2", "episode", "B")],
+        }),
+        1,
+      ).map((pick) => pick.id),
+    ).toEqual(["movie:1"]);
 
-    expect(pickWatchNext({
-      episodes: [],
-      series: [],
-      listed: [{ ...item("movie:1", "list"), title: "" }, item("movie:2", "list", "Kept")],
-      vault: [],
-    }).map((pick) => pick.id)).toEqual(["movie:2"]);
+    expect(
+      pickWatchNext(
+        emptySource({
+          listed: [{ ...item("movie:1", "list"), title: "" }, item("movie:2", "list", "Kept")],
+        }),
+      ).map((pick) => pick.id),
+    ).toEqual(["movie:2"]);
   });
 
   it("leaves holes in place while shuffling", () => {
@@ -93,11 +113,7 @@ describe("pickWatchNext edges", () => {
       item("movie:3", "vault", "Three"),
       item("movie:4", "vault", "Four"),
     ];
-    expect(pickWatchNext({ episodes: [], series: [], listed: [], vault }, 3, 5).map((pick) => pick.id)).toEqual([
-      "movie:4",
-      "movie:3",
-      "movie:1",
-    ]);
+    expect(pickWatchNext(emptySource({ vault }), 3, 5).map((pick) => pick.id)).toEqual(["movie:4", "movie:3", "movie:1"]);
   });
 });
 
@@ -145,10 +161,26 @@ describe("loadWatchNext", () => {
         ],
       },
       {
-        match: "FROM documentary d",
+        match: "releaseyear FROM movie m",
         rows: [
           { kind: "movie", id: 8, title: "Vault", posterpath: "/v.jpg", releaseyear: 1979 },
           { kind: "nope", id: 1, title: "Skip" },
+        ],
+      },
+      {
+        match: "user_talent_follow",
+        rows: [
+          { kind: "movie", id: 11, title: "Followed", posterpath: "/f.jpg", person_name: "Jamie", created_at: "2024-01-01" },
+          { kind: "movie", id: 11, title: "Followed", posterpath: "/f.jpg", person_name: "Again", created_at: "2024-02-01" },
+          { kind: "show", id: 12, title: "Followed Show", posterpath: null, person_name: "  ", created_at: "2024-03-01" },
+        ],
+      },
+      {
+        match: "fav_keywords",
+        rows: [
+          { kind: "movie", id: 21, title: "Tagged", posterpath: "/t.jpg", tag: "slasher" },
+          { kind: "movie", id: 21, title: "Tagged", posterpath: "/t.jpg", tag: "slasher" },
+          { kind: "documentary", id: 22, title: "Doc Tag", posterpath: null, tag: "  " },
         ],
       },
     ], async () => {
@@ -173,6 +205,64 @@ describe("loadWatchNext", () => {
         posterPath: "/h.jpg",
         reason: "series",
       });
+    });
+  });
+
+  it("surfaces unfinished follow credits and tag matches before the vault", async () => {
+    await withNeonFetch({}, unreachableNetwork, [
+      { match: "AS episode_title", rows: [] },
+      { match: "AS series_title", rows: [] },
+      { match: "i.media_kind = 'documentary'", rows: [] },
+      {
+        match: "user_talent_follow",
+        rows: [
+          { kind: "movie", id: 11, title: "Halloween", posterpath: "/h.jpg", person_name: "Jamie Lee", created_at: "2024-01-01" },
+          { kind: "movie", id: 12, title: "Follow Two", posterpath: null, person_name: null, created_at: "2024-01-02" },
+          { kind: "movie", id: 13, title: "Follow Three", posterpath: null, person_name: "Jamie Lee", created_at: "2024-01-03" },
+          { kind: "movie", id: 14, title: "Follow Four", posterpath: null, person_name: "Jamie Lee", created_at: "2024-01-04" },
+          { kind: "movie", id: 15, title: "Follow Five", posterpath: null, person_name: "Jamie Lee", created_at: "2024-01-05" },
+          { kind: "movie", id: 16, title: "Follow Six", posterpath: null, person_name: "Jamie Lee", created_at: "2024-01-06" },
+          { kind: "movie", id: 17, title: "Follow Seven", posterpath: null, person_name: "Jamie Lee", created_at: "2024-01-07" },
+        ],
+      },
+      {
+        match: "fav_keywords",
+        rows: [
+          { kind: "movie", id: 21, title: "Scream", posterpath: "/s.jpg", tag: "slasher" },
+          { kind: "movie", id: 22, title: "Blank Tag", posterpath: null, tag: null },
+        ],
+      },
+      {
+        match: "releaseyear FROM movie m",
+        rows: [{ kind: "movie", id: 8, title: "Vault", posterpath: "/v.jpg", releaseyear: 1979 }],
+      },
+    ], async () => {
+      const items = await loadWatchNext(connection, 4);
+      expect(items).toHaveLength(6);
+      expect(items.every((entry) => entry.reason === "follow")).toBe(true);
+      expect(items[0]).toMatchObject({ id: "movie:11", detail: "Jamie Lee", posterPath: "/h.jpg" });
+    });
+  });
+
+  it("keeps a tag match when follows are empty", async () => {
+    await withNeonFetch({}, unreachableNetwork, [
+      { match: "AS episode_title", rows: [] },
+      { match: "AS series_title", rows: [] },
+      { match: "i.media_kind = 'documentary'", rows: [] },
+      { match: "user_talent_follow", rows: [] },
+      {
+        match: "fav_keywords",
+        rows: [{ kind: "movie", id: 21, title: "Scream", posterpath: "/s.jpg", tag: "slasher" }],
+      },
+      {
+        match: "releaseyear FROM movie m",
+        rows: [{ kind: "movie", id: 8, title: "Vault", posterpath: "/v.jpg", releaseyear: 1979 }],
+      },
+    ], async () => {
+      await expect(loadWatchNext(connection, 4)).resolves.toEqual([
+        { id: "movie:21", title: "Scream", kind: "movie", reason: "tag", detail: "Like slasher", posterPath: "/s.jpg" },
+        { id: "movie:8", title: "Vault", kind: "movie", reason: "vault", detail: "1979", posterPath: "/v.jpg" },
+      ]);
     });
   });
 

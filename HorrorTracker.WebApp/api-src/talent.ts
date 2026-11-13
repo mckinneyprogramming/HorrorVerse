@@ -4,11 +4,13 @@ export const maxDuration = 30;
 import {
   followTalent,
   listFollowedTalent,
+  listFollowUpcoming,
   openTalent,
   titleCredits,
   unfollowTalent,
 } from "../lib/talent";
 import { HttpError, jsonError, requireDatabaseUrl, requireSessionUser } from "../lib/neon";
+import { loadUpcomingSchedule } from "./upcoming";
 
 export async function GET(request: Request) {
   try {
@@ -23,6 +25,11 @@ export async function GET(request: Request) {
     const person = Number(url.searchParams.get("person"));
     if (url.searchParams.has("person")) {
       return Response.json({ person: await openTalent(connectionString, user.id, person) });
+    }
+
+    if (url.searchParams.get("upcoming") === "1") {
+      const schedule = await loadUpcomingSchedule();
+      return Response.json({ titles: await listFollowUpcoming(connectionString, user.id, schedule) });
     }
 
     return Response.json({ people: await listFollowedTalent(connectionString, user.id) });

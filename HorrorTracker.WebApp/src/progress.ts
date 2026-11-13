@@ -1,7 +1,7 @@
 import { parsePosterPath } from "./catalog";
 
 export type WatchNextKind = "movie" | "documentary" | "show" | "book";
-export type WatchNextReason = "episode" | "series" | "list" | "vault";
+export type WatchNextReason = "episode" | "series" | "list" | "follow" | "tag" | "vault";
 
 export interface WatchNextItem {
   id: string;
@@ -155,7 +155,7 @@ function readWatchNextItem(value: unknown): WatchNextItem | undefined {
   const reason = item.reason;
   if (
     (kind !== "movie" && kind !== "documentary" && kind !== "show" && kind !== "book") ||
-    (reason !== "episode" && reason !== "series" && reason !== "list" && reason !== "vault") ||
+    (reason !== "episode" && reason !== "series" && reason !== "list" && reason !== "follow" && reason !== "tag" && reason !== "vault") ||
     typeof item.id !== "string" ||
     typeof item.title !== "string" ||
     !item.id ||

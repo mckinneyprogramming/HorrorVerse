@@ -423,24 +423,33 @@ function pickWatchNext(source, limit = WATCH_NEXT_LIMIT, seed = 0) {
   add(source.episodes);
   add(source.series);
   add(source.listed);
+  add(source.follow);
+  add(shuffleWithSeed(source.tag, seed));
   add(shuffleWithSeed(source.vault, seed));
   return picked;
 }
 async function loadWatchNext(connectionString, userId) {
-  const [episodes, series, listed, vault] = await Promise.all([
+  const seed = dailyWatchNextSeed(userId);
+  const [episodes, series, listed, follow, tag, vault] = await Promise.all([
     loadNextEpisodes(connectionString, userId),
     loadNextSeriesMovies(connectionString, userId),
     loadListedUnfinished(connectionString, userId),
+    loadFollowUnfinished(connectionString, userId),
+    loadTagAffinityUnfinished(connectionString, userId),
     loadVaultUnfinished(connectionString, userId)
   ]);
-  return pickWatchNext({ episodes, series, listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
+  return pickWatchNext({ episodes, series, listed, follow, tag, vault }, WATCH_NEXT_LIMIT, seed);
 }
 async function loadReadNext(connectionString, userId) {
   const [listed, vault] = await Promise.all([
     loadListedBooks(connectionString, userId),
     loadVaultBooks(connectionString, userId)
   ]);
-  return pickWatchNext({ episodes: [], series: [], listed, vault }, WATCH_NEXT_LIMIT, dailyWatchNextSeed(userId));
+  return pickWatchNext(
+    { episodes: [], series: [], listed, follow: [], tag: [], vault },
+    WATCH_NEXT_LIMIT,
+    dailyWatchNextSeed(userId)
+  );
 }
 async function loadNextEpisodes(connectionString, userId) {
   try {
@@ -564,6 +573,121 @@ async function loadListedUnfinished(connectionString, userId) {
       [userId]
     );
     return rows.map((row) => toItem(row.kind, row.id, row.title, row.posterpath, "list", yearDetail(row.releaseyear))).filter((item) => item !== void 0);
+  } catch {
+    return [];
+  }
+}
+async function loadFollowUnfinished(connectionString, userId) {
+  try {
+    const rows = await queryRows(
+      connectionString,
+      `SELECT 'movie' AS kind, m.id, m.title, m.posterpath, f.name AS person_name, f.created_at
+       FROM user_talent_follow f
+       JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'movie'
+       JOIN movie m ON m.tmdbid = t.tmdb_id
+       WHERE f.user_id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM user_media_progress p
+           WHERE p.user_id = $1 AND p.media_kind = 'movie' AND p.media_id = m.id
+         )
+       UNION ALL
+       SELECT 'documentary', d.id, d.title, d.posterpath, f.name, f.created_at
+       FROM user_talent_follow f
+       JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'documentary'
+       JOIN documentary d ON d.tmdbid = t.tmdb_id
+       WHERE f.user_id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM user_media_progress p
+           WHERE p.user_id = $1 AND p.media_kind = 'documentary' AND p.media_id = d.id
+         )
+       UNION ALL
+       SELECT 'show', s.id, s.title, s.posterpath, f.name, f.created_at
+       FROM user_talent_follow f
+       JOIN talent_filmography t ON t.person_id = f.person_id AND t.kind = 'show'
+       JOIN show s ON s.tmdbid = t.tmdb_id
+       WHERE f.user_id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM user_media_progress p
+           WHERE p.user_id = $1 AND p.media_kind = 'show' AND p.media_id = s.id
+         )
+       ORDER BY created_at DESC, title`,
+      [userId]
+    );
+    const seen = /* @__PURE__ */ new Set();
+    const items = [];
+    for (const row of rows) {
+      const detail = String(row.person_name ?? "").trim() || void 0;
+      const item = toItem(row.kind, row.id, row.title, row.posterpath, "follow", detail);
+      if (!item || seen.has(item.id)) {
+        continue;
+      }
+      seen.add(item.id);
+      items.push(item);
+      if (items.length >= WATCH_NEXT_LIMIT) {
+        break;
+      }
+    }
+    return items;
+  } catch {
+    return [];
+  }
+}
+async function loadTagAffinityUnfinished(connectionString, userId) {
+  try {
+    const rows = await queryRows(
+      connectionString,
+      `WITH favorites AS (
+         SELECT media_kind, media_id
+         FROM user_media_progress
+         WHERE user_id = $1 AND score >= 4
+       ),
+       fav_keywords AS (
+         SELECT DISTINCT lower(k.name) AS key, k.name AS label
+         FROM media_keyword k
+         JOIN favorites f ON f.media_kind = k.media_kind AND f.media_id = k.media_id
+         WHERE length(trim(k.name)) > 0
+       )
+       SELECT 'movie' AS kind, m.id, m.title, m.posterpath, fk.label AS tag
+       FROM movie m
+       JOIN media_keyword k ON k.media_kind = 'movie' AND k.media_id = m.id
+       JOIN fav_keywords fk ON lower(k.name) = fk.key
+       WHERE NOT EXISTS (
+         SELECT 1 FROM user_media_progress p
+         WHERE p.user_id = $1 AND p.media_kind = 'movie' AND p.media_id = m.id
+       )
+       UNION ALL
+       SELECT 'documentary', d.id, d.title, d.posterpath, fk.label
+       FROM documentary d
+       JOIN media_keyword k ON k.media_kind = 'documentary' AND k.media_id = d.id
+       JOIN fav_keywords fk ON lower(k.name) = fk.key
+       WHERE NOT EXISTS (
+         SELECT 1 FROM user_media_progress p
+         WHERE p.user_id = $1 AND p.media_kind = 'documentary' AND p.media_id = d.id
+       )
+       UNION ALL
+       SELECT 'show', s.id, s.title, s.posterpath, fk.label
+       FROM show s
+       JOIN media_keyword k ON k.media_kind = 'show' AND k.media_id = s.id
+       JOIN fav_keywords fk ON lower(k.name) = fk.key
+       WHERE NOT EXISTS (
+         SELECT 1 FROM user_media_progress p
+         WHERE p.user_id = $1 AND p.media_kind = 'show' AND p.media_id = s.id
+       )
+       LIMIT 40`,
+      [userId]
+    );
+    const seen = /* @__PURE__ */ new Set();
+    const items = [];
+    for (const row of rows) {
+      const tag = String(row.tag ?? "").trim();
+      const item = toItem(row.kind, row.id, row.title, row.posterpath, "tag", tag ? `Like ${tag}` : void 0);
+      if (!item || seen.has(item.id)) {
+        continue;
+      }
+      seen.add(item.id);
+      items.push(item);
+    }
+    return items;
   } catch {
     return [];
   }

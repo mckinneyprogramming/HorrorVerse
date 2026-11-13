@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchFollowedTalent, fetchTalentPerson, fetchTitleTalent, followTalent, unfollowTalent } from "./talent";
+import { fetchFollowUpcoming, fetchFollowedTalent, fetchTalentPerson, fetchTitleTalent, followTalent, unfollowTalent } from "./talent";
 
 function respond(body: unknown, status = 200): Response {
   return new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
@@ -70,6 +70,60 @@ describe("talent client", () => {
     await expect(fetchFollowedTalent()).resolves.toEqual([]);
     vi.stubGlobal("fetch", vi.fn(async () => respond({ person: { id: 4, name: "Plain", credits: "nope" } })));
     await expect(fetchTalentPerson(4)).resolves.toMatchObject({ credits: [], watched: 0, total: 0, following: false });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        respond({
+          titles: [
+            {
+              tmdbId: 10,
+              kind: "film",
+              title: " New Night ",
+              releaseDate: "2099-08-01",
+              personId: 5,
+              personName: " Carpenter ",
+              posterPath: " /n.jpg ",
+              role: " Director ",
+              detail: " Limited ",
+            },
+            { tmdbId: 0, kind: "film", title: "Bad", releaseDate: "2099-08-01", personId: 5, personName: "Carpenter" },
+            null,
+          ],
+        }),
+      ),
+    );
+    await expect(fetchFollowUpcoming()).resolves.toEqual([
+      {
+        tmdbId: 10,
+        kind: "film",
+        title: "New Night",
+        releaseDate: "2099-08-01",
+        personId: 5,
+        personName: "Carpenter",
+        posterPath: "/n.jpg",
+        role: "Director",
+        detail: "Limited",
+      },
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        respond({
+          titles: [
+            { tmdbId: 11, kind: "show", title: "Zone", releaseDate: "2099-08-02", personId: 6, personName: "Jamie" },
+            { tmdbId: 12, kind: "episode", title: "Pilot", releaseDate: "2099-08-03", personId: 6, personName: "Jamie" },
+            { tmdbId: 13, kind: "book", title: "Nope", releaseDate: "2099-08-04", personId: 6, personName: "Jamie" },
+          ],
+        }),
+      ),
+    );
+    await expect(fetchFollowUpcoming()).resolves.toEqual([
+      { tmdbId: 11, kind: "show", title: "Zone", releaseDate: "2099-08-02", personId: 6, personName: "Jamie" },
+      { tmdbId: 12, kind: "episode", title: "Pilot", releaseDate: "2099-08-03", personId: 6, personName: "Jamie" },
+    ]);
+    vi.stubGlobal("fetch", vi.fn(async () => respond({ titles: "nope" })));
+    await expect(fetchFollowUpcoming()).resolves.toEqual([]);
   });
 
   it("uses the server message when a request fails", async () => {
@@ -77,6 +131,7 @@ describe("talent client", () => {
     await expect(fetchTitleTalent("movie:1")).rejects.toThrow("Could not load the people on that title.");
     await expect(fetchTalentPerson(5)).rejects.toThrow("Could not open that person.");
     await expect(fetchFollowedTalent()).rejects.toThrow("Could not load the people you follow.");
+    await expect(fetchFollowUpcoming()).rejects.toThrow("Could not load upcoming titles from people you follow.");
     await expect(followTalent(5)).rejects.toThrow("Could not follow that person.");
     await expect(unfollowTalent(5)).rejects.toThrow("Could not unfollow that person.");
 

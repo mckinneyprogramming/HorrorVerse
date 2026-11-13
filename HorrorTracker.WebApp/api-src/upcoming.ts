@@ -47,6 +47,10 @@ export async function GET() {
   }
 }
 
+export async function loadUpcomingSchedule(): Promise<{ films: UpcomingTitle[]; shows: UpcomingTitle[] }> {
+  return loadSchedule();
+}
+
 async function loadSchedule(): Promise<{ films: UpcomingTitle[]; shows: UpcomingTitle[] }> {
   if (cache && cache.expires > Date.now()) {
     return cache;

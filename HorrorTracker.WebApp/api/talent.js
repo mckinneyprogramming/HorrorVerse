@@ -154,6 +154,13 @@ function toHttpDriverUrl(connectionString) {
 
 // lib/tmdb.ts
 var TMDB_BASE = "https://api.themoviedb.org/3";
+async function tmdbJson(path) {
+  const payload = await tmdbJsonOptional(path);
+  if (!payload) {
+    throw new HttpError("Could not reach TMDb.", 502);
+  }
+  return payload;
+}
 async function tmdbJsonOptional(path) {
   const apiKey = process.env.TMDBKey?.trim();
   if (!apiKey) {
@@ -177,6 +184,9 @@ async function tmdbJsonOptional(path) {
     return null;
   }
 }
+function asResults(payload) {
+  return Array.isArray(payload.results) ? payload.results.filter((item) => item && typeof item === "object") : [];
+}
 function asId(row, key = "id") {
   return asPositiveInt(row?.[key]);
 }
@@ -198,6 +208,83 @@ function parsePosterPath(value) {
     return void 0;
   }
   return path;
+}
+
+// lib/follow-upcoming.ts
+var FOLLOW_UPCOMING_LIMIT = 8;
+function matchFollowUpcoming(credits, schedule, limit = FOLLOW_UPCOMING_LIMIT) {
+  const byMovie = /* @__PURE__ */ new Map();
+  const byShow = /* @__PURE__ */ new Map();
+  for (const credit of credits) {
+    if (!credit.personId || !credit.personName || !credit.tmdbId) {
+      continue;
+    }
+    const bucket = credit.mediaType === "tv" ? byShow : byMovie;
+    if (!bucket.has(credit.tmdbId)) {
+      bucket.set(credit.tmdbId, credit);
+    }
+  }
+  const matched = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const title of [...schedule.films, ...schedule.shows]) {
+    if (!title.tmdbId || !title.title || !/^\d{4}-\d{2}-\d{2}$/.test(title.releaseDate)) {
+      continue;
+    }
+    const credit = title.kind === "film" ? byMovie.get(title.tmdbId) : byShow.get(title.tmdbId);
+    if (!credit) {
+      continue;
+    }
+    const key = `${title.kind}:${title.tmdbId}:${title.releaseDate}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    const posterPath = title.posterPath ?? credit.posterPath;
+    const role = credit.role.trim();
+    matched.push({
+      tmdbId: title.tmdbId,
+      kind: title.kind,
+      title: title.title,
+      releaseDate: title.releaseDate,
+      ...title.detail ? { detail: title.detail } : {},
+      ...posterPath ? { posterPath } : {},
+      personId: credit.personId,
+      personName: credit.personName,
+      ...role ? { role } : {}
+    });
+  }
+  return matched.sort((left, right) => left.releaseDate.localeCompare(right.releaseDate) || left.title.localeCompare(right.title)).slice(0, Math.max(0, limit));
+}
+async function loadFollowCredits(connectionString, userId) {
+  const rows = await queryRows(
+    connectionString,
+    `SELECT f.person_id, f.name, t.tmdb_id, t.media_type, t.role, t.poster_path
+     FROM user_talent_follow f
+     JOIN talent_filmography t ON t.person_id = f.person_id
+     WHERE f.user_id = $1
+     ORDER BY f.created_at DESC, t.title`,
+    [userId]
+  );
+  const credits = [];
+  for (const row of rows) {
+    const personId = asId(row, "person_id");
+    const personName = String(row.name ?? "").trim();
+    const tmdbId = asPositiveInt(row.tmdb_id);
+    const mediaType = row.media_type === "tv" || row.media_type === "movie" ? row.media_type : void 0;
+    if (!personId || !personName || !tmdbId || !mediaType) {
+      continue;
+    }
+    const posterPath = parsePosterPath(row.poster_path);
+    credits.push({
+      personId,
+      personName,
+      tmdbId,
+      mediaType,
+      role: String(row.role ?? "").trim() || "Cast",
+      ...posterPath ? { posterPath } : {}
+    });
+  }
+  return credits;
 }
 
 // lib/talent.ts
@@ -281,6 +368,11 @@ async function openTalent(connectionString, userId, personId) {
     throw new HttpError("That person was not found.", 404);
   }
   return person;
+}
+async function listFollowUpcoming(connectionString, userId, schedule) {
+  await ensureTalentSchema(connectionString);
+  const credits = await loadFollowCredits(connectionString, userId);
+  return matchFollowUpcoming(credits, schedule);
 }
 async function listFollowedTalent(connectionString, userId) {
   await ensureTalentSchema(connectionString);
@@ -640,6 +732,264 @@ function requirePersonId(personId) {
   }
 }
 
+// api-src/upcoming.ts
+var HORROR_GENRE2 = 27;
+var HORROR_KEYWORD = 3158;
+var EXCLUDED_TV_GENRES = /* @__PURE__ */ new Set([35, 10762, 10763, 10764, 10766, 10767]);
+var HORROR_KEYWORD_HINTS = ["horror", "slasher", "supernatural", "ghost", "zombie", "vampire", "haunted", "demonic", "occult"];
+var HORIZON_YEARS = 2;
+var EPISODE_HORIZON_DAYS = 90;
+var MAX_PAGES = 12;
+var MAX_EPISODE_PAGES = 3;
+var MAX_TV_DETAILS = 48;
+var CACHE_MS = 6 * 60 * 60 * 1e3;
+var cache = null;
+async function loadUpcomingSchedule() {
+  return loadSchedule();
+}
+async function loadSchedule() {
+  if (cache && cache.expires > Date.now()) {
+    return cache;
+  }
+  const films = await loadFilms();
+  const shows = await loadShows().catch(() => []);
+  cache = { expires: Date.now() + CACHE_MS, films, shows };
+  return cache;
+}
+async function loadFilms() {
+  const today = utcToday();
+  const until = addYears(today, HORIZON_YEARS);
+  const start = isoDate(today);
+  const end = isoDate(until);
+  const films = [];
+  const seen = /* @__PURE__ */ new Set();
+  let pages = 1;
+  for (let page = 1; page <= pages && page <= MAX_PAGES; page += 1) {
+    const payload = await tmdbJson(
+      `/discover/movie?include_adult=false&include_video=false&language=en-US&page=${page}&sort_by=primary_release_date.asc&with_genres=${HORROR_GENRE2}&primary_release_date.gte=${encodeURIComponent(start)}&primary_release_date.lte=${encodeURIComponent(end)}`
+    );
+    pages = pageCount(payload, MAX_PAGES);
+    for (const item of asResults(payload)) {
+      const tmdbId = Number(item.id);
+      const title = String(item.title ?? "").trim();
+      const releaseDate = String(item.release_date ?? "").trim();
+      if (!Number.isInteger(tmdbId) || tmdbId < 1 || !title || !releaseDate || seen.has(tmdbId)) {
+        continue;
+      }
+      const date = parseDate(releaseDate);
+      if (!date || date < today || date > until) {
+        continue;
+      }
+      seen.add(tmdbId);
+      const overview = trimOverview(String(item.overview ?? "").trim());
+      const posterPath = parsePosterPath(item.poster_path);
+      films.push({
+        kind: "film",
+        tmdbId,
+        title,
+        releaseDate: isoDate(date),
+        year: date.getUTCFullYear(),
+        ...overview ? { overview } : {},
+        ...posterPath ? { posterPath } : {}
+      });
+    }
+  }
+  return sortTitles(films);
+}
+async function loadShows() {
+  const today = utcToday();
+  const until = addYears(today, HORIZON_YEARS);
+  const [premieres, episodeIds] = await Promise.all([loadShowPremieres(today, until), collectEpisodeShowIds(today)]);
+  const episodes = await loadNextEpisodes(episodeIds, today, until);
+  const premiereDates = new Set(episodes.map((item) => `${item.tmdbId}:${item.releaseDate}`));
+  return sortTitles(premieres.filter((item) => !premiereDates.has(`${item.tmdbId}:${item.releaseDate}`)).concat(episodes));
+}
+async function loadShowPremieres(today, until) {
+  const start = isoDate(today);
+  const end = isoDate(until);
+  const shows = [];
+  const seen = /* @__PURE__ */ new Set();
+  let pages = 1;
+  for (let page = 1; page <= pages && page <= MAX_PAGES; page += 1) {
+    const payload = await tmdbJson(
+      `/discover/tv?include_adult=false&language=en-US&page=${page}&sort_by=first_air_date.asc&first_air_date.gte=${encodeURIComponent(start)}&first_air_date.lte=${encodeURIComponent(end)}`
+    );
+    pages = pageCount(payload, MAX_PAGES);
+    for (const item of asResults(payload)) {
+      const tmdbId = Number(item.id);
+      const title = String(item.name ?? "").trim();
+      const releaseDate = String(item.first_air_date ?? "").trim();
+      if (!Number.isInteger(tmdbId) || tmdbId < 1 || !title || !releaseDate || seen.has(tmdbId) || !looksLikeHorrorTv(item)) {
+        continue;
+      }
+      const date = parseDate(releaseDate);
+      if (!date || date < today || date > until) {
+        continue;
+      }
+      seen.add(tmdbId);
+      const overview = trimOverview(String(item.overview ?? "").trim());
+      const posterPath = parsePosterPath(item.poster_path);
+      shows.push({
+        kind: "show",
+        tmdbId,
+        title,
+        releaseDate: isoDate(date),
+        year: date.getUTCFullYear(),
+        detail: "New series",
+        ...overview ? { overview } : {},
+        ...posterPath ? { posterPath } : {}
+      });
+    }
+  }
+  return shows;
+}
+async function collectEpisodeShowIds(today) {
+  const until = addDays(today, EPISODE_HORIZON_DAYS);
+  const ids = /* @__PURE__ */ new Set();
+  await collectIds(
+    `/discover/tv?include_adult=false&language=en-US&air_date.gte=${encodeURIComponent(isoDate(today))}&air_date.lte=${encodeURIComponent(isoDate(until))}`,
+    MAX_EPISODE_PAGES,
+    ids,
+    true
+  );
+  await collectIds("/tv/airing_today?language=en-US", 2, ids, true);
+  await collectIds("/tv/on_the_air?language=en-US", 2, ids, true);
+  return [...ids];
+}
+async function collectIds(path, maxPages, ids, requireHorror) {
+  let pages = 1;
+  for (let page = 1; page <= pages && page <= maxPages && ids.size < MAX_TV_DETAILS; page += 1) {
+    const separator = path.includes("?") ? "&" : "?";
+    const payload = await tmdbJsonOptional(`${path}${separator}page=${page}`);
+    if (!payload) {
+      break;
+    }
+    pages = pageCount(payload, maxPages);
+    for (const item of asResults(payload)) {
+      if (requireHorror && !looksLikeHorrorTv(item)) {
+        continue;
+      }
+      const tmdbId = Number(item.id);
+      if (Number.isInteger(tmdbId) && tmdbId > 0) {
+        ids.add(tmdbId);
+      }
+    }
+  }
+}
+async function loadNextEpisodes(showIds, today, until) {
+  const ids = [...new Set(showIds.filter((id) => Number.isInteger(id) && id > 0))].slice(0, MAX_TV_DETAILS);
+  const documents = await Promise.all(ids.map((id) => tmdbJsonOptional(`/tv/${id}?language=en-US&append_to_response=keywords`)));
+  const episodes = [];
+  documents.forEach((payload, index) => {
+    if (!payload || !isHorrorTvShow(payload)) {
+      return;
+    }
+    const next = asObject(payload.next_episode_to_air);
+    const showTitle = String(payload.name ?? "").trim();
+    const airDate = String(next?.air_date ?? "").trim();
+    const date = parseDate(airDate);
+    if (!showTitle || !date || date < today || date > until) {
+      return;
+    }
+    const season = Number(next?.season_number);
+    const episode = Number(next?.episode_number);
+    const episodeName = String(next?.name ?? "").trim();
+    const overview = trimOverview(String(next?.overview ?? "").trim()) || trimOverview(String(payload.overview ?? "").trim());
+    const detail = formatEpisodeDetail(season, episode, episodeName);
+    const posterPath = parsePosterPath(payload.poster_path);
+    episodes.push({
+      kind: "episode",
+      tmdbId: ids[index],
+      title: showTitle,
+      releaseDate: isoDate(date),
+      year: date.getUTCFullYear(),
+      ...overview ? { overview } : {},
+      ...detail ? { detail } : {},
+      ...posterPath ? { posterPath } : {}
+    });
+  });
+  return episodes;
+}
+function formatEpisodeDetail(season, episode, name) {
+  const code = Number.isInteger(season) && season > 0 && Number.isInteger(episode) && episode > 0 ? `S${season} E${episode}` : "";
+  if (code && name) {
+    return `${code} \xB7 ${name}`;
+  }
+  return code || name || void 0;
+}
+function utcToday() {
+  const today = /* @__PURE__ */ new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return today;
+}
+function addYears(date, years) {
+  const next = new Date(date);
+  next.setUTCFullYear(next.getUTCFullYear() + years);
+  return next;
+}
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+function asObject(value) {
+  return value && typeof value === "object" ? value : void 0;
+}
+function pageCount(payload, maxPages) {
+  return Math.min(Math.max(Number(payload.total_pages) || 1, 1), maxPages);
+}
+function looksLikeHorrorTv(item) {
+  if (hasExcludedTvGenreIds(item)) {
+    return false;
+  }
+  const text = `${item.name ?? ""} ${item.overview ?? ""}`.toLowerCase();
+  return HORROR_KEYWORD_HINTS.some((hint) => text.includes(hint));
+}
+function isHorrorTvShow(payload) {
+  if (hasExcludedTvGenresObject(payload)) {
+    return false;
+  }
+  return hasHorrorKeyword(payload) || looksLikeHorrorTv(payload);
+}
+function hasHorrorKeyword(payload) {
+  const keywords = asObject(payload.keywords);
+  const list = Array.isArray(keywords?.results) ? keywords.results : Array.isArray(keywords?.keywords) ? keywords.keywords : [];
+  return list.some((value) => {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+    const item = value;
+    const name = String(item.name ?? "").toLowerCase();
+    return Number(item.id) === HORROR_KEYWORD || HORROR_KEYWORD_HINTS.some((hint) => name.includes(hint));
+  });
+}
+function hasExcludedTvGenreIds(item) {
+  return Array.isArray(item.genre_ids) && item.genre_ids.some((value) => EXCLUDED_TV_GENRES.has(Number(value)));
+}
+function hasExcludedTvGenresObject(payload) {
+  return Array.isArray(payload.genres) && payload.genres.some((item) => item && typeof item === "object" && EXCLUDED_TV_GENRES.has(Number(item.id)));
+}
+function parseDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return void 0;
+  }
+  const date = /* @__PURE__ */ new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? void 0 : date;
+}
+function isoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+function trimOverview(overview) {
+  if (!overview) {
+    return "";
+  }
+  return overview.length <= 400 ? overview : `${overview.slice(0, 397).trimEnd()}\u2026`;
+}
+function sortTitles(items) {
+  return items.sort((left, right) => left.releaseDate.localeCompare(right.releaseDate) || left.title.localeCompare(right.title));
+}
+
 // api-src/talent.ts
 var runtime = "nodejs";
 var maxDuration = 30;
@@ -655,6 +1005,10 @@ async function GET(request) {
     const person = Number(url.searchParams.get("person"));
     if (url.searchParams.has("person")) {
       return Response.json({ person: await openTalent(connectionString, user.id, person) });
+    }
+    if (url.searchParams.get("upcoming") === "1") {
+      const schedule = await loadUpcomingSchedule();
+      return Response.json({ titles: await listFollowUpcoming(connectionString, user.id, schedule) });
     }
     return Response.json({ people: await listFollowedTalent(connectionString, user.id) });
   } catch (error) {

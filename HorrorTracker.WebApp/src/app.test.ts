@@ -116,6 +116,17 @@ type World = {
   talentPerson: Record<string, unknown> | null;
   talentFailList: boolean;
   talentFailTitle: boolean;
+  followUpcoming: {
+    tmdbId: number;
+    kind: string;
+    title: string;
+    releaseDate: string;
+    personId: number;
+    personName: string;
+    detail?: string;
+    posterPath?: string;
+    role?: string;
+  }[];
 };
 
 const admin: User = {
@@ -338,6 +349,7 @@ function createWorld(): World {
     talentPerson: null,
     talentFailList: false,
     talentFailTitle: false,
+    followUpcoming: [],
   };
 }
 
@@ -577,6 +589,9 @@ async function handle(input: string, init?: RequestInit): Promise<Response> {
     return json({ person });
   }
   if (path === "/api/talent" && method === "GET") {
+    if (url.searchParams.get("upcoming") === "1") {
+      return json({ titles: world.followUpcoming ?? [] });
+    }
     if (world.talentFailList) {
       world.talentFailList = false;
       return json({ error: "Nope" }, 500);
@@ -2063,6 +2078,35 @@ describe("mountApp", () => {
       { id: 5, name: "Carpenter", watched: 1, total: 2, profilePath: "/c.jpg", knownFor: "Directing" },
       { id: 8, name: "Quiet", watched: 0, total: 0 },
     ];
+    world.followUpcoming = [
+      {
+        tmdbId: 900,
+        kind: "film",
+        title: "New Slash",
+        releaseDate: "2099-08-01",
+        personId: 5,
+        personName: "Carpenter",
+        posterPath: "/new.jpg",
+        role: "Director",
+      },
+      {
+        tmdbId: 901,
+        kind: "episode",
+        title: "Bare Premiere",
+        releaseDate: "2099-09-01",
+        personId: 5,
+        personName: "Carpenter",
+        detail: "S1 E1",
+      },
+    ];
+    world.progress = {
+      ...world.progress,
+      watchNext: [
+        { id: "movie:70", title: "Rock Night", kind: "movie", reason: "tag", detail: "Like slasher" },
+        { id: "movie:3", title: "Orphan", kind: "movie", reason: "follow", detail: "Carpenter" },
+        ...world.progress.watchNext,
+      ],
+    };
     world.talentPerson = {
       id: 5,
       name: "Carpenter",
@@ -2078,17 +2122,57 @@ describe("mountApp", () => {
     };
     const home = await boot("/");
     expect(home.root.textContent).toContain("People you follow");
+    expect(home.root.textContent).toContain("New from people you follow");
+    expect(home.root.textContent).toContain("New Slash");
+    expect(home.root.textContent).toContain("Bare Premiere");
+    expect(home.root.textContent).toContain("Because you liked this");
+    expect(home.root.textContent).toContain("Bare Premiere");
     expect(home.root.textContent).toContain("1 of 2 finished");
-    await click(home.root, '[data-person-id="8"]');
-    expect(home.root.textContent).toContain("No horror credits yet.");
+    world.progress = {
+      ...world.progress,
+      watchNext: [{ id: "movie:3", title: "Orphan", kind: "movie", reason: "follow", detail: "Carpenter" }],
+    };
+    world.followUpcoming = [];
+    failNext("GET /api/talent", "offline");
+    failNext("GET /api/talent", "offline");
+    const followedHome = await boot("/", false);
+    expect(followedHome.root.textContent).toContain("From someone you follow");
+    expect(followedHome.root.querySelector(".follow-upcoming")).toBeNull();
+    world.followUpcoming = [
+      {
+        tmdbId: 900,
+        kind: "film",
+        title: "New Slash",
+        releaseDate: "2099-08-01",
+        personId: 5,
+        personName: "Carpenter",
+        posterPath: "/new.jpg",
+        role: "Director",
+      },
+      {
+        tmdbId: 901,
+        kind: "episode",
+        title: "Bare Premiere",
+        releaseDate: "2099-09-01",
+        personId: 5,
+        personName: "Carpenter",
+        detail: "S1 E1",
+      },
+    ];
+    const restored = await boot("/", false);
+    await click(restored.root, '.follow-upcoming [data-person-id="5"]');
+    expect(restored.root.textContent).toContain("Known for Directing");
+    await click(restored.root, '[data-action="back"]');
+    await click(restored.root, '[data-person-id="8"]');
+    expect(restored.root.textContent).toContain("No horror credits yet.");
     const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
-    await click(home.root, '[data-action="back"]');
+    await click(restored.root, '[data-action="back"]');
     expect(back).toHaveBeenCalled();
     back.mockRestore();
     const length = Object.getOwnPropertyDescriptor(History.prototype, "length");
     Object.defineProperty(window.history, "length", { configurable: true, get: () => 1 });
-    await click(home.root, '[data-action="back"]');
-    expect(home.root.textContent).toContain("People you follow");
+    await click(restored.root, '[data-action="back"]');
+    expect(restored.root.textContent).toContain("People you follow");
     if (length) Object.defineProperty(window.history, "length", length);
 
     const title = await boot("/movie/1");

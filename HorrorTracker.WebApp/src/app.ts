@@ -44,10 +44,12 @@ import {
 import { fetchSynopsis, importTmdb, searchTmdb, type TmdbHit } from "./tmdb";
 import {
   fetchFollowedTalent,
+  fetchFollowUpcoming,
   fetchTalentPerson,
   fetchTitleTalent,
   followTalent,
   unfollowTalent,
+  type FollowUpcomingItem,
   type TalentFollow,
   type TalentName,
   type TalentPerson,
@@ -180,6 +182,7 @@ interface AppState {
   titleTalent: { titleId: string; directors: TalentName[]; cast: TalentName[] } | null;
   talentPerson: TalentPerson | null;
   talentFollows: TalentFollow[];
+  followUpcoming: FollowUpcomingItem[];
   talentMessage: string;
   talentBusy: boolean;
 }
@@ -264,6 +267,7 @@ const state: AppState = {
   titleTalent: null,
   talentPerson: null,
   talentFollows: [],
+  followUpcoming: [],
   talentMessage: "",
   talentBusy: false,
 };
@@ -1792,8 +1796,8 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.profilePerson = null;
     state.peopleResults = [];
     state.friendInbox = { friends: [], incoming: [], outgoing: [], following: [] };
-    state.talentFollows = [];
     state.talentPerson = null;
+    await refreshTalentHome();
     render(root);
     await refreshSocial();
     renderRecapShare();
@@ -1819,12 +1823,28 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     }
 
     await refreshSocial();
-    try {
-      state.talentFollows = await fetchFollowedTalent();
-    } catch {
-      state.talentFollows = [];
-    }
+    await refreshTalentHome();
     render(root);
+}
+
+async function refreshTalentHome(): Promise<void> {
+  if (!state.user) {
+    state.talentFollows = [];
+    state.followUpcoming = [];
+    return;
+  }
+
+  try {
+    state.talentFollows = await fetchFollowedTalent();
+  } catch {
+    state.talentFollows = [];
+  }
+
+  try {
+    state.followUpcoming = await fetchFollowUpcoming();
+  } catch {
+    state.followUpcoming = [];
+  }
 }
 
 async function refreshSocial(): Promise<void> {
@@ -2204,6 +2224,7 @@ function renderHome(): string {
     ${renderWatchNext()}
     ${renderReadNext()}
     ${renderFavorites()}
+    ${renderFollowUpcoming()}
     ${renderTalentShelf()}
     ${renderHomeRecents()}
     ${renderAchievements()}
@@ -2322,6 +2343,14 @@ function watchNextReasonLabel(reason: WatchNextItem["reason"]): string {
 
   if (reason === "list") {
     return "On your list";
+  }
+
+  if (reason === "follow") {
+    return "From someone you follow";
+  }
+
+  if (reason === "tag") {
+    return "Because you liked this";
   }
 
   return "Suggested";
@@ -4594,6 +4623,42 @@ function renderTalentChip(person: TalentName): string {
   `;
 }
 
+function renderFollowUpcoming(): string {
+  if (!state.user || state.followUpcoming.length < 1) {
+    return "";
+  }
+
+  return `
+    <section class="home-recents follow-upcoming" aria-label="New from people you follow">
+      <h2>New from people you follow</h2>
+      <p>Dated films and episodes tied to directors and actors you already follow.</p>
+      <div class="home-recents-strip">
+        ${state.followUpcoming.map((item) => renderFollowUpcomingCard(item)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderFollowUpcomingCard(item: FollowUpcomingItem): string {
+  const art = posterUrl(item.posterPath, "w185");
+  const when = formatUpcomingDate(item.releaseDate);
+  const meta = [item.personName, item.detail, when].filter(Boolean).join(" · ");
+  return `
+    <button class="home-recent follow-upcoming-card" type="button" data-action="open-talent" data-person-id="${item.personId}" aria-label="${escapeHtml(item.title)}, ${escapeHtml(meta)}">
+      ${
+        art
+          ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" decoding="async" referrerpolicy="no-referrer" />`
+          : `<span class="home-recent-fallback">${escapeHtml(item.title)}</span>`
+      }
+      <span class="follow-upcoming-meta">
+        <strong>${escapeHtml(item.title)}</strong>
+        <em>${escapeHtml(item.personName)}</em>
+        <span>${escapeHtml(when)}</span>
+      </span>
+    </button>
+  `;
+}
+
 function renderTalentShelf(): string {
   if (!state.user || state.talentFollows.length < 1) {
     return "";
@@ -4782,7 +4847,7 @@ async function setTalentFollow(root: HTMLElement, personId: number, follow: bool
   render(root);
   try {
     state.talentPerson = follow ? await followTalent(personId) : await unfollowTalent(personId);
-    state.talentFollows = await fetchFollowedTalent();
+    await refreshTalentHome();
   } catch (error) {
     state.talentMessage = error instanceof Error ? error.message : "Could not update that follow.";
   }
@@ -4804,11 +4869,7 @@ async function addTalentTitle(root: HTMLElement, kind: "movie" | "documentary" |
     await importTmdb(kind, tmdbId);
     state.entries = await fetchCatalog();
     state.talentPerson = await fetchTalentPerson(personId);
-    try {
-      state.talentFollows = await fetchFollowedTalent();
-    } catch {
-      state.talentFollows = [];
-    }
+    await refreshTalentHome();
   } catch (error) {
     state.talentMessage = error instanceof Error ? error.message : "Could not add that title.";
   }

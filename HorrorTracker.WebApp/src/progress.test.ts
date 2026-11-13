@@ -112,7 +112,7 @@ describe("read maps", () => {
 
   it("keeps every watch-next kind and reason and can read the book shelf", () => {
     const kinds = ["movie", "documentary", "show", "book"] as const;
-    const reasons = ["episode", "series", "list", "vault"] as const;
+    const reasons = ["episode", "series", "list", "follow", "tag", "vault"] as const;
     const watchNext = [
       ...kinds.map((kind) => ({ id: `${kind}:1`, title: ` ${kind} `, kind, reason: "vault", detail: "  " })),
       ...reasons.map((reason) => ({ id: `movie:${reason}`, title: reason, kind: "movie", reason, posterPath: "nope" })),

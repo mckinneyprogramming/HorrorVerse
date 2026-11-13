@@ -27,6 +27,20 @@ describe("talent routes", () => {
 
     handle.restore();
     resetTalentSchema();
+    handle = installApi([sessionStep(), { match: "talent_filmography", rows: [] }], {
+      env: { TMDBKey: "key" },
+      external: [
+        { match: "/discover/movie", body: { page: 1, total_pages: 1, results: [] } },
+        { match: "/discover/tv", body: { page: 1, total_pages: 1, results: [] } },
+        { match: "air_date", body: { page: 1, total_pages: 1, results: [] } },
+        { match: "/tv/airing_today", body: { page: 1, total_pages: 1, results: [] } },
+        { match: "/tv/on_the_air", body: { page: 1, total_pages: 1, results: [] } },
+      ],
+    });
+    expect(await readBody(await GET(authed("http://localhost/api/talent?upcoming=1")))).toEqual({ titles: [] });
+
+    handle.restore();
+    resetTalentSchema();
     handle = installApi([{ match: "SELECT tmdbid FROM movie", rows: [{ tmdbid: 15 }] }, sessionStep()], {
       env: { TMDBKey: "key" },
       external: [{ match: "/movie/15/credits", body: { crew: [{ id: 2, name: "Carpenter", job: "Director" }], cast: [] } }],

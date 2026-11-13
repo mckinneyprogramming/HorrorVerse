@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { installApi, sessionStep, type ApiHandle } from "../test-helpers/api";
-import { resetTalentSchema, selectFilmography, selectTitleCredits, followTalent, listFollowedTalent, openTalent, titleCredits, unfollowTalent } from "./talent";
+import { resetTalentSchema, selectFilmography, selectTitleCredits, followTalent, listFollowedTalent, listFollowUpcoming, openTalent, titleCredits, unfollowTalent } from "./talent";
 
 let handle: ApiHandle | undefined;
 
@@ -158,6 +158,35 @@ describe("talent lookups", () => {
     await expect(titleCredits("postgresql://horror:secret@ep-test.neon.tech/HorrorVerse", "series:1")).resolves.toEqual({ directors: [], cast: [] });
     await expect(titleCredits("postgresql://horror:secret@ep-test.neon.tech/HorrorVerse", "series:1")).resolves.toEqual({ directors: [], cast: [] });
     expect(handle.calls.filter((call) => call.query.includes("ALTER TABLE movie"))).toHaveLength(2);
+  });
+
+  it("matches upcoming titles to followed filmography", async () => {
+    handle = installApi(
+      [
+        {
+          match: "talent_filmography",
+          rows: [{ person_id: 5, name: "Carpenter", tmdb_id: 10, media_type: "movie", role: "Director", poster_path: "/c.jpg" }],
+        },
+      ],
+      { env: { TMDBKey: "key" } },
+    );
+    await expect(
+      listFollowUpcoming("postgresql://horror:secret@ep-test.neon.tech/HorrorVerse", 1, {
+        films: [{ kind: "film", tmdbId: 10, title: "New Night", releaseDate: "2099-08-01", posterPath: "/n.jpg" }],
+        shows: [],
+      }),
+    ).resolves.toEqual([
+      {
+        tmdbId: 10,
+        kind: "film",
+        title: "New Night",
+        releaseDate: "2099-08-01",
+        posterPath: "/n.jpg",
+        personId: 5,
+        personName: "Carpenter",
+        role: "Director",
+      },
+    ]);
   });
 
   it("opens a person, matches the vault, and follows them", async () => {

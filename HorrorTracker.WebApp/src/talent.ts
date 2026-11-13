@@ -1,6 +1,8 @@
+import type { FollowUpcomingItem } from "../lib/follow-upcoming";
 import type { TalentCredit, TalentFollow, TalentName, TalentPerson } from "../lib/talent-model";
+import { parsePosterPath } from "./catalog";
 
-export type { TalentCredit, TalentFollow, TalentName, TalentPerson };
+export type { FollowUpcomingItem, TalentCredit, TalentFollow, TalentName, TalentPerson };
 
 export async function fetchTitleTalent(titleId: string): Promise<{ directors: TalentName[]; cast: TalentName[] }> {
   const response = await fetch(`/api/talent?title=${encodeURIComponent(titleId)}`);
@@ -25,6 +27,16 @@ export async function fetchFollowedTalent(): Promise<TalentFollow[]> {
   }
 
   return readFollows(payload.people);
+}
+
+export async function fetchFollowUpcoming(): Promise<FollowUpcomingItem[]> {
+  const response = await fetch("/api/talent?upcoming=1");
+  const payload = (await response.json().catch(() => ({}))) as { titles?: unknown; error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Could not load upcoming titles from people you follow.");
+  }
+
+  return readFollowUpcoming(payload.titles);
 }
 
 export async function followTalent(personId: number): Promise<TalentPerson> {
@@ -69,6 +81,46 @@ function readFollows(value: unknown): TalentFollow[] {
   }
 
   return value.map(readTalentFollow).filter((person): person is TalentFollow => person !== null);
+}
+
+function readFollowUpcoming(value: unknown): FollowUpcomingItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map(readFollowUpcomingItem).filter((item): item is FollowUpcomingItem => item !== null);
+}
+
+function readFollowUpcomingItem(value: unknown): FollowUpcomingItem | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const tmdbId = positiveId(record.tmdbId);
+  const personId = positiveId(record.personId);
+  const title = text(record.title, 200);
+  const personName = text(record.personName, 200);
+  const releaseDate = text(record.releaseDate, 10);
+  const kind = record.kind === "film" || record.kind === "show" || record.kind === "episode" ? record.kind : undefined;
+  if (!tmdbId || !personId || !title || !personName || !releaseDate || !kind || !/^\d{4}-\d{2}-\d{2}$/.test(releaseDate)) {
+    return null;
+  }
+
+  const detail = text(record.detail, 120);
+  const role = text(record.role, 120);
+  const posterPath = parsePosterPath(record.posterPath);
+  return {
+    tmdbId,
+    kind,
+    title,
+    releaseDate,
+    personId,
+    personName,
+    ...(detail ? { detail } : {}),
+    ...(role ? { role } : {}),
+    ...(posterPath ? { posterPath } : {}),
+  };
 }
 
 function readTalentName(value: unknown): TalentName | null {

@@ -87,6 +87,9 @@ async function GET() {
     return Response.json({ error: message }, { status });
   }
 }
+async function loadUpcomingSchedule() {
+  return loadSchedule();
+}
 async function loadSchedule() {
   if (cache && cache.expires > Date.now()) {
     return cache;
@@ -332,6 +335,7 @@ function sortTitles(items) {
 export {
   GET,
   collectIds,
+  loadUpcomingSchedule,
   maxDuration,
   runtime,
   upcomingFailure

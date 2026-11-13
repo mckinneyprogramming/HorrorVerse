@@ -2085,6 +2085,39 @@ code {
   margin: 0 0 28px;
 }
 
+.follow-upcoming-card {
+  width: 120px;
+}
+
+.follow-upcoming-meta {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  text-align: left;
+}
+
+.follow-upcoming-meta strong,
+.follow-upcoming-meta em,
+.follow-upcoming-meta span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.follow-upcoming-meta strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.follow-upcoming-meta em,
+.follow-upcoming-meta span {
+  color: var(--text-secondary);
+  font-style: normal;
+}
+
 .talent-names h2,
 .talent-shelf h2 {
   margin: 0;

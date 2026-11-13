@@ -1,9 +1,10 @@
 import type { TalentCredit, TalentFollow, TalentName, TalentPerson } from "./talent-model";
+import { loadFollowCredits, matchFollowUpcoming, type FollowUpcomingItem, type UpcomingScheduleTitle } from "./follow-upcoming";
 import { execute, HttpError, queryRows } from "./neon";
 import { parsePosterPath } from "./poster";
 import { asId, asPositiveInt, tmdbJsonOptional, yearFrom } from "./tmdb";
 
-export type { TalentCredit, TalentFollow, TalentName, TalentPerson };
+export type { TalentCredit, TalentFollow, TalentName, TalentPerson, FollowUpcomingItem };
 
 const HORROR_GENRE = 27;
 const DOCUMENTARY_GENRE = 99;
@@ -126,6 +127,16 @@ export async function openTalent(connectionString: string, userId: number, perso
   }
 
   return person;
+}
+
+export async function listFollowUpcoming(
+  connectionString: string,
+  userId: number,
+  schedule: { films: readonly UpcomingScheduleTitle[]; shows: readonly UpcomingScheduleTitle[] },
+): Promise<FollowUpcomingItem[]> {
+  await ensureTalentSchema(connectionString);
+  const credits = await loadFollowCredits(connectionString, userId);
+  return matchFollowUpcoming(credits, schedule);
 }
 
 export async function listFollowedTalent(connectionString: string, userId: number): Promise<TalentFollow[]> {
