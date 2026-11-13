@@ -1,5 +1,4 @@
-import type { FollowUpcomingItem } from "../lib/follow-upcoming";
-import type { TalentCredit, TalentFollow, TalentName, TalentPerson } from "../lib/talent-model";
+import type { FollowUpcomingItem, TalentCredit, TalentFollow, TalentName, TalentPerson } from "../lib/talent-model";
 import { parsePosterPath } from "./catalog";
 
 export type { FollowUpcomingItem, TalentCredit, TalentFollow, TalentName, TalentPerson };

@@ -1,10 +1,10 @@
-import type { TalentCredit, TalentFollow, TalentName, TalentPerson } from "./talent-model";
-import { loadFollowCredits, matchFollowUpcoming, type FollowUpcomingItem, type UpcomingScheduleTitle } from "./follow-upcoming";
+import type { FollowUpcomingItem, TalentCredit, TalentFollow, TalentName, TalentPerson } from "./talent-model";
+import { loadFollowCredits, matchFollowUpcoming, type UpcomingScheduleTitle } from "./follow-upcoming";
 import { execute, HttpError, queryRows } from "./neon";
 import { parsePosterPath } from "./poster";
 import { asId, asPositiveInt, tmdbJsonOptional, yearFrom } from "./tmdb";
 
-export type { TalentCredit, TalentFollow, TalentName, TalentPerson, FollowUpcomingItem };
+export type { FollowUpcomingItem, TalentCredit, TalentFollow, TalentName, TalentPerson };
 
 const HORROR_GENRE = 27;
 const DOCUMENTARY_GENRE = 99;

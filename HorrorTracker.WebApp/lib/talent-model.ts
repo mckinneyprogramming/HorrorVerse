@@ -36,3 +36,15 @@ export interface TalentFollow {
   watched: number;
   total: number;
 }
+
+export interface FollowUpcomingItem {
+  tmdbId: number;
+  kind: "film" | "show" | "episode";
+  title: string;
+  releaseDate: string;
+  detail?: string;
+  posterPath?: string;
+  personId: number;
+  personName: string;
+  role?: string;
+}

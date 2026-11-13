@@ -1,6 +1,9 @@
+import type { FollowUpcomingItem } from "./talent-model";
 import { queryRows } from "./neon";
 import { parsePosterPath } from "./poster";
 import { asId, asPositiveInt } from "./tmdb";
+
+export type { FollowUpcomingItem };
 
 export const FOLLOW_UPCOMING_LIMIT = 8;
 
@@ -20,18 +23,6 @@ export interface UpcomingScheduleTitle {
   releaseDate: string;
   detail?: string;
   posterPath?: string;
-}
-
-export interface FollowUpcomingItem {
-  tmdbId: number;
-  kind: "film" | "show" | "episode";
-  title: string;
-  releaseDate: string;
-  detail?: string;
-  posterPath?: string;
-  personId: number;
-  personName: string;
-  role?: string;
 }
 
 export function matchFollowUpcoming(
