@@ -29,6 +29,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
+  overflow-x: clip;
 }
 
 body {
@@ -873,6 +874,33 @@ button.fun-stat:focus-visible {
   padding: 6px;
 }
 
+@media (max-width: 639px) {
+  .catalog > .entry > .entry-watch,
+  .catalog > .entry > .entry-share,
+  .catalog > .entry > .entry-list,
+  .catalog > .entry > .entry-franchise,
+  .catalog > .entry > .entry-edit,
+  .catalog > .entry > .entry-score {
+    display: none;
+  }
+
+  .catalog > .entry > .entry-open {
+    flex: 1 1 calc(100% - 3.5rem);
+  }
+
+  .title-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .title-poster,
+  .talent-portrait,
+  .talent-letter-large {
+    width: 104px;
+    height: 156px;
+  }
+}
+
 .entry.is-done strong {
   text-decoration: line-through;
   color: var(--text-muted);
@@ -933,24 +961,39 @@ button.entry-toggle {
 .title-page {
   display: grid;
   gap: 18px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .title-back {
   justify-self: start;
+  width: auto;
+  min-height: 40px;
+  margin-top: 0;
+  padding: 0 12px;
 }
 
 .title-hero {
   display: flex;
   gap: 16px;
   align-items: flex-start;
+  min-width: 0;
+}
+
+.title-copy {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .title-copy h1 {
-  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-size: clamp(1.55rem, 6vw, 2.6rem);
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 .title-copy p {
   margin: 8px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .title-poster {
@@ -965,13 +1008,64 @@ button.entry-toggle {
 .title-description {
   margin: 0;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.title-keywords {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.title-keyword {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .title-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  align-items: center;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.title-actions .ghost-btn {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 0;
+}
+
+.title-actions .entry-watch,
+.title-actions .entry-share,
+.title-actions .entry-list,
+.title-actions .entry-franchise,
+.title-actions .entry-edit,
+.title-actions .entry-remove {
+  width: 100%;
+  min-height: 40px;
+  justify-self: stretch;
+}
+
+.title-actions .entry-score {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+}
+
+.title-actions .entry-score-mark {
+  width: auto;
+  min-width: 0;
 }
 
 .entry-poster {
@@ -1981,10 +2075,15 @@ code {
 }
 
 .talent-strip {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 76px;
   gap: 12px;
   overflow-x: auto;
+  max-width: 100%;
   padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
 }
 
 .talent-chip,
@@ -2004,6 +2103,33 @@ code {
   flex: 0 0 76px;
   flex-direction: column;
   text-align: center;
+  scroll-snap-align: start;
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .talent-strip {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-columns: unset;
+    overflow-x: visible;
+    scroll-snap-type: none;
+  }
+
+  .talent-chip {
+    flex: 1 1 auto;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .talent-chip strong,
+  .talent-chip em {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .talent-chip img,

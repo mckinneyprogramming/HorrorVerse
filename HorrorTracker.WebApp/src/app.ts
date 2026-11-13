@@ -4443,7 +4443,13 @@ function renderTitlePage(): string {
             ? `<p class="fine-print">No synopsis yet.</p>`
             : ""
       }
-      ${keywords.length > 0 ? `<p class="fine-print">${keywords.map((keyword) => escapeHtml(keyword)).join(" · ")}</p>` : ""}
+      ${
+        keywords.length > 0
+          ? `<p class="title-keywords">${keywords
+              .map((keyword) => `<span class="title-keyword">${escapeHtml(keyword)}</span>`)
+              .join("")}</p>`
+          : ""
+      }
       ${renderTitleTalent(entry)}
       <div class="title-actions">
         ${
