@@ -1511,9 +1511,11 @@ describe("mountApp", () => {
     await clickAction(root, "library-sort", "data-sort", "score");
     expect(firstKindTitle(root, "Movies")).toBe("Scream");
     expect(root.querySelector(".home-favorites")).toBeNull();
+    await inject(root, { "data-action": "set-score", "data-id": "podcast:32", "data-score": "5" });
     await clickAction(root, "view", "data-view", "home");
     expect(root.querySelector(".home-favorites")?.textContent).toContain("Your favorites");
     expect(root.querySelector('.home-favorites [data-id="movie:1"]')?.textContent).toContain("4/5");
+    expect(root.querySelector('.home-favorites [data-id="podcast:32"] .home-recent-fallback')?.textContent).toContain("Quiet Cast");
     await clickAction(root, "view", "data-view", "library");
     await clickAction(root, "library-sort", "data-sort", "newest");
     await clickAction(root, "library-progress", "data-progress", "finished");
@@ -1645,9 +1647,22 @@ describe("mountApp", () => {
       }
     });
 
+    await clickAction(root, "view", "data-view", "library");
+    await clickAction(root, "library-sort", "data-sort", "score");
+    await click(root, '[data-action="view"][data-view="account"]');
+    await clickAction(root, "logout");
+    expect(root.textContent).toContain("Sign in");
+
+    world = createWorld();
+    const scored = await boot("/library");
+    await clickAction(scored.root, "library-sort", "data-sort", "score");
     world.user = null;
-    const guest = await boot("/library");
+    const guest = await boot("/library", false);
     expect(guest.root.querySelector('[data-progress="finished"]')).toBeNull();
+    expect(guest.root.querySelector('[data-sort="score"]')).toBeNull();
+    expect(guest.root.querySelector('[data-sort="title"]')?.classList.contains("is-active")).toBe(true);
+    await inject(guest.root, { "data-action": "library-sort", "data-sort": "score" });
+    expect(guest.root.querySelector('[data-sort="title"]')?.classList.contains("is-active")).toBe(true);
     await clickAction(guest.root, "library-sort", "data-sort", "newest");
     await inject(guest.root, { "data-action": "library-progress", "data-progress": "waiting" });
     expect(guest.root.querySelector('[data-sort="newest"]')?.classList.contains("is-active")).toBe(true);

@@ -182,6 +182,26 @@ describe("talent lookups", () => {
     expect(person.credits.find((credit) => credit.tmdbId === 15)).toMatchObject({ vaultId: "movie:4", finished: true });
     expect(person.credits.find((credit) => credit.tmdbId === 20)?.vaultId).toBeUndefined();
 
+    handle.restore();
+    resetTalentSchema();
+    handle = installApi(
+      [
+        {
+          match: "UNION ALL",
+          rows: [
+            { kind: "movie", id: 9, tmdbid: 15 },
+            { kind: "movie", id: 4, tmdbid: 15 },
+          ],
+        },
+        { match: "user_media_progress", rows: [] },
+        { match: "SELECT 1 FROM user_talent_follow", rows: [] },
+      ],
+      { env: { TMDBKey: "key" }, external: [{ match: "/person/500", body: jamie }] },
+    );
+    const unmatched = await openTalent("postgresql://horror:secret@ep-test.neon.tech/HorrorVerse", 1, 500);
+    expect(unmatched.credits.find((credit) => credit.tmdbId === 15)).toMatchObject({ vaultId: "movie:9", finished: false });
+    expect(unmatched.watched).toBe(0);
+
     const followed = await followTalent("postgresql://horror:secret@ep-test.neon.tech/HorrorVerse", 1, 500);
     expect(followed.following).toBe(true);
     expect(handle.calls.some((call) => call.query.includes("INSERT INTO user_talent_follow"))).toBe(true);
