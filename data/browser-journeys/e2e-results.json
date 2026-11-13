@@ -18,24 +18,24 @@
     "maxFailures": 0,
     "metadata": {
       "ci": {
-        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-        "commitHash": "8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43358013540"
+        "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+        "commitHash": "c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+        "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43359996329"
       },
       "gitCommit": {
-        "shortHash": "8b352df",
-        "hash": "8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-        "subject": "Keep follow-upcoming types out of the client so Vercel typecheck can pass.",
-        "body": "Keep follow-upcoming types out of the client so Vercel typecheck can pass.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+        "shortHash": "c8b5f8d",
+        "hash": "c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+        "subject": "Cover follow and tag watch-next paths so coverage can return to 100%.",
+        "body": "Cover follow and tag watch-next paths so coverage can return to 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
         "author": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794539871000
+          "time": 1794540930000
         },
         "committer": {
           "name": "James McKinney",
           "email": "mckinneyjames1995@gmail.com",
-          "time": 1794539871000
+          "time": 1794540930000
         },
         "branch": "master"
       },
@@ -49,24 +49,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-            "commitHash": "8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43358013540"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+            "commitHash": "c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43359996329"
           },
           "gitCommit": {
-            "shortHash": "8b352df",
-            "hash": "8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-            "subject": "Keep follow-upcoming types out of the client so Vercel typecheck can pass.",
-            "body": "Keep follow-upcoming types out of the client so Vercel typecheck can pass.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "c8b5f8d",
+            "hash": "c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+            "subject": "Cover follow and tag watch-next paths so coverage can return to 100%.",
+            "body": "Cover follow and tag watch-next paths so coverage can return to 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794539871000
+              "time": 1794540930000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794539871000
+              "time": 1794540930000
             },
             "branch": "master"
           },
@@ -91,24 +91,24 @@
         "retries": 1,
         "metadata": {
           "ci": {
-            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-            "commitHash": "8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43358013540"
+            "commitHref": "https://github.com/mckinneyprogramming/HorrorVerse/commit/c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+            "commitHash": "c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+            "buildHref": "https://github.com/mckinneyprogramming/HorrorVerse/actions/runs/43359996329"
           },
           "gitCommit": {
-            "shortHash": "8b352df",
-            "hash": "8b352df0496f20f5cfea5fe1fed76aafe84817a5",
-            "subject": "Keep follow-upcoming types out of the client so Vercel typecheck can pass.",
-            "body": "Keep follow-upcoming types out of the client so Vercel typecheck can pass.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
+            "shortHash": "c8b5f8d",
+            "hash": "c8b5f8d9399c540d1be06f23b2305bfb21245b2a",
+            "subject": "Cover follow and tag watch-next paths so coverage can return to 100%.",
+            "body": "Cover follow and tag watch-next paths so coverage can return to 100%.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>\n",
             "author": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794539871000
+              "time": 1794540930000
             },
             "committer": {
               "name": "James McKinney",
               "email": "mckinneyjames1995@gmail.com",
-              "time": 1794539871000
+              "time": 1794540930000
             },
             "branch": "master"
           },
@@ -201,12 +201,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 455,
+                  "duration": 356,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T03:18:28.775Z",
+                  "startTime": "2026-11-13T03:36:30.251Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -235,12 +235,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 477,
+                  "duration": 411,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T03:18:29.430Z",
+                  "startTime": "2026-11-13T03:36:33.992Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -269,12 +269,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 610,
+                  "duration": 489,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T03:18:29.916Z",
+                  "startTime": "2026-11-13T03:36:34.418Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -303,12 +303,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 381,
+                  "duration": 294,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T03:18:30.541Z",
+                  "startTime": "2026-11-13T03:36:34.914Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -337,12 +337,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 276,
+                  "duration": 174,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-13T03:18:30.929Z",
+                  "startTime": "2026-11-13T03:36:35.215Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -360,8 +360,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-13T03:18:28.057Z",
-    "duration": 3213.178,
+    "startTime": "2026-11-13T03:36:29.494Z",
+    "duration": 5941.983,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,
