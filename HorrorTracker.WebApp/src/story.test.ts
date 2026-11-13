@@ -11,6 +11,7 @@ import {
   storyFilename,
   storyTag,
   titleKicker,
+  scoreLabel,
   titleStoryCopy,
   watchedByline,
 } from "./story";
@@ -73,6 +74,13 @@ describe("titleStoryCopy", () => {
     expect(titleStoryCopy({ title: "Ratched", kind: "show", displayName: "Riley", watchedIn: 2020 }).byline).toBe(
       "Watched in 2020 by Riley",
     );
+  });
+
+  it("keeps a scored title mark for the story card", () => {
+    expect(titleStoryCopy({ title: "Scream", kind: "movie", displayName: "Riley", score: 5 }).score).toBe("5 of 5");
+    expect(titleStoryCopy({ title: "Scream", kind: "movie", displayName: "Riley", score: 0 }).score).toBeUndefined();
+    expect(scoreLabel(4)).toBe("4 of 5");
+    expect(scoreLabel(9)).toBeUndefined();
   });
 });
 
@@ -285,6 +293,7 @@ describe("story cards", () => {
       totalTime: 111,
       keywords: ["slasher"],
       watchedIn: 1996,
+      score: 5,
       avatar: "https://avatar.example/riley.png",
       posterPath: "/scream.jpg",
     });

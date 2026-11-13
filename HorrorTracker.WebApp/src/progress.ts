@@ -210,6 +210,27 @@ function readIds(payload: unknown, key: "ids" | "recentIds" | "undatedIds"): str
   return value.filter((id): id is string => typeof id === "string");
 }
 
+export function favoriteEntries<T extends { id: string; title: string; kind: string }>(
+  entries: readonly T[],
+  scores: Readonly<Record<string, number>>,
+  limit = 8,
+): (T & { score: number })[] {
+  return entries
+    .map((entry) => {
+      const score = scores[entry.id];
+      return score && score >= 4 && entry.kind !== "series" ? { ...entry, score } : null;
+    })
+    .filter((entry): entry is T & { score: number } => entry !== null)
+    .sort((left, right) => {
+      if (left.score !== right.score) {
+        return right.score - left.score;
+      }
+
+      return left.title.localeCompare(right.title, undefined, { sensitivity: "base", numeric: true });
+    })
+    .slice(0, Math.max(0, limit));
+}
+
 function emptyProgress(): UserProgress {
   return { ids: [], recentIds: [], undatedIds: [], watchedYears: {}, scores: {}, recentPosters: {}, watchNext: [], readNext: [] };
 }

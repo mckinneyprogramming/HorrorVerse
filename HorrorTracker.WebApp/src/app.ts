@@ -20,7 +20,7 @@ import {
   updateProfile,
   type AuthUser,
 } from "./auth";
-import { fetchProgress, setProgress, setScore, type UserProgress, type WatchNextItem } from "./progress";
+import { favoriteEntries, fetchProgress, setProgress, setScore, type UserProgress, type WatchNextItem } from "./progress";
 import { shareStoryImage } from "./share";
 import {
   finishedTitleCount,
@@ -89,7 +89,7 @@ import { canPromptInstall, canPromptUpdate, applyPendingUpdate, dismissPendingUp
 type View = "home" | "library" | "upcoming" | "lists" | "account" | "profile" | "install" | "stats" | "title" | "talent";
 type UpcomingPane = "films" | "shows";
 type LibraryFilter = MediaKind | "all";
-type LibrarySort = "title" | "oldest" | "newest";
+type LibrarySort = "title" | "oldest" | "newest" | "score";
 type LibraryProgress = "all" | "waiting" | "finished";
 type LoadStatus = "loading" | "ready" | "error";
 type AuthMode = "login" | "register";
@@ -442,7 +442,11 @@ export function mountApp(root: HTMLElement): void {
 
     if (action === "library-sort") {
       const sort = target.dataset.sort;
-      if (sort !== "title" && sort !== "oldest" && sort !== "newest") {
+      if (sort !== "title" && sort !== "oldest" && sort !== "newest" && sort !== "score") {
+        return;
+      }
+
+      if (sort === "score" && !state.user) {
         return;
       }
 
@@ -800,6 +804,9 @@ export function mountApp(root: HTMLElement): void {
       state.watchNext = [];
       state.readNext = [];
       state.recentKind = "all";
+      if (state.librarySort === "score") {
+        state.librarySort = "title";
+      }
       state.whenPicker = null;
       state.whenEpisode = null;
       state.shareMessage = "";
@@ -1774,6 +1781,9 @@ async function refreshUserLibrary(root: HTMLElement): Promise<void> {
     state.watchNext = [];
     state.readNext = [];
     state.recentKind = "all";
+    if (state.librarySort === "score") {
+      state.librarySort = "title";
+    }
     state.whenPicker = null;
     state.whenEpisode = null;
     state.lists = [];
@@ -2193,6 +2203,7 @@ function renderHome(): string {
     </section>
     ${renderWatchNext()}
     ${renderReadNext()}
+    ${renderFavorites()}
     ${renderTalentShelf()}
     ${renderHomeRecents()}
     ${renderAchievements()}
@@ -2314,6 +2325,41 @@ function watchNextReasonLabel(reason: WatchNextItem["reason"]): string {
   }
 
   return "Suggested";
+}
+
+function renderFavorites(): string {
+  if (!state.user) {
+    return "";
+  }
+
+  const favorites = favoriteEntries(state.entries, state.scores);
+  if (favorites.length < 1) {
+    return "";
+  }
+
+  return `
+    <section class="home-recents home-favorites" aria-label="Your favorites">
+      <h2>Your favorites</h2>
+      <p>Titles you scored 4 or 5.</p>
+      <div class="home-recents-strip">
+        ${favorites
+          .map((entry) => {
+            const art = homeArt(entry, state.recentPosters[entry.id]);
+            return `
+              <button class="home-recent" type="button" data-action="open-title" data-id="${escapeHtml(entry.id)}" aria-label="${escapeHtml(entry.title)}, scored ${entry.score} of 5">
+                ${
+                  art
+                    ? `<img src="${escapeHtml(art)}" alt="" width="92" height="138" decoding="async" referrerpolicy="no-referrer" />`
+                    : `<span class="home-recent-fallback">${escapeHtml(entry.title)}</span>`
+                }
+                <span class="home-favorite-score">${entry.score}/5</span>
+              </button>
+            `;
+          })
+          .join("")}
+      </div>
+    </section>
+  `;
 }
 
 function renderHomeRecents(): string {
@@ -3248,7 +3294,23 @@ function sortCatalog(entries: CatalogEntry[]): CatalogEntry[] {
     });
   }
 
+  if (state.librarySort === "score") {
+    return sortByScore(entries);
+  }
+
   return sortByTitle(entries);
+}
+
+function sortByScore(entries: CatalogEntry[]): CatalogEntry[] {
+  return [...entries].sort((left, right) => {
+    const leftScore = state.scores[left.id] ?? 0;
+    const rightScore = state.scores[right.id] ?? 0;
+    if (leftScore !== rightScore) {
+      return rightScore - leftScore;
+    }
+
+    return left.title.localeCompare(right.title, undefined, { sensitivity: "base", numeric: true });
+  });
 }
 
 function sortByTitle(entries: CatalogEntry[]): CatalogEntry[] {
@@ -3678,6 +3740,7 @@ function renderLibraryArrange(): string {
     { id: "title", label: "A–Z" },
     { id: "oldest", label: "Oldest" },
     { id: "newest", label: "Newest" },
+    ...(state.user ? [{ id: "score" as const, label: "Score" }] : []),
   ];
   const progress: { id: LibraryProgress; label: string }[] = [
     { id: "all", label: "All" },
@@ -4870,6 +4933,7 @@ async function shareFinishedTitle(root: HTMLElement, entry: CatalogEntry): Promi
       totalTime: entry.totalTime,
       keywords: entry.keywords,
       ...(state.watchedYears[entry.id] ? { watchedIn: state.watchedYears[entry.id] } : {}),
+      ...(state.scores[entry.id] ? { score: state.scores[entry.id] } : {}),
       avatar: state.user!.avatar,
       posterPath: entry.posterPath ?? state.recentPosters[entry.id],
     });

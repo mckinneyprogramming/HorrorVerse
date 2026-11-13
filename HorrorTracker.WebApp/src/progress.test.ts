@@ -1,5 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchProgress, fetchProgressIds, readRecentPosters, readScores, readWatchNext, readWatchedYears, setProgress, setScore } from "./progress";
+import {
+  favoriteEntries,
+  fetchProgress,
+  fetchProgressIds,
+  readRecentPosters,
+  readScores,
+  readWatchNext,
+  readWatchedYears,
+  setProgress,
+  setScore,
+} from "./progress";
 
 describe("readWatchedYears", () => {
   it("keeps integer years keyed by catalog id", () => {
@@ -40,6 +50,28 @@ describe("readScores", () => {
       "movie:1": 4,
     });
     expect(readScores({})).toEqual({});
+  });
+});
+
+describe("favoriteEntries", () => {
+  it("keeps high scores, skips series, and sorts the best first", () => {
+    expect(
+      favoriteEntries(
+        [
+          { id: "movie:1", title: "Scream", kind: "movie" },
+          { id: "movie:2", title: "Alien", kind: "movie" },
+          { id: "series:3", title: "Saga", kind: "series" },
+          { id: "book:4", title: "It", kind: "book" },
+          { id: "show:5", title: "Zone", kind: "show" },
+        ],
+        { "movie:1": 4, "movie:2": 5, "series:3": 5, "book:4": 3, "show:5": 5 },
+        2,
+      ),
+    ).toEqual([
+      { id: "movie:2", title: "Alien", kind: "movie", score: 5 },
+      { id: "show:5", title: "Zone", kind: "show", score: 5 },
+    ]);
+    expect(favoriteEntries([{ id: "movie:1", title: "Scream", kind: "movie" }], {}, 8)).toEqual([]);
   });
 });
 

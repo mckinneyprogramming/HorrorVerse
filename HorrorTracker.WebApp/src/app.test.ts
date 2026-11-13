@@ -983,6 +983,7 @@ describe("mountApp", () => {
     const story = await storyMod();
     vi.mocked(share.shareStoryImage).mockResolvedValueOnce("saved");
     await clickAction(root, "share-title", "data-id", "movie:1");
+    expect(vi.mocked(story.renderTitleStoryCard).mock.calls.at(-1)?.[0]).toMatchObject({ title: "Scream", score: 4 });
     vi.mocked(share.shareStoryImage).mockResolvedValueOnce("shared");
     await clickAction(root, "share-title", "data-id", "podcast:32");
     vi.mocked(story.renderTitleStoryCard).mockRejectedValueOnce(new Error("draw failed"));
@@ -1507,6 +1508,14 @@ describe("mountApp", () => {
     expect(firstKindTitle(root, "Movies")).toBe("Beta One");
     await clickAction(root, "library-sort", "data-sort", "newest");
     expect(firstKindTitle(root, "Movies")).toBe("Orphan");
+    await clickAction(root, "library-sort", "data-sort", "score");
+    expect(firstKindTitle(root, "Movies")).toBe("Scream");
+    expect(root.querySelector(".home-favorites")).toBeNull();
+    await clickAction(root, "view", "data-view", "home");
+    expect(root.querySelector(".home-favorites")?.textContent).toContain("Your favorites");
+    expect(root.querySelector('.home-favorites [data-id="movie:1"]')?.textContent).toContain("4/5");
+    await clickAction(root, "view", "data-view", "library");
+    await clickAction(root, "library-sort", "data-sort", "newest");
     await clickAction(root, "library-progress", "data-progress", "finished");
     expect(kindText(root, "Movies")).toContain("Scream");
     expect(kindText(root, "Movies")).not.toContain("Orphan");

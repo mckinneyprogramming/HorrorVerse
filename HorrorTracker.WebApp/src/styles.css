@@ -236,6 +236,7 @@ h1 {
 }
 
 .home-recent {
+  position: relative;
   flex: 0 0 auto;
   width: 92px;
   padding: 0;
@@ -261,6 +262,25 @@ h1 {
   font-size: 0.72rem;
   text-align: left;
   overflow: hidden;
+}
+
+.home-favorites > p {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.home-favorite-score {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.86);
+  border: 1px solid var(--blood-bright);
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.2;
 }
 
 .achievements {

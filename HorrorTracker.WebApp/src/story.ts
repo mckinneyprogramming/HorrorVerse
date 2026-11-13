@@ -15,6 +15,7 @@ export interface TitleStoryCopy {
   meta: string;
   series?: string;
   tag?: string;
+  score?: string;
   byline: string;
 }
 
@@ -56,6 +57,14 @@ export function watchedByline(displayName: string, watchedIn?: number): string {
   return watchedIn ? `Watched in ${watchedIn} by ${name}` : `Watched by ${name}`;
 }
 
+export function scoreLabel(score: number | undefined): string | undefined {
+  if (typeof score !== "number" || !Number.isInteger(score) || score < 1 || score > 5) {
+    return undefined;
+  }
+
+  return `${score} of 5`;
+}
+
 export function titleStoryCopy(input: {
   title: string;
   year?: number;
@@ -65,6 +74,7 @@ export function titleStoryCopy(input: {
   totalTime?: number;
   keywords?: string[];
   watchedIn?: number;
+  score?: number;
 }): TitleStoryCopy {
   const title = input.title.trim() || "Untitled";
   const runtime = formatRuntime(input.totalTime);
@@ -77,12 +87,14 @@ export function titleStoryCopy(input: {
     .join(" · ");
   const series = input.kind === "series" ? undefined : input.seriesTitle?.trim();
   const tag = storyTag(input.keywords);
+  const score = scoreLabel(input.score);
   return {
     kicker: titleKicker(title),
     title,
     meta,
     ...(series ? { series } : {}),
     ...(tag ? { tag } : {}),
+    ...(score ? { score } : {}),
     byline: watchedByline(input.displayName, input.watchedIn),
   };
 }
@@ -183,6 +195,7 @@ export async function renderTitleStoryCard(input: {
   totalTime?: number;
   keywords?: string[];
   watchedIn?: number;
+  score?: number;
   avatar?: string;
   posterPath?: string;
 }): Promise<Blob> {
@@ -293,6 +306,13 @@ function paintTitleStory(
     ctx.font = '400 28px "Source Sans 3", "Segoe UI", sans-serif';
     ctx.fillText(copy.series, MARGIN, y);
     y += 48;
+  }
+
+  if (copy.score) {
+    ctx.fillStyle = "#dc143c";
+    ctx.font = '600 30px "Source Sans 3", "Segoe UI", sans-serif';
+    ctx.fillText(`Scored ${copy.score}`, MARGIN, y);
+    y += 52;
   }
 
   if (copy.tag) {
